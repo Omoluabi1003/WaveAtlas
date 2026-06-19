@@ -4,9 +4,13 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import maplibregl, { type Map, type Marker } from "maplibre-gl";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Check,
   Compass,
+  Copy,
+  Gauge,
   Globe2,
   Heart,
+  Languages,
   MapPin,
   Pause,
   Play,
@@ -16,6 +20,7 @@ import {
   Search,
   Share2,
   Signal,
+  Trophy,
   SkipForward,
   Sparkles,
   Volume2,
@@ -136,6 +141,210 @@ function resolveStationGeo(station: Station): GeoPoint {
 
 function getStationStreamUrl(station?: Station) {
   return station?.url?.trim() ?? "";
+}
+
+const neighboringCountries: Record<string, string[]> = {
+  NG: ["Ghana", "Benin", "Cameroon", "Niger", "Togo"],
+  GH: ["Nigeria", "Togo", "Côte d’Ivoire", "Benin", "Cameroon"],
+  AE: ["Saudi Arabia", "Qatar", "Oman", "Bahrain", "Kuwait"],
+  FR: ["United Kingdom", "Germany", "Spain", "Italy", "Belgium"],
+  GB: ["Ireland", "France", "Netherlands", "Belgium", "Germany"],
+  US: ["Canada", "Mexico", "Bahamas", "Cuba", "Dominican Republic"],
+  BR: ["Argentina", "Uruguay", "Paraguay", "Bolivia", "Peru"],
+  ZA: ["Namibia", "Botswana", "Zimbabwe", "Mozambique", "Lesotho"],
+  JP: ["South Korea", "Taiwan", "China", "Philippines", "Russia"],
+};
+
+function getPrimaryGenre(station: Station) {
+  return station.tags.find(Boolean) || "Mixed Radio";
+}
+
+function getStreamHealth(station: Station) {
+  if (!station.is_active || station.failure_count > 2 || station.health_score < 35)
+    return { label: "Offline", tone: "text-red-200", dot: "bg-red-400" };
+  if (station.health_score >= 85)
+    return { label: "Excellent", tone: "text-emerald-200", dot: "bg-radio" };
+  if (station.health_score >= 65)
+    return { label: "Good", tone: "text-sky-200", dot: "bg-sky" };
+  if (station.health_score > 0)
+    return { label: "Weak", tone: "text-amber-200", dot: "bg-gold" };
+  return { label: "Unknown", tone: "text-slate-200", dot: "bg-slate-400" };
+}
+
+function getTrendingRank(station: Station, stations: Station[]) {
+  const ranked = [...stations].sort(
+    (a, b) => b.click_count + b.votes * 2 - (a.click_count + a.votes * 2),
+  );
+  const rank = ranked.findIndex((s) => s.id === station.id);
+  return rank >= 0 && rank < 100 ? `#${rank + 1} trending` : "Not ranked";
+}
+
+function StationMetricCard({
+  icon,
+  label,
+  value,
+  detail,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  detail?: string;
+  onClick?: () => void;
+}) {
+  const Component = onClick ? "button" : "div";
+  return (
+    <Component
+      onClick={onClick}
+      className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-gold/40 hover:bg-white/[0.07]"
+    >
+      <div className="flex items-center gap-2 text-gold">{icon}</div>
+      <p className="mt-3 text-[10px] uppercase tracking-[0.25em] text-slate-400">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-semibold text-slate-100">{value}</p>
+      {detail ? <p className="mt-1 text-xs text-ivory/50">{detail}</p> : null}
+    </Component>
+  );
+}
+
+function StreamHealthBadge({ station }: { station: Station }) {
+  const health = getStreamHealth(station);
+  return (
+    <span className={`inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold ${health.tone}`}>
+      <span className={`size-2 rounded-full ${health.dot}`} />
+      {health.label}
+    </span>
+  );
+}
+
+function readFavoriteStationIds() {
+  const raw = window.localStorage.getItem("waveatlas:favorites");
+  if (!raw) return [] as string[];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function SaveStationButton({ station }: { station: Station }) {
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    window.queueMicrotask(() => {
+      setSaved(readFavoriteStationIds().includes(station.station_uuid || station.id));
+    });
+  }, [station.id, station.station_uuid]);
+  const toggleSave = () => {
+    const key = station.station_uuid || station.id;
+    const favorites = readFavoriteStationIds();
+    const next = favorites.includes(key)
+      ? favorites.filter((id) => id !== key)
+      : [...favorites, key];
+    window.localStorage.setItem("waveatlas:favorites", JSON.stringify(next));
+    setSaved(next.includes(key));
+  };
+  return (
+    <button onClick={toggleSave} className="rounded-full border border-white/10 px-4 py-2 text-sm transition hover:bg-white/[0.08]">
+      <Heart className={`mr-2 inline size-4 ${saved ? "fill-radio text-radio" : ""}`} />
+      {saved ? "Saved" : "Save station"}
+    </button>
+  );
+}
+
+function ShareStationButton({ station }: { station: Station }) {
+  const [copied, setCopied] = useState(false);
+  const share = async () => {
+    const url = `${window.location.origin}?station=${encodeURIComponent(station.station_uuid || station.id)}`;
+    const text = `Listen to ${station.name} on WaveAtlas`;
+    if (navigator.share) await navigator.share({ title: station.name, text, url });
+    else await navigator.clipboard.writeText(url);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+  return (
+    <button onClick={share} className="rounded-full border border-white/10 px-4 py-2 text-sm transition hover:bg-white/[0.08]">
+      {copied ? <Check className="mr-2 inline size-4 text-radio" /> : typeof navigator !== "undefined" && "share" in navigator ? <Share2 className="mr-2 inline size-4" /> : <Copy className="mr-2 inline size-4" />}
+      {copied ? "Link copied" : "Share station"}
+    </button>
+  );
+}
+
+function MiniCountryMapCard({ station }: { station: Station }) {
+  const geo = useMemo(() => resolveStationGeo(station), [station]);
+  return (
+    <button
+      onClick={() => document.getElementById("atlas-map")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+      className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-0 text-left transition hover:border-sky/50 hover:bg-white/[0.07] sm:col-span-2"
+    >
+      <div className="relative h-28 bg-[radial-gradient(circle_at_50%_50%,rgba(56,189,248,.25),transparent_18%),radial-gradient(circle_at_30%_45%,rgba(214,168,79,.2),transparent_20%),linear-gradient(135deg,rgba(15,23,42,.95),rgba(8,47,73,.55))]">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.05)_1px,transparent_1px)] bg-[size:22px_22px]" />
+        <span className="absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-radio shadow-[0_0_0_10px_rgba(88,225,132,.16),0_0_30px_rgba(88,225,132,.8)]" />
+      </div>
+      <div className="p-4">
+        <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400">Country map</p>
+        <p className="mt-2 text-sm font-semibold text-slate-100">{station.country}</p>
+        <p className="mt-1 text-xs text-ivory/50">Fly to {geo.lat.toFixed(2)}, {geo.lng.toFixed(2)}</p>
+      </div>
+    </button>
+  );
+}
+
+function SimilarStationsList({ station, stations }: { station: Station; stations: Station[] }) {
+  const similar = stations.filter((s) => s.id !== station.id && (s.country_code === station.country_code || s.language === station.language || s.tags.some((tag) => station.tags.includes(tag)))).slice(0, 5);
+  return <ListCard title="Similar nearby" items={similar.map((s) => ({ key: s.id, label: s.name, meta: `${s.country} · ${getPrimaryGenre(s)}`, action: () => usePlayer.getState().setStation(s) }))} />;
+}
+
+function NearbyCountriesList({ station, setQuery }: { station: Station; setQuery: (q: string) => void }) {
+  const countries = (neighboringCountries[station.country_code] || Object.keys(countryFallbacks).map((code) => code)).slice(0, 5);
+  return <ListCard title="Nearby countries" items={countries.map((country) => ({ key: country, label: country, meta: "Open active stations", action: () => setQuery(country) }))} />;
+}
+
+function ListCard({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400">{title}</p>
+      <div className="mt-3 space-y-2">
+        {items.length ? items.map((item) => (
+          <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 text-left transition hover:border-gold/40 hover:bg-white/[0.07]">
+            <span><b className="block truncate text-sm text-ivory">{item.label}</b><span className="text-xs text-ivory/50">{item.meta}</span></span>
+            <MapPin className="size-4 shrink-0 text-gold" />
+          </button>
+        )) : <p className="text-sm text-ivory/50">No live matches yet.</p>}
+      </div>
+    </div>
+  );
+}
+
+function StationIntelligencePanel({ station, stations, setQuery }: { station: Station; stations: Station[]; setQuery: (q: string) => void }) {
+  const genre = getPrimaryGenre(station);
+  return (
+    <section className="mt-6 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-[.3em] text-gold">Station Intelligence</p>
+          <p className="mt-1 text-sm text-ivory/55">Live context for this signal</p>
+        </div>
+        <StreamHealthBadge station={station} />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <MiniCountryMapCard station={station} />
+        <StationMetricCard icon={<Languages className="size-4" />} label="Language" value={station.language || "Unknown"} detail="Filter Discover" onClick={() => setQuery(station.language || "")} />
+        <StationMetricCard icon={<Radio className="size-4" />} label="Genre" value={genre} detail="Find similar formats" onClick={() => setQuery(genre)} />
+        <StationMetricCard icon={<Gauge className="size-4" />} label="Bitrate" value={station.bitrate ? `${station.bitrate} kbps` : "Unknown kbps"} detail={`${station.codec || "Unknown codec"} stream`} />
+        <StationMetricCard icon={<Trophy className="size-4" />} label="Trending rank" value={getTrendingRank(station, stations)} detail={`${station.click_count.toLocaleString()} plays · ${station.votes.toLocaleString()} votes`} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <SaveStationButton station={station} />
+        <ShareStationButton station={station} />
+      </div>
+      <SimilarStationsList station={station} stations={stations} />
+      <NearbyCountriesList station={station} setQuery={setQuery} />
+    </section>
+  );
 }
 
 function AudioEngine() {
@@ -490,7 +699,15 @@ function RadioDial({ stations }: { stations: Station[] }) {
     </section>
   );
 }
-function NowPlaying({ station }: { station: Station }) {
+function NowPlaying({
+  station,
+  stations,
+  setQuery,
+}: {
+  station: Station;
+  stations: Station[];
+  setQuery: (q: string) => void;
+}) {
   const {
     current,
     playing,
@@ -561,6 +778,7 @@ function NowPlaying({ station }: { station: Station }) {
           {error}
         </p>
       ) : null}
+      <StationIntelligencePanel station={station} stations={stations} setQuery={setQuery} />
     </aside>
   );
 }
@@ -605,10 +823,10 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.3fr_.7fr]">
         <RadioDial stations={stations} />
-        <NowPlaying station={current} />
+        <NowPlaying station={current} stations={stations} setQuery={setQuery} />
       </div>
       <section className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div id="atlas-map" className="scroll-mt-6 lg:col-span-2">
           <WaveAtlasMap station={current} />
         </div>
         <div className="glass rounded-[2rem] p-6">
