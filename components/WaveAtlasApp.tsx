@@ -30,6 +30,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import type { Station } from "@/lib/stations";
 
+type CountryResult = {
+  name: string;
+  code: string;
+  flag: string;
+  centroid: { lat: number; lng: number };
+  station_count: number;
+};
+
 type GeoPoint = {
   lat: number;
   lng: number;
@@ -584,6 +592,7 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
       window.removeEventListener("orientationchange", resize);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", resize);
+      mk.remove();
       m.remove();
     };
   }, []);
@@ -603,7 +612,6 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_28%,rgba(7,17,31,.35)_64%,rgba(7,17,31,.72))]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
         <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
-        <div className="pointer-events-none absolute left-1/2 top-[45%] z-20 -translate-x-1/2 -translate-y-1/2"><StationPulseMarker geo={geo} status={status} /></div>
         <div className="pointer-events-none absolute left-4 top-36 z-10 rounded-full border border-radio/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.22em] text-radio backdrop-blur-xl">
           <Signal className="mr-1 inline size-3" /> Live beacon · {geo.label}
         </div>
@@ -627,9 +635,6 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
           <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-white/15 bg-slate-950/80 px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[.35em] text-emerald-300 shadow-lg backdrop-blur">
             <Signal className="mr-2 inline size-4" />
             Live GIS beacon
-          </div>
-          <div className="sr-only">
-            <StationPulseMarker geo={geo} status={status} />
           </div>
         </div>
         <div className="relative w-full rounded-[1.5rem] border border-slate-700/60 bg-slate-950/90 p-5 shadow-glow backdrop-blur md:p-6">
@@ -825,8 +830,48 @@ function MobileBrandBar({ logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }
   );
 }
 
-function MobileSearchPill({ query, setQuery }: { query: string; setQuery: (q: string) => void }) {
-  return <label className="fixed left-4 right-4 top-[76px] z-40 flex min-h-12 items-center gap-3 rounded-full border border-white/10 bg-slate-950/65 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 text-sky" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, genre, language" className="w-full bg-transparent text-sm outline-none placeholder:text-ivory/45" /></label>;
+function CountryAutocomplete({
+  query,
+  onSelect,
+  compact = false,
+}: {
+  query: string;
+  onSelect: (country: CountryResult) => void;
+  compact?: boolean;
+}) {
+  const [countries, setCountries] = useState<CountryResult[]>([]);
+  useEffect(() => {
+    if (query.trim().length < 2) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      const res = await fetch(`/api/countries/search?q=${encodeURIComponent(query)}`, {
+        signal: controller.signal,
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { countries: CountryResult[] };
+        setCountries(data.countries);
+      }
+    }, 180);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+  if (query.trim().length < 2 || !countries.length) return null;
+  return (
+    <div className={`${compact ? "fixed left-4 right-4 top-[132px] z-40" : "mt-3"} overflow-hidden rounded-3xl border border-white/10 bg-slate-950/90 shadow-2xl backdrop-blur-xl`}>
+      {countries.slice(0, 6).map((country) => (
+        <button key={country.code} onClick={() => onSelect(country)} className="flex w-full items-center justify-between gap-3 border-b border-white/5 px-4 py-3 text-left last:border-b-0 hover:bg-white/10">
+          <span className="flex items-center gap-3"><span className="text-xl">{country.flag}</span><span><b className="block text-sm">{country.name}</b><span className="text-xs text-ivory/50">{country.code} · {country.station_count.toLocaleString()} stations</span></span></span>
+          <MapPin className="size-4 text-gold" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MobileSearchPill({ query, setQuery, onCountrySelect }: { query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void }) {
+  return <><label className="fixed left-4 right-4 top-[76px] z-40 flex min-h-12 items-center gap-3 rounded-full border border-white/10 bg-slate-950/65 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 text-sky" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, genre, language" className="w-full bg-transparent text-sm outline-none placeholder:text-ivory/45" /></label><CountryAutocomplete query={query} onSelect={onCountrySelect} compact /></>;
 }
 
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
@@ -856,13 +901,13 @@ function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: strin
   return <nav className="fixed bottom-0 left-0 right-0 z-[60] border-t border-white/10 bg-slate-950/85 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur-xl"><div className="grid grid-cols-4 gap-2 rounded-full border border-white/10 bg-white/5 p-1">{[[Compass,"Atlas"],[Radio,"Dial"],[Search,"Discover"],[Heart,"Library"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, current, query, setQuery, logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; logoLoaded: boolean; logoFailed: boolean; setLogoLoaded: (v: boolean) => void; setLogoFailed: (v: boolean) => void }) {
+function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; logoLoaded: boolean; logoFailed: boolean; setLogoLoaded: (v: boolean) => void; setLogoFailed: (v: boolean) => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
     <WaveAtlasMap station={current} mobile />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
-    <MobileSearchPill query={query} setQuery={setQuery} />
+    <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} />
     <MobileMapControls setQuery={setQuery} />
     <FloatingScanButton stations={stations} current={current} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
@@ -872,15 +917,44 @@ function MobileAtlasShell({ stations, current, query, setQuery, logoLoaded, logo
 }
 
 export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
-  const current = usePlayer((s) => s.current) ?? stations[0];
+  const [stationPool, setStationPool] = useState(stations);
+  const current = usePlayer((s) => s.current) ?? stationPool[0] ?? stations[0];
   const [query, setQuery] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<CountryResult | null>(null);
+  const [activeTag, setActiveTag] = useState("");
+  const [offset, setOffset] = useState(stations.length);
+  const [loadingCountry, setLoadingCountry] = useState(false);
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
-  const visible = stations
-    .slice(0, 9)
+  const loadCountryStations = async (country: CountryResult, nextOffset = 0, tag = activeTag) => {
+    setLoadingCountry(true);
+    const params = new URLSearchParams({ country: country.name, countryCode: country.code, limit: "50", offset: String(nextOffset) });
+    if (tag) params.set("tag", tag);
+    const res = await fetch(`/api/stations/by-country?${params}`);
+    if (res.ok) {
+      const data = (await res.json()) as { stations: Station[] };
+      setStationPool((prev) => nextOffset ? [...prev, ...data.stations] : data.stations);
+      setOffset(nextOffset + data.stations.length);
+      if (!nextOffset && data.stations[0]) usePlayer.getState().setStation(data.stations[0]);
+    }
+    setLoadingCountry(false);
+  };
+  const selectCountry = (country: CountryResult) => {
+    setSelectedCountry(country);
+    setQuery(country.name);
+    setActiveTag("");
+    void loadCountryStations(country, 0, "");
+  };
+  const selectTag = (tag: string) => {
+    setActiveTag(tag);
+    if (selectedCountry) void loadCountryStations(selectedCountry, 0, tag);
+  };
+  const visible = stationPool
+    .slice(0, selectedCountry ? stationPool.length : 9)
     .filter(
       (s) =>
         !query ||
+        selectedCountry ||
         `${s.name} ${s.country} ${s.state} ${s.tags.join(" ")}`
           .toLowerCase()
           .includes(query.toLowerCase()),
@@ -888,7 +962,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   return (
     <>
       <AudioEngine />
-      <MobileAtlasShell stations={stations} current={current} query={query} setQuery={setQuery} logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
+      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-4">
@@ -930,8 +1004,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.3fr_.7fr]">
-        <RadioDial stations={stations} />
-        <NowPlaying station={current} stations={stations} setQuery={setQuery} />
+        <RadioDial stations={stationPool} />
+        <NowPlaying station={current} stations={stationPool} setQuery={setQuery} />
       </div>
       <section className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-3">
         <div id="atlas-map" className="scroll-mt-6 lg:col-span-2">
@@ -944,7 +1018,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           <div className="mt-5 aspect-video rounded-3xl border border-sky/20 bg-[radial-gradient(circle,#38BDF833_1px,transparent_2px)] [background-size:28px_28px] p-5">
             <Radar className="animate-pulse text-sky" />
             <p className="mt-16 text-sm text-ivory/60">
-              Country clusters ready · {stations.length} validated signals
+              Country clusters ready · {stationPool.length} validated signals
             </p>
           </div>
           <button
@@ -952,9 +1026,9 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               usePlayer
                 .getState()
                 .setStation(
-                  stations[
-                    (stations.findIndex((s) => s.id === current.id) + 1) %
-                      stations.length
+                  stationPool[
+                    (stationPool.findIndex((s) => s.id === current.id) + 1) %
+                      stationPool.length
                   ],
                 )
             }
@@ -974,6 +1048,20 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               className="w-full bg-transparent outline-none placeholder:text-ivory/40"
             />
           </div>
+          <CountryAutocomplete query={query} onSelect={selectCountry} />
+          {selectedCountry ? (
+            <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="font-bold">{selectedCountry.flag} {selectedCountry.name} · {stationPool.length.toLocaleString()} loaded of {selectedCountry.station_count.toLocaleString()} known stations</p>
+                {loadingCountry ? <span className="text-sm text-gold">Loading…</span> : null}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {["", "news", "music", "talk", "gospel", "sports", "local"].map((tag) => (
+                  <button key={tag || "all"} onClick={() => selectTag(tag)} className={`rounded-full px-4 py-2 text-sm font-bold ${activeTag === tag ? "bg-radio text-midnight" : "border border-white/10 text-ivory/70"}`}>{tag || "All"}</button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="mt-5 flex flex-wrap gap-2">
             {[
               "Nigeria",
@@ -1007,6 +1095,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               </button>
             ))}
           </div>
+          {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? "Loading stations…" : "Load More stations"}</button> : null}
         </div>
       </section>
       <div className="fixed inset-x-3 bottom-3 z-20 mx-auto flex max-w-md items-center justify-between rounded-full border border-white/15 bg-midnight/90 p-2 pl-4 shadow-glow backdrop-blur md:hidden">
