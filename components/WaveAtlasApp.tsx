@@ -594,6 +594,7 @@ const DEFAULT_MAP_VIEW: Record<"desktop" | "mobile", DefaultMapView> = {
   desktop: { center: [0, 20], zoom: 1.6, bearing: 0, pitch: 0, duration: 2500 },
   mobile: { center: [8.6753, 9.082], zoom: 1.35, bearing: 0, pitch: 0, duration: 2500 },
 };
+const DEFAULT_BASEMAP: BasemapKey = "streets";
 const BASEMAP_STORAGE_KEY = "waveatlas:basemap";
 const basemapStyles: Record<BasemapKey, { label: string; name: string; description: string; style: string | maplibregl.StyleSpecification }> = {
   atlas: { label: "🌎 Atlas", name: "Atlas", description: "Premium dark vector map", style: { version: 8, sources: { carto: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" } }, layers: [{ id: "carto-dark-matter", type: "raster", source: "carto" }] } },
@@ -603,7 +604,7 @@ const basemapStyles: Record<BasemapKey, { label: string; name: string; descripti
   night: { label: "🌃 Night", name: "Night Lights", description: "Earth at night", style: { version: 8, sources: { nasa: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/2012-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / VIIRS City Lights" } }, layers: [{ id: "viirs-night-lights", type: "raster", source: "nasa" }] } },
   blueMarble: { label: "🌊 Blue Marble", name: "Blue Marble", description: "Clean global Earth aesthetic", style: { version: 8, sources: { marble: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / Blue Marble" } }, layers: [{ id: "blue-marble", type: "raster", source: "marble" }] } },
 };
-function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return "atlas"; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : "atlas"; }
+function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
 function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "grid grid-cols-3 gap-1 rounded-2xl p-1"} border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-xl`} aria-label="Basemap Cockpit">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} aria-label={`Switch basemap to ${basemapStyles[key].name}`} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-2 text-[10px]" : "rounded-xl px-3 py-2 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}>{basemapStyles[key].label}</button>)}</div>; }
 function MapStyleController({ map, basemap }: { map: Map | null; basemap: BasemapKey }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); const resize = () => requestAnimationFrame(() => map.resize()); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap]); return null; }
 
@@ -998,9 +999,23 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
   const [remoteStations, setRemoteStations] = useState<Station[]>([]);
   const [countries, setCountries] = useState<CountryResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [resultMeta, setResultMeta] = useState<{ query: string; intent?: string; countryCode?: string; countryName?: string } | null>(null);
+  const activeSearchRequestId = useRef(0);
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) return;
+    if (q.length < 2) {
+      activeSearchRequestId.current += 1;
+      window.setTimeout(() => { setRemoteStations([]); setCountries([]); setResultMeta(null); }, 0);
+      return;
+    }
+    const requestId = ++activeSearchRequestId.current;
+    window.setTimeout(() => {
+      if (requestId === activeSearchRequestId.current) {
+        setRemoteStations([]);
+        setCountries([]);
+        setResultMeta({ query: q.toLowerCase() });
+      }
+    }, 0);
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setLoading(true);
@@ -1009,19 +1024,29 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
           fetch(`/api/stations/search?q=${encodeURIComponent(q)}&limit=50`, { signal: controller.signal }),
           fetch(`/api/countries/search?q=${encodeURIComponent(q)}`, { signal: controller.signal }),
         ]);
-        if (stationRes.ok) setRemoteStations(((await stationRes.json()) as { stations: Station[] }).stations);
-        if (countryRes.ok) setCountries(((await countryRes.json()) as { countries: CountryResult[] }).countries);
-      } finally { if (!controller.signal.aborted) setLoading(false); }
+        if (requestId !== activeSearchRequestId.current) return;
+        if (stationRes.ok) {
+          const data = (await stationRes.json()) as { query?: string; intent?: string; countryCode?: string; countryName?: string; stations: Station[] };
+          const currentQuery = query.trim().toLowerCase();
+          if ((data.query ?? currentQuery) === currentQuery) {
+            const scopedStations = data.intent === "country" && data.countryCode ? data.stations.filter((station) => station.country_code === data.countryCode) : data.stations;
+            setResultMeta({ query: data.query ?? currentQuery, intent: data.intent, countryCode: data.countryCode, countryName: data.countryName });
+            setRemoteStations(scopedStations);
+          }
+        }
+        if (countryRes.ok && requestId === activeSearchRequestId.current) setCountries(((await countryRes.json()) as { countries: CountryResult[] }).countries);
+      } finally { if (!controller.signal.aborted && requestId === activeSearchRequestId.current) setLoading(false); }
     }, 220);
     return () => { controller.abort(); window.clearTimeout(timer); };
   }, [query]);
   const q = query.trim().toLowerCase();
   const localMatches = stations.filter((s) => `${s.name} ${s.country} ${s.language} ${s.tags.join(" ")}`.toLowerCase().includes(q));
-  const stationResults = (remoteStations.length ? remoteStations : localMatches).slice(0, 50);
+  const countryIntentActive = resultMeta?.intent === "country" && resultMeta.query === q;
+  const stationResults = (remoteStations.length || countryIntentActive ? remoteStations : localMatches).slice(0, 50);
   const genres = Array.from(new Set(stations.flatMap((s) => s.tags).filter((tag) => tag.toLowerCase().includes(q)))).slice(0, 8);
   const languages = Array.from(new Set(stations.map((s) => s.language).filter((language) => language && language.toLowerCase().includes(q)))).slice(0, 8);
   if (query.trim().length < 2) return null;
-  return <div className="rounded-3xl border border-white/15 bg-slate-950/98 p-3 shadow-2xl backdrop-blur-2xl"><div className="mb-3 flex items-center justify-between px-1"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">Station command results</p>{loading ? <span className="text-xs font-semibold text-sky">Searching…</span> : null}</div><div className="grid gap-3 lg:grid-cols-[1.25fr_.75fr]"><div>{stationResults.length ? stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={onStationSelect} />) : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No active station found. Try country or genre search.</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
+  return <div className="rounded-3xl border border-white/15 bg-slate-950/98 p-3 shadow-2xl backdrop-blur-2xl"><div className="mb-3 flex items-center justify-between px-1"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Station command results"}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className="grid gap-3 lg:grid-cols-[1.25fr_.75fr]"><div>{stationResults.length ? stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={onStationSelect} />) : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No active station found. Try country or genre search."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
 }
 function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
   return <div className="rounded-3xl border border-white/10 bg-slate-900 p-4 shadow-lg"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/5 bg-slate-800 px-3 py-2 text-left text-slate-100 hover:border-sky/40"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-slate-300">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
@@ -1092,6 +1117,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const loadCountryStations = async (country: CountryResult, nextOffset = 0, tag = activeTag) => {
     setLoadingCountry(true);
+    if (!nextOffset) setStationPool([]);
     const params = new URLSearchParams({ country: country.name, countryCode: country.code, limit: "50", offset: String(nextOffset) });
     if (tag) params.set("tag", tag);
     const res = await fetch(`/api/stations/by-country?${params}`);
@@ -1223,7 +1249,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="font-bold">{selectedCountry.flag} {selectedCountry.name} · {stationPool.length.toLocaleString()} loaded of {selectedCountry.station_count.toLocaleString()} known stations</p>
-                {loadingCountry ? <span className="text-sm text-gold">Acquiring signal…</span> : null}
+                {loadingCountry ? <span className="text-sm text-gold">Acquiring {selectedCountry.name} signals…</span> : null}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {["", "news", "music", "talk", "gospel", "sports", "local"].map((tag) => (
@@ -1265,7 +1291,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               </button>
             ))}
           </div>
-          {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? "Resolving Earth…" : "Load More stations"}</button> : null}
+          {selectedCountry && !visible.length && !loadingCountry ? <p className="mt-5 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No active stations found for {selectedCountry.name} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.</p> : null}
+          {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       <div className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-[.7fr_1.3fr]"><AboutWaveAtlasModal /></div>
       </section>
