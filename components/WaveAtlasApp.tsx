@@ -22,6 +22,8 @@ import {
   Share2,
   Signal,
   Trophy,
+  Layers,
+  Info,
   SkipForward,
   Sparkles,
   Volume2,
@@ -506,6 +508,18 @@ function SignalMeter({ score }: { score: number }) {
     </div>
   );
 }
+type BasemapKey = "realistic" | "dark" | "streets" | "terrain";
+const BASEMAP_STORAGE_KEY = "waveatlas:basemap";
+const basemapStyles: Record<BasemapKey, { label: string; description: string; style: string | maplibregl.StyleSpecification }> = {
+  realistic: { label: "Realistic", description: "Satellite-grade imagery", style: { version: 8, sources: { esri: { type: "raster", tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "esri-world-imagery", type: "raster", source: "esri" }] } },
+  dark: { label: "Dark Atlas", description: "Premium low-light GIS", style: { version: 8, sources: { carto: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" } }, layers: [{ id: "carto-dark-matter", type: "raster", source: "carto" }] } },
+  streets: { label: "Streets", description: "OSM vector labels", style: "https://tiles.openfreemap.org/styles/liberty" },
+  terrain: { label: "Terrain", description: "Relief-focused context", style: { version: 8, sources: { terrain: { type: "raster", tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)" } }, layers: [{ id: "opentopomap-terrain", type: "raster", source: "terrain" }] } },
+};
+function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return mobile ? "dark" : "realistic"; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : mobile ? "dark" : "realistic"; }
+function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "flex flex-wrap gap-2 rounded-full p-1"} border border-white/10 bg-slate-950/75 shadow-xl backdrop-blur-xl`}>{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-1.5 text-[10px]" : "rounded-full px-3 py-1.5 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}><Layers className="mr-1 inline size-3" />{basemapStyles[key].label}</button>)}</div>; }
+function MapStyleController({ map, basemap }: { map: Map | null; basemap: BasemapKey }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); const resize = () => requestAnimationFrame(() => map.resize()); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap]); return null; }
+
 function StationPulseMarker({
   geo,
   status,
@@ -560,6 +574,8 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
   const [marker, setMarker] = useState<Marker | null>(null);
+  const [basemap, setBasemap] = useState<BasemapKey>(() => getInitialBasemap(mobile));
+  const initialBasemap = useRef(basemap);
   const geo = useMemo(() => resolveStationGeo(station), [station]);
   const initialGeo = useRef(geo);
   useEffect(() => {
@@ -567,7 +583,7 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
     const start = initialGeo.current;
     const m = new maplibregl.Map({
       container: container.current,
-      style: "https://demotiles.maplibre.org/style.json",
+      style: basemapStyles[initialBasemap.current].style,
       center: [start.lng, start.lat],
       zoom: 3.1,
       attributionControl: false,
@@ -609,10 +625,11 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="absolute inset-0 h-full w-full" />
         <MapFlyToController map={map} marker={marker} station={station} status={status} />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_28%,rgba(7,17,31,.35)_64%,rgba(7,17,31,.72))]" />
+        <MapStyleController map={map} basemap={basemap} />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_30%,rgba(7,17,31,.28)_64%,rgba(7,17,31,.68)),linear-gradient(180deg,rgba(2,6,23,.28),transparent_32%,rgba(2,6,23,.48))]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
         <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
-        <div className="pointer-events-none absolute left-4 top-36 z-10 rounded-full border border-radio/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.22em] text-radio backdrop-blur-xl">
+        <div className="absolute left-4 top-[184px] z-20"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div><div className="pointer-events-none absolute left-4 top-36 z-10 rounded-full border border-radio/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.22em] text-radio backdrop-blur-xl">
           <Signal className="mr-1 inline size-3" /> Live beacon · {geo.label}
         </div>
       </div>
@@ -629,10 +646,11 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
             station={station}
             status={status}
           />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_42%,rgba(7,17,31,.5))]" />
+          <MapStyleController map={map} basemap={basemap} />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_44%,rgba(7,17,31,.46)),linear-gradient(180deg,rgba(2,6,23,.22),transparent_36%,rgba(2,6,23,.5))]" />
           <div className="pointer-events-none absolute -right-10 -top-10 z-10 size-40 rounded-full border border-radio/10 shadow-[0_0_80px_rgba(52,211,153,.16)]" />
           <div className="pointer-events-none absolute -bottom-14 left-10 z-10 size-32 rounded-full border border-sky/10 shadow-[0_0_70px_rgba(56,189,248,.14)]" />
-          <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-white/15 bg-slate-950/80 px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[.35em] text-emerald-300 shadow-lg backdrop-blur">
+          <div className="absolute right-4 top-4 z-30"><BasemapSwitcher value={basemap} onChange={setBasemap} /></div><div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-white/15 bg-slate-950/80 px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[.35em] text-emerald-300 shadow-lg backdrop-blur">
             <Signal className="mr-2 inline size-4" />
             Live GIS beacon
           </div>
@@ -870,8 +888,48 @@ function CountryAutocomplete({
   );
 }
 
-function MobileSearchPill({ query, setQuery, onCountrySelect }: { query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void }) {
-  return <><label className="fixed left-4 right-4 top-[76px] z-40 flex min-h-12 items-center gap-3 rounded-full border border-white/10 bg-slate-950/65 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 text-sky" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, genre, language" className="w-full bg-transparent text-sm outline-none placeholder:text-ivory/45" /></label><CountryAutocomplete query={query} onSelect={onCountrySelect} compact /></>;
+
+function SearchResultStationCard({ station, onSelect }: { station: Station; onSelect: (station: Station) => void }) {
+  const health = getStreamHealth(station);
+  return <button onClick={() => onSelect(station)} className="w-full rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-left transition hover:border-gold/50 hover:bg-white/[0.08]"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><b className="block truncate text-sm text-ivory">{station.name}</b><p className="mt-1 text-xs text-ivory/55">{station.country} · {station.language || "Unknown language"}</p></div><span className={`shrink-0 text-[11px] font-bold ${health.tone}`}><span className={`mr-1 inline-block size-2 rounded-full ${health.dot}`} />{health.label}</span></div><div className="mt-3 flex flex-wrap gap-2 font-mono text-[10px] uppercase tracking-[.16em] text-ivory/55"><span>{station.codec || "Unknown"}</span><span>{station.bitrate ? `${station.bitrate} kbps` : "Live"}</span><span>{station.country_code}</span></div></button>;
+}
+function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelect, setQuery }: { query: string; stations: Station[]; onStationSelect: (station: Station) => void; onCountrySelect: (country: CountryResult) => void; setQuery: (q: string) => void }) {
+  const [remoteStations, setRemoteStations] = useState<Station[]>([]);
+  const [countries, setCountries] = useState<CountryResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      try {
+        const [stationRes, countryRes] = await Promise.all([
+          fetch(`/api/stations/search?q=${encodeURIComponent(q)}&limit=12`, { signal: controller.signal }),
+          fetch(`/api/countries/search?q=${encodeURIComponent(q)}`, { signal: controller.signal }),
+        ]);
+        if (stationRes.ok) setRemoteStations(((await stationRes.json()) as { stations: Station[] }).stations);
+        if (countryRes.ok) setCountries(((await countryRes.json()) as { countries: CountryResult[] }).countries);
+      } finally { if (!controller.signal.aborted) setLoading(false); }
+    }, 220);
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [query]);
+  const q = query.trim().toLowerCase();
+  const localMatches = stations.filter((s) => `${s.name} ${s.country} ${s.language} ${s.tags.join(" ")}`.toLowerCase().includes(q));
+  const stationResults = (remoteStations.length ? remoteStations : localMatches).slice(0, 9);
+  const genres = Array.from(new Set(stations.flatMap((s) => s.tags).filter((tag) => tag.toLowerCase().includes(q)))).slice(0, 8);
+  const languages = Array.from(new Set(stations.map((s) => s.language).filter((language) => language && language.toLowerCase().includes(q)))).slice(0, 8);
+  if (query.trim().length < 2) return null;
+  return <div className="mt-5 grid gap-4 lg:grid-cols-[1.25fr_.75fr]"><div className="rounded-3xl border border-white/10 bg-slate-950/45 p-4"><div className="mb-3 flex items-center justify-between"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">Stations</p>{loading ? <span className="text-xs text-sky">Searching…</span> : null}</div><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{stationResults.length ? stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={onStationSelect} />) : <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-ivory/55 md:col-span-2 xl:col-span-3">No active station found. Try country or genre search.</p>}</div></div><div className="grid gap-4"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div>;
+}
+function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
+  return <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 text-left hover:border-sky/40"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-ivory/45">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
+}
+function DeveloperAttribution({ compact = false }: { compact?: boolean }) { return <a href="https://etlgis.com" target="_blank" rel="noreferrer" className={`${compact ? "text-[10px]" : "text-xs"} inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono uppercase tracking-[.18em] text-ivory/55 transition hover:border-gold/40 hover:text-gold`}><Info className="size-3" />Developed by ETL GIS Consulting LLC</a>; }
+function AboutWaveAtlasModal() { return <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">About WaveAtlas</p><p className="mt-3 text-sm leading-6 text-ivory/70">WaveAtlas™ is a GIS-powered global radio discovery platform developed by ETL GIS Consulting LLC.</p><p className="mt-2 text-xs text-ivory/45">Built by ETL GIS Consulting LLC · A GIS innovation by ETL GIS Consulting LLC</p></div>; }
+
+function MobileSearchPill({ query, setQuery, onCountrySelect, stations, onStationSelect }: { query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; stations: Station[]; onStationSelect: (station: Station) => void }) {
+  return <><label className="fixed left-4 right-4 top-[76px] z-40 flex min-h-12 items-center gap-3 rounded-full border border-white/10 bg-slate-950/65 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 text-sky" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, station, genre, or language" className="w-full bg-transparent text-sm outline-none placeholder:text-ivory/45" /></label><div className="fixed left-4 right-4 top-[132px] z-40 max-h-[42dvh] overflow-y-auto"><GroupedSearchResults query={query} stations={stations} onStationSelect={onStationSelect} onCountrySelect={onCountrySelect} setQuery={setQuery} /></div><CountryAutocomplete query={query} onSelect={onCountrySelect} compact /></>;
 }
 
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
@@ -907,12 +965,12 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
     <WaveAtlasMap station={current} mobile />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
-    <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} />
+    <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
     <MobileMapControls setQuery={setQuery} />
     <FloatingScanButton stations={stations} current={current} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode !== "Atlas"} setOpen={setSheetOpen} />
-    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m !== "Atlas") setSheetOpen(true); }} />
+    <div className="fixed bottom-[72px] left-4 z-40"><DeveloperAttribution compact /></div><MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m !== "Atlas") setSheetOpen(true); }} />
   </section>;
 }
 
@@ -1044,11 +1102,12 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Try: Nigeria, Dubai, jazz, gospel"
+              placeholder="Search country, city, station, genre, or language"
               className="w-full bg-transparent outline-none placeholder:text-ivory/40"
             />
           </div>
           <CountryAutocomplete query={query} onSelect={selectCountry} />
+          <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); }} onCountrySelect={selectCountry} setQuery={setQuery} />
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1097,6 +1156,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div>
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? "Loading stations…" : "Load More stations"}</button> : null}
         </div>
+      <div className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-[.7fr_1.3fr]"><AboutWaveAtlasModal /><div className="flex items-center justify-end"><DeveloperAttribution /></div></div>
       </section>
       <div className="fixed inset-x-3 bottom-3 z-20 mx-auto flex max-w-md items-center justify-between rounded-full border border-white/15 bg-midnight/90 p-2 pl-4 shadow-glow backdrop-blur md:hidden">
         <span className="truncate text-sm">
