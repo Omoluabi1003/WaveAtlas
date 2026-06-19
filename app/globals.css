@@ -1,0 +1,2 @@
+@tailwind base;@tailwind components;@tailwind utilities;
+:root{color-scheme:dark} body{margin:0;background:#07111F;color:#F8F5ED} .glass{background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(18px)} .dial-texture{background-image:radial-gradient(circle at 50% 0%,rgba(214,168,79,.28),transparent 34%),repeating-linear-gradient(90deg,rgba(248,245,237,.18) 0 1px,transparent 1px 28px)}
