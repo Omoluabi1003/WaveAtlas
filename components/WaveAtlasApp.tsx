@@ -3,6 +3,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import maplibregl, { type Map, type Marker } from "maplibre-gl";
 import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
 import {
   Check,
   Compass,
@@ -786,6 +787,8 @@ function NowPlaying({
 export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const current = usePlayer((s) => s.current) ?? stations[0];
   const [query, setQuery] = useState("");
+  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
   const visible = stations
     .slice(0, 9)
     .filter(
@@ -799,14 +802,30 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:p-8">
       <AudioEngine />
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-sky/15 p-3 text-sky">
-            <Globe2 />
+        <div className="flex items-center gap-4">
+          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-sky/15 text-sky">
+            {(!logoLoaded || logoFailed) && (
+              <Globe2 className="h-7 w-7 animate-pulse" aria-hidden="true" />
+            )}
+            {!logoFailed && (
+              <Image
+                src="/assets/logo/waveatlas-logo.png"
+                alt="WaveAtlas Logo"
+                width={56}
+                height={56}
+                priority
+                className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
+                  logoLoaded ? "opacity-100" : "opacity-0"
+                }`}
+                onLoad={() => setLogoLoaded(true)}
+                onError={() => setLogoFailed(true)}
+              />
+            )}
           </div>
           <div>
-            <b className="text-xl">WaveAtlas</b>
+            <b className="text-xl">WaveAtlas™</b>
             <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">
-              Tune the World
+              TUNE THE WORLD
             </p>
           </div>
         </div>
