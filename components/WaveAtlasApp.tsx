@@ -547,7 +547,7 @@ function MapFlyToController({
   return null;
 }
 
-function WaveAtlasMap({ station }: { station: Station }) {
+function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: boolean }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -574,9 +574,18 @@ function WaveAtlasMap({ station }: { station: Station }) {
       .addTo(m);
     setMap(m);
     setMarker(mk);
-    requestAnimationFrame(() => m.resize());
-    m.once("load", () => requestAnimationFrame(() => m.resize()));
-    return () => m.remove();
+    const resize = () => requestAnimationFrame(() => m.resize());
+    resize();
+    m.once("load", resize);
+    window.addEventListener("orientationchange", resize);
+    window.addEventListener("resize", resize);
+    document.addEventListener("visibilitychange", resize);
+    return () => {
+      window.removeEventListener("orientationchange", resize);
+      window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", resize);
+      m.remove();
+    };
   }, []);
   useEffect(() => {
     if (!map || !marker) return;
@@ -586,6 +595,21 @@ function WaveAtlasMap({ station }: { station: Station }) {
       '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pulse-dot"></span>';
     requestAnimationFrame(() => map.resize());
   }, [geo.tone, map, marker, station, status]);
+  if (mobile) {
+    return (
+      <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
+        <div ref={container} className="absolute inset-0 h-full w-full" />
+        <MapFlyToController map={map} marker={marker} station={station} status={status} />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_28%,rgba(7,17,31,.35)_64%,rgba(7,17,31,.72))]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
+        <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
+        <div className="pointer-events-none absolute left-1/2 top-[45%] z-20 -translate-x-1/2 -translate-y-1/2"><StationPulseMarker geo={geo} status={status} /></div>
+        <div className="pointer-events-none absolute left-4 top-36 z-10 rounded-full border border-radio/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.22em] text-radio backdrop-blur-xl">
+          <Signal className="mr-1 inline size-3" /> Live beacon · {geo.label}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="relative w-full rounded-[2rem] border border-slate-700/60 bg-slate-950/80 p-4 shadow-2xl md:p-6">
       <div className="flex w-full flex-col gap-5">
@@ -784,6 +808,69 @@ function NowPlaying({
   );
 }
 
+function MobileBrandBar({ logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }: { logoLoaded: boolean; logoFailed: boolean; setLogoLoaded: (v: boolean) => void; setLogoFailed: (v: boolean) => void }) {
+  return (
+    <div className="fixed left-0 right-0 top-0 z-40 px-4 pt-3">
+      <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/65 px-3 py-2 shadow-2xl backdrop-blur-xl">
+        <div className="flex items-center gap-2">
+          <div className="relative flex size-10 items-center justify-center overflow-hidden rounded-full bg-sky/15 text-sky">
+            {(!logoLoaded || logoFailed) && <Globe2 className="size-5 animate-pulse" />}
+            {!logoFailed && <Image src="/assets/logo/waveatlas-logo.png" alt="WaveAtlas Logo" width={40} height={40} priority className={`absolute inset-0 h-full w-full object-contain transition-opacity ${logoLoaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLogoLoaded(true)} onError={() => setLogoFailed(true)} />}
+          </div>
+          <div><b className="text-sm leading-none">WaveAtlas™</b><p className="font-mono text-[9px] uppercase tracking-[.22em] text-gold">Tune the World</p></div>
+        </div>
+        <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 font-mono text-[10px] uppercase tracking-[.18em] text-radio"><span className="size-2 rounded-full bg-radio shadow-[0_0_12px_rgba(88,225,132,.9)]" />Live</span>
+      </div>
+    </div>
+  );
+}
+
+function MobileSearchPill({ query, setQuery }: { query: string; setQuery: (q: string) => void }) {
+  return <label className="fixed left-4 right-4 top-[76px] z-40 flex min-h-12 items-center gap-3 rounded-full border border-white/10 bg-slate-950/65 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 text-sky" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, genre, language" className="w-full bg-transparent text-sm outline-none placeholder:text-ivory/45" /></label>;
+}
+
+function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
+  const { playing, status, toggle, setStation } = usePlayer();
+  const play = () => { if (!usePlayer.getState().current) setStation(station); else toggle(); };
+  return <div onClick={onOpen} className="fixed bottom-[78px] left-4 right-4 z-40 rounded-3xl border border-white/10 bg-slate-950/85 p-4 shadow-2xl backdrop-blur-xl">
+    <div className="flex items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-12 shrink-0 place-items-center rounded-full bg-radio text-midnight">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{station.name}</p><p className="truncate text-xs text-ivory/60">{station.country} · {status}</p><div className="mt-2 flex h-4 items-end gap-0.5">{[30,55,40,75,50,68,35,58].map((h,i)=><span key={i} style={{height:`${h}%`}} className="w-1 rounded-full bg-radio/80" />)}</div></div><SignalMeter score={station.health_score} /></div>
+  </div>;
+}
+
+function FloatingScanButton({ stations, current }: { stations: Station[]; current: Station }) {
+  return <button onClick={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} className="fixed bottom-[160px] right-4 z-40 min-h-12 rounded-full border border-gold/40 bg-gold px-4 font-black text-midnight shadow-2xl shadow-gold/20"><ScanLine className="mr-1 inline size-4" />Scan</button>;
+}
+
+function MobileMapControls({ setQuery }: { setQuery: (q: string) => void }) {
+  return <div className="fixed right-4 top-[140px] z-40 grid gap-2">{[[MapPin,"Locate",()=>setQuery("near me")],[Globe2,"Reset globe",()=>setQuery("")],[Search,"Filter",()=>setQuery("News")],[Heart,"Favorites",()=>setQuery("favorites")]].map(([Icon,label,action]) => { const I = Icon as typeof MapPin; return <button key={label as string} onClick={action as () => void} aria-label={label as string} className="grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl"><I className="size-4" /></button>; })}</div>;
+}
+
+function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { station: Station; stations: Station[]; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
+  return <motion.section drag="y" dragConstraints={{ top: 0, bottom: 0 }} onDragEnd={(_, info) => setOpen(info.offset.y < -40 ? true : info.offset.y > 40 ? false : open)} initial={{ y: 680 }} animate={{ y: open ? 64 : 680 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-0 bottom-0 z-50 max-h-[92dvh] overflow-y-auto rounded-t-[2rem] border border-white/10 bg-slate-950/95 px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-3 shadow-2xl backdrop-blur-xl">
+    <button onClick={() => setOpen(!open)} className="mx-auto block h-1.5 w-14 rounded-full bg-white/30" aria-label="Toggle Station Intelligence" />
+    <StationIntelligencePanel station={station} stations={stations} setQuery={setQuery} />
+  </motion.section>;
+}
+
+function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: string) => void }) {
+  return <nav className="fixed bottom-0 left-0 right-0 z-[60] border-t border-white/10 bg-slate-950/85 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur-xl"><div className="grid grid-cols-4 gap-2 rounded-full border border-white/10 bg-white/5 p-1">{[[Compass,"Atlas"],[Radio,"Dial"],[Search,"Discover"],[Heart,"Library"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
+}
+
+function MobileAtlasShell({ stations, current, query, setQuery, logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; logoLoaded: boolean; logoFailed: boolean; setLogoLoaded: (v: boolean) => void; setLogoFailed: (v: boolean) => void }) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [mode, setMode] = useState("Atlas");
+  return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
+    <WaveAtlasMap station={current} mobile />
+    <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
+    <MobileSearchPill query={query} setQuery={setQuery} />
+    <MobileMapControls setQuery={setQuery} />
+    <FloatingScanButton stations={stations} current={current} />
+    <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
+    <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode !== "Atlas"} setOpen={setSheetOpen} />
+    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m !== "Atlas") setSheetOpen(true); }} />
+  </section>;
+}
+
 export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const current = usePlayer((s) => s.current) ?? stations[0];
   const [query, setQuery] = useState("");
@@ -799,8 +886,10 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           .includes(query.toLowerCase()),
     );
   return (
-    <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:p-8">
+    <>
       <AudioEngine />
+      <MobileAtlasShell stations={stations} current={current} query={query} setQuery={setQuery} logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
+    <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-sky/15 text-sky">
@@ -937,5 +1026,6 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </button>
       </div>
     </main>
+    </>
   );
 }
