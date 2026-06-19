@@ -1,4 +1,4 @@
-import { fetchStations, type Station, validateStream } from './stations';
+import { fetchStations, fetchStationsByCountry, type Station, validateStream } from './stations';
 
 export type StewardStationRecord = Station & {
   url_resolved?: string;
@@ -21,16 +21,30 @@ export type StewardRunSummary = {
   stations_retired: number;
   errors: string[];
   dry_run: boolean;
+  coverage_stats: Record<string, { countries_scanned: number; stations_found: number }>;
+  countries_with_no_results: string[];
 };
 
 type SupabaseConfig = { url: string; serviceRoleKey: string };
 type ExistingStation = { id: string; station_uuid: string | null; url: string | null; name: string | null; country_code: string | null; failure_count: number | null; success_count: number | null; is_retired: boolean | null };
+
+
+const CONTINENT_SEED_TARGETS: Record<string, string[]> = {
+  Asia: ['JP', 'CN', 'IN', 'KR', 'ID', 'PH', 'TH', 'MY', 'SG', 'AE', 'SA', 'QA', 'IL', 'TR'],
+  Australia_Oceania: ['AU', 'NZ', 'FJ', 'PG'],
+  Africa: ['NG', 'GH', 'ZA', 'KE', 'EG', 'MA', 'TZ', 'UG', 'CM', 'SN'],
+  Europe: ['GB', 'FR', 'DE', 'IT', 'ES', 'NL', 'SE', 'NO', 'IE', 'CH', 'BE', 'PT'],
+  North_America: ['US', 'CA', 'MX'],
+  South_America: ['BR', 'AR', 'CL', 'CO', 'PE'],
+};
 
 const RADIO_BROWSER_SCAN_PLAN = [
   { order: 'votes', limit: '35' },
   { order: 'clickcount', limit: '35' },
   { countryCode: 'US', limit: '20' },
   { countryCode: 'GB', limit: '20' },
+  { countryCode: 'JP', limit: '20' },
+  { countryCode: 'AU', limit: '20' },
   { countryCode: 'NG', limit: '20' },
   { countryCode: 'FR', limit: '20' },
   { countryCode: 'BR', limit: '20' },
@@ -128,8 +142,9 @@ async function upsertStation(config: SupabaseConfig, station: Station, validatio
 export async function discoverCandidateStations() {
   const seen = new Set<string>();
   const candidates: Station[] = [];
-  for (const params of RADIO_BROWSER_SCAN_PLAN) {
-    const stations = await fetchStations(params);
+  const coverage_stats: StewardRunSummary['coverage_stats'] = {};
+  const countries_with_no_results: string[] = [];
+  const addStations = (stations: Station[]) => {
     for (const station of stations) {
       const key = uniqueKey(station);
       if (!seen.has(key) && station.url && /^https?:\/\//i.test(station.url)) {
@@ -137,8 +152,25 @@ export async function discoverCandidateStations() {
         candidates.push(station);
       }
     }
+  };
+  for (const params of RADIO_BROWSER_SCAN_PLAN) {
+    addStations(await fetchStations(params));
   }
-  return candidates.sort((a, b) => b.health_score - a.health_score || b.votes - a.votes);
+  for (const [continent, countryCodes] of Object.entries(CONTINENT_SEED_TARGETS)) {
+    coverage_stats[continent] = { countries_scanned: 0, stations_found: 0 };
+    for (const countryCode of countryCodes) {
+      coverage_stats[continent].countries_scanned += 1;
+      const stations = await fetchStationsByCountry({ countryCode, limit: '50', offset: '0' });
+      coverage_stats[continent].stations_found += stations.length;
+      if (!stations.length) countries_with_no_results.push(countryCode);
+      addStations(stations);
+    }
+  }
+  return {
+    candidates: candidates.sort((a, b) => b.health_score - a.health_score || b.votes - a.votes),
+    coverage_stats,
+    countries_with_no_results,
+  };
 }
 
 export async function runStationStewardAgent(options: { dryRun?: boolean; validateLimit?: number } = {}): Promise<StewardRunSummary> {
@@ -149,9 +181,14 @@ export async function runStationStewardAgent(options: { dryRun?: boolean; valida
   let stations_discovered = 0;
   let stations_updated = 0;
   let stations_retired = 0;
+  let coverage_stats: StewardRunSummary['coverage_stats'] = {};
+  let countries_with_no_results: string[] = [];
 
   try {
-    const candidates = await discoverCandidateStations();
+    const discovery = await discoverCandidateStations();
+    const candidates = discovery.candidates;
+    coverage_stats = discovery.coverage_stats;
+    countries_with_no_results = discovery.countries_with_no_results;
     const validateLimit = Math.min(options.validateLimit ?? VALIDATION_SAMPLE_SIZE, STREAM_VALIDATE_TIMEOUT_SAFE_LIMIT, candidates.length);
     for (const [index, station] of candidates.entries()) {
       const validation = index < validateLimit ? await validateStream(station.url) : undefined;
@@ -171,7 +208,7 @@ export async function runStationStewardAgent(options: { dryRun?: boolean; valida
 
   const finished_at = new Date().toISOString();
   const status: StewardRunSummary['status'] = errors.length ? 'failed' : dryRun ? 'dry_run' : 'completed';
-  const summary = { status, started_at, finished_at, stations_discovered, stations_updated, stations_retired, errors, dry_run: dryRun };
+  const summary = { status, started_at, finished_at, stations_discovered, stations_updated, stations_retired, errors, dry_run: dryRun, coverage_stats, countries_with_no_results };
 
   if (config && !dryRun) {
     await supabaseRequest(config, 'agent_runs', { method: 'POST', body: JSON.stringify(summary) }).catch((error) => errors.push(error instanceof Error ? error.message : 'Failed to log agent run'));
