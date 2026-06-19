@@ -12,6 +12,7 @@
     "@types/react-dom": "latest",
     "framer-motion": "latest",
     "lucide-react": "latest",
+    "maplibre-gl": "^5.24.0",
     "next": "^16.2.9",
     "react": "latest",
     "react-dom": "latest",
