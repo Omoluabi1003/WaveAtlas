@@ -166,6 +166,28 @@ const neighboringCountries: Record<string, string[]> = {
   JP: ["South Korea", "Taiwan", "China", "Philippines", "Russia"],
 };
 
+const LISTENER_HOME = { lat: 28.5383, lng: -81.3792, label: "Florida, USA" };
+const PASSPORT_KEY = "waveatlas:signal-passport";
+type PassportEntry = { country: string; city: string; station: string; date: string; duration: number };
+function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) { const r = 6371; const dLat = ((b.lat - a.lat) * Math.PI) / 180; const dLng = ((b.lng - a.lng) * Math.PI) / 180; const lat1 = (a.lat * Math.PI) / 180; const lat2 = (b.lat * Math.PI) / 180; const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2; return Math.round(2 * r * Math.asin(Math.sqrt(h))); }
+function localTimeFor(lng: number) { const offset = Math.round(lng / 15); return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(Date.now() + offset * 3600_000)); }
+function estimatedTemperature(geo: GeoPoint) { return Math.round(72 - Math.abs(geo.lat) * 0.28 + ((geo.lng + 180) % 11)); }
+function readPassport(): PassportEntry[] { if (typeof window === "undefined") return []; try { const parsed = JSON.parse(window.localStorage.getItem(PASSPORT_KEY) || "[]") as unknown; return Array.isArray(parsed) ? parsed.filter((e): e is PassportEntry => typeof e === "object" && !!e && "country" in e) : []; } catch { return []; } }
+function passportBadges(entries: PassportEntry[]) { const countries = new Set(entries.map((e) => e.country)); return [["Explorer", countries.size >= 1], ["Continental Traveler", countries.size >= 3], ["Global Citizen", countries.size >= 6], ["Signal Navigator", entries.reduce((s, e) => s + e.duration, 0) >= 30], ["Master Cartographer", countries.size >= 12]] as const; }
+function useSignalPassport(station: Station) {
+  const [entries, setEntries] = useState<PassportEntry[]>(() => readPassport());
+  useEffect(() => {
+    const started = Date.now();
+    return () => {
+      const duration = Math.max(1, Math.round((Date.now() - started) / 1000));
+      const next = [{ country: station.country, city: station.state || station.country, station: station.name, date: new Date().toISOString(), duration }, ...readPassport()].slice(0, 100);
+      window.localStorage.setItem(PASSPORT_KEY, JSON.stringify(next));
+      setEntries(next);
+    };
+  }, [station.id, station.country, station.name, station.state]);
+  return entries;
+}
+
 function getPrimaryGenre(station: Station) {
   return station.tags.find(Boolean) || "Mixed Radio";
 }
@@ -358,6 +380,24 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
   );
 }
 
+function SignalTrailOverlay({ station }: { station: Station }) {
+  const geo = useMemo(() => resolveStationGeo(station), [station]);
+  const distance = distanceKm(LISTENER_HOME, geo);
+  return <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden"><svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M 18 72 Q 50 18 72 45" fill="none" stroke="rgba(214,168,79,.82)" strokeWidth=".55" strokeDasharray="3 3" className="signal-trail"/><circle cx="18" cy="72" r="1.3" fill="#38BDF8"/><circle cx="72" cy="45" r="1.7" fill="#58E184"/></svg><div className="absolute left-5 bottom-[230px] rounded-full border border-gold/25 bg-slate-950/70 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.18em] text-gold backdrop-blur-xl">Traveling Through Sound · {distance.toLocaleString()} km</div></div>;
+}
+function AroundMePanel({ station }: { station: Station }) {
+  const geo = useMemo(() => resolveStationGeo(station), [station]);
+  const genre = getPrimaryGenre(station);
+  return <div className="fixed left-4 top-[132px] z-30 max-w-[220px] rounded-3xl border border-white/10 bg-slate-950/62 p-3 text-xs shadow-2xl backdrop-blur-xl"><p className="font-mono text-[10px] uppercase tracking-[.24em] text-radio">Around Me™</p><p className="mt-2 font-semibold text-ivory">You are traveling through sound.</p><div className="mt-3 space-y-1 text-ivory/65"><p>From {LISTENER_HOME.label}</p><p>To {station.country}</p><p>{distanceKm(LISTENER_HOME, geo).toLocaleString()} km · {localTimeFor(geo.lng)}</p><p>{estimatedTemperature(geo)}°F · {station.language || "Unknown"} · {genre}</p><p>Nearby: {(neighboringCountries[station.country_code] || ["regional signals"]).slice(0, 3).join(", ")}</p></div></div>;
+}
+function SignalPassportPanel({ station }: { station: Station }) {
+  const entries = useSignalPassport(station);
+  const countries = new Set(entries.map((e) => e.country));
+  const duration = entries.reduce((sum, e) => sum + e.duration, 0);
+  const favorite = [...countries][0] || station.country;
+  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">Signal Passport™</p><div className="mt-3 grid grid-cols-2 gap-2 text-sm"><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-radio">{countries.size || 1}</b>Countries explored</span><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-sky">{Math.max(1, Math.min(6, countries.size))}</b>Continents explored</span><span className="rounded-xl bg-white/5 p-3">Favorite destination<br/><b>{favorite}</b></span><span className="rounded-xl bg-white/5 p-3">Longest signal route<br/><b>{distanceKm(LISTENER_HOME, resolveStationGeo(station)).toLocaleString()} km</b></span></div><div className="mt-3 flex flex-wrap gap-2">{passportBadges(entries).map(([badge, earned]) => <span key={badge} className={`rounded-full border px-3 py-1 text-xs ${earned ? "border-gold/40 bg-gold/15 text-gold" : "border-white/10 text-ivory/35"}`}>{badge}</span>)}</div><p className="mt-3 text-xs text-ivory/45">{Math.round(duration / 60)} listening minutes logged locally.</p></div>;
+}
+
 function AudioEngine() {
   const { current, status, volume, userActivated, setStatus } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -508,15 +548,16 @@ function SignalMeter({ score }: { score: number }) {
     </div>
   );
 }
-type BasemapKey = "realistic" | "dark" | "streets" | "terrain";
+type BasemapKey = "atlas" | "satellite" | "terrain" | "streets" | "night";
 const BASEMAP_STORAGE_KEY = "waveatlas:basemap";
 const basemapStyles: Record<BasemapKey, { label: string; description: string; style: string | maplibregl.StyleSpecification }> = {
-  realistic: { label: "Realistic", description: "Satellite-grade imagery", style: { version: 8, sources: { esri: { type: "raster", tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "esri-world-imagery", type: "raster", source: "esri" }] } },
-  dark: { label: "Dark Atlas", description: "Premium low-light GIS", style: { version: 8, sources: { carto: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" } }, layers: [{ id: "carto-dark-matter", type: "raster", source: "carto" }] } },
-  streets: { label: "Streets", description: "OSM vector labels", style: "https://tiles.openfreemap.org/styles/liberty" },
-  terrain: { label: "Terrain", description: "Relief-focused context", style: { version: 8, sources: { terrain: { type: "raster", tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)" } }, layers: [{ id: "opentopomap-terrain", type: "raster", source: "terrain" }] } },
+  atlas: { label: "Atlas", description: "Premium dark vector map", style: { version: 8, sources: { carto: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" } }, layers: [{ id: "carto-dark-matter", type: "raster", source: "carto" }] } },
+  satellite: { label: "Satellite", description: "Realistic Earth imagery", style: { version: 8, sources: { esri: { type: "raster", tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "esri-world-imagery", type: "raster", source: "esri" }] } },
+  terrain: { label: "Terrain", description: "Topographic terrain", style: { version: 8, sources: { terrain: { type: "raster", tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)" } }, layers: [{ id: "opentopomap-terrain", type: "raster", source: "terrain" }] } },
+  streets: { label: "Streets", description: "OpenStreetMap style", style: "https://tiles.openfreemap.org/styles/liberty" },
+  night: { label: "Night Lights", description: "Earth at night", style: { version: 8, sources: { nasa: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/2012-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / VIIRS City Lights" } }, layers: [{ id: "viirs-night-lights", type: "raster", source: "nasa" }] } },
 };
-function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return mobile ? "dark" : "realistic"; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : mobile ? "dark" : "realistic"; }
+function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return "atlas"; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : "atlas"; }
 function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "flex flex-wrap gap-2 rounded-full p-1"} border border-white/10 bg-slate-950/75 shadow-xl backdrop-blur-xl`}>{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-1.5 text-[10px]" : "rounded-full px-3 py-1.5 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}><Layers className="mr-1 inline size-3" />{basemapStyles[key].label}</button>)}</div>; }
 function MapStyleController({ map, basemap }: { map: Map | null; basemap: BasemapKey }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); const resize = () => requestAnimationFrame(() => map.resize()); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap]); return null; }
 
@@ -628,6 +669,9 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
         <MapStyleController map={map} basemap={basemap} />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_30%,rgba(7,17,31,.28)_64%,rgba(7,17,31,.68)),linear-gradient(180deg,rgba(2,6,23,.28),transparent_32%,rgba(2,6,23,.48))]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
+        <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
+        <div className="cloud-layer pointer-events-none absolute inset-0 opacity-25" />
+        <SignalTrailOverlay station={station} />
         <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
         <div className="absolute left-4 top-[184px] z-20"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div><div className="pointer-events-none absolute left-4 top-36 z-10 rounded-full border border-radio/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.22em] text-radio backdrop-blur-xl">
           <Signal className="mr-1 inline size-3" /> Live beacon · {geo.label}
@@ -827,6 +871,7 @@ function NowPlaying({
         </p>
       ) : null}
       <StationIntelligencePanel station={station} stations={stations} setQuery={setQuery} />
+      <SignalPassportPanel station={station} />
     </aside>
   );
 }
@@ -840,7 +885,7 @@ function MobileBrandBar({ logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }
             {(!logoLoaded || logoFailed) && <Globe2 className="size-5 animate-pulse" />}
             {!logoFailed && <Image src="/assets/logo/waveatlas-logo.png" alt="WaveAtlas Logo" width={40} height={40} priority className={`absolute inset-0 h-full w-full object-contain transition-opacity ${logoLoaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLogoLoaded(true)} onError={() => setLogoFailed(true)} />}
           </div>
-          <div><b className="text-sm leading-none">WaveAtlas™</b><p className="font-mono text-[9px] uppercase tracking-[.22em] text-gold">Tune the World</p></div>
+          <div><b className="text-sm leading-none">WaveAtlas™</b><p className="font-mono text-[9px] uppercase tracking-[.22em] text-gold">Travel the World Through Sound™</p></div>
         </div>
         <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 font-mono text-[10px] uppercase tracking-[.18em] text-radio"><span className="size-2 rounded-full bg-radio shadow-[0_0_12px_rgba(88,225,132,.9)]" />Live</span>
       </div>
@@ -925,8 +970,8 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
 function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
   return <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 text-left hover:border-sky/40"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-ivory/45">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
 }
-function DeveloperAttribution({ compact = false }: { compact?: boolean }) { return <a href="https://etlgis.com" target="_blank" rel="noreferrer" className={`${compact ? "text-[10px]" : "text-xs"} inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono uppercase tracking-[.18em] text-ivory/55 transition hover:border-gold/40 hover:text-gold`}><Info className="size-3" />Developed by ETL GIS Consulting LLC</a>; }
-function AboutWaveAtlasModal() { return <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">About WaveAtlas</p><p className="mt-3 text-sm leading-6 text-ivory/70">WaveAtlas™ is a GIS-powered global radio discovery platform developed by ETL GIS Consulting LLC.</p><p className="mt-2 text-xs text-ivory/45">Built by ETL GIS Consulting LLC · A GIS innovation by ETL GIS Consulting LLC</p></div>; }
+function DeveloperAttribution({ compact = false }: { compact?: boolean }) { return <a href="https://etl-gis-consulting-llc.vercel.app" target="_blank" rel="noreferrer" className={`${compact ? "text-[10px]" : "text-xs"} inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono uppercase tracking-[.18em] text-ivory/55 transition hover:border-gold/40 hover:text-gold`}><Info className="size-3" />Built by ETL GIS Consulting LLC</a>; }
+function AboutWaveAtlasModal() { return <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">About WaveAtlas™</p><p className="mt-3 text-sm leading-6 text-ivory/70">Travel the World Through Sound™ — a geospatial audio exploration platform built by ETL GIS Consulting LLC.</p><p className="mt-2 text-xs leading-5 text-ivory/50">ETL GIS Consulting LLC delivers geospatial intelligence, GIS architecture, spatial analytics, and location-based technology solutions from Florida, USA.</p><a href="https://etl-gis-consulting-llc.vercel.app" target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-bold text-gold">Visit ETL GIS Consulting LLC</a></div>; }
 
 function MobileSearchPill({ query, setQuery, onCountrySelect, stations, onStationSelect }: { query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; stations: Station[]; onStationSelect: (station: Station) => void }) {
   return <><label className="fixed left-4 right-4 top-[76px] z-40 flex min-h-12 items-center gap-3 rounded-full border border-white/10 bg-slate-950/65 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 text-sky" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, station, genre, or language" className="w-full bg-transparent text-sm outline-none placeholder:text-ivory/45" /></label><div className="fixed left-4 right-4 top-[132px] z-40 max-h-[42dvh] overflow-y-auto"><GroupedSearchResults query={query} stations={stations} onStationSelect={onStationSelect} onCountrySelect={onCountrySelect} setQuery={setQuery} /></div><CountryAutocomplete query={query} onSelect={onCountrySelect} compact /></>;
@@ -966,6 +1011,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <WaveAtlasMap station={current} mobile />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
+    <AroundMePanel station={current} />
     <MobileMapControls setQuery={setQuery} />
     <FloatingScanButton stations={stations} current={current} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
@@ -1046,7 +1092,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           <div>
             <b className="text-xl">WaveAtlas™</b>
             <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">
-              TUNE THE WORLD
+              TRAVEL THE WORLD THROUGH SOUND™
             </p>
           </div>
         </div>
@@ -1112,7 +1158,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="font-bold">{selectedCountry.flag} {selectedCountry.name} · {stationPool.length.toLocaleString()} loaded of {selectedCountry.station_count.toLocaleString()} known stations</p>
-                {loadingCountry ? <span className="text-sm text-gold">Loading…</span> : null}
+                {loadingCountry ? <span className="text-sm text-gold">Acquiring signal…</span> : null}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {["", "news", "music", "talk", "gospel", "sports", "local"].map((tag) => (
@@ -1154,7 +1200,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               </button>
             ))}
           </div>
-          {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? "Loading stations…" : "Load More stations"}</button> : null}
+          {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? "Resolving Earth…" : "Load More stations"}</button> : null}
         </div>
       <div className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-[.7fr_1.3fr]"><AboutWaveAtlasModal /><div className="flex items-center justify-end"><DeveloperAttribution /></div></div>
       </section>
