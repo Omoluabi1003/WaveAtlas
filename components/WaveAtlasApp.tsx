@@ -385,11 +385,6 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
   );
 }
 
-function SignalTrailOverlay({ station }: { station: Station }) {
-  const geo = useMemo(() => resolveStationGeo(station), [station]);
-  const distance = distanceKm(LISTENER_HOME, geo);
-  return <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden"><svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M 18 72 Q 50 18 72 45" fill="none" stroke="rgba(214,168,79,.82)" strokeWidth=".55" strokeDasharray="3 3" className="signal-trail"/><circle cx="18" cy="72" r="1.3" fill="#38BDF8"/><circle cx="72" cy="45" r="1.7" fill="#58E184"/></svg><div className="absolute left-5 bottom-[230px] rounded-full border border-gold/25 bg-slate-950/70 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.18em] text-gold backdrop-blur-xl">Traveling Through Sound · {distance.toLocaleString()} km</div></div>;
-}
 function AroundMePanel({ station }: { station: Station }) {
   const geo = useMemo(() => resolveStationGeo(station), [station]);
   const genre = getPrimaryGenre(station);
@@ -661,7 +656,7 @@ function MapFlyToController({
   return null;
 }
 
-function WaveAtlasMap({ station, mobile = false, resetSignal = 0, showTrail = true }: { station: Station; mobile?: boolean; resetSignal?: number; showTrail?: boolean }) {
+function WaveAtlasMap({ station, mobile = false, resetSignal = 0 }: { station: Station; mobile?: boolean; resetSignal?: number }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -732,7 +727,6 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, showTrail = tr
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
         <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
         <div className="cloud-layer pointer-events-none absolute inset-0 opacity-25" />
-        {showTrail ? <SignalTrailOverlay station={station} /> : null}
         <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
         <div className="absolute left-4 top-[184px] z-20"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div><div className="pointer-events-none absolute left-4 top-36 z-10 rounded-full border border-radio/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.22em] text-radio backdrop-blur-xl">
           <Signal className="mr-1 inline size-3" /> Live beacon · {geo.label}
@@ -1051,8 +1045,8 @@ function FloatingScanButton({ stations, current }: { stations: Station[]; curren
   return <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} className="fixed bottom-[160px] right-4 z-40 min-h-12 rounded-full border border-gold/40 bg-gold px-4 font-black text-midnight shadow-2xl shadow-gold/20"><ScanLine className="mr-1 inline size-4" />Scan</button>;
 }
 
-function MobileMapControls({ onReset, onRecenter, setQuery, showTrail, setShowTrail, showWeather, setShowWeather }: { onReset: () => void; onRecenter: () => void; setQuery: (q: string) => void; showTrail: boolean; setShowTrail: (v: boolean) => void; showWeather: boolean; setShowWeather: (v: boolean) => void }) {
-  const controls = [[MapPin,"Recenter on current station",onRecenter],[Globe2,"Reset Earth",onReset],[Search,"Open weather context",() => setShowWeather(!showWeather)],[Signal,"Toggle Signal Trails",() => setShowTrail(!showTrail)],[Heart,"Show favorite signals",()=>setQuery("favorites")]] as const;
+function MobileMapControls({ onReset, onRecenter, setQuery, showWeather, setShowWeather }: { onReset: () => void; onRecenter: () => void; setQuery: (q: string) => void; showWeather: boolean; setShowWeather: (v: boolean) => void }) {
+  const controls = [[MapPin,"Recenter on current station",onRecenter],[Globe2,"Reset Earth",onReset],[Search,"Open weather context",() => setShowWeather(!showWeather)],[Heart,"Show favorite signals",()=>setQuery("favorites")]] as const;
   return <div className="fixed right-4 top-[140px] z-40 grid gap-2">{controls.map(([Icon,label,action]) => { const I = Icon as typeof MapPin; return <button key={label} onClick={action} aria-label={label} className="grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><I className="size-4" /></button>; })}</div>;
 }
 
@@ -1071,14 +1065,13 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [resetSignal, setResetSignal] = useState(0);
-  const [showTrail, setShowTrail] = useState(true);
   const [showWeather, setShowWeather] = useState(false);
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
-    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} showTrail={showTrail} />
+    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
     {showWeather ? <AroundMePanel station={current} /> : null}
-    <MobileMapControls onReset={() => setResetSignal((n) => n + 1)} onRecenter={() => usePlayer.getState().setStation(current)} setQuery={setQuery} showTrail={showTrail} setShowTrail={setShowTrail} showWeather={showWeather} setShowWeather={setShowWeather} />
+    <MobileMapControls onReset={() => setResetSignal((n) => n + 1)} onRecenter={() => usePlayer.getState().setStation(current)} setQuery={setQuery} showWeather={showWeather} setShowWeather={setShowWeather} />
     <FloatingScanButton stations={stations} current={current} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode !== "Atlas"} setOpen={setSheetOpen} />
