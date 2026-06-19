@@ -28,7 +28,7 @@ import {
   Sparkles,
   Volume2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import type { Station } from "@/lib/stations";
 
@@ -398,6 +398,46 @@ function SignalPassportPanel({ station }: { station: Station }) {
   return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">Signal Passport™</p><div className="mt-3 grid grid-cols-2 gap-2 text-sm"><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-radio">{countries.size || 1}</b>Countries explored</span><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-sky">{Math.max(1, Math.min(6, countries.size))}</b>Continents explored</span><span className="rounded-xl bg-white/5 p-3">Favorite destination<br/><b>{favorite}</b></span><span className="rounded-xl bg-white/5 p-3">Longest signal route<br/><b>{distanceKm(LISTENER_HOME, resolveStationGeo(station)).toLocaleString()} km</b></span></div><div className="mt-3 flex flex-wrap gap-2">{passportBadges(entries).map(([badge, earned]) => <span key={badge} className={`rounded-full border px-3 py-1 text-xs ${earned ? "border-gold/40 bg-gold/15 text-gold" : "border-white/10 text-ivory/35"}`}>{badge}</span>)}</div><p className="mt-3 text-xs text-ivory/45">{Math.round(duration / 60)} listening minutes logged locally.</p></div>;
 }
 
+
+const SIGNAL_SPLASH_KEY = "waveatlas:signal-initialized";
+const signalInitializationPhases = [
+  "Acquiring signal...",
+  "Resolving Earth...",
+  "Calibrating atlas...",
+  "Loading station intelligence...",
+  "Traveling through sound...",
+];
+function SignalInitializationSequence() {
+  const [visible, setVisible] = useState(() => typeof window !== "undefined" && window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) !== "true");
+  const [phase, setPhase] = useState(0);
+  const dismiss = useCallback(() => { window.sessionStorage.setItem(SIGNAL_SPLASH_KEY, "true"); setVisible(false); }, []);
+  useEffect(() => {
+    if (!visible) return;
+    const phaseTimer = window.setInterval(() => setPhase((p) => Math.min(p + 1, signalInitializationPhases.length - 1)), 1850);
+    const doneTimer = window.setTimeout(dismiss, 9800);
+    return () => { window.clearInterval(phaseTimer); window.clearTimeout(doneTimer); };
+  }, [dismiss, visible]);
+  return <AnimatePresence>{visible ? <motion.div className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-[#020617] text-ivory" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .8 }}>
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(56,189,248,.2),transparent_24%),radial-gradient(circle_at_50%_58%,rgba(214,168,79,.14),transparent_26%)]" />
+    <div className="cloud-layer absolute inset-0 opacity-20" />
+    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:52px_52px] opacity-50" />
+    <button onClick={dismiss} className="absolute right-5 top-5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[.2em] text-ivory/70 hover:text-white" aria-label="Skip Signal Initialization Sequence">Skip</button>
+    <div className="relative flex max-w-xl flex-col items-center px-6 text-center">
+      <motion.div className="relative grid size-64 place-items-center rounded-full border border-sky/20 bg-[radial-gradient(circle,rgba(56,189,248,.18),rgba(15,23,42,.35)_55%,transparent_70%)] shadow-[0_0_100px_rgba(56,189,248,.22)]" animate={{ rotate: 360 }} transition={{ duration: 26, repeat: Infinity, ease: "linear" }}>
+        <div className="absolute inset-7 rounded-full border border-gold/25" />
+        <div className="absolute inset-12 rounded-full border border-radio/20" />
+        <Globe2 className="size-28 text-sky/80" />
+        <span className="absolute size-5 rounded-full bg-radio shadow-[0_0_0_18px_rgba(88,225,132,.12),0_0_50px_rgba(88,225,132,.8)]" />
+      </motion.div>
+      <p className="mt-8 font-mono text-xs uppercase tracking-[.4em] text-gold">Signal Initialization Sequence™</p>
+      <h1 className="mt-3 text-4xl font-black">WaveAtlas™</h1>
+      <p className="mt-2 text-lg text-ivory/70">Travel the World Through Sound™</p>
+      <AnimatePresence mode="wait"><motion.p key={phase} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6 font-mono text-sm uppercase tracking-[.28em] text-radio">{signalInitializationPhases[phase]}</motion.p></AnimatePresence>
+      <p className="mt-7 max-w-md text-center text-[10px] leading-5 text-ivory/40">Built by ETL GIS Consulting LLC • Geospatial Intelligence • Spatial Analytics • GIS Architecture • Florida, USA</p>
+    </div>
+  </motion.div> : null}</AnimatePresence>;
+}
+
 function AudioEngine() {
   const { current, status, volume, userActivated, setStatus } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -548,17 +588,23 @@ function SignalMeter({ score }: { score: number }) {
     </div>
   );
 }
-type BasemapKey = "atlas" | "satellite" | "terrain" | "streets" | "night";
+type BasemapKey = "atlas" | "satellite" | "terrain" | "streets" | "night" | "blueMarble";
+type DefaultMapView = { center: [number, number]; zoom: number; bearing: number; pitch: number; duration: number };
+const DEFAULT_MAP_VIEW: Record<"desktop" | "mobile", DefaultMapView> = {
+  desktop: { center: [0, 20], zoom: 1.6, bearing: 0, pitch: 0, duration: 2500 },
+  mobile: { center: [8.6753, 9.082], zoom: 1.35, bearing: 0, pitch: 0, duration: 2500 },
+};
 const BASEMAP_STORAGE_KEY = "waveatlas:basemap";
-const basemapStyles: Record<BasemapKey, { label: string; description: string; style: string | maplibregl.StyleSpecification }> = {
-  atlas: { label: "Atlas", description: "Premium dark vector map", style: { version: 8, sources: { carto: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" } }, layers: [{ id: "carto-dark-matter", type: "raster", source: "carto" }] } },
-  satellite: { label: "Satellite", description: "Realistic Earth imagery", style: { version: 8, sources: { esri: { type: "raster", tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "esri-world-imagery", type: "raster", source: "esri" }] } },
-  terrain: { label: "Terrain", description: "Topographic terrain", style: { version: 8, sources: { terrain: { type: "raster", tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)" } }, layers: [{ id: "opentopomap-terrain", type: "raster", source: "terrain" }] } },
-  streets: { label: "Streets", description: "OpenStreetMap style", style: "https://tiles.openfreemap.org/styles/liberty" },
-  night: { label: "Night Lights", description: "Earth at night", style: { version: 8, sources: { nasa: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/2012-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / VIIRS City Lights" } }, layers: [{ id: "viirs-night-lights", type: "raster", source: "nasa" }] } },
+const basemapStyles: Record<BasemapKey, { label: string; name: string; description: string; style: string | maplibregl.StyleSpecification }> = {
+  atlas: { label: "🌎 Atlas", name: "Atlas", description: "Premium dark vector map", style: { version: 8, sources: { carto: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" } }, layers: [{ id: "carto-dark-matter", type: "raster", source: "carto" }] } },
+  satellite: { label: "🛰 Satellite", name: "Satellite", description: "Realistic Earth imagery", style: { version: 8, sources: { esri: { type: "raster", tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "esri-world-imagery", type: "raster", source: "esri" }] } },
+  terrain: { label: "🏔 Terrain", name: "Terrain", description: "Topographic terrain", style: { version: 8, sources: { terrain: { type: "raster", tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)" } }, layers: [{ id: "opentopomap-terrain", type: "raster", source: "terrain" }] } },
+  streets: { label: "🛣 Streets", name: "Streets", description: "OpenStreetMap style", style: "https://tiles.openfreemap.org/styles/liberty" },
+  night: { label: "🌃 Night", name: "Night Lights", description: "Earth at night", style: { version: 8, sources: { nasa: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/2012-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / VIIRS City Lights" } }, layers: [{ id: "viirs-night-lights", type: "raster", source: "nasa" }] } },
+  blueMarble: { label: "🌊 Blue Marble", name: "Blue Marble", description: "Clean global Earth aesthetic", style: { version: 8, sources: { marble: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / Blue Marble" } }, layers: [{ id: "blue-marble", type: "raster", source: "marble" }] } },
 };
 function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return "atlas"; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : "atlas"; }
-function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "flex flex-wrap gap-2 rounded-full p-1"} border border-white/10 bg-slate-950/75 shadow-xl backdrop-blur-xl`}>{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-1.5 text-[10px]" : "rounded-full px-3 py-1.5 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}><Layers className="mr-1 inline size-3" />{basemapStyles[key].label}</button>)}</div>; }
+function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "grid grid-cols-3 gap-1 rounded-2xl p-1"} border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-xl`} aria-label="Basemap Cockpit">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} aria-label={`Switch basemap to ${basemapStyles[key].name}`} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-2 text-[10px]" : "rounded-xl px-3 py-2 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}>{basemapStyles[key].label}</button>)}</div>; }
 function MapStyleController({ map, basemap }: { map: Map | null; basemap: BasemapKey }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); const resize = () => requestAnimationFrame(() => map.resize()); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap]); return null; }
 
 function StationPulseMarker({
@@ -610,13 +656,14 @@ function MapFlyToController({
   return null;
 }
 
-function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: boolean }) {
+function WaveAtlasMap({ station, mobile = false, resetSignal = 0, showTrail = true }: { station: Station; mobile?: boolean; resetSignal?: number; showTrail?: boolean }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
   const [marker, setMarker] = useState<Marker | null>(null);
   const [basemap, setBasemap] = useState<BasemapKey>(() => getInitialBasemap(mobile));
   const initialBasemap = useRef(basemap);
+  const viewMode = useRef<"desktop" | "mobile">(mobile ? "mobile" : "desktop");
   const geo = useMemo(() => resolveStationGeo(station), [station]);
   const initialGeo = useRef(geo);
   useEffect(() => {
@@ -625,8 +672,10 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
     const m = new maplibregl.Map({
       container: container.current,
       style: basemapStyles[initialBasemap.current].style,
-      center: [start.lng, start.lat],
-      zoom: 3.1,
+      center: DEFAULT_MAP_VIEW[viewMode.current].center,
+      zoom: DEFAULT_MAP_VIEW[viewMode.current].zoom,
+      bearing: DEFAULT_MAP_VIEW[viewMode.current].bearing,
+      pitch: DEFAULT_MAP_VIEW[viewMode.current].pitch,
       attributionControl: false,
     });
     m.addControl(new maplibregl.AttributionControl({ compact: true }));
@@ -653,6 +702,13 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
       m.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (!map || !resetSignal) return;
+    const view = DEFAULT_MAP_VIEW[viewMode.current];
+    map.easeTo({ ...view, essential: true });
+    window.setTimeout(() => map.resize(), view.duration + 80);
+  }, [map, resetSignal]);
   useEffect(() => {
     if (!map || !marker) return;
     const element = marker.getElement();
@@ -671,7 +727,7 @@ function WaveAtlasMap({ station, mobile = false }: { station: Station; mobile?: 
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
         <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
         <div className="cloud-layer pointer-events-none absolute inset-0 opacity-25" />
-        <SignalTrailOverlay station={station} />
+        {showTrail ? <SignalTrailOverlay station={station} /> : null}
         <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
         <div className="absolute left-4 top-[184px] z-20"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div><div className="pointer-events-none absolute left-4 top-36 z-10 rounded-full border border-radio/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.22em] text-radio backdrop-blur-xl">
           <Signal className="mr-1 inline size-3" /> Live beacon · {geo.label}
@@ -986,11 +1042,12 @@ function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: (
 }
 
 function FloatingScanButton({ stations, current }: { stations: Station[]; current: Station }) {
-  return <button onClick={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} className="fixed bottom-[160px] right-4 z-40 min-h-12 rounded-full border border-gold/40 bg-gold px-4 font-black text-midnight shadow-2xl shadow-gold/20"><ScanLine className="mr-1 inline size-4" />Scan</button>;
+  return <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} className="fixed bottom-[160px] right-4 z-40 min-h-12 rounded-full border border-gold/40 bg-gold px-4 font-black text-midnight shadow-2xl shadow-gold/20"><ScanLine className="mr-1 inline size-4" />Scan</button>;
 }
 
-function MobileMapControls({ setQuery }: { setQuery: (q: string) => void }) {
-  return <div className="fixed right-4 top-[140px] z-40 grid gap-2">{[[MapPin,"Locate",()=>setQuery("near me")],[Globe2,"Reset globe",()=>setQuery("")],[Search,"Filter",()=>setQuery("News")],[Heart,"Favorites",()=>setQuery("favorites")]].map(([Icon,label,action]) => { const I = Icon as typeof MapPin; return <button key={label as string} onClick={action as () => void} aria-label={label as string} className="grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl"><I className="size-4" /></button>; })}</div>;
+function MobileMapControls({ onReset, onRecenter, setQuery, showTrail, setShowTrail, showWeather, setShowWeather }: { onReset: () => void; onRecenter: () => void; setQuery: (q: string) => void; showTrail: boolean; setShowTrail: (v: boolean) => void; showWeather: boolean; setShowWeather: (v: boolean) => void }) {
+  const controls = [[MapPin,"Recenter on current station",onRecenter],[Globe2,"Reset Earth",onReset],[Search,"Open weather context",() => setShowWeather(!showWeather)],[Signal,"Toggle Signal Trails",() => setShowTrail(!showTrail)],[Heart,"Show favorite signals",()=>setQuery("favorites")]] as const;
+  return <div className="fixed right-4 top-[140px] z-40 grid gap-2">{controls.map(([Icon,label,action]) => { const I = Icon as typeof MapPin; return <button key={label} onClick={action} aria-label={label} className="grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><I className="size-4" /></button>; })}</div>;
 }
 
 function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { station: Station; stations: Station[]; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
@@ -1007,16 +1064,19 @@ function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: strin
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; logoLoaded: boolean; logoFailed: boolean; setLogoLoaded: (v: boolean) => void; setLogoFailed: (v: boolean) => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
+  const [resetSignal, setResetSignal] = useState(0);
+  const [showTrail, setShowTrail] = useState(true);
+  const [showWeather, setShowWeather] = useState(false);
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
-    <WaveAtlasMap station={current} mobile />
+    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} showTrail={showTrail} />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
-    <AroundMePanel station={current} />
-    <MobileMapControls setQuery={setQuery} />
+    {showWeather ? <AroundMePanel station={current} /> : null}
+    <MobileMapControls onReset={() => setResetSignal((n) => n + 1)} onRecenter={() => usePlayer.getState().setStation(current)} setQuery={setQuery} showTrail={showTrail} setShowTrail={setShowTrail} showWeather={showWeather} setShowWeather={setShowWeather} />
     <FloatingScanButton stations={stations} current={current} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode !== "Atlas"} setOpen={setSheetOpen} />
-    <div className="fixed bottom-[72px] left-4 z-40"><DeveloperAttribution compact /></div><MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m !== "Atlas") setSheetOpen(true); }} />
+    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m !== "Atlas") setSheetOpen(true); }} />
   </section>;
 }
 
@@ -1030,6 +1090,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [loadingCountry, setLoadingCountry] = useState(false);
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
+  const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const loadCountryStations = async (country: CountryResult, nextOffset = 0, tag = activeTag) => {
     setLoadingCountry(true);
     const params = new URLSearchParams({ country: country.name, countryCode: country.code, limit: "50", offset: String(nextOffset) });
@@ -1066,6 +1127,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   return (
     <>
       <AudioEngine />
+      <SignalInitializationSequence />
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
@@ -1107,14 +1169,18 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           ))}
         </div>
       </nav>
-      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.3fr_.7fr]">
-        <RadioDial stations={stationPool} />
+      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.65fr_.75fr]">
+        <div id="atlas-map" className="scroll-mt-6">
+          <WaveAtlasMap station={current} resetSignal={desktopResetSignal} />
+          <div className="mt-3 flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-slate-950/55 p-3 backdrop-blur-xl">
+            <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stationPool[(stationPool.findIndex((s) => s.id === current.id) + 1) % stationPool.length])} className="rounded-full bg-gold px-4 py-2 font-black text-midnight"><ScanLine className="mr-2 inline size-4" />Scan</button>
+            <button aria-label="Recenter on current playing station" onClick={() => usePlayer.getState().setStation(current)} className="rounded-full border border-white/10 px-4 py-2 text-ivory"><MapPin className="mr-2 inline size-4" />Recenter</button>
+            <button aria-label="Reset Earth" onClick={() => setDesktopResetSignal((n) => n + 1)} className="rounded-full border border-white/10 px-4 py-2 text-ivory"><Compass className="mr-2 inline size-4" />Reset Earth</button>
+          </div>
+        </div>
         <NowPlaying station={current} stations={stationPool} setQuery={setQuery} />
       </div>
       <section className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-3">
-        <div id="atlas-map" className="scroll-mt-6 lg:col-span-2">
-          <WaveAtlasMap station={current} />
-        </div>
         <div className="glass rounded-[2rem] p-6">
           <p className="font-mono text-xs uppercase tracking-[.3em] text-gold">
             Atlas scan
@@ -1202,7 +1268,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div>
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? "Resolving Earth…" : "Load More stations"}</button> : null}
         </div>
-      <div className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-[.7fr_1.3fr]"><AboutWaveAtlasModal /><div className="flex items-center justify-end"><DeveloperAttribution /></div></div>
+      <div className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-[.7fr_1.3fr]"><AboutWaveAtlasModal /></div>
       </section>
       <div className="fixed inset-x-3 bottom-3 z-20 mx-auto flex max-w-md items-center justify-between rounded-full border border-white/15 bg-midnight/90 p-2 pl-4 shadow-glow backdrop-blur md:hidden">
         <span className="truncate text-sm">
