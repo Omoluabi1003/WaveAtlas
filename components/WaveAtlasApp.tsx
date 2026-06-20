@@ -575,6 +575,49 @@ function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === 
 function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "grid grid-cols-3 gap-1 rounded-2xl p-1"} border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-xl`} aria-label="Basemap Cockpit">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} aria-label={`Switch basemap to ${basemapStyles[key].name}`} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-2 text-[10px]" : "rounded-xl px-3 py-2 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}>{basemapStyles[key].label}</button>)}</div>; }
 function MapStyleController({ map, basemap }: { map: Map | null; basemap: BasemapKey }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); const resize = () => requestAnimationFrame(() => map.resize()); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap]); return null; }
 
+function StationDensityLayer({ map, stations, onSelect }: { map: Map | null; stations: Station[]; onSelect: (station: Station) => void }) {
+  const markers = useRef<Marker[]>([]);
+  const render = useCallback(() => {
+    if (!map) return;
+    markers.current.forEach((marker) => marker.remove());
+    markers.current = [];
+    const zoom = map.getZoom();
+    const bounds = map.getBounds();
+    const playable = stations
+      .filter((station) => station.is_active && station.url && station.failure_count <= 2)
+      .map((station) => ({ station, geo: geotruth(station) }))
+      .filter(({ geo }) => geo.lat !== null && geo.lng !== null && bounds.contains([geo.lng, geo.lat]));
+    const cell = zoom < 3 ? 24 : zoom < 6 ? 8 : zoom < 9 ? 2.5 : 0;
+    const groups = new globalThis.Map<string, { station: Station; lng: number; lat: number; count: number }>();
+    for (const item of playable.slice(0, 900)) {
+      const lat = item.geo.lat as number;
+      const lng = item.geo.lng as number;
+      const key = cell ? `${Math.round(lng / cell) * cell}:${Math.round(lat / cell) * cell}` : item.station.id;
+      const group = groups.get(key);
+      if (group) group.count += 1;
+      else groups.set(key, { station: item.station, lng, lat, count: 1 });
+    }
+    Array.from(groups.values()).slice(0, zoom < 6 ? 80 : 180).forEach((group) => {
+      const element = document.createElement('button');
+      const cluster = group.count > 1 || zoom < 9;
+      element.type = 'button';
+      element.className = cluster ? 'station-density-cluster' : 'station-density-point';
+      element.textContent = cluster ? String(group.count) : '';
+      element.setAttribute('aria-label', cluster ? `${group.count} nearby stations` : `Play ${group.station.name}`);
+      element.addEventListener('click', (event) => { event.stopPropagation(); onSelect(group.station); });
+      markers.current.push(new maplibregl.Marker({ element, anchor: 'center' }).setLngLat([group.lng, group.lat]).addTo(map));
+    });
+  }, [map, onSelect, stations]);
+  useEffect(() => {
+    if (!map) return;
+    render();
+    map.on('moveend', render);
+    map.on('zoomend', render);
+    return () => { map.off('moveend', render); map.off('zoomend', render); markers.current.forEach((marker) => marker.remove()); markers.current = []; };
+  }, [map, render]);
+  return null;
+}
+
 function StationPulseMarker({
   geo,
   status,
@@ -625,7 +668,7 @@ function MapFlyToController({
   return null;
 }
 
-function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void }) {
+function WaveAtlasMap({ station, stations = [], mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onStationSelect }: { station: Station; stations?: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onStationSelect?: (station: Station) => void }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -697,6 +740,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
         <div ref={container} className="absolute inset-0 h-full w-full" />
         <MapFlyToController map={map} marker={marker} station={station} status={status} />
         <MapStyleController map={map} basemap={basemap} />
+        <StationDensityLayer map={map} stations={stations} onSelect={onStationSelect ?? usePlayer.getState().setStation} />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_30%,rgba(7,17,31,.28)_64%,rgba(7,17,31,.68)),linear-gradient(180deg,rgba(2,6,23,.28),transparent_32%,rgba(2,6,23,.48))]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
         <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
@@ -718,6 +762,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
             status={status}
           />
           <MapStyleController map={map} basemap={basemap} />
+          <StationDensityLayer map={map} stations={stations} onSelect={onStationSelect ?? usePlayer.getState().setStation} />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_44%,rgba(7,17,31,.46)),linear-gradient(180deg,rgba(2,6,23,.22),transparent_36%,rgba(2,6,23,.5))]" />
           <div className="pointer-events-none absolute -right-10 -top-10 z-10 size-40 rounded-full border border-radio/10 shadow-[0_0_80px_rgba(52,211,153,.16)]" />
           <div className="pointer-events-none absolute -bottom-14 left-10 z-10 size-32 rounded-full border border-sky/10 shadow-[0_0_70px_rgba(56,189,248,.14)]" />
@@ -853,7 +898,7 @@ function TakeMeSomewhereButton({ stations, current, onTravel }: { stations: Stat
     usePlayer.getState().setStation(destination);
     onTravel?.(intent);
   };
-  return <button onClick={travel} className="group rounded-full bg-[linear-gradient(135deg,#F8F5ED,#D6A84F_55%,#58E184)] px-7 py-4 text-base font-black text-midnight shadow-2xl shadow-gold/25 transition hover:scale-[1.02]"><Globe2 className="mr-2 inline size-5 transition group-hover:rotate-12" />🌎 Take Me Somewhere™</button>;
+  return <button onClick={travel} className="group rounded-full border border-white/10 bg-slate-950/85 px-4 py-2 text-sm font-black text-ivory shadow-xl backdrop-blur-xl transition hover:border-gold/40"><Globe2 className="mr-2 inline size-5 transition group-hover:rotate-12" />🌎 Take Me Somewhere™</button>;
 }
 
 function PresenceCompanion({ station, intent }: { station: Station; intent: string }) {
@@ -1006,8 +1051,7 @@ function NowPlaying({
           {error}
         </p>
       ) : null}
-      <StationIntelligencePanel station={station} stations={stations} setQuery={setQuery} />
-      <SignalPassportPanel station={station} />
+      <div className="mt-5 flex flex-wrap gap-2"><SaveStationButton station={station} /><ShareStationButton station={station} /></div>
     </aside>
   );
 }
@@ -1211,17 +1255,16 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     window.setTimeout(() => setPresenceVisible(false), 5000);
   };
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
-    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} />
+    <WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={scan} />
-    <button onClick={() => setWanderOpen(true)} className="fixed bottom-[166px] left-1/2 z-40 -translate-x-1/2 rounded-full border border-white/10 bg-slate-950/85 px-4 py-2 text-sm font-black text-ivory shadow-2xl backdrop-blur-xl">🌎 Wander</button>
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
-    <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode !== "Atlas"} setOpen={setSheetOpen} />
-    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m === "Wander") setWanderOpen(true); else if (m !== "Atlas") setSheetOpen(true); }} />
+    <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
+    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m === "Wander") setWanderOpen(true); else if (m === "Library") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
 
@@ -1340,7 +1383,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div>
         </div>
         <div className="hidden gap-2 md:flex">
-          {["Dial", "Atlas", "Discover", "Library"].map((x) => (
+          {["Atlas", "Dial", "Wander", "Library"].map((x) => (
             <span
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-ivory/70"
               key={x}
@@ -1352,7 +1395,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.65fr_.75fr]">
         <div id="atlas-map" className="scroll-mt-6">
-          <WaveAtlasMap station={current} resetSignal={desktopResetSignal} />
+          <WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
           <div className="mt-3 flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-slate-950/55 p-3 backdrop-blur-xl">
             <TakeMeSomewhereButton stations={stationPool} current={current} onTravel={setWandererIntent} />
             <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stationPool[(stationPool.findIndex((s) => s.id === current.id) + 1) % stationPool.length])} className="rounded-full bg-gold px-4 py-2 font-black text-midnight"><ScanLine className="mr-2 inline size-4" />Scan</button>
@@ -1360,37 +1403,10 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             <button aria-label="Reset Earth" onClick={() => setDesktopResetSignal((n) => n + 1)} className="rounded-full border border-white/10 px-4 py-2 text-ivory"><Compass className="mr-2 inline size-4" />Reset Earth</button>
           </div>
         </div>
-        <div className="space-y-6"><PresenceCompanion station={current} intent={wandererIntent} /><NowPlaying station={current} stations={stationPool} setQuery={setQuery} /></div>
+        <div className="space-y-6"><NowPlaying station={current} stations={stationPool} setQuery={setQuery} /></div>
       </div>
-      <section className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-3">
+      <section className="mx-auto mt-6 max-w-7xl">
         <div className="glass rounded-[2rem] p-6">
-          <p className="font-mono text-xs uppercase tracking-[.3em] text-gold">
-            Atlas scan
-          </p>
-          <div className="mt-5 aspect-video rounded-3xl border border-sky/20 bg-[radial-gradient(circle,#38BDF833_1px,transparent_2px)] [background-size:28px_28px] p-5">
-            <Radar className="animate-pulse text-sky" />
-            <p className="mt-16 text-sm text-ivory/60">
-              Country clusters ready · {stationPool.length} validated signals
-            </p>
-          </div>
-          <button
-            onClick={() =>
-              usePlayer
-                .getState()
-                .setStation(
-                  stationPool[
-                    (stationPool.findIndex((s) => s.id === current.id) + 1) %
-                      stationPool.length
-                  ],
-                )
-            }
-            className="mt-4 w-full rounded-full border border-radio/30 py-3 text-radio"
-          >
-            <ScanLine className="mr-2 inline" />
-            Auto-skip to next healthy signal
-          </button>
-        </div>
-        <div className="glass rounded-[2rem] p-6 lg:col-span-3">
           <div className="flex gap-3">
             <Search className="text-sky" />
             <input
@@ -1451,7 +1467,6 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           {selectedCountry && !visible.length && !loadingCountry ? <p className="mt-5 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No active stations found for {selectedCountry.name} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.</p> : null}
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
-      <div className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-[.7fr_1.3fr]"><AboutWaveAtlasModal /></div>
       </section>
       <div className="fixed inset-x-3 bottom-3 z-20 mx-auto flex max-w-md items-center justify-between rounded-full border border-white/15 bg-midnight/90 p-2 pl-4 shadow-glow backdrop-blur md:hidden">
         <span className="truncate text-sm">
