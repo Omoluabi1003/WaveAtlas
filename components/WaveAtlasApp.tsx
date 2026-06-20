@@ -368,12 +368,13 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
     const doneTimer = window.setTimeout(dismiss, 1900);
     return () => { window.clearInterval(phaseTimer); window.clearTimeout(doneTimer); };
   }, [dismiss]);
-  return <AnimatePresence>{visible ? <motion.div className="fixed inset-0 z-[110] grid place-items-center overflow-hidden bg-[#020617] text-ivory" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .45 }}>
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(56,189,248,.22),transparent_24%),radial-gradient(circle_at_50%_58%,rgba(214,168,79,.16),transparent_26%)]" />
+  return <AnimatePresence>{visible ? <motion.div className="fixed inset-0 z-[110] grid place-items-center overflow-hidden bg-midnight/72 text-ivory backdrop-blur-xl" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .45 }}>
+    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,20,.50),rgba(7,17,31,.76))]" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.18),transparent_24%),radial-gradient(circle_at_50%_58%,rgba(214,168,79,.13),transparent_26%)]" />
     <div className="cloud-layer absolute inset-0 opacity-20" />
     <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:52px_52px] opacity-50" />
     <div className="relative flex max-w-xl flex-col items-center px-6 text-center">
-      <motion.div className="relative grid size-56 place-items-center rounded-full border border-sky/20 bg-[radial-gradient(circle,rgba(56,189,248,.18),rgba(15,23,42,.35)_55%,transparent_70%)] shadow-[0_0_100px_rgba(56,189,248,.22)]" animate={{ rotate: 360 }} transition={{ duration: 24, repeat: Infinity, ease: "linear" }}>
+      <motion.div className="relative grid size-56 place-items-center rounded-full border border-radio/20 bg-[radial-gradient(circle,rgba(0,214,143,.16),rgba(15,23,42,.42)_55%,transparent_70%)] shadow-[0_0_100px_rgba(0,214,143,.18)]" animate={{ rotate: 360 }} transition={{ duration: 24, repeat: Infinity, ease: "linear" }}>
         <div className="absolute inset-7 rounded-full border border-gold/25" />
         <div className="absolute inset-12 rounded-full border border-radio/20" />
         <Image src={WAVEATLAS_LOGO_PATH} alt="WaveAtlas logo" width={132} height={132} className="size-32 object-contain" />
@@ -384,7 +385,7 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
       <p className="mt-2 text-lg text-ivory/70">Explore Humanity Through Sound™</p>
       <AnimatePresence mode="wait"><motion.p key={phase} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6 font-mono text-sm uppercase tracking-[.28em] text-radio">{signalInitializationPhases[phase]}</motion.p></AnimatePresence>
     </div>
-    <p className="absolute bottom-8 left-1/2 w-full max-w-sm -translate-x-1/2 px-6 text-center text-xs font-medium tracking-wide text-ivory/45 sm:bottom-10">Powered by ETL GIS Consulting LLC.</p>
+    <p className="absolute bottom-8 left-1/2 w-full max-w-sm -translate-x-1/2 px-6 text-center text-xs font-medium tracking-wide text-ivory/45 sm:bottom-10">Powered by ETL GIS Consulting LLC</p>
   </motion.div> : null}</AnimatePresence>;
 }
 

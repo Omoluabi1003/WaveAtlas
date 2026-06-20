@@ -8,7 +8,7 @@ export const WAVEATLAS_FAVICON_16_PATH = "/brand/waveatlas-16x16.png";
 export const WAVEATLAS_FAVICON_32_PATH = "/brand/waveatlas-32x32.png";
 export const WAVEATLAS_FAVICON_48_PATH = "/brand/waveatlas-48x48.png";
 export const WAVEATLAS_SHARE_IMAGE_PATH = "/brand/waveatlas-1024x1024.png";
-export const WAVEATLAS_SHARE_IMAGE_VERSIONED_PATH = `${WAVEATLAS_SHARE_IMAGE_PATH}?v=2`;
+export const WAVEATLAS_SHARE_IMAGE_VERSIONED_PATH = WAVEATLAS_SHARE_IMAGE_PATH;
 
 export const WAVEATLAS_LOGO_URL = `${WAVEATLAS_SITE_URL}${WAVEATLAS_LOGO_PATH}`;
 export const WAVEATLAS_APP_ICON_192_URL = `${WAVEATLAS_SITE_URL}${WAVEATLAS_APP_ICON_192_PATH}`;
@@ -24,10 +24,14 @@ export const BRAND = {
   logoUrl: WAVEATLAS_LOGO_URL,
   logoPath: WAVEATLAS_LOGO_PATH,
   shortName: "WaveAtlas",
-  title: "WaveAtlas™ | Explore Humanity Through Sound",
-  description: "Travel the world through live radio, culture, cities, and sound.",
+  title: "WaveAtlas™ | The Entire World. Live.",
+  description: `If it's broadcasting on Earth, it belongs here.
+
+The entire world. Live.
+
+Explore Humanity Through Sound™`,
   tagline: "Explore Humanity Through Sound",
-  shareTitle: "WaveAtlas™ | Explore Humanity Through Sound",
+  shareTitle: "WaveAtlas™ | The Entire World. Live.",
   siteUrl: WAVEATLAS_SITE_URL,
   themeColor: "#07111F",
 } as const;
