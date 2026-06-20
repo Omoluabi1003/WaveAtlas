@@ -8,15 +8,33 @@ export async function GET(req: NextRequest) {
   const lat = Number(p.get('lat'));
   const lng = Number(p.get('lng'));
   const zoom = Number(p.get('zoom') ?? 4);
-  const radiusKm = Number(p.get('radiusKm') ?? radiusForZoom(zoom));
+  const requestedRadiusKm = Number(p.get('radiusKm'));
+  const radiusKm = Number.isFinite(requestedRadiusKm) && requestedRadiusKm > 0 ? requestedRadiusKm : radiusForZoom(zoom);
   const limit = Math.min(10, Math.max(1, Number(p.get('limit') ?? 5)));
+
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
     return NextResponse.json({ error: 'lat and lng are required valid coordinates' }, { status: 400 });
   }
-  const focus = focusForPoint(lat, lng, zoom, radiusKm);
-  const country = focus.countryCode ? (await searchCountries(focus.countryCode)).find((item) => item.code === focus.countryCode) : undefined;
-  const countryStations = focus.countryCode ? await fetchStationsForCountryIntent(country?.name ?? focus.countryCode, focus.countryCode, { limit: '80' }) : [];
-  const globalStations = countryStations.length ? [] : await fetchStations({ limit: '80', allowFallback: 'true' });
-  const candidates = rankNearbyStations([...countryStations, ...globalStations, ...fallbackStations], focus, limit);
-  return NextResponse.json({ focus: { ...focus, countryName: country?.name ?? focus.countryName, country }, candidates, best: candidates[0] ?? null, totalReturned: candidates.length });
+
+  const focusedPlace = focusForPoint(lat, lng, zoom, radiusKm);
+  const country = focusedPlace.countryCode ? (await searchCountries(focusedPlace.countryCode)).find((item) => item.code === focusedPlace.countryCode) : undefined;
+  const countryStations = focusedPlace.countryCode ? await fetchStationsForCountryIntent(country?.name ?? focusedPlace.countryCode, focusedPlace.countryCode, { limit: '120' }) : [];
+  const globalStations = countryStations.length ? [] : await fetchStations({ limit: '120', allowFallback: 'false' });
+  const fallbackPool = focusedPlace.countryCode ? fallbackStations.filter((station) => station.country_code === focusedPlace.countryCode) : fallbackStations;
+  const candidates = rankNearbyStations([...countryStations, ...globalStations, ...fallbackPool], focusedPlace, limit);
+  const bestCandidate = candidates[0] ?? null;
+
+  return NextResponse.json({
+    focusedPlace: { ...focusedPlace, countryName: country?.name ?? focusedPlace.countryName, country },
+    countryCode: focusedPlace.countryCode ?? null,
+    candidates,
+    bestCandidate,
+    signalStrength: bestCandidate?.signalStrength ?? 0,
+    searchRadiusKm: radiusKm,
+    status: bestCandidate ? 'signal_found' : 'no_signal',
+    // Backwards-compatible aliases for older clients.
+    focus: { ...focusedPlace, countryName: country?.name ?? focusedPlace.countryName, country },
+    best: bestCandidate,
+    totalReturned: candidates.length,
+  });
 }
