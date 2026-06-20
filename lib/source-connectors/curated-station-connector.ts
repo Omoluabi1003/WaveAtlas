@@ -1,4 +1,4 @@
-import type { Station } from '../stations';
+import { ariyoSeedStations, type Station } from '../stations';
 import { clampConfidence, stableStationUuid, type NormalizedStationEvidence, type StationSourceConnector } from './station-source-connector';
 
 export type CuratedStationRecord = Partial<Station> & {
@@ -9,6 +9,7 @@ export type CuratedStationRecord = Partial<Station> & {
 };
 
 const curatedStations: CuratedStationRecord[] = [
+  ...ariyoSeedStations.map((station) => ({ ...station, source_station_id: station.station_uuid, confidence: 0.96, notes: 'Imported from Ariyo AI curated radio station seeds' })),
   { station_uuid: 'bbc-world-service', source_station_id: 'bbc-world-service', name: 'BBC World Service', country: 'United Kingdom', country_code: 'GB', city: 'London', language: 'English', tags: ['news', 'talk', 'international'], url: 'https://stream.live.vc.bbcmedia.co.uk/bbc_world_service', homepage: 'https://www.bbc.co.uk/worldserviceradio', latitude: 51.5072, longitude: -0.1276, confidence: 0.99 },
   { station_uuid: 'cool-fm-lagos', source_station_id: 'cool-fm-lagos', name: 'Cool FM Lagos', country: 'Nigeria', country_code: 'NG', city: 'Lagos', language: 'English', tags: ['music', 'afrobeats', 'talk'], url: 'https://stream.coolwazobiainfo.com/coolfm-lagos', homepage: 'https://www.coolfm.ng', latitude: 6.5244, longitude: 3.3792, confidence: 0.98 },
 ];
