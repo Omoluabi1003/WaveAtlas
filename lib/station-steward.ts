@@ -23,7 +23,7 @@ export type StewardRunSummary = {
   stations_retired: number;
   errors: string[];
   dry_run: boolean;
-  coverage_stats: Record<string, { countries_scanned: number; stations_found: number }>;
+  coverage_stats: Record<string, { countries_teleported: number; stations_found: number }>;
   countries_with_no_results: string[];
   geo_conflicts_flagged: number;
 };
@@ -190,9 +190,9 @@ export async function discoverCandidateStations() {
     addStations(await fetchStations(params));
   }
   for (const [continent, countryCodes] of Object.entries(CONTINENT_SEED_TARGETS)) {
-    coverage_stats[continent] = { countries_scanned: 0, stations_found: 0 };
+    coverage_stats[continent] = { countries_teleported: 0, stations_found: 0 };
     for (const countryCode of countryCodes) {
-      coverage_stats[continent].countries_scanned += 1;
+      coverage_stats[continent].countries_teleported += 1;
       const stations = await fetchStationsByCountry({ countryCode, limit: '50', offset: '0' });
       coverage_stats[continent].stations_found += stations.length;
       if (!stations.length) countries_with_no_results.push(countryCode);

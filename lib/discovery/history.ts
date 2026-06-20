@@ -1,10 +1,65 @@
 import type { Station } from "@/lib/stations";
-export type ArrivalHistory = { last50Stations: string[]; last20Cities: string[]; last10Countries: string[]; last5Continents: string[]; last10Genres: string[] };
+
+export type ArrivalHistory = {
+  last100Stations: string[];
+  last50Cities: string[];
+  last30Countries: string[];
+  last15Genres: string[];
+  last10Continents: string[];
+};
+
 const KEY = "waveatlas:arrival-history";
-const emptyHistory: ArrivalHistory = { last50Stations: [], last20Cities: [], last10Countries: [], last5Continents: [], last10Genres: [] };
-function uniquePush(value: string, list: string[], limit: number) { const clean = value.trim(); if (!clean) return list.slice(0, limit); return [clean, ...list.filter((item) => item !== clean)].slice(0, limit); }
-export function readArrivalHistory(storage: Storage | undefined = typeof window === "undefined" ? undefined : window.localStorage): ArrivalHistory { if (!storage) return emptyHistory; try { const parsed = JSON.parse(storage.getItem(KEY) || "{}"); return { last50Stations: Array.isArray(parsed.last50Stations) ? parsed.last50Stations.filter(Boolean).slice(0, 50) : [], last20Cities: Array.isArray(parsed.last20Cities) ? parsed.last20Cities.filter(Boolean).slice(0, 20) : [], last10Countries: Array.isArray(parsed.last10Countries) ? parsed.last10Countries.filter(Boolean).slice(0, 10) : [], last5Continents: Array.isArray(parsed.last5Continents) ? parsed.last5Continents.filter(Boolean).slice(0, 5) : [], last10Genres: Array.isArray(parsed.last10Genres) ? parsed.last10Genres.filter(Boolean).slice(0, 10) : [] }; } catch { return emptyHistory; } }
+
+const emptyHistory: ArrivalHistory = {
+  last100Stations: [],
+  last50Cities: [],
+  last30Countries: [],
+  last15Genres: [],
+  last10Continents: [],
+};
+
+function uniquePush(value: string, list: string[], limit: number) {
+  const clean = value.trim();
+  if (!clean) return list.slice(0, limit);
+  return [clean, ...list.filter((item) => item !== clean)].slice(0, limit);
+}
+
+function readList(parsed: Record<string, unknown>, primary: string, fallback: string, limit: number) {
+  const value = parsed[primary] ?? parsed[fallback];
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && Boolean(item)).slice(0, limit) : [];
+}
+
+export function readArrivalHistory(storage: Storage | undefined = typeof window === "undefined" ? undefined : window.localStorage): ArrivalHistory {
+  if (!storage) return emptyHistory;
+  try {
+    const parsed = JSON.parse(storage.getItem(KEY) || "{}") as Record<string, unknown>;
+    return {
+      last100Stations: readList(parsed, "last100Stations", "last50Stations", 100),
+      last50Cities: readList(parsed, "last50Cities", "last20Cities", 50),
+      last30Countries: readList(parsed, "last30Countries", "last10Countries", 30),
+      last15Genres: readList(parsed, "last15Genres", "last10Genres", 15),
+      last10Continents: readList(parsed, "last10Continents", "last5Continents", 10),
+    };
+  } catch {
+    return emptyHistory;
+  }
+}
+
 export function stationHistoryKey(station: Station) { return station.station_uuid || station.id || station.name; }
 export function stationCity(station: Station) { return station.city || station.state || "Unknown City"; }
-export function stationGenre(station: Station) { return station.tags.find(Boolean) || station.language || "Mixed Radio"; }
-export function persistArrival(station: Station, continent: string, storage: Storage | undefined = typeof window === "undefined" ? undefined : window.localStorage) { if (!storage) return readArrivalHistory(storage); const previous = readArrivalHistory(storage); const next: ArrivalHistory = { last50Stations: uniquePush(stationHistoryKey(station), previous.last50Stations, 50), last20Cities: uniquePush(`${stationCity(station)}, ${station.country}`, previous.last20Cities, 20), last10Countries: uniquePush(station.country || station.country_code, previous.last10Countries, 10), last5Continents: uniquePush(continent, previous.last5Continents, 5), last10Genres: uniquePush(stationGenre(station), previous.last10Genres, 10) }; storage.setItem(KEY, JSON.stringify(next)); return next; }
+export function stationGenre(station: Station) { return station.tags.find(Boolean) || station.language || "Global Sound"; }
+export function destinationLabel(station: Station) { return `${stationCity(station)}, ${station.country || station.country_code}`; }
+
+export function persistArrival(station: Station, continent: string, storage: Storage | undefined = typeof window === "undefined" ? undefined : window.localStorage) {
+  if (!storage) return readArrivalHistory(storage);
+  const previous = readArrivalHistory(storage);
+  const next: ArrivalHistory = {
+    last100Stations: uniquePush(stationHistoryKey(station), previous.last100Stations, 100),
+    last50Cities: uniquePush(destinationLabel(station), previous.last50Cities, 50),
+    last30Countries: uniquePush(station.country || station.country_code, previous.last30Countries, 30),
+    last15Genres: uniquePush(stationGenre(station), previous.last15Genres, 15),
+    last10Continents: uniquePush(continent, previous.last10Continents, 10),
+  };
+  storage.setItem(KEY, JSON.stringify(next));
+  return next;
+}
