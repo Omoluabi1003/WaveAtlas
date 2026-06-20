@@ -1146,30 +1146,35 @@ function NowPlaying({
   );
 }
 
-function MobileBrandBar({ viewportOffsetTop = 0 }: { viewportOffsetTop?: number }) {
+function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch }: { viewportOffsetTop?: number; onOpenSearch: () => void }) {
   return (
-    <div style={{ top: viewportOffsetTop }} className="fixed left-4 right-4 z-40 max-w-[calc(100%-2rem)] box-border pt-3">
-      <div className="relative flex items-center justify-center rounded-[1.75rem] border border-white/10 bg-slate-950/80 px-4 py-3 text-center shadow-2xl backdrop-blur-xl">
-        <div className="flex min-w-0 flex-col items-center justify-center gap-1.5">
-          <div className="flex min-w-0 items-center justify-center gap-2">
-            <Image
-              src={WAVEATLAS_LOGO_PATH}
-              alt="WaveAtlas logo"
-              width={48}
-              height={48}
-              className="h-11 w-11 object-contain rounded-full"
-            />
-            <div className="min-w-0">
-              <b className="block truncate font-display text-sm font-bold leading-none">{BRAND.name}</b>
-              <p className="mt-0.5 truncate font-display text-[10px] font-semibold text-gold">
-                Explore Humanity Through Sound™
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex max-w-[90vw] items-center justify-center whitespace-nowrap rounded-full border border-gold/35 bg-gold/10 px-3 py-1.5 text-[11px] font-semibold leading-none text-gold">
-            The Entire World. Live.
-          </span>
+    <div style={{ top: viewportOffsetTop }} className="fixed left-4 right-4 z-40 box-border max-w-[calc(100%-2rem)] pt-3">
+      <div className="relative flex flex-col items-center justify-center gap-2 overflow-visible rounded-[1.75rem] border border-white/10 bg-slate-950/80 px-[18px] pb-[18px] pt-5 text-center shadow-2xl backdrop-blur-xl">
+        <Image
+          src={WAVEATLAS_LOGO_PATH}
+          alt="WaveAtlas logo"
+          width={48}
+          height={48}
+          className="h-11 w-11 rounded-full object-contain"
+        />
+        <div className="min-w-0">
+          <b className="block truncate font-display text-sm font-bold leading-none">{BRAND.name}</b>
+          <p className="mt-1 truncate font-display text-[10px] font-semibold text-gold">
+            Explore Humanity Through Sound™
+          </p>
         </div>
+        <span className="inline-flex w-fit max-w-[90vw] items-center justify-center whitespace-nowrap rounded-full border border-gold/35 bg-gold/10 px-[14px] py-[6px] text-[11px] font-bold leading-none tracking-[0.04em] text-gold shadow-[0_0_18px_rgba(212,166,74,0.12)]">
+          The Entire World. Live.
+        </span>
+        <button
+          type="button"
+          onClick={onOpenSearch}
+          className="mt-1 flex min-h-12 w-full items-center gap-3 rounded-full border border-white/10 bg-slate-950/90 px-4 text-left shadow-2xl backdrop-blur-xl"
+          aria-label="Open station search"
+        >
+          <Search className="size-4 shrink-0 text-sky" />
+          <span className="min-w-0 flex-1 truncate text-sm text-ivory/55">Search country, city, destination...</span>
+        </button>
       </div>
     </div>
   );
@@ -1365,21 +1370,6 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   </>;
 }
 
-function MobileSearchPill({ onOpen, viewportOffsetTop }: { onOpen: () => void; viewportOffsetTop: number }) {
-  return (
-    <button
-      type="button"
-      style={{ top: viewportOffsetTop + 76 }}
-      onClick={onOpen}
-      className="fixed left-4 right-4 z-40 box-border flex min-h-12 w-auto max-w-full items-center gap-3 rounded-full border border-white/10 bg-slate-950/90 px-4 text-left shadow-2xl backdrop-blur-xl"
-      aria-label="Open station search"
-    >
-      <Search className="size-4 shrink-0 text-sky" />
-      <span className="min-w-0 flex-1 truncate text-sm text-ivory/55">Search country, city, destination...</span>
-    </button>
-  );
-}
-
 function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, onCountrySelect, onStationSelect }: { open: boolean; query: string; setQuery: (q: string) => void; stations: Station[]; onClose: () => void; onCountrySelect: (country: CountryResult) => void; onStationSelect: (station: Station) => void }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
@@ -1498,7 +1488,7 @@ function PresenceToast({ station, intent, visible }: { station: Station; intent:
 }
 
 function MobileMapControls({ onOpenBasemap }: { onRecenter: () => void; onOpenBasemap: () => void; onOpenSearch: () => void; onOpenFavorites: () => void; onTeleport: () => void }) {
-  return <button onClick={onOpenBasemap} aria-label="Basemap" className="fixed right-4 top-[146px] z-40 grid size-10 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><Layers className="size-4" /></button>;
+  return <button onClick={onOpenBasemap} aria-label="Basemap" className="fixed right-4 top-[212px] z-40 grid size-10 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><Layers className="size-4" /></button>;
 }
 
 function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { station: Station; stations: Station[]; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
@@ -1550,8 +1540,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const visualViewport = useIOSVisualViewport();
   return <section className="fixed inset-0 h-[100dvh] w-full max-w-full overflow-hidden bg-transparent text-white md:hidden">
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
-    <MobileBrandBar viewportOffsetTop={visualViewport.viewportOffsetTop} />
-    {mode !== "Dial" ? <MobileSearchPill viewportOffsetTop={visualViewport.viewportOffsetTop} onOpen={() => setSearchOverlayOpen(true)} /> : null}
+    {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
