@@ -67,3 +67,38 @@ create index if not exists stations_genres_gin_idx on public.stations using gin 
 create index if not exists stations_search_idx on public.stations using gin (search_vector);
 create index if not exists station_checks_station_checked_idx on public.station_checks (station_id, checked_at desc);
 create index if not exists agent_runs_started_idx on public.agent_runs (started_at desc);
+
+alter table public.stations add column if not exists normalized_name text;
+
+create table if not exists public.station_aliases (
+  id uuid primary key default gen_random_uuid(),
+  station_id uuid not null references public.stations(id) on delete cascade,
+  alias text not null,
+  source text not null default 'station_steward',
+  confidence numeric not null default 0.85 check (confidence >= 0 and confidence <= 1),
+  created_at timestamptz not null default now(),
+  unique (station_id, alias)
+);
+
+create table if not exists public.station_redirects (
+  old_station_uuid text primary key,
+  new_station_uuid text not null,
+  reason text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.station_identity_audit (
+  id uuid primary key default gen_random_uuid(),
+  station_uuid text not null,
+  old_name text,
+  new_name text,
+  old_url text,
+  new_url text,
+  change_reason text not null,
+  checked_at timestamptz not null default now()
+);
+
+create index if not exists stations_uuid_lookup_idx on public.stations (station_uuid);
+create index if not exists station_aliases_alias_idx on public.station_aliases using gin (alias gin_trgm_ops);
+create index if not exists station_redirects_new_uuid_idx on public.station_redirects (new_station_uuid);
+create index if not exists station_identity_audit_uuid_checked_idx on public.station_identity_audit (station_uuid, checked_at desc);
