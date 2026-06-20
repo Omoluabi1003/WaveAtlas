@@ -224,7 +224,7 @@ function SaveStationButton({ station }: { station: Station }) {
     const next = favorites.includes(key)
       ? favorites.filter((id) => id !== key)
       : [...favorites, key];
-    window.localStorage.setItem("waveatlas:favorites", JSON.stringify(next));
+    try { window.localStorage.setItem("waveatlas:favorites", JSON.stringify(next)); } catch { /* Favorites are optional when storage is unavailable. */ }
     setSaved(next.includes(key));
   };
   return (
@@ -542,7 +542,7 @@ const basemapStyles: Record<BasemapKey, { label: string; name: string; descripti
 };
 function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
 function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "grid grid-cols-3 gap-1 rounded-2xl p-1"} border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-xl`} aria-label="Basemap Cockpit">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} aria-label={`Switch basemap to ${basemapStyles[key].name}`} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-2 text-[10px]" : "rounded-xl px-3 py-2 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}>{basemapStyles[key].label}</button>)}</div>; }
-function MapStyleController({ map, basemap, onResize }: { map: Map | null; basemap: BasemapKey; onResize?: () => void }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); const resize = () => requestAnimationFrame(() => { map.resize(); onResize?.(); }); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap, onResize]); return null; }
+function MapStyleController({ map, basemap, onResize }: { map: Map | null; basemap: BasemapKey; onResize?: () => void }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); try { window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); } catch { /* Basemap preference is non-critical. */ } const resize = () => requestAnimationFrame(() => { map.resize(); onResize?.(); }); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap, onResize]); return null; }
 
 function StationPulseMarker({
   geo,
@@ -588,7 +588,27 @@ function MapMarkerController({
 
 type MapTeleportContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
 
-function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, searchActive = false, keyboardOpen = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
+function countryNameForCode(code: string) {
+  try {
+    return new Intl.DisplayNames([navigator.language || "en"], { type: "region" }).of(code) || code;
+  } catch {
+    return code;
+  }
+}
+
+function nearestCountryResult(lat: number, lng: number): CountryResult | null {
+  let best: { code: string; distance: number } | null = null;
+  for (const [code, point] of Object.entries(isoCountryCentroids)) {
+    const distance = haversineKm({ lat, lng }, point);
+    if (!best || distance < best.distance) best = { code, distance };
+  }
+  if (!best || best.distance > 1400) return null;
+  const name = countryNameForCode(best.code);
+  return { name, code: best.code, flag: flagFor(best.code), centroid: isoCountryCentroids[best.code], station_count: 0 };
+}
+
+
+function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onCountrySelect, searchActive = false, keyboardOpen = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -600,6 +620,8 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   const viewMode = useRef<"desktop" | "mobile">(mobile ? "mobile" : "desktop");
   const geo = useMemo(() => geotruth(station), [station]);
   const initialGeo = useRef(geo);
+  const onCountrySelectRef = useRef(onCountrySelect);
+  useEffect(() => { onCountrySelectRef.current = onCountrySelect; }, [onCountrySelect]);
 
   const cameraPadding = useMemo(() => mobile ? { top: 160, right: 24, bottom: 180, left: 24 } : { top: 28, right: 28, bottom: 28, left: 28 }, [mobile]);
   const camera = useMapCameraController(map, cameraPadding);
@@ -636,10 +658,16 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
     window.addEventListener("orientationchange", resize);
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", resize);
+    const clickCountry = (event: maplibregl.MapMouseEvent) => {
+      const country = nearestCountryResult(event.lngLat.lat, event.lngLat.lng);
+      if (country) onCountrySelectRef.current?.(country);
+    };
+    m.on("click", clickCountry);
     return () => {
       window.removeEventListener("orientationchange", resize);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", resize);
+      m.off("click", clickCountry);
       mk?.remove();
       m.remove();
     };
@@ -739,8 +767,8 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
           </div>
         </div>
         <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/70 px-4 py-2 text-sm backdrop-blur">
-          <span className="truncate font-bold text-ivory">{station.name}</span>
-          <span className="ml-3 shrink-0 text-xs text-ivory/55">{station.country}</span>
+          <span className="truncate font-bold text-ivory">Tap the Earth to hear a place</span>
+          <span className="ml-3 shrink-0 text-xs text-ivory/55">Current: {station.city || station.state || station.country}</span>
         </div>
 
       </div>
@@ -808,7 +836,7 @@ function rememberTeleport(station: Station) {
     tags: keep([...history.tags, ...station.tags.map((tag) => tag.toLowerCase())]),
     stationIds: keep([...history.stationIds, station.station_uuid || station.id]),
   };
-  window.localStorage.setItem(TELEPORT_HISTORY_KEY, JSON.stringify(next));
+  try { window.localStorage.setItem(TELEPORT_HISTORY_KEY, JSON.stringify(next)); } catch { /* Teleport history is best-effort. */ }
 }
 
 
@@ -840,17 +868,25 @@ function stationLanguages(station: Station) {
   return station.language.toLowerCase().split(/[,/]/).map((language) => language.trim()).filter(Boolean);
 }
 
+function clampUnitInterval(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const toRad = (value: number) => value * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const haversine = clampUnitInterval(Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2);
+  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine)));
+}
+
 function stationDistanceKm(a: Station, b: Station) {
   const aGeo = geotruth(a);
   const bGeo = geotruth(b);
   if (aGeo.lat === null || aGeo.lng === null || bGeo.lat === null || bGeo.lng === null) return null;
-  const toRad = (value: number) => value * Math.PI / 180;
-  const dLat = toRad(bGeo.lat - aGeo.lat);
-  const dLng = toRad(bGeo.lng - aGeo.lng);
-  const lat1 = toRad(aGeo.lat);
-  const lat2 = toRad(bGeo.lat);
-  const haversine = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine)));
+  return haversineKm({ lat: aGeo.lat, lng: aGeo.lng }, { lat: bGeo.lat, lng: bGeo.lng });
 }
 
 function buildCandidateMetadata(station: Station) {
@@ -1394,8 +1430,8 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, 
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setStation(station); else toggle(); };
-  return <div onClick={onOpen} className="fixed bottom-[82px] left-4 right-4 z-40 h-[72px] rounded-3xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl backdrop-blur-xl">
-    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-11 shrink-0 place-items-center rounded-full bg-radio text-midnight">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{station.name}</p><p className="truncate text-xs text-ivory/60">{station.country} · {status}</p></div><div className="flex h-7 items-end gap-0.5">{[30,55,40,75,50].map((h,i)=><span key={i} style={{height:`${h}%`}} className="w-1 rounded-full bg-radio/80" />)}</div></div>
+  return <div onClick={onOpen} className="fixed bottom-[86px] left-4 right-4 z-40 min-h-[76px] rounded-3xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl backdrop-blur-xl">
+    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-11 shrink-0 place-items-center rounded-full bg-radio text-midnight">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{station.city || station.state || station.country} · {station.country}</p><p className="truncate text-xs text-ivory/60">{getPrimaryGenre(station)} · {station.name} · {status}</p></div><Volume2 className="size-4 text-ivory/60" /></div>
   </div>;
 }
 
@@ -1442,7 +1478,7 @@ function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { st
 }
 
 function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: string) => void }) {
-  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-4 gap-1 rounded-full border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{[[Plane,"Teleport"],[Heart,"Favorites"],[Globe2,"Passport"],[Radio,"Recently Visited"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
+  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-5 gap-1 rounded-full border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[10px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -1464,7 +1500,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   };
   const visualViewport = useIOSVisualViewport();
   return <section className="fixed inset-0 h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-white md:hidden">
-    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
+    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     <MobileBrandBar viewportOffsetTop={visualViewport.viewportOffsetTop} />
     {mode !== "Dial" ? <MobileSearchPill viewportOffsetTop={visualViewport.viewportOffsetTop} onOpen={() => setSearchOverlayOpen(true)} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
@@ -1475,7 +1511,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
-    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m === "Teleport") setWanderOpen(true); else if (m === "Passport" || m === "Recently Visited" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m === "Teleport") setWanderOpen(true); else if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
 
@@ -1547,7 +1583,11 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [desktopMode, setDesktopMode] = useState("Teleport");
   const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
-  const [deepLinkUuid] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("station")?.trim() || "");
+  const [deepLinkUuid] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const value = new URLSearchParams(window.location.search).get("station")?.trim() || "";
+    return /^[a-z0-9-]{8,80}$/i.test(value) ? value : "";
+  });
   const initialStationPoolRef = useRef(stationPool);
 
   useEffect(() => {
@@ -1644,7 +1684,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     <>
       <AudioEngine stations={stationPool} />
       <AnimatePresence>{arrivalVisible ? <ArrivalCard arrival={arrival} onEnter={() => setArrivalVisible(false)} /> : null}</AnimatePresence>
-      <SignalInitializationSequence />
+      {/* Signal initialization is intentionally not auto-mounted so travelers are never trapped behind a transition screen. */}
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
@@ -1664,23 +1704,12 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             </p>
           </div>
         </div>
-        <div className="hidden gap-2 md:flex">
-          {["Teleport", "Favorites", "Passport", "Recently Visited", "Settings"].map((x) => (
-            <button
-              type="button"
-              onClick={() => setDesktopMode(x)}
-              className={`rounded-full border border-white/10 px-4 py-2 text-sm ${desktopMode === x ? "bg-radio text-midnight" : "text-ivory/70"}`}
-              key={x}
-            >
-              {x}
-            </button>
-          ))}
-        </div>
+        <p className="hidden text-sm text-ivory/55 md:block">Tap countries and regions to discover live stations.</p>
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6">
         <DailyFlightPanel stations={stationPool} />
         <div id="atlas-map" className="scroll-mt-6">
-          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} searchActive={query.trim().length > 0} /><SignalDial key={current.id} mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} onWander={() => setDesktopMode("Wander")} /></div>
+          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} /></div>
         </div>
       </div>
       <section className="mx-auto mt-6 max-w-7xl">
@@ -1746,21 +1775,28 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </section>
-      <div className="fixed inset-x-3 bottom-3 z-20 mx-auto flex max-w-md items-center justify-between rounded-full border border-white/15 bg-midnight/90 p-2 pl-4 shadow-glow backdrop-blur md:flex">
-        <span className="truncate text-sm">
-          <Compass className="mr-2 inline size-4 text-gold" />
-          {current.name}
-        </span>
-        <button
-          onClick={() => {
-            const player = usePlayer.getState();
-            if (!player.current) player.setStation(current);
-            else player.toggle();
-          }}
-          className="rounded-full bg-radio p-3 text-midnight"
-        >
-          {usePlayer.getState().playing ? <Pause /> : <Play />}
-        </button>
+      <div className="fixed inset-x-4 bottom-4 z-30 mx-auto grid max-w-5xl grid-cols-[1fr_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/92 p-2 shadow-glow backdrop-blur-xl">
+        <div className="flex min-w-0 items-center gap-3 px-3">
+          <button
+            onClick={() => {
+              const player = usePlayer.getState();
+              if (!player.current) player.setStation(current);
+              else player.toggle();
+            }}
+            className="grid size-12 shrink-0 place-items-center rounded-full bg-radio text-midnight"
+            aria-label="Play or pause current station"
+          >
+            {usePlayer.getState().playing ? <Pause /> : <Play />}
+          </button>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black text-ivory">{current.city || current.state || current.country} · {current.country}</p>
+            <p className="truncate text-xs text-ivory/60">{getPrimaryGenre(current)} · {current.name}</p>
+          </div>
+          <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
+        </div>
+        <nav className="grid grid-cols-5 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
+          {[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; setDesktopMode(value); if (value === "Teleport") { const destination = chooseWonderStation(stationPool, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); } }} className={`rounded-full px-3 py-2 text-[11px] font-bold ${desktopMode === label ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
+        </nav>
       </div>
     </main>
     </>
