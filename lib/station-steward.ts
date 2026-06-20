@@ -1,6 +1,6 @@
 import { resolveStationGeo } from './geotruth-resolver';
 import { buildRadioBrowserClaim, reconcileStationTruth } from './source-oracle';
-import { fetchStations, fetchStationsByCountry, type Station, validateStream } from './stations';
+import { fetchStations, fetchStationsByCountry, isCuratedStation, type Station, validateStream } from './stations';
 
 export type StewardStationRecord = Station & {
   url_resolved?: string;
@@ -225,7 +225,7 @@ export async function runStationStewardAgent(options: { dryRun?: boolean; valida
     countries_with_no_results = discovery.countries_with_no_results;
     const validateLimit = Math.min(options.validateLimit ?? VALIDATION_SAMPLE_SIZE, STREAM_VALIDATE_TIMEOUT_SAFE_LIMIT, candidates.length);
     for (const [index, station] of candidates.entries()) {
-      const validation = index < validateLimit ? await validateStream(station.url) : undefined;
+      const validation = index < validateLimit ? await validateStream(station.url, { curated: isCuratedStation(station) }) : undefined;
       const normalized = normalizeForDatabase(station, validation);
       if (resolveStationGeo(station).warning) geo_conflicts_flagged += 1;
       if (normalized.is_retired) stations_retired += 1;
