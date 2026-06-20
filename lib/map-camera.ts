@@ -39,22 +39,32 @@ export function restoreCameraState(map: Map, camera: MapCameraState, options: Pa
   });
 }
 
-export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: PaddingOptions = EMPTY_PADDING) {
-  if (stationGeo.lat === null || stationGeo.lng === null) return;
+export function applyVisualCenterCamera(map: Map, center: [number, number], zoom: number, padding: PaddingOptions = EMPTY_PADDING, options: Partial<FlyToOptions> = {}) {
   map.stop();
   map.flyTo({
-    center: [stationGeo.lng, stationGeo.lat],
-    zoom: stationGeo.precision === "station" ? 7 : stationGeo.precision === "city" ? 6 : 4.4,
+    center,
+    zoom,
     speed: 0.72,
     curve: 1.35,
     padding,
     essential: true,
+    ...options,
   });
 }
 
+export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: PaddingOptions = EMPTY_PADDING) {
+  if (stationGeo.lat === null || stationGeo.lng === null) return;
+  applyVisualCenterCamera(
+    map,
+    [stationGeo.lng, stationGeo.lat],
+    stationGeo.precision === "station" ? 7 : stationGeo.precision === "city" ? 6 : 4.4,
+    padding,
+  );
+}
+
 export function flyToCountry(map: Map, countryGeo: CountryGeo, padding: PaddingOptions = EMPTY_PADDING) {
-  map.stop();
   if (countryGeo.bounds) {
+    map.stop();
     const bounds: LngLatBoundsLike = [
       [countryGeo.bounds.minLng, countryGeo.bounds.minLat],
       [countryGeo.bounds.maxLng, countryGeo.bounds.maxLat],
@@ -67,19 +77,19 @@ export function flyToCountry(map: Map, countryGeo: CountryGeo, padding: PaddingO
     } satisfies FitBoundsOptions);
     return;
   }
-  map.flyTo({
-    center: [countryGeo.centroid.lng, countryGeo.centroid.lat],
-    zoom: 4.4,
-    speed: 0.72,
-    curve: 1.35,
-    padding,
-    essential: true,
-  });
+  applyVisualCenterCamera(map, [countryGeo.centroid.lng, countryGeo.centroid.lat], 4.4, padding);
 }
 
 export function resizeThenRestore(map: Map, camera: MapCameraState) {
   requestAnimationFrame(() => {
     map.resize();
     requestAnimationFrame(() => restoreCameraState(map, camera));
+  });
+}
+
+export function resizeThenReapply(map: Map, reapply: () => void) {
+  requestAnimationFrame(() => {
+    map.resize();
+    requestAnimationFrame(reapply);
   });
 }

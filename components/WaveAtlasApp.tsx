@@ -581,7 +581,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   const geo = useMemo(() => geotruth(station), [station]);
   const initialGeo = useRef(geo);
 
-  const cameraPadding = useMemo(() => mobile ? { top: 96, right: 24, bottom: 188, left: 24 } : { top: 28, right: 28, bottom: 28, left: 28 }, [mobile]);
+  const cameraPadding = useMemo(() => mobile ? { top: 190, right: 24, bottom: 220, left: 24 } : { top: 28, right: 28, bottom: 28, left: 28 }, [mobile]);
   const camera = useMapCameraController(map, cameraPadding);
   const lastStationId = useRef(station.id);
   useEffect(() => {
@@ -1008,7 +1008,7 @@ function NowPlaying({
 
 function MobileBrandBar() {
   return (
-    <div className="fixed left-0 right-0 top-0 z-40 px-4 pt-3">
+    <div className="fixed left-4 right-4 top-0 z-40 max-w-full pt-3">
       <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/80 px-3 py-2 shadow-2xl backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <img
@@ -1249,7 +1249,7 @@ function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { st
 }
 
 function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: string) => void }) {
-  return <nav className="fixed bottom-0 left-0 right-0 z-[60] px-4 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-4 gap-1 rounded-full border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{[[Compass,"Atlas"],[Radio,"Dial"],[Globe2,"Wander"],[Heart,"Library"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
+  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-4 gap-1 rounded-full border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{[[Compass,"Atlas"],[Radio,"Dial"],[Globe2,"Wander"],[Heart,"Library"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -1268,10 +1268,10 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     if (presenceTimer.current) window.clearTimeout(presenceTimer.current);
     presenceTimer.current = window.setTimeout(() => setPresenceVisible(false), 6000);
   };
-  return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
+  return <section className="relative h-[100dvh] min-h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-white md:hidden">
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} searchActive={query.trim().length > 0} />
     <MobileBrandBar />
-    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { usePlayer.getState().setStation(station); setQuery(""); onQueryComplete(); }} /> : null}
+    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { setQuery(""); onQueryComplete(); requestAnimationFrame(() => { usePlayer.getState().setStation(station); }); }} /> : null}
     <SignalDial key={current.id} mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
