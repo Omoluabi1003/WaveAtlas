@@ -3,22 +3,13 @@ export const WAVEATLAS_LOGO =
 
 export const BRAND = {
   name: "WaveAtlas™",
-  shortName: "WaveAtlas",
   logo: WAVEATLAS_LOGO,
+  shortName: "WaveAtlas",
   description: "A geospatial audio exploration platform built by ETL GIS Consulting LLC.",
   tagline: "Travel the World Through Sound",
   shareTitle: "WaveAtlas — Travel the World Through Sound",
   themeColor: "#07111F",
 } as const;
-
-export const getBrandLogo = () => BRAND.logo;
-
-export const getBrandLogoAlt = (context = "logo") => `${BRAND.name} ${context}`;
-
-export const getBrandSocialImage = () => ({
-  url: BRAND.logo,
-  alt: getBrandLogoAlt("logo"),
-});
 
 export const getBrandManifestIcons = () => [
   {
