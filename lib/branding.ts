@@ -1,5 +1,5 @@
 export const WAVEATLAS_LOGO =
-  "https://raw.githubusercontent.com/Omoluabi1003/WaveAtlas/main/75CBD90B-E435-4EA8-9381-1B99085AEE08.png";
+  "https://raw.githubusercontent.com/Omoluabi1003/WaveAtlas/main/75CBD90B-E435-4EA8-9381-1B99085AEE08.png?v=20260620";
 
 export const BRAND = {
   name: "WaveAtlas™",
@@ -14,14 +14,8 @@ export const BRAND = {
 export const getBrandManifestIcons = () => [
   {
     src: BRAND.logo,
-    sizes: "any",
+    sizes: "512x512",
     type: "image/png",
-    purpose: "any" as const,
-  },
-  {
-    src: BRAND.logo,
-    sizes: "any",
-    type: "image/png",
-    purpose: "maskable" as const,
+    purpose: "any maskable" as const,
   },
 ];

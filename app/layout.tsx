@@ -3,7 +3,7 @@ import { BRAND } from "@/lib/branding";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: BRAND.name,
+  title: "WaveAtlas™",
   description: BRAND.description,
   manifest: "/manifest.webmanifest",
   applicationName: BRAND.name,
@@ -13,15 +13,15 @@ export const metadata: Metadata = {
     apple: BRAND.logo,
   },
   openGraph: {
-    title: BRAND.name,
+    title: "WaveAtlas™",
     description: BRAND.description,
     siteName: BRAND.name,
-    images: [BRAND.logo],
+    images: [{ url: BRAND.logo }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: BRAND.name,
+    title: "WaveAtlas™",
     description: BRAND.description,
     images: [BRAND.logo],
   },

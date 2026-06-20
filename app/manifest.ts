@@ -10,6 +10,6 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: BRAND.themeColor,
     theme_color: BRAND.themeColor,
-    icons: getBrandManifestIcons(),
+    icons: getBrandManifestIcons() as unknown as MetadataRoute.Manifest["icons"],
   };
 }
