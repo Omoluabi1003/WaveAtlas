@@ -1045,6 +1045,7 @@ type SignalDialProps = {
   current: Station;
   mobile?: boolean;
   onStationResolved?: (station: Station) => void;
+  compact?: boolean;
 };
 
 function SignalCandidatePreview({ candidate, state, onTune, onNext }: { candidate: SignalCandidate | null; state: "idle" | "scanning" | "found" | "none"; onTune: () => void; onNext: () => void }) {
@@ -1055,7 +1056,7 @@ function SignalCandidatePreview({ candidate, state, onTune, onNext }: { candidat
   </motion.div>;
 }
 
-function SignalDial({ mapContext, selectedCountry, stations, current, mobile = false, onStationResolved, onWander }: SignalDialProps & { onWander?: () => void }) {
+function SignalDial({ mapContext, selectedCountry, stations, current, mobile = false, compact = false, onStationResolved, onWander }: SignalDialProps & { onWander?: () => void }) {
   const [state, setState] = useState<"idle" | "scanning" | "found" | "none">("idle");
   const [candidates, setCandidates] = useState<SignalCandidate[]>([]);
   const [index, setIndex] = useState(0);
@@ -1094,14 +1095,14 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
     setState("idle");
   };
   return <>
-    <div className={`${mobile ? "fixed bottom-[166px] right-5 z-50" : "absolute bottom-5 right-5 z-40"}`}>
-      <button type="button" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(true); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl">
+    <motion.div animate={{ scale: compact ? 0.65 : 1 }} transition={{ type: "spring", damping: 24, stiffness: 260 }} className={`${mobile ? "fixed bottom-[172px] right-5 z-50 origin-bottom-right" : "absolute bottom-5 right-5 z-40 origin-bottom-right"}`}>
+      <button type="button" aria-label="Scan signal" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(true); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl transition-[width,height,opacity] duration-300">
         <span className="absolute inset-1 rounded-full border border-gold/45 bg-[conic-gradient(from_90deg,rgba(214,168,79,.75),rgba(88,225,132,.85),transparent_62%)] opacity-80 transition group-hover:rotate-45" />
         <span className="absolute inset-3 rounded-full bg-slate-950/90" />
-        <span className="relative text-center"><ScanLine className="mx-auto size-6 text-radio" /><span className="mt-1 block text-[10px] font-black uppercase tracking-[.18em] text-gold">Scan</span></span>
+        <span className="relative text-center"><ScanLine className="mx-auto size-6 text-radio" /><span className={`${compact ? "sr-only" : "mt-1 block"} text-[10px] font-black uppercase tracking-[.18em] text-gold`}>Scan</span></span>
       </button>
-      <div className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Scan</span><span>•</span><span>Next</span><span>•</span><span>Lock</span></div>
-    </div>
+      <AnimatePresence>{!compact ? <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Scan</span><span>•</span><span>Next</span><span>•</span><span>Lock</span></motion.div> : null}</AnimatePresence>
+    </motion.div>
     <AnimatePresence><SignalCandidatePreview candidate={candidate} state={state} onTune={tune} onNext={() => setIndex((n) => candidates.length ? (n + 1) % candidates.length : 0)} /></AnimatePresence>
   </>;
 }
@@ -1146,7 +1147,7 @@ function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { ope
 
 function PresenceToast({ station, intent, visible }: { station: Station; intent: string; visible: boolean }) {
   const experience = useMemo(() => getWandererExperience(station, intent), [station, intent]);
-  return <AnimatePresence>{visible ? <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed bottom-[166px] left-4 right-4 z-40 rounded-3xl border border-gold/20 bg-slate-950/90 p-4 text-sm leading-6 text-ivory shadow-2xl backdrop-blur-xl">{experience.narration}</motion.div> : null}</AnimatePresence>;
+  return <AnimatePresence>{visible ? <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ opacity: { duration: 0.28 }, y: { type: "spring", damping: 26, stiffness: 260 } }} className="fixed bottom-[260px] left-4 right-4 z-[55] rounded-3xl border border-gold/20 bg-slate-950/92 p-4 text-sm leading-6 text-ivory shadow-2xl backdrop-blur-xl">{experience.narration}</motion.div> : null}</AnimatePresence>;
 }
 
 function MobileMapControls({ onOpenBasemap }: { onRecenter: () => void; onOpenBasemap: () => void; onOpenSearch: () => void; onOpenFavorites: () => void; onScan: () => void }) {
@@ -1173,16 +1174,18 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [wanderOpen, setWanderOpen] = useState(false);
   const [presenceVisible, setPresenceVisible] = useState(false);
   const [mapContext, setMapContext] = useState<MapScanContext | null>(null);
+  const presenceTimer = useRef<number | null>(null);
   const handleTravel = (intent: string) => {
     setWandererIntent(intent);
     setPresenceVisible(true);
-    window.setTimeout(() => setPresenceVisible(false), 5000);
+    if (presenceTimer.current) window.clearTimeout(presenceTimer.current);
+    presenceTimer.current = window.setTimeout(() => setPresenceVisible(false), 6000);
   };
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { usePlayer.getState().setStation(station); setQuery(""); }} /> : null}
-    <SignalDial mobile mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
+    <SignalDial mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
