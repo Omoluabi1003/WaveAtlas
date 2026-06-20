@@ -1,9 +1,11 @@
-export const WAVEATLAS_LOGO =
-  "https://raw.githubusercontent.com/Omoluabi1003/WaveAtlas/main/75CBD90B-E435-4EA8-9381-1B99085AEE08.png?v=20260620";
+export const WAVEATLAS_LOGO_URL =
+  "https://raw.githubusercontent.com/Omoluabi1003/WaveAtlas/main/public/brand/waveatlas-atlas-compass.svg";
+export const WAVEATLAS_LOGO_PATH = "/brand/waveatlas-atlas-compass.svg";
 
 export const BRAND = {
   name: "WaveAtlas™",
-  logo: WAVEATLAS_LOGO,
+  logoUrl: WAVEATLAS_LOGO_URL,
+  logoPath: WAVEATLAS_LOGO_PATH,
   shortName: "WaveAtlas",
   description: "A geospatial audio exploration platform built by ETL GIS Consulting LLC.",
   tagline: "Travel the World Through Sound",
@@ -13,9 +15,14 @@ export const BRAND = {
 
 export const getBrandManifestIcons = () => [
   {
-    src: BRAND.logo,
-    sizes: "512x512",
-    type: "image/png",
+    src: WAVEATLAS_LOGO_URL,
+    sizes: "any",
+    type: "image/svg+xml",
     purpose: "any maskable" as const,
   },
 ];
+
+export const getBrandShareMetadata = () => ({
+  image: WAVEATLAS_LOGO_URL,
+  imageType: "image/svg+xml",
+} as const);

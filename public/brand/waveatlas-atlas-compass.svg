@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">WaveAtlas Atlas Compass</title>
+  <desc id="desc">A transparent flat vector atlas compass logo with a latitude-longitude globe, emerald beacon pulse, radio-wave rings, and a hidden W in the meridians.</desc>
+  <defs>
+    <linearGradient id="emerald" x1="128" y1="96" x2="384" y2="416" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00D68F"/>
+      <stop offset="1" stop-color="#F7F5EF"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="96" y1="96" x2="416" y2="416" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7F5EF"/>
+      <stop offset="0.55" stop-color="#D4A64A"/>
+      <stop offset="1" stop-color="#00D68F"/>
+    </linearGradient>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 34 285 181 478 256 285 331 256 478 227 331 34 256 227 181Z" stroke="#D4A64A" stroke-width="10" opacity="0.64"/>
+    <path d="M256 72 276 203 440 256 276 309 256 440 236 309 72 256 236 203Z" stroke="#F7F5EF" stroke-width="3" opacity="0.5"/>
+
+    <circle cx="256" cy="256" r="154" stroke="#F7F5EF" stroke-width="14"/>
+    <circle cx="256" cy="256" r="154" stroke="url(#gold)" stroke-width="7" opacity="0.95"/>
+    <circle cx="256" cy="256" r="190" stroke="#00D68F" stroke-width="5" opacity="0.2"/>
+    <circle cx="256" cy="256" r="220" stroke="#00D68F" stroke-width="4" opacity="0.13"/>
+
+    <path d="M112 256h288M126 193h260M126 319h260" stroke="#F7F5EF" stroke-width="8" opacity="0.82"/>
+    <path d="M256 102v308" stroke="#F7F5EF" stroke-width="8" opacity="0.72"/>
+    <ellipse cx="256" cy="256" rx="71" ry="154" stroke="#F7F5EF" stroke-width="8" opacity="0.76"/>
+    <ellipse cx="256" cy="256" rx="118" ry="154" stroke="#00D68F" stroke-width="6" opacity="0.5"/>
+    <path d="M151 140 C177 252 196 332 222 371 C239 299 246 240 256 141 C266 240 273 299 290 371 C316 332 335 252 361 140" stroke="#00D68F" stroke-width="12" opacity="0.92"/>
+
+    <path d="M256 83c64 42 98 99 98 173s-34 131-98 173c-64-42-98-99-98-173s34-131 98-173Z" stroke="#08111D" stroke-width="4" opacity="0.55"/>
+    <path d="M256 116 271 240 396 256 271 272 256 396 241 272 116 256 241 240Z" stroke="#D4A64A" stroke-width="5" opacity="0.9"/>
+
+    <circle cx="320" cy="206" r="15" fill="#00D68F" stroke="#F7F5EF" stroke-width="5" filter="url(#softGlow)"/>
+    <circle cx="320" cy="206" r="37" stroke="#00D68F" stroke-width="5" opacity="0.4"/>
+    <circle cx="320" cy="206" r="62" stroke="#00D68F" stroke-width="4" opacity="0.22"/>
+  </g>
+</svg>

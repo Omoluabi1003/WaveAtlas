@@ -27,7 +27,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
-import { BRAND } from "@/lib/branding";
+import { BRAND, WAVEATLAS_LOGO_PATH, getBrandShareMetadata } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import type { Station } from "@/lib/stations";
@@ -231,8 +231,9 @@ function ShareStationButton({ station }: { station: Station }) {
     const url = `${window.location.origin}?station=${encodeURIComponent(stationUuid)}`;
     const title = `Listen to ${station.name} on ${BRAND.name}`;
     const text = `Travel to ${station.country} through sound with ${station.name} on ${BRAND.name}.`;
-    if (navigator.share) await navigator.share({ title, text, url });
-    else await navigator.clipboard.writeText(url);
+    const metadata = getBrandShareMetadata();
+    if (navigator.share) await navigator.share({ title, text: `${text} ${metadata.image}`, url });
+    else await navigator.clipboard.writeText([url, metadata.image].join("\n"));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   };
@@ -360,7 +361,7 @@ function SignalInitializationSequence() {
       <motion.div className="relative grid size-64 place-items-center rounded-full border border-sky/20 bg-[radial-gradient(circle,rgba(56,189,248,.18),rgba(15,23,42,.35)_55%,transparent_70%)] shadow-[0_0_100px_rgba(56,189,248,.22)]" animate={{ rotate: 360 }} transition={{ duration: 26, repeat: Infinity, ease: "linear" }}>
         <div className="absolute inset-7 rounded-full border border-gold/25" />
         <div className="absolute inset-12 rounded-full border border-radio/20" />
-        <Globe2 className="size-28 text-sky/80" />
+        <img src={WAVEATLAS_LOGO_PATH} alt="WaveAtlas logo" width={144} height={144} className="size-36 object-contain" />
         <span className="absolute size-5 rounded-full bg-radio shadow-[0_0_0_18px_rgba(88,225,132,.12),0_0_50px_rgba(88,225,132,.8)]" />
       </motion.div>
       <p className="mt-8 font-mono text-xs uppercase tracking-[.4em] text-gold">Signal Initialization Sequence™</p>
@@ -1035,7 +1036,7 @@ function MobileBrandBar({ viewportOffsetTop = 0 }: { viewportOffsetTop?: number 
       <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/80 px-3 py-2 shadow-2xl backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <img
-            src={BRAND.logo}
+            src={WAVEATLAS_LOGO_PATH}
             alt="WaveAtlas logo"
             width={48}
             height={48}
@@ -1493,7 +1494,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-4">
           <img
-            src={BRAND.logo}
+            src={WAVEATLAS_LOGO_PATH}
             alt="WaveAtlas logo"
             width={48}
             height={48}
