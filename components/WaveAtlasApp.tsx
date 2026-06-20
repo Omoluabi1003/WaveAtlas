@@ -28,6 +28,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
+import { BRAND } from "@/lib/branding";
 import type { Station } from "@/lib/stations";
 
 type CountryResult = {
@@ -227,8 +228,8 @@ function ShareStationButton({ station }: { station: Station }) {
     const stationUuid = station.station_uuid;
     if (!stationUuid) return;
     const url = `${window.location.origin}?station=${encodeURIComponent(stationUuid)}`;
-    const title = `Listen to ${station.name} on WaveAtlas™`;
-    const text = `Travel to ${station.country} through sound with ${station.name} on WaveAtlas™.`;
+    const title = `Listen to ${station.name} on ${BRAND.name}`;
+    const text = `Travel to ${station.country} through sound with ${station.name} on ${BRAND.name}.`;
     if (navigator.share) await navigator.share({ title, text, url });
     else await navigator.clipboard.writeText(url);
     setCopied(true);
@@ -362,7 +363,7 @@ function SignalInitializationSequence() {
         <span className="absolute size-5 rounded-full bg-radio shadow-[0_0_0_18px_rgba(88,225,132,.12),0_0_50px_rgba(88,225,132,.8)]" />
       </motion.div>
       <p className="mt-8 font-mono text-xs uppercase tracking-[.4em] text-gold">Signal Initialization Sequence™</p>
-      <h1 className="mt-3 text-4xl font-black">WaveAtlas™</h1>
+      <h1 className="mt-3 text-4xl font-black">{BRAND.name}</h1>
       <p className="mt-2 text-lg text-ivory/70">Experience Humanity Through Sound™</p>
       <AnimatePresence mode="wait"><motion.p key={phase} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6 font-mono text-sm uppercase tracking-[.28em] text-radio">{signalInitializationPhases[phase]}</motion.p></AnimatePresence>
       <p className="mt-7 max-w-md text-center text-[10px] leading-5 text-ivory/40">Built by ETL GIS Consulting LLC • Geospatial Intelligence • Spatial Analytics • GIS Architecture • Florida, USA</p>
@@ -1010,9 +1011,9 @@ function MobileBrandBar({ logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }
         <div className="flex items-center gap-2">
           <div className="relative flex size-10 items-center justify-center overflow-hidden rounded-full bg-sky/15 text-sky">
             {(!logoLoaded || logoFailed) && <Globe2 className="size-5 animate-pulse" />}
-            {!logoFailed && <Image src="/assets/logo/waveatlas-logo.png" alt="WaveAtlas Logo" width={40} height={40} priority className={`absolute inset-0 h-full w-full object-contain transition-opacity ${logoLoaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLogoLoaded(true)} onError={() => setLogoFailed(true)} />}
+            {!logoFailed && <Image src={BRAND.logo} alt={`${BRAND.name} Logo`} width={40} height={40} priority className={`absolute inset-0 h-full w-full object-contain transition-opacity ${logoLoaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLogoLoaded(true)} onError={() => setLogoFailed(true)} />}
           </div>
-          <div><b className="text-sm leading-none">WaveAtlas™</b></div>
+          <div><b className="text-sm leading-none">{BRAND.name}</b></div>
         </div>
         <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 font-mono text-[10px] uppercase tracking-[.18em] text-radio"><span className="size-2 rounded-full bg-radio shadow-[0_0_12px_rgba(88,225,132,.9)]" />Live</span>
       </div>
@@ -1373,8 +1374,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             )}
             {!logoFailed && (
               <Image
-                src="/assets/logo/waveatlas-logo.png"
-                alt="WaveAtlas Logo"
+                src={BRAND.logo}
+                alt={`${BRAND.name} Logo`}
                 width={56}
                 height={56}
                 priority
@@ -1387,7 +1388,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             )}
           </div>
           <div>
-            <b className="text-xl">WaveAtlas™</b>
+            <b className="text-xl">{BRAND.name}</b>
             <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">
               EXPERIENCE HUMANITY THROUGH SOUND™
             </p>
