@@ -15,7 +15,7 @@ import {
   Pause,
   Play,
   Radio,
-  ScanLine,
+  Plane,
   Search,
   Share2,
   Signal,
@@ -30,10 +30,10 @@ import { isoCountryCentroids, resolveStationGeo, type ResolvedStationGeo } from 
 import { BRAND, WAVEATLAS_LOGO_PATH, getBrandShareMetadata } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
-import type { Station } from "@/lib/stations";
+import { flagFor, type Station } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
-import { readArrivalHistory } from "@/lib/discovery/history";
+import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
 
 type CountryResult = {
@@ -136,7 +136,7 @@ function localTimeFor(lng: number | null) { if (lng === null) return "Unknown lo
 function estimatedTemperature(geo: GeoPoint) { return geo.lat === null || geo.lng === null ? 72 : Math.round(72 - Math.abs(geo.lat) * 0.28 + ((geo.lng + 180) % 11)); }
 
 function getPrimaryGenre(station: Station) {
-  return station.tags.find(Boolean) || "Mixed Radio";
+  return stationGenre(station);
 }
 
 function getStreamHealth(station: Station) {
@@ -230,7 +230,7 @@ function SaveStationButton({ station }: { station: Station }) {
   return (
     <button onClick={toggleSave} className="rounded-full border border-white/10 px-4 py-2 text-sm transition hover:bg-white/[0.08]">
       <Heart className={`mr-2 inline size-4 ${saved ? "fill-radio text-radio" : ""}`} />
-      {saved ? "Saved" : "Save station"}
+      {saved ? "Saved" : "Save destination"}
     </button>
   );
 }
@@ -252,7 +252,7 @@ function ShareStationButton({ station }: { station: Station }) {
   return (
     <button onClick={share} className="rounded-full border border-white/10 px-4 py-2 text-sm transition hover:bg-white/[0.08]">
       {copied ? <Check className="mr-2 inline size-4 text-radio" /> : typeof navigator !== "undefined" && "share" in navigator ? <Share2 className="mr-2 inline size-4" /> : <Copy className="mr-2 inline size-4" />}
-      {copied ? "Station link copied" : "Share station"}
+      {copied ? "Destination link copied" : "Share destination"}
     </button>
   );
 }
@@ -279,7 +279,7 @@ function MiniCountryMapCard({ station }: { station: Station }) {
 
 function SimilarStationsList({ station, stations }: { station: Station; stations: Station[] }) {
   const similar = stations.filter((s) => s.id !== station.id && (s.country_code === station.country_code || s.language === station.language || s.tags.some((tag) => station.tags.includes(tag)))).slice(0, 5);
-  return <ListCard title="Similar nearby" items={similar.map((s) => ({ key: s.id, label: s.name, meta: `${s.country} · ${getPrimaryGenre(s)}`, action: () => usePlayer.getState().setStation(s) }))} />;
+  return <ListCard title="Nearby echoes" items={similar.map((s) => ({ key: s.id, label: s.name, meta: `${s.country} · ${getPrimaryGenre(s)}`, action: () => usePlayer.getState().setStation(s) }))} />;
 }
 
 function NearbyCountriesList({ station, setQuery }: { station: Station; setQuery: (q: string) => void }) {
@@ -309,8 +309,8 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
     <section className="mt-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-mono text-xs uppercase tracking-[.3em] text-gold">Station Intelligence</p>
-          <p className="mt-1 text-sm text-ivory/55">Live context for this signal</p>
+          <p className="font-mono text-xs uppercase tracking-[.3em] text-gold">Destination Intelligence</p>
+          <p className="mt-1 text-sm text-ivory/55">Cultural context for this destination</p>
         </div>
         <StreamHealthBadge station={station} />
       </div>
@@ -326,6 +326,8 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
         <SaveStationButton station={station} />
         <ShareStationButton station={station} />
       </div>
+      <RecentlyVisitedPanel />
+      <WorldPassportPanel />
       <SimilarStationsList station={station} stations={stations} />
       <NearbyCountriesList station={station} setQuery={setQuery} />
     </section>
@@ -378,7 +380,7 @@ function SignalInitializationSequence() {
       </motion.div>
       <p className="mt-8 font-mono text-xs uppercase tracking-[.4em] text-gold">Signal Initialization Sequence™</p>
       <h1 className="mt-3 text-4xl font-black">{BRAND.name}</h1>
-      <p className="mt-2 text-lg text-ivory/70">Experience Humanity Through Sound™</p>
+      <p className="mt-2 text-lg text-ivory/70">Explore Humanity Through Sound™</p>
       <AnimatePresence mode="wait"><motion.p key={phase} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6 font-mono text-sm uppercase tracking-[.28em] text-radio">{signalInitializationPhases[phase]}</motion.p></AnimatePresence>
       <p className="mt-7 max-w-md text-center text-[10px] leading-5 text-ivory/40">Built by ETL GIS Consulting LLC • Geospatial Intelligence • Spatial Analytics • GIS Architecture • Florida, USA</p>
     </div>
@@ -584,9 +586,9 @@ function MapMarkerController({
 }
 
 
-type MapScanContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
+type MapTeleportContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
 
-function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, searchActive = false, keyboardOpen = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapScanContext) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
+function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, searchActive = false, keyboardOpen = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -1179,7 +1181,7 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
   const genres = Array.from(new Set(stations.flatMap((s) => s.tags).filter((tag) => tag.toLowerCase().includes(q)))).slice(0, 8);
   const languages = Array.from(new Set(stations.map((s) => s.language).filter((language) => language && language.toLowerCase().includes(q)))).slice(0, 8);
   if (query.trim().length < 2) return null;
-  return <div className="rounded-3xl border border-white/15 bg-slate-950/98 p-3 shadow-2xl backdrop-blur-2xl"><div className="mb-3 flex items-center justify-between px-1"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Station command results"}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className="grid gap-3 lg:grid-cols-[1.25fr_.75fr]"><div>{stationResults.length ? stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={onStationSelect} />) : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No active station found. Try country or genre search."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
+  return <div className="rounded-3xl border border-white/15 bg-slate-950/98 p-3 shadow-2xl backdrop-blur-2xl"><div className="mb-3 flex items-center justify-between px-1"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Destination results"}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className="grid gap-3 lg:grid-cols-[1.25fr_.75fr]"><div>{stationResults.length ? stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={onStationSelect} />) : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No active station found. Try country or genre search."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
 }
 function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
   return <div className="rounded-3xl border border-white/10 bg-slate-900 p-4 shadow-lg"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/5 bg-slate-800 px-3 py-2 text-left text-slate-100 hover:border-sky/40"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-slate-300">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
@@ -1187,7 +1189,7 @@ function SearchGroup({ title, items }: { title: string; items: { key: string; la
 type SignalCandidate = { station: Station; distanceKm?: number; signalStrength?: number; metadata?: ReturnType<typeof buildCandidateMetadata> };
 
 type SignalDialProps = {
-  mapContext: MapScanContext | null;
+  mapContext: MapTeleportContext | null;
   selectedCountry?: CountryResult | null;
   stations: Station[];
   current: Station;
@@ -1196,17 +1198,17 @@ type SignalDialProps = {
   compact?: boolean;
 };
 
-function SignalCandidatePreview({ candidate, state, anchor, onTune, onNext }: { candidate: SignalCandidate | null; state: "idle" | "scanning" | "found" | "none"; anchor: Station | null; onTune: () => void; onNext: () => void }) {
+function SignalCandidatePreview({ candidate, state, anchor, onTune, onNext }: { candidate: SignalCandidate | null; state: "idle" | "teleporting" | "found" | "none"; anchor: Station | null; onTune: () => void; onNext: () => void }) {
   if (state === "idle") return null;
   return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="fixed bottom-[166px] left-4 right-4 z-50 rounded-3xl border border-white/10 bg-slate-950/92 p-3 text-white shadow-2xl backdrop-blur-xl md:absolute md:bottom-4 md:left-auto md:right-4 md:w-80">
-    <p className="font-mono text-[10px] uppercase tracking-[.24em] text-gold">{state === "scanning" ? "Scanning signal" : state === "none" ? "No signal" : "Candidate lock"}</p>
-    {anchor && state !== "none" ? <p className="mt-1 text-xs font-semibold text-ivory/80">Locked on {anchor.name}. Exploring nearby, similar, and contrasting stations.</p> : null}
-    {candidate ? <div className="mt-2 flex items-center justify-between gap-3"><div className="min-w-0"><b className="block truncate text-sm">{candidate.station.name}</b><p className="truncate text-xs text-ivory/65">{candidate.station.city || candidate.station.state || candidate.station.country} · {candidate.signalStrength ?? candidate.station.health_score}% confidence</p></div><div className="flex shrink-0 gap-2"><button onClick={onNext} className="rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-ivory">Next</button><button onClick={onTune} className="rounded-full bg-radio px-3 py-2 text-xs font-black text-midnight">Lock</button></div></div> : <p className="mt-2 text-sm text-ivory/70">No verified station matched this map focus. Try another country or long-press for Wander.</p>}
+    <p className="font-mono text-[10px] uppercase tracking-[.24em] text-gold">{state === "teleporting" ? "Teleporting" : state === "none" ? "No destination" : "Destination found"}</p>
+    {anchor && state !== "none" ? <p className="mt-1 text-xs font-semibold text-ivory/80">Locked on {anchor.name}. Maximizing distance, culture, genre, and country diversity.</p> : null}
+    {candidate ? <div className="mt-2 flex items-center justify-between gap-3"><div className="min-w-0"><b className="block truncate text-sm">{candidate.station.name}</b><p className="truncate text-xs text-ivory/65">{candidate.station.city || candidate.station.state || candidate.station.country} · {candidate.signalStrength ?? candidate.station.health_score}% confidence</p></div><div className="flex shrink-0 gap-2"><button onClick={onNext} className="rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-ivory">Next</button><button onClick={onTune} className="rounded-full bg-radio px-3 py-2 text-xs font-black text-midnight">Lock</button></div></div> : <p className="mt-2 text-sm text-ivory/70">No verified destination matched this map focus. Try another country or long-press for Wander.</p>}
   </motion.div>;
 }
 
 function SignalDial({ mapContext, selectedCountry, stations, current, mobile = false, compact = false, onStationResolved, onWander }: SignalDialProps & { onWander?: () => void }) {
-  const [state, setState] = useState<"idle" | "scanning" | "found" | "none">("idle");
+  const [state, setState] = useState<"idle" | "teleporting" | "found" | "none">("idle");
   const [candidates, setCandidates] = useState<SignalCandidate[]>([]);
   const [index, setIndex] = useState(0);
   const timer = useRef<number | null>(null);
@@ -1224,9 +1226,9 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
     if (countryRoutes.length || !explorationMode) return countryRoutes;
     return globalPool.map((station) => ({ station, signalStrength: station.health_score, metadata: buildCandidateMetadata(station) })).slice(0, 18);
   }, [selectedCountry, stations]);
-  const scan = useCallback(async (wander = false) => {
+  const teleport = useCallback(async (wander = false) => {
     const anchor = getCandidateLockAnchor(usePlayer.getState().current ?? current, stations);
-    setState("scanning");
+    setState("teleporting");
     let next = fallbackCandidates(anchor, wander);
     if (!selectedCountry) {
       try {
@@ -1234,7 +1236,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
         const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
         next = data.candidates?.length ? data.candidates : next;
       } catch {
-        // Local interleaved stations preserve global scan when Radio Browser is unavailable.
+        // Local interleaved stations preserve global teleporting when Radio Browser is unavailable.
       }
     }
     setCandidates(next);
@@ -1251,12 +1253,12 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   };
   return <>
     <motion.div animate={{ scale: compact ? 0.65 : 1 }} transition={{ type: "spring", damping: 24, stiffness: 260 }} className={`${mobile ? "fixed bottom-[172px] right-5 z-50 origin-bottom-right" : "absolute bottom-5 right-5 z-40 origin-bottom-right"}`}>
-      <button type="button" aria-label="Scan signal" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(false); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl transition-[width,height,opacity] duration-300">
+      <button type="button" aria-label="Take me somewhere unexpected." title="Take me somewhere unexpected." onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void teleport(false); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl transition-[width,height,opacity] duration-300">
         <span className="absolute inset-1 rounded-full border border-gold/45 bg-[conic-gradient(from_90deg,rgba(214,168,79,.75),rgba(88,225,132,.85),transparent_62%)] opacity-80 transition group-hover:rotate-45" />
         <span className="absolute inset-3 rounded-full bg-slate-950/90" />
-        <span className="relative text-center"><ScanLine className="mx-auto size-6 text-radio" /><span className={`${compact ? "sr-only" : "mt-1 block"} text-[10px] font-black uppercase tracking-[.18em] text-gold`}>Scan</span></span>
+        <span className="relative text-center"><Plane className="mx-auto size-6 text-radio" /><span className={`${compact ? "sr-only" : "mt-1 block"} text-[10px] font-black uppercase tracking-[.18em] text-gold`}>Teleport</span></span>
       </button>
-      <AnimatePresence>{!compact ? <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Scan</span><span>•</span><span>Next</span><span>•</span><span>Lock</span></motion.div> : null}</AnimatePresence>
+      <AnimatePresence>{!compact ? <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Teleport</span><span>•</span><span>Next</span><span>•</span><span>Lock</span></motion.div> : null}</AnimatePresence>
     </motion.div>
     <AnimatePresence><SignalCandidatePreview candidate={candidate} state={state} anchor={lockAnchor} onTune={tune} onNext={() => setIndex((n) => candidates.length ? (n + 1) % candidates.length : 0)} /></AnimatePresence>
   </>;
@@ -1272,7 +1274,7 @@ function MobileSearchPill({ onOpen, viewportOffsetTop }: { onOpen: () => void; v
       aria-label="Open station search"
     >
       <Search className="size-4 shrink-0 text-sky" />
-      <span className="min-w-0 flex-1 truncate text-sm text-ivory/55">Search country, city, station...</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-ivory/55">Search country, city, destination...</span>
     </button>
   );
 }
@@ -1323,7 +1325,7 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, 
                 ref={inputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search country, city, station..."
+                placeholder="Search country, city, destination..."
                 className="w-full min-w-0 bg-transparent text-base outline-none placeholder:text-ivory/45"
               />
             </label>
@@ -1394,19 +1396,19 @@ function PresenceToast({ station, intent, visible }: { station: Station; intent:
   return <AnimatePresence>{visible ? <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ opacity: { duration: 0.28 }, y: { type: "spring", damping: 26, stiffness: 260 } }} className="fixed bottom-[260px] left-4 right-4 z-[55] rounded-3xl border border-gold/20 bg-slate-950/92 p-4 text-sm leading-6 text-ivory shadow-2xl backdrop-blur-xl">{experience.narration}</motion.div> : null}</AnimatePresence>;
 }
 
-function MobileMapControls({ onOpenBasemap }: { onRecenter: () => void; onOpenBasemap: () => void; onOpenSearch: () => void; onOpenFavorites: () => void; onScan: () => void }) {
+function MobileMapControls({ onOpenBasemap }: { onRecenter: () => void; onOpenBasemap: () => void; onOpenSearch: () => void; onOpenFavorites: () => void; onTeleport: () => void }) {
   return <button onClick={onOpenBasemap} aria-label="Basemap" className="fixed right-4 top-[146px] z-40 grid size-10 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><Layers className="size-4" /></button>;
 }
 
 function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { station: Station; stations: Station[]; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
   return <motion.section drag="y" dragConstraints={{ top: 0, bottom: 0 }} onDragEnd={(_, info) => setOpen(info.offset.y < -40 ? true : info.offset.y > 40 ? false : open)} initial={{ y: 680 }} animate={{ y: open ? 64 : 680 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-0 bottom-0 z-50 max-h-[92dvh] overflow-y-auto rounded-t-[2rem] border border-white/10 bg-slate-950/95 px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-3 shadow-2xl backdrop-blur-xl">
-    <button onClick={() => setOpen(!open)} className="mx-auto block h-1.5 w-14 rounded-full bg-white/30" aria-label="Toggle Station Intelligence" />
+    <button onClick={() => setOpen(!open)} className="mx-auto block h-1.5 w-14 rounded-full bg-white/30" aria-label="Toggle Destination Intelligence" />
     <StationIntelligencePanel station={station} stations={stations} setQuery={setQuery} />
   </motion.section>;
 }
 
 function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: string) => void }) {
-  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-4 gap-1 rounded-full border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{[[Compass,"Atlas"],[Radio,"Dial"],[Globe2,"Wander"],[Heart,"Library"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
+  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-4 gap-1 rounded-full border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{[[Plane,"Teleport"],[Heart,"Favorites"],[Globe2,"Passport"],[Radio,"Recently Visited"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -1417,7 +1419,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [basemapOpen, setBasemapOpen] = useState(false);
   const [wanderOpen, setWanderOpen] = useState(false);
   const [presenceVisible, setPresenceVisible] = useState(false);
-  const [mapContext, setMapContext] = useState<MapScanContext | null>(null);
+  const [mapContext, setMapContext] = useState<MapTeleportContext | null>(null);
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
   const presenceTimer = useRef<number | null>(null);
   const handleTravel = (intent: string) => {
@@ -1433,13 +1435,65 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     {mode !== "Dial" ? <MobileSearchPill viewportOffsetTop={visualViewport.viewportOffsetTop} onOpen={() => setSearchOverlayOpen(true)} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
     <SignalDial key={current.id} mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
-    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
+    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
-    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m === "Wander") setWanderOpen(true); else if (m === "Library") setSheetOpen(true); else setSheetOpen(false); }} />
+    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m === "Teleport") setWanderOpen(true); else if (m === "Passport" || m === "Recently Visited" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+  </section>;
+}
+
+function RecentlyVisitedPanel() {
+  const [history, setHistory] = useState(() => readArrivalHistory());
+  useEffect(() => {
+    const refresh = () => setHistory(readArrivalHistory());
+    window.addEventListener("storage", refresh);
+    const timer = window.setInterval(refresh, 2500);
+    return () => { window.removeEventListener("storage", refresh); window.clearInterval(timer); };
+  }, []);
+  const destinations = history.last50Cities.slice(0, 5);
+  return <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+    <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">Recently Visited</p>
+    <div className="mt-4 space-y-3">{destinations.length ? destinations.map((place, index) => <div key={place} className="rounded-2xl border border-white/10 bg-slate-950/45 p-3"><b className="block text-sm text-ivory">{place}</b><span className="text-xs text-ivory/55">{history.last15Genres[index] ?? "Global Sound"}</span></div>) : <p className="text-sm text-ivory/55">Your destination trail will appear after your first flight.</p>}</div>
+  </section>;
+}
+
+function WorldPassportPanel() {
+  const [history, setHistory] = useState(() => readArrivalHistory());
+  useEffect(() => {
+    const timer = window.setInterval(() => setHistory(readArrivalHistory()), 2500);
+    return () => window.clearInterval(timer);
+  }, []);
+  const countries = history.last30Countries.length;
+  const cities = history.last50Cities.length;
+  const continents = ["Africa", "Europe", "Asia", "North America", "South America", "Oceania", "Caribbean"];
+  const achievements = [
+    ["First Country", countries >= 1], ["10 Countries", countries >= 10], ["25 Countries", countries >= 25], ["50 Countries", countries >= 50],
+    ["100 Countries", countries >= 100], ["200 Countries", countries >= 200], ["500 Countries", countries >= 500], ["1000 Cities", cities >= 1000],
+  ] as const;
+  return <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+    <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">World Passport™</p>
+    <h3 className="mt-2 text-2xl font-black">{countries} Countries Explored</h3>
+    <div className="mt-4 grid grid-cols-2 gap-2">{continents.map((continent) => <div key={continent} className={`rounded-2xl border px-3 py-2 text-sm ${history.last10Continents.includes(continent) ? "border-radio/40 bg-radio/10 text-radio" : "border-white/10 bg-slate-950/35 text-ivory/55"}`}>{continent}</div>)}</div>
+    <div className="mt-4 flex flex-wrap gap-2">{achievements.map(([label, unlocked]) => <span key={label} className={`rounded-full border px-3 py-1 text-xs font-bold ${unlocked ? "border-gold/50 bg-gold/15 text-gold" : "border-white/10 text-ivory/45"}`}>{label}</span>)}</div>
+  </section>;
+}
+
+function DailyFlightPanel({ stations }: { stations: Station[] }) {
+  const daily = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const seed = [...today].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return stations[seed % Math.max(1, stations.length)];
+  }, [stations]);
+  if (!daily) return null;
+  return <section className="rounded-[2rem] border border-gold/20 bg-gold/10 p-5">
+    <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">Daily Flight™</p>
+    <h3 className="mt-2 text-2xl font-black">Today’s Destination</h3>
+    <p className="mt-2 text-lg text-ivory">{destinationLabel(daily)} {flagFor(daily.country_code)}</p>
+    <p className="text-sm text-ivory/60">{getPrimaryGenre(daily)}</p>
+    <button onClick={() => usePlayer.getState().setStation(daily)} className="mt-4 rounded-full bg-radio px-5 py-3 text-sm font-black text-midnight"><Plane className="mr-2 inline size-4" />Board Flight</button>
   </section>;
 }
 
@@ -1457,10 +1511,15 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
-  const [desktopMode, setDesktopMode] = useState("Atlas");
-  const [desktopMapContext, setDesktopMapContext] = useState<MapScanContext | null>(null);
+  const [desktopMode, setDesktopMode] = useState("Teleport");
+  const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
   const [deepLinkUuid] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("station")?.trim() || "");
   const initialStationPoolRef = useRef(stationPool);
+
+  useEffect(() => {
+    if (!current || typeof window === "undefined") return;
+    persistArrival(current, stationContinent(current), window.localStorage);
+  }, [current]);
 
   useEffect(() => {
     if (deepLinkUuid || arrival || !stationPool.length) return;
@@ -1523,7 +1582,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   };
   const centerAppAfterQuery = useCallback(() => {
     window.requestAnimationFrame(() => {
-      document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station, genre, or language"]')?.blur();
+      document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, genre, or language"]')?.blur();
     });
   }, []);
 
@@ -1567,12 +1626,12 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           <div>
             <b className="text-xl">{BRAND.name}</b>
             <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">
-              EXPERIENCE HUMANITY THROUGH SOUND™
+              EXPLORE HUMANITY THROUGH SOUND™
             </p>
           </div>
         </div>
         <div className="hidden gap-2 md:flex">
-          {["Atlas", "Dial", "Wander", "Library"].map((x) => (
+          {["Teleport", "Favorites", "Passport", "Recently Visited", "Settings"].map((x) => (
             <button
               type="button"
               onClick={() => setDesktopMode(x)}
@@ -1585,6 +1644,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6">
+        <DailyFlightPanel stations={stationPool} />
         <div id="atlas-map" className="scroll-mt-6">
           <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} searchActive={query.trim().length > 0} /><SignalDial key={current.id} mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} onWander={() => setDesktopMode("Wander")} /></div>
         </div>
@@ -1596,7 +1656,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search country, city, station, genre, or language"
+              placeholder="Search country, city, genre, or language"
               className="w-full bg-transparent outline-none placeholder:text-ivory/40"
             />
           </div>

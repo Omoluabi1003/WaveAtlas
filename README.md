@@ -1,6 +1,6 @@
 # WaveAtlas
 
-WaveAtlas is a global radio discovery application backed by Radio Browser data.
+WaveAtlas is an Audio Tourism™ platform backed by Radio Browser data.
 
 
 ## Source Oracle™ and Station Truth Mesh™
@@ -97,4 +97,4 @@ curl "http://localhost:3000/api/agents/station-steward?dry_run=true&validate_lim
 - Failed stations are retried before retirement.
 - Retired stations are hidden or deprioritized with flags, not deleted.
 - Every validation and run is logged for admin inspection.
-- External scans are bounded and rate-limited by small scan plans and validation limits.
+- External teleports are bounded and rate-limited by small teleport plans and validation limits.
