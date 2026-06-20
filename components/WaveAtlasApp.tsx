@@ -727,6 +727,84 @@ function diverseGlobalPool(stations: Station[], current: Station) {
   return stations.filter((station) => station.id !== current.id && station.is_active && station.url).sort((a,b)=>b.health_score-a.health_score).filter((station) => { const continent = stationContinent(station); const first = !seenContinents.has(continent); if (first) seenContinents.add(continent); return first || seenContinents.size >= 6; });
 }
 
+
+function isValidCandidateLockStation(station?: Station | null) {
+  return Boolean(station?.id && station.name?.trim() && getStationStreamUrl(station));
+}
+
+function getCandidateLockAnchor(currentStation: Station | null | undefined, fallbackStations: Station[]): Station | null {
+  if (isValidCandidateLockStation(currentStation)) return currentStation ?? null;
+  return [...fallbackStations]
+    .filter((station) => isValidCandidateLockStation(station) && station.is_active && station.failure_count <= 2)
+    .sort((a, b) => b.health_score - a.health_score || b.votes - a.votes || b.click_count - a.click_count)[0] ?? null;
+}
+
+function stationRegion(station: Station) {
+  return station.city?.trim() || station.state?.trim() || station.country?.trim() || "Unknown region";
+}
+
+function stationLanguages(station: Station) {
+  return station.language.toLowerCase().split(/[,/]/).map((language) => language.trim()).filter(Boolean);
+}
+
+function stationDistanceKm(a: Station, b: Station) {
+  const aGeo = geotruth(a);
+  const bGeo = geotruth(b);
+  if (aGeo.lat === null || aGeo.lng === null || bGeo.lat === null || bGeo.lng === null) return null;
+  const toRad = (value: number) => value * Math.PI / 180;
+  const dLat = toRad(bGeo.lat - aGeo.lat);
+  const dLng = toRad(bGeo.lng - aGeo.lng);
+  const lat1 = toRad(aGeo.lat);
+  const lat2 = toRad(bGeo.lat);
+  const haversine = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine)));
+}
+
+function buildCandidateMetadata(station: Station) {
+  const geo = geotruth(station);
+  return {
+    name: station.name,
+    country: station.country,
+    cityRegion: stationRegion(station),
+    genre: getPrimaryGenre(station),
+    language: station.language,
+    streamUrl: getStationStreamUrl(station),
+    continent: stationContinent(station),
+    coordinates: geo.lat !== null && geo.lng !== null ? { lat: geo.lat, lng: geo.lng } : null,
+  };
+}
+
+function generateCandidateRoutes(anchor: Station, fallbackStations: Station[], explorationMode = false): SignalCandidate[] {
+  const anchorGenre = getPrimaryGenre(anchor).toLowerCase();
+  const anchorLanguages = stationLanguages(anchor);
+  const anchorRegion = stationRegion(anchor).toLowerCase();
+  const anchorContinent = stationContinent(anchor);
+  const neighborNames = neighboringCountries[anchor.country_code] ?? [];
+  const neighborSet = new Set(neighborNames.map((country) => country.toLowerCase()));
+  return fallbackStations
+    .filter((station) => station.id !== anchor.id && isValidCandidateLockStation(station) && station.is_active && station.failure_count <= 2)
+    .map((station) => {
+      const distanceKm = stationDistanceKm(anchor, station);
+      const metadata = buildCandidateMetadata(station);
+      let score = Math.min(25, Math.max(0, station.health_score) / 4);
+      const stationGenre = metadata.genre.toLowerCase();
+      const languages = stationLanguages(station);
+      const region = stationRegion(station).toLowerCase();
+      if (region && region === anchorRegion) score += 34;
+      if (station.country_code && station.country_code === anchor.country_code) score += 28;
+      if (metadata.continent === anchorContinent) score += 16;
+      if (stationGenre && stationGenre === anchorGenre) score += 18;
+      if (anchorLanguages.some((language) => languages.includes(language))) score += 16;
+      if (distanceKm !== null) score += distanceKm <= 75 ? 24 : distanceKm <= 300 ? 16 : distanceKm <= 900 ? 8 : 0;
+      if (neighborSet.has(station.country.toLowerCase())) score += 14;
+      if (explorationMode && stationGenre !== anchorGenre) score += 8;
+      if (explorationMode && metadata.continent !== anchorContinent) score += 6;
+      return { station, distanceKm: distanceKm ?? undefined, signalStrength: Math.min(99, Math.round(score)), metadata };
+    })
+    .sort((a, b) => (b.signalStrength ?? 0) - (a.signalStrength ?? 0) || (a.distanceKm ?? Number.MAX_SAFE_INTEGER) - (b.distanceKm ?? Number.MAX_SAFE_INTEGER))
+    .slice(0, 12);
+}
+
 const WANDERER_INTENTS = [
   "Take me somewhere peaceful",
   "Take me somewhere rainy",
@@ -1036,7 +1114,7 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
 function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
   return <div className="rounded-3xl border border-white/10 bg-slate-900 p-4 shadow-lg"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/5 bg-slate-800 px-3 py-2 text-left text-slate-100 hover:border-sky/40"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-slate-300">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
 }
-type SignalCandidate = { station: Station; distanceKm?: number; signalStrength?: number };
+type SignalCandidate = { station: Station; distanceKm?: number; signalStrength?: number; metadata?: ReturnType<typeof buildCandidateMetadata> };
 
 type SignalDialProps = {
   mapContext: MapScanContext | null;
@@ -1048,10 +1126,11 @@ type SignalDialProps = {
   compact?: boolean;
 };
 
-function SignalCandidatePreview({ candidate, state, onTune, onNext }: { candidate: SignalCandidate | null; state: "idle" | "scanning" | "found" | "none"; onTune: () => void; onNext: () => void }) {
+function SignalCandidatePreview({ candidate, state, anchor, onTune, onNext }: { candidate: SignalCandidate | null; state: "idle" | "scanning" | "found" | "none"; anchor: Station | null; onTune: () => void; onNext: () => void }) {
   if (state === "idle") return null;
   return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="fixed bottom-[166px] left-4 right-4 z-50 rounded-3xl border border-white/10 bg-slate-950/92 p-3 text-white shadow-2xl backdrop-blur-xl md:absolute md:bottom-4 md:left-auto md:right-4 md:w-80">
     <p className="font-mono text-[10px] uppercase tracking-[.24em] text-gold">{state === "scanning" ? "Scanning signal" : state === "none" ? "No signal" : "Candidate lock"}</p>
+    {anchor && state !== "none" ? <p className="mt-1 text-xs font-semibold text-ivory/80">Locked on {anchor.name}. Exploring nearby, similar, and contrasting stations.</p> : null}
     {candidate ? <div className="mt-2 flex items-center justify-between gap-3"><div className="min-w-0"><b className="block truncate text-sm">{candidate.station.name}</b><p className="truncate text-xs text-ivory/65">{candidate.station.city || candidate.station.state || candidate.station.country} · {candidate.signalStrength ?? candidate.station.health_score}% confidence</p></div><div className="flex shrink-0 gap-2"><button onClick={onNext} className="rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-ivory">Next</button><button onClick={onTune} className="rounded-full bg-radio px-3 py-2 text-xs font-black text-midnight">Lock</button></div></div> : <p className="mt-2 text-sm text-ivory/70">No verified station matched this map focus. Try another country or long-press for Wander.</p>}
   </motion.div>;
 }
@@ -1063,31 +1142,23 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   const timer = useRef<number | null>(null);
   const longPressTriggered = useRef(false);
   const candidate = candidates[index] ?? null;
-  const fallbackCandidates = useCallback(() => {
-    const pool = stations.filter((station) => station.is_active && station.url && station.failure_count <= 2);
-    return pool.map((station) => ({ station, signalStrength: station.health_score })).slice(0, 12);
+  const lockAnchor = useMemo(() => getCandidateLockAnchor(current, stations), [current, stations]);
+  const fallbackCandidates = useCallback((anchor: Station | null, explorationMode = false) => {
+    if (!anchor) return [];
+    const localRoutes = generateCandidateRoutes(anchor, stations, explorationMode);
+    if (localRoutes.length) return localRoutes;
+    return diverseGlobalPool(stations, anchor).map((station) => ({ station, signalStrength: station.health_score, metadata: buildCandidateMetadata(station) })).slice(0, 12);
   }, [stations]);
-  const scan = useCallback(async (wander = false) => {
+  const scan = useCallback((wander = false) => {
+    const anchor = getCandidateLockAnchor(usePlayer.getState().current ?? current, stations);
     setState("scanning");
-    const params = new URLSearchParams({ limit: "6" });
-    params.set("global", "true");
-    try {
-      const res = await fetch(`/api/stations/nearby?${params}`);
-      if (!res.ok) throw new Error("Scan failed");
-      const data = (await res.json()) as { candidates?: SignalCandidate[]; bestCandidate?: SignalCandidate | null };
-      const next = (data.candidates?.length ? data.candidates : data.bestCandidate ? [data.bestCandidate] : fallbackCandidates()).filter((item) => item.station.id !== current.id || data.candidates?.length === 1);
-      setCandidates(next);
-      setIndex(0);
-      setState(next.length ? "found" : "none");
-      if (timer.current) window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => setState("idle"), 8000);
-    } catch {
-      const next = fallbackCandidates();
-      setCandidates(next);
-      setIndex(0);
-      setState(next.length ? "found" : "none");
-    }
-  }, [current.id, fallbackCandidates]);
+    const next = fallbackCandidates(anchor, wander);
+    setCandidates(next);
+    setIndex(0);
+    setState(next.length ? "found" : "none");
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setState("idle"), 8000);
+  }, [current, fallbackCandidates, stations]);
   const tune = () => {
     if (!candidate) return;
     usePlayer.getState().setStation(candidate.station);
@@ -1103,7 +1174,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
       </button>
       <AnimatePresence>{!compact ? <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Scan</span><span>•</span><span>Next</span><span>•</span><span>Lock</span></motion.div> : null}</AnimatePresence>
     </motion.div>
-    <AnimatePresence><SignalCandidatePreview candidate={candidate} state={state} onTune={tune} onNext={() => setIndex((n) => candidates.length ? (n + 1) % candidates.length : 0)} /></AnimatePresence>
+    <AnimatePresence><SignalCandidatePreview candidate={candidate} state={state} anchor={lockAnchor} onTune={tune} onNext={() => setIndex((n) => candidates.length ? (n + 1) % candidates.length : 0)} /></AnimatePresence>
   </>;
 }
 
@@ -1185,7 +1256,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { usePlayer.getState().setStation(station); setQuery(""); }} /> : null}
-    <SignalDial mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
+    <SignalDial key={current.id} mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
@@ -1327,7 +1398,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.65fr_.75fr]">
         <div id="atlas-map" className="scroll-mt-6">
-          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} />{desktopMode === "Dial" ? <SignalDial mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} onWander={() => setDesktopMode("Wander")} /> : null}</div>
+          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} />{desktopMode === "Dial" ? <SignalDial key={current.id} mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} onWander={() => setDesktopMode("Wander")} /> : null}</div>
           <div className="mt-3 flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-slate-950/55 p-3 backdrop-blur-xl">
             <TakeMeSomewhereButton stations={stationPool} current={current} onTravel={setWandererIntent} />
             <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stationPool[(stationPool.findIndex((s) => s.id === current.id) + 1) % stationPool.length])} className="rounded-full bg-gold px-4 py-2 font-black text-midnight"><ScanLine className="mr-2 inline size-4" />Scan</button>
