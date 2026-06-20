@@ -827,6 +827,11 @@ function readTeleportHistory(): TeleportHistory {
   if (typeof window === "undefined") return emptyTeleportHistory();
   try { return { ...emptyTeleportHistory(), ...JSON.parse(window.localStorage.getItem(TELEPORT_HISTORY_KEY) || "{}") }; } catch { return emptyTeleportHistory(); }
 }
+function rememberJourneyStop(station: Station) {
+  rememberTeleport(station);
+  persistArrival(station, stationContinent(station), window.localStorage);
+}
+
 function rememberTeleport(station: Station) {
   if (typeof window === "undefined") return;
   const history = readTeleportHistory();
@@ -938,6 +943,10 @@ function generateCandidateRoutes(anchor: Station, fallbackStations: Station[], e
     .slice(0, 12);
 }
 
+const WANDERER_MIN_INTERVAL_MS = 8 * 60 * 1000;
+const WANDERER_MAX_INTERVAL_MS = 15 * 60 * 1000;
+function nextWandererIntervalMs() { return WANDERER_MIN_INTERVAL_MS + Math.floor(Math.random() * (WANDERER_MAX_INTERVAL_MS - WANDERER_MIN_INTERVAL_MS + 1)); }
+
 const WANDERER_INTENTS = [
   "Take me somewhere peaceful",
   "Take me somewhere rainy",
@@ -1030,15 +1039,26 @@ function chooseWonderStation(stations: Station[], current: Station, intent: stri
   return destination;
 }
 
+async function resolveGlobalJourneyDestination(stations: Station[], current: Station, intent: string) {
+  const anchor = getCandidateLockAnchor(usePlayer.getState().current ?? current, stations) ?? current;
+  try {
+    const params = new URLSearchParams({ global: "true", limit: "24", anchor: JSON.stringify(anchor), recent: JSON.stringify(readTeleportHistory()), journey: "wanderer" });
+    const res = await fetch(`/api/stations/nearby?${params.toString()}`);
+    const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
+    const globalStations = data.candidates?.map((item) => item.station) ?? [];
+    return chooseWonderStation([...globalStations, ...stations], current, intent);
+  } catch {
+    return chooseWonderStation(stations, current, intent);
+  }
+}
+
 function TakeMeSomewhereButton({ stations, current, onTravel }: { stations: Station[]; current: Station; onTravel?: (intent: string) => void }) {
   const travel = () => {
     const intent = WANDERER_INTENTS[Math.floor(Math.random() * WANDERER_INTENTS.length)];
-    fetch(`/api/stations/nearby?global=true&limit=18`).then(async (res) => {
-      const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
-      const globalStations = data.candidates?.map((item) => item.station) ?? [];
-      const destination = chooseWonderStation([...globalStations, ...stations], current, intent);
+    void resolveGlobalJourneyDestination(stations, current, intent).then((destination) => {
+      rememberJourneyStop(destination);
       usePlayer.getState().setStation(destination);
-    }).catch(() => usePlayer.getState().setStation(chooseWonderStation(stations, current, intent)));
+    });
     onTravel?.(intent);
   };
   return <button onClick={travel} className="group rounded-full border border-white/10 bg-slate-950/85 px-4 py-2 text-sm font-black text-ivory shadow-xl backdrop-blur-xl transition hover:border-gold/40"><Globe2 className="mr-2 inline size-5 transition group-hover:rotate-12" />🌎 Take Me Somewhere™</button>;
@@ -1481,8 +1501,8 @@ function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { st
   </motion.section>;
 }
 
-function MobileCommandDock({ mode, setMode, onTeleport }: { mode: string; setMode: (m: string) => void; onTeleport: () => void }) {
-  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-5 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; const isTeleport = label === "Teleport"; return <button key={label as string} type="button" onClick={() => { if (isTeleport) onTeleport(); setMode(label as string); }} className={`min-h-14 rounded-2xl px-1.5 py-2 text-[10px] font-bold leading-tight transition ${mode === label ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to a new destination" : String(label)}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : label as string}</button>; })}</div></nav>;
+function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wandererActive }: { mode: string; setMode: (m: string) => void; onTeleport: () => void; onToggleWanderer: () => void; wandererActive: boolean }) {
+  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-6 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; return <button key={value} type="button" onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`min-h-14 rounded-2xl px-1 py-2 text-[9px] font-bold leading-tight transition ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : value}</button>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -1492,16 +1512,34 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [basemap, setBasemap] = useState<BasemapKey>(() => getInitialBasemap(true));
   const [basemapOpen, setBasemapOpen] = useState(false);
   const [wanderOpen, setWanderOpen] = useState(false);
+  const [wandererActive, setWandererActive] = useState(false);
+  const wandererTimer = useRef<number | null>(null);
   const [presenceVisible, setPresenceVisible] = useState(false);
   const [mapContext, setMapContext] = useState<MapTeleportContext | null>(null);
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
   const presenceTimer = useRef<number | null>(null);
-  const handleTravel = (intent: string) => {
+  const handleTravel = useCallback((intent: string) => {
     setWandererIntent(intent);
     setPresenceVisible(true);
     if (presenceTimer.current) window.clearTimeout(presenceTimer.current);
     presenceTimer.current = window.setTimeout(() => setPresenceVisible(false), 6000);
-  };
+  }, [setWandererIntent]);
+  const makeWandererHop = useCallback(() => {
+    const intent = "Wanderer Mode";
+    setWandererIntent(intent);
+    void resolveGlobalJourneyDestination(stations, usePlayer.getState().current ?? current, intent).then((destination) => {
+      rememberJourneyStop(destination);
+      usePlayer.getState().setStation(destination);
+      handleTravel(intent);
+    });
+  }, [current, handleTravel, stations, setWandererIntent]);
+  useEffect(() => {
+    if (!wandererActive) { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); return; }
+    wandererTimer.current = window.setTimeout(makeWandererHop, 0);
+    const schedule = () => { wandererTimer.current = window.setTimeout(() => { makeWandererHop(); schedule(); }, nextWandererIntervalMs()); };
+    schedule();
+    return () => { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); };
+  }, [makeWandererHop, wandererActive]);
   const visualViewport = useIOSVisualViewport();
   return <section className="fixed inset-0 h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-white md:hidden">
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
@@ -1510,11 +1548,12 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
+    {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-black text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
-    <MobileCommandDock mode={mode} onTeleport={() => { const destination = chooseWonderStation(stations, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); handleTravel("Take me somewhere surprising"); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const destination = chooseWonderStation(stations, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); handleTravel("Take me somewhere surprising"); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
 
@@ -1587,6 +1626,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [desktopMode, setDesktopMode] = useState("Teleport");
+  const [wandererActive, setWandererActive] = useState(false);
+  const wandererTimer = useRef<number | null>(null);
   const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
   const [deepLinkUuid] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -1675,6 +1716,23 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     setActiveTag(tag);
     if (selectedCountry) void loadCountryStations(selectedCountry, 0, tag);
   };
+  const runWandererHop = useCallback(() => {
+    const intent = "Wanderer Mode";
+    setWandererIntent(intent);
+    void resolveGlobalJourneyDestination(stationPool, usePlayer.getState().current ?? current, intent).then((destination) => {
+      rememberJourneyStop(destination);
+      setStationPool((prev) => prev.some((station) => station.id === destination.id) ? prev : [destination, ...prev]);
+      usePlayer.getState().setStation(destination);
+    });
+  }, [current, stationPool]);
+  useEffect(() => {
+    if (!wandererActive) { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); return; }
+    wandererTimer.current = window.setTimeout(runWandererHop, 0);
+    const schedule = () => { wandererTimer.current = window.setTimeout(() => { runWandererHop(); schedule(); }, nextWandererIntervalMs()); };
+    schedule();
+    return () => { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); };
+  }, [runWandererHop, wandererActive]);
+
   const visible = stationPool
     .slice(0, selectedCountry ? stationPool.length : 9)
     .filter(
@@ -1713,6 +1771,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6">
         <DailyFlightPanel stations={stationPool} />
+        {wandererActive ? <button onClick={() => setWandererActive(false)} className="rounded-[2rem] border border-radio/30 bg-radio/10 p-4 text-left font-black text-radio">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
         <div id="atlas-map" className="scroll-mt-6">
           <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} /></div>
         </div>
@@ -1799,8 +1858,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div>
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
         </div>
-        <nav className="grid grid-cols-5 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
-          {[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; setDesktopMode(value); if (value === "Teleport") { const destination = chooseWonderStation(stationPool, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); } }} className={`rounded-full px-3 py-2 text-[11px] font-bold ${desktopMode === label ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
+        <nav className="grid grid-cols-6 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
+          {[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); const destination = chooseWonderStation(stationPool, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else setDesktopMode(value); }} className={`rounded-full px-3 py-2 text-[11px] font-bold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
         </nav>
       </div>
     </main>
