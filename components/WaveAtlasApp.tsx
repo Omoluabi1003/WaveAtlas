@@ -15,7 +15,6 @@ import {
   MapPin,
   Pause,
   Play,
-  Radar,
   Radio,
   ScanLine,
   Search,
@@ -32,7 +31,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import type { Station } from "@/lib/stations";
-import { EarthDialMode } from "@/components/EarthDialMode";
 
 type CountryResult = {
   name: string;
@@ -416,14 +414,8 @@ function AudioEngine() {
     element.volume = 1;
     element.muted = false;
     audio.current = element;
-    console.info("[WaveAtlas audio] created persistent HTMLAudioElement");
-
     const onError = () => {
       const code = element.error?.code;
-      console.error("[WaveAtlas audio] audio error", {
-        code,
-        src: element.currentSrc || element.src,
-      });
       setStatus(
         "failed",
         `Stream failed${code ? ` (audio error ${code})` : ""}. Try another station.`,
@@ -452,8 +444,6 @@ function AudioEngine() {
     if (!element || !current) return;
 
     const streamUrl = getStationStreamUrl(current);
-    console.info("[WaveAtlas audio] selected stream URL", streamUrl);
-
     if (!streamUrl) {
       element.pause();
       setStatus("failed", "This station did not provide a stream URL.");
@@ -485,17 +475,9 @@ function AudioEngine() {
         element.preload = "none";
         element.volume = volume;
         element.muted = false;
-        console.info("[WaveAtlas audio] play attempt", {
-          src: element.src,
-          station: current.name,
-        });
         element.load();
         await element.play();
         if (!cancelled) {
-          console.info("[WaveAtlas audio] play success", {
-            src: element.currentSrc || element.src,
-            station: current.name,
-          });
           setStatus("playing");
         }
       } catch (error) {
@@ -504,7 +486,6 @@ function AudioEngine() {
             error instanceof Error
               ? error.message
               : "Playback was blocked or the stream failed.";
-          console.error("[WaveAtlas audio] play failure", { streamUrl, error });
           setStatus(
             message.toLowerCase().includes("user") ||
               message.toLowerCase().includes("gesture") ||
@@ -576,49 +557,6 @@ function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === 
 function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "grid grid-cols-3 gap-1 rounded-2xl p-1"} border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-xl`} aria-label="Basemap Cockpit">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} aria-label={`Switch basemap to ${basemapStyles[key].name}`} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-2 text-[10px]" : "rounded-xl px-3 py-2 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}>{basemapStyles[key].label}</button>)}</div>; }
 function MapStyleController({ map, basemap }: { map: Map | null; basemap: BasemapKey }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); const resize = () => requestAnimationFrame(() => map.resize()); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap]); return null; }
 
-function StationDensityLayer({ map, stations, onSelect }: { map: Map | null; stations: Station[]; onSelect: (station: Station) => void }) {
-  const markers = useRef<Marker[]>([]);
-  const render = useCallback(() => {
-    if (!map) return;
-    markers.current.forEach((marker) => marker.remove());
-    markers.current = [];
-    const zoom = map.getZoom();
-    const bounds = map.getBounds();
-    const playable = stations
-      .filter((station) => station.is_active && station.url && station.failure_count <= 2)
-      .map((station) => ({ station, geo: geotruth(station) }))
-      .filter(({ geo }) => geo.lat !== null && geo.lng !== null && bounds.contains([geo.lng, geo.lat]));
-    const cell = zoom < 3 ? 24 : zoom < 6 ? 8 : zoom < 9 ? 2.5 : 0;
-    const groups = new globalThis.Map<string, { station: Station; lng: number; lat: number; count: number }>();
-    for (const item of playable.slice(0, 900)) {
-      const lat = item.geo.lat as number;
-      const lng = item.geo.lng as number;
-      const key = cell ? `${Math.round(lng / cell) * cell}:${Math.round(lat / cell) * cell}` : item.station.id;
-      const group = groups.get(key);
-      if (group) group.count += 1;
-      else groups.set(key, { station: item.station, lng, lat, count: 1 });
-    }
-    Array.from(groups.values()).slice(0, zoom < 6 ? 80 : 180).forEach((group) => {
-      const element = document.createElement('button');
-      const cluster = group.count > 1 || zoom < 9;
-      element.type = 'button';
-      element.className = cluster ? 'station-density-cluster' : 'station-density-point';
-      element.textContent = cluster ? String(group.count) : '';
-      element.setAttribute('aria-label', cluster ? `${group.count} nearby stations` : `Play ${group.station.name}`);
-      element.addEventListener('click', (event) => { event.stopPropagation(); onSelect(group.station); });
-      markers.current.push(new maplibregl.Marker({ element, anchor: 'center' }).setLngLat([group.lng, group.lat]).addTo(map));
-    });
-  }, [map, onSelect, stations]);
-  useEffect(() => {
-    if (!map) return;
-    render();
-    map.on('moveend', render);
-    map.on('zoomend', render);
-    return () => { map.off('moveend', render); map.off('zoomend', render); markers.current.forEach((marker) => marker.remove()); markers.current = []; };
-  }, [map, render]);
-  return null;
-}
-
 function StationPulseMarker({
   geo,
   status,
@@ -669,7 +607,9 @@ function MapFlyToController({
   return null;
 }
 
-function WaveAtlasMap({ station, stations = [], mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onStationSelect }: { station: Station; stations?: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onStationSelect?: (station: Station) => void }) {
+type MapScanContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
+
+function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapScanContext) => void }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -721,6 +661,23 @@ function WaveAtlasMap({ station, stations = [], mobile = false, resetSignal = 0,
     };
   }, []);
 
+
+  useEffect(() => {
+    if (!map || !onMapContextChange) return;
+    const publishContext = () => {
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      onMapContextChange({ lat: center.lat, lng: center.lng, zoom });
+    };
+    publishContext();
+    map.on("moveend", publishContext);
+    map.on("zoomend", publishContext);
+    return () => {
+      map.off("moveend", publishContext);
+      map.off("zoomend", publishContext);
+    };
+  }, [map, onMapContextChange]);
+
   useEffect(() => {
     if (!map || !resetSignal) return;
     const view = DEFAULT_MAP_VIEW[viewMode.current];
@@ -741,7 +698,6 @@ function WaveAtlasMap({ station, stations = [], mobile = false, resetSignal = 0,
         <div ref={container} className="absolute inset-0 h-full w-full" />
         <MapFlyToController map={map} marker={marker} station={station} status={status} />
         <MapStyleController map={map} basemap={basemap} />
-        <StationDensityLayer map={map} stations={stations} onSelect={onStationSelect ?? usePlayer.getState().setStation} />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_30%,rgba(7,17,31,.28)_64%,rgba(7,17,31,.68)),linear-gradient(180deg,rgba(2,6,23,.28),transparent_32%,rgba(2,6,23,.48))]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
         <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
@@ -763,7 +719,6 @@ function WaveAtlasMap({ station, stations = [], mobile = false, resetSignal = 0,
             status={status}
           />
           <MapStyleController map={map} basemap={basemap} />
-          <StationDensityLayer map={map} stations={stations} onSelect={onStationSelect ?? usePlayer.getState().setStation} />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_44%,rgba(7,17,31,.46)),linear-gradient(180deg,rgba(2,6,23,.22),transparent_36%,rgba(2,6,23,.5))]" />
           <div className="pointer-events-none absolute -right-10 -top-10 z-10 size-40 rounded-full border border-radio/10 shadow-[0_0_80px_rgba(52,211,153,.16)]" />
           <div className="pointer-events-none absolute -bottom-14 left-10 z-10 size-32 rounded-full border border-sky/10 shadow-[0_0_70px_rgba(56,189,248,.14)]" />
@@ -1179,6 +1134,87 @@ function SearchGroup({ title, items }: { title: string; items: { key: string; la
 function DeveloperAttribution({ compact = false }: { compact?: boolean }) { return <a href="https://etl-gis-consulting-llc.vercel.app" target="_blank" rel="noreferrer" className={`${compact ? "text-[10px]" : "text-xs"} inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono uppercase tracking-[.18em] text-ivory/55 transition hover:border-gold/40 hover:text-gold`}><Info className="size-3" />Built by ETL GIS Consulting LLC</a>; }
 function AboutWaveAtlasModal() { return <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">About WaveAtlas™</p><p className="mt-3 text-sm leading-6 text-ivory/70">Experience Humanity Through Sound™ — the Living Atlas of Human Presence™ built by ETL GIS Consulting LLC.</p><p className="mt-2 text-xs leading-5 text-ivory/50">ETL GIS Consulting LLC delivers geospatial intelligence, GIS architecture, spatial analytics, and location-based technology solutions from Florida, USA.</p><a href="https://etl-gis-consulting-llc.vercel.app" target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-bold text-gold">Visit ETL GIS Consulting LLC</a></div>; }
 
+
+type SignalCandidate = { station: Station; distanceKm?: number; signalStrength?: number };
+
+type SignalDialProps = {
+  mapContext: MapScanContext | null;
+  selectedCountry?: CountryResult | null;
+  stations: Station[];
+  current: Station;
+  mobile?: boolean;
+  onStationResolved?: (station: Station) => void;
+};
+
+function SignalCandidatePreview({ candidate, state, onTune, onNext }: { candidate: SignalCandidate | null; state: "idle" | "scanning" | "found" | "none"; onTune: () => void; onNext: () => void }) {
+  if (state === "idle") return null;
+  return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="fixed bottom-[166px] left-4 right-4 z-50 rounded-3xl border border-white/10 bg-slate-950/92 p-3 text-white shadow-2xl backdrop-blur-xl md:absolute md:bottom-4 md:left-auto md:right-4 md:w-80">
+    <p className="font-mono text-[10px] uppercase tracking-[.24em] text-gold">{state === "scanning" ? "Scanning signal" : state === "none" ? "No signal" : "Candidate lock"}</p>
+    {candidate ? <div className="mt-2 flex items-center justify-between gap-3"><div className="min-w-0"><b className="block truncate text-sm">{candidate.station.name}</b><p className="truncate text-xs text-ivory/65">{candidate.station.city || candidate.station.state || candidate.station.country} · {candidate.signalStrength ?? candidate.station.health_score}% confidence</p></div><div className="flex shrink-0 gap-2"><button onClick={onNext} className="rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-ivory">Next</button><button onClick={onTune} className="rounded-full bg-radio px-3 py-2 text-xs font-black text-midnight">Tune</button></div></div> : <p className="mt-2 text-sm text-ivory/70">No verified station matched this map focus. Try another country or long-press for Wander.</p>}
+  </motion.div>;
+}
+
+function SignalDial({ mapContext, selectedCountry, stations, current, mobile = false, onStationResolved }: SignalDialProps) {
+  const [state, setState] = useState<"idle" | "scanning" | "found" | "none">("idle");
+  const [candidates, setCandidates] = useState<SignalCandidate[]>([]);
+  const [index, setIndex] = useState(0);
+  const timer = useRef<number | null>(null);
+  const longPressTriggered = useRef(false);
+  const candidate = candidates[index] ?? null;
+  const fallbackCandidates = useCallback(() => {
+    const countryCode = selectedCountry?.code;
+    const pool = stations.filter((station) => station.is_active && station.url && station.failure_count <= 2 && (!countryCode || station.country_code === countryCode));
+    return pool.map((station) => ({ station, signalStrength: station.health_score })).slice(0, 8);
+  }, [selectedCountry?.code, stations]);
+  const scan = useCallback(async (wander = false) => {
+    setState("scanning");
+    const params = new URLSearchParams({ limit: "6" });
+    if (!wander && selectedCountry) {
+      params.set("countryCode", selectedCountry.code);
+      params.set("country", selectedCountry.name);
+    } else if (!wander && mapContext) {
+      params.set("lat", String(mapContext.lat));
+      params.set("lng", String(mapContext.lng));
+      params.set("zoom", String(mapContext.zoom));
+    } else {
+      params.set("global", "true");
+    }
+    try {
+      const res = await fetch(`/api/stations/nearby?${params}`);
+      if (!res.ok) throw new Error("Scan failed");
+      const data = (await res.json()) as { candidates?: SignalCandidate[]; bestCandidate?: SignalCandidate | null };
+      const next = (data.candidates?.length ? data.candidates : data.bestCandidate ? [data.bestCandidate] : fallbackCandidates()).filter((item) => item.station.id !== current.id || data.candidates?.length === 1);
+      setCandidates(next);
+      setIndex(0);
+      setState(next.length ? "found" : "none");
+      if (timer.current) window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => setState("idle"), 8000);
+    } catch {
+      const next = fallbackCandidates();
+      setCandidates(next);
+      setIndex(0);
+      setState(next.length ? "found" : "none");
+    }
+  }, [current.id, fallbackCandidates, mapContext, selectedCountry]);
+  const tune = () => {
+    if (!candidate) return;
+    usePlayer.getState().setStation(candidate.station);
+    onStationResolved?.(candidate.station);
+    setState("idle");
+  };
+  return <>
+    <div className={`${mobile ? "fixed bottom-[166px] right-5 z-50" : "absolute bottom-5 right-5 z-40"}`}>
+      <button type="button" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(false); }} onContextMenu={(e) => { e.preventDefault(); void scan(true); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; void scan(true); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl">
+        <span className="absolute inset-1 rounded-full border border-gold/45 bg-[conic-gradient(from_90deg,rgba(214,168,79,.75),rgba(88,225,132,.85),transparent_62%)] opacity-80 transition group-hover:rotate-45" />
+        <span className="absolute inset-3 rounded-full bg-slate-950/90" />
+        <span className="relative text-center"><ScanLine className="mx-auto size-6 text-radio" /><span className="mt-1 block text-[10px] font-black uppercase tracking-[.18em] text-gold">Scan</span></span>
+      </button>
+      <div className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Scan</span><span>•</span><span>Tune</span><span>•</span><span>Lock</span></div>
+    </div>
+    <AnimatePresence><SignalCandidatePreview candidate={candidate} state={state} onTune={tune} onNext={() => setIndex((n) => candidates.length ? (n + 1) % candidates.length : 0)} /></AnimatePresence>
+  </>;
+}
+
 function MobileSearchPill({ query, setQuery, onCountrySelect, stations, onStationSelect }: { query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; stations: Station[]; onStationSelect: (station: Station) => void }) {
   return <><label className="fixed left-4 right-4 top-[76px] z-40 flex min-h-12 items-center gap-3 rounded-full border border-white/10 bg-slate-950/90 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 text-sky" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, station..." className="w-full bg-transparent text-sm outline-none placeholder:text-ivory/55" /></label><div className="fixed left-4 right-4 top-[132px] z-50 max-h-[55dvh] overflow-y-auto"><GroupedSearchResults query={query} stations={stations} onStationSelect={onStationSelect} onCountrySelect={onCountrySelect} setQuery={setQuery} /></div></>;
 }
@@ -1249,17 +1285,18 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [basemapOpen, setBasemapOpen] = useState(false);
   const [wanderOpen, setWanderOpen] = useState(false);
   const [presenceVisible, setPresenceVisible] = useState(false);
-  const scan = () => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length]);
+  const [mapContext, setMapContext] = useState<MapScanContext | null>(null);
   const handleTravel = (intent: string) => {
     setWandererIntent(intent);
     setPresenceVisible(true);
     window.setTimeout(() => setPresenceVisible(false), 5000);
   };
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
-    {mode === "Dial" ? <EarthDialMode current={current} mobile onStationSelect={(station) => usePlayer.getState().setStation(station)} /> : <WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onStationSelect={(station) => usePlayer.getState().setStation(station)} />}
+    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} /> : null}
-    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={scan} />
+    <SignalDial mobile mapContext={mapContext} stations={stations} current={current} selectedCountry={null} />
+    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
@@ -1283,6 +1320,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [desktopMode, setDesktopMode] = useState("Atlas");
+  const [desktopMapContext, setDesktopMapContext] = useState<MapScanContext | null>(null);
   const [deepLinkUuid] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("station")?.trim() || "");
   const initialStationPoolRef = useRef(stationPool);
 
@@ -1399,7 +1437,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.65fr_.75fr]">
         <div id="atlas-map" className="scroll-mt-6">
-          {desktopMode === "Dial" ? <EarthDialMode current={current} onStationSelect={(station) => usePlayer.getState().setStation(station)} /> : <WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} onStationSelect={(station) => usePlayer.getState().setStation(station)} />}
+          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} />{desktopMode === "Dial" ? <SignalDial mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} /> : null}</div>
           <div className="mt-3 flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-slate-950/55 p-3 backdrop-blur-xl">
             <TakeMeSomewhereButton stations={stationPool} current={current} onTravel={setWandererIntent} />
             <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stationPool[(stationPool.findIndex((s) => s.id === current.id) + 1) % stationPool.length])} className="rounded-full bg-gold px-4 py-2 font-black text-midnight"><ScanLine className="mr-2 inline size-4" />Scan</button>
