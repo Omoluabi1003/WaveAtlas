@@ -398,7 +398,7 @@ function SignalInitializationSequence() {
       </motion.div>
       <p className="mt-8 font-mono text-xs uppercase tracking-[.4em] text-gold">Signal Initialization Sequence™</p>
       <h1 className="mt-3 text-4xl font-black">WaveAtlas™</h1>
-      <p className="mt-2 text-lg text-ivory/70">Travel the World Through Sound™</p>
+      <p className="mt-2 text-lg text-ivory/70">Experience Humanity Through Sound™</p>
       <AnimatePresence mode="wait"><motion.p key={phase} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6 font-mono text-sm uppercase tracking-[.28em] text-radio">{signalInitializationPhases[phase]}</motion.p></AnimatePresence>
       <p className="mt-7 max-w-md text-center text-[10px] leading-5 text-ivory/40">Built by ETL GIS Consulting LLC • Geospatial Intelligence • Spatial Analytics • GIS Architecture • Florida, USA</p>
     </div>
@@ -750,6 +750,117 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0 }: { station: S
   );
 }
 
+
+type WandererExperience = {
+  intent: string;
+  mood: string;
+  narration: string;
+  earthMood: string;
+  season: string;
+  localTime: string;
+  temperature: number;
+  presenceIndex: number;
+  memoryLine: string;
+};
+
+const WANDERER_INTENTS = [
+  "Take me somewhere peaceful",
+  "Take me somewhere rainy",
+  "Take me somewhere Christian",
+  "Take me somewhere French-speaking",
+  "Take me somewhere I’ve never been",
+  "Take me somewhere where people are waking up",
+  "Take me somewhere busy",
+  "Take me somewhere quiet",
+  "Take me somewhere joyful",
+  "Take me somewhere surprising",
+];
+
+function getSeasonForLat(lat: number | null) {
+  const month = new Date().getUTCMonth();
+  if (lat !== null && lat < 0) {
+    return month >= 2 && month <= 4 ? "Autumn" : month >= 5 && month <= 7 ? "Winter" : month >= 8 && month <= 10 ? "Spring" : "Summer";
+  }
+  return month >= 2 && month <= 4 ? "Spring" : month >= 5 && month <= 7 ? "Summer" : month >= 8 && month <= 10 ? "Autumn" : "Winter";
+}
+
+function hourFromLongitude(lng: number | null) {
+  const now = new Date();
+  const offset = lng === null ? 0 : Math.round(lng / 15);
+  return (now.getUTCHours() + offset + 24) % 24;
+}
+
+function getEarthMood(hour: number, temperature: number) {
+  if (hour >= 5 && hour < 9) return "waking up";
+  if (hour >= 9 && hour < 17) return temperature > 82 ? "sunlit and busy" : "alive and moving";
+  if (hour >= 17 && hour < 21) return "winding down";
+  return "quiet under night skies";
+}
+
+function getHumanPresenceIndex(station: Station, geo: GeoPoint) {
+  const hour = hourFromLongitude(geo.lng);
+  const health = Math.min(40, Math.max(0, station.health_score) * 0.4);
+  const activity = hour >= 7 && hour <= 22 ? 35 : 18;
+  const metadata = (station.language ? 8 : 0) + Math.min(17, station.tags.length * 4 + Math.round(station.votes / 100));
+  return Math.min(100, Math.round(health + activity + metadata));
+}
+
+function getWandererExperience(station: Station, intent = "Take me somewhere surprising"): WandererExperience {
+  const geo = geotruth(station);
+  const hour = hourFromLongitude(geo.lng);
+  const temperature = estimatedTemperature(geo);
+  const season = getSeasonForLat(geo.lat);
+  const localTime = localTimeFor(geo.lng);
+  const city = station.state || station.city || station.country;
+  const genre = getPrimaryGenre(station);
+  const presenceIndex = getHumanPresenceIndex(station, geo);
+  const earthMood = getEarthMood(hour, temperature);
+  const mood = hour >= 20 || hour < 5 ? "night signal" : hour < 11 ? "morning presence" : hour < 17 ? "daylight pulse" : "evening memory";
+  return {
+    intent,
+    mood,
+    localTime,
+    season,
+    temperature,
+    presenceIndex,
+    earthMood,
+    narration: `Tonight we’re going to ${city}. It is ${localTime}. The Earth mood is ${earthMood}. We’ll experience ${station.country} through ${station.name}.`,
+    memoryLine: `${city} · ${station.country} · ${season} · ${temperature}°F · ${genre}`,
+  };
+}
+
+function chooseWonderStation(stations: Station[], current: Station, intent: string) {
+  const lower = intent.toLowerCase();
+  const currentIndex = stations.findIndex((station) => station.id === current.id);
+  const rotated = [...stations.slice(currentIndex + 1), ...stations.slice(0, currentIndex + 1)];
+  const matches = rotated.filter((station) => {
+    const haystack = `${station.name} ${station.country} ${station.language} ${station.tags.join(" ")}`.toLowerCase();
+    if (lower.includes("christian")) return /christian|gospel|worship|religious/.test(haystack);
+    if (lower.includes("french")) return /french|français|france|canada|senegal|côte|ivory|belgium/.test(haystack);
+    if (lower.includes("busy")) return station.click_count > 500 || station.votes > 100;
+    if (lower.includes("quiet") || lower.includes("peaceful") || lower.includes("rainy")) return /classical|ambient|jazz|easy|chill|calm|lounge/.test(haystack);
+    if (lower.includes("joyful")) return /pop|dance|gospel|hits|salsa|afro|music/.test(haystack);
+    if (lower.includes("waking")) return hourFromLongitude(geotruth(station).lng) >= 5 && hourFromLongitude(geotruth(station).lng) < 10;
+    return true;
+  });
+  return (matches.find((station) => station.id !== current.id && station.is_active) ?? rotated.find((station) => station.id !== current.id && station.is_active) ?? current);
+}
+
+function TakeMeSomewhereButton({ stations, current, onTravel }: { stations: Station[]; current: Station; onTravel?: (intent: string) => void }) {
+  const travel = () => {
+    const intent = WANDERER_INTENTS[Math.floor(Math.random() * WANDERER_INTENTS.length)];
+    const destination = chooseWonderStation(stations, current, intent);
+    usePlayer.getState().setStation(destination);
+    onTravel?.(intent);
+  };
+  return <button onClick={travel} className="group rounded-full bg-[linear-gradient(135deg,#F8F5ED,#D6A84F_55%,#58E184)] px-7 py-4 text-base font-black text-midnight shadow-2xl shadow-gold/25 transition hover:scale-[1.02]"><Globe2 className="mr-2 inline size-5 transition group-hover:rotate-12" />🌎 Take Me Somewhere™</button>;
+}
+
+function PresenceCompanion({ station, intent }: { station: Station; intent: string }) {
+  const experience = useMemo(() => getWandererExperience(station, intent), [station, intent]);
+  return <section className="rounded-[2rem] border border-gold/20 bg-[radial-gradient(circle_at_top_left,rgba(214,168,79,.16),transparent_34%),rgba(255,255,255,.045)] p-5 shadow-glow"><p className="font-mono text-[10px] uppercase tracking-[.3em] text-gold">Presence AI™ · Wanderer™ Agent</p><h2 className="mt-3 text-2xl font-black">{experience.intent}</h2><p className="mt-3 text-sm leading-6 text-ivory/75">{experience.narration}</p><div className="mt-4 grid gap-2 sm:grid-cols-2"><span className="rounded-2xl bg-white/5 p-3 text-sm"><b className="block text-radio">Human Presence Index™</b>{experience.presenceIndex}/100 · {experience.earthMood}</span><span className="rounded-2xl bg-white/5 p-3 text-sm"><b className="block text-sky">Signal Passport™ memory</b>{experience.memoryLine}</span></div></section>;
+}
+
 function RadioDial({ stations }: { stations: Station[] }) {
   const [index, setIndex] = useState(0);
   const current = stations[index] ?? stations[0];
@@ -769,11 +880,10 @@ function RadioDial({ stations }: { stations: Station[] }) {
             Global terrestrial dial
           </p>
           <h1 className="text-4xl font-black tracking-tight md:text-7xl">
-            Tune the World.
+            Experience Humanity Through Sound.
           </h1>
           <p className="mt-4 max-w-2xl text-ivory/70">
-            Spin across live stations with an analog receiver feel: static,
-            signal locks, and a map that travels as the audio changes.
+            Not stations. Not playlists. A living atlas where Earth is the interface, sound is the vehicle, and wonder is the destination.
           </p>
         </div>
         <button
@@ -911,7 +1021,7 @@ function MobileBrandBar({ logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }
             {(!logoLoaded || logoFailed) && <Globe2 className="size-5 animate-pulse" />}
             {!logoFailed && <Image src="/assets/logo/waveatlas-logo.png" alt="WaveAtlas Logo" width={40} height={40} priority className={`absolute inset-0 h-full w-full object-contain transition-opacity ${logoLoaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLogoLoaded(true)} onError={() => setLogoFailed(true)} />}
           </div>
-          <div><b className="text-sm leading-none">WaveAtlas™</b><p className="font-mono text-[9px] uppercase tracking-[.22em] text-gold">Travel the World Through Sound™</p></div>
+          <div><b className="text-sm leading-none">WaveAtlas™</b><p className="font-mono text-[9px] uppercase tracking-[.22em] text-gold">Experience Humanity Through Sound™</p></div>
         </div>
         <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 font-mono text-[10px] uppercase tracking-[.18em] text-radio"><span className="size-2 rounded-full bg-radio shadow-[0_0_12px_rgba(88,225,132,.9)]" />Live</span>
       </div>
@@ -1022,7 +1132,7 @@ function SearchGroup({ title, items }: { title: string; items: { key: string; la
   return <div className="rounded-3xl border border-white/10 bg-slate-900 p-4 shadow-lg"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/5 bg-slate-800 px-3 py-2 text-left text-slate-100 hover:border-sky/40"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-slate-300">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
 }
 function DeveloperAttribution({ compact = false }: { compact?: boolean }) { return <a href="https://etl-gis-consulting-llc.vercel.app" target="_blank" rel="noreferrer" className={`${compact ? "text-[10px]" : "text-xs"} inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono uppercase tracking-[.18em] text-ivory/55 transition hover:border-gold/40 hover:text-gold`}><Info className="size-3" />Built by ETL GIS Consulting LLC</a>; }
-function AboutWaveAtlasModal() { return <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">About WaveAtlas™</p><p className="mt-3 text-sm leading-6 text-ivory/70">Travel the World Through Sound™ — a geospatial audio exploration platform built by ETL GIS Consulting LLC.</p><p className="mt-2 text-xs leading-5 text-ivory/50">ETL GIS Consulting LLC delivers geospatial intelligence, GIS architecture, spatial analytics, and location-based technology solutions from Florida, USA.</p><a href="https://etl-gis-consulting-llc.vercel.app" target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-bold text-gold">Visit ETL GIS Consulting LLC</a></div>; }
+function AboutWaveAtlasModal() { return <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">About WaveAtlas™</p><p className="mt-3 text-sm leading-6 text-ivory/70">Experience Humanity Through Sound™ — the Living Atlas of Human Presence™ built by ETL GIS Consulting LLC.</p><p className="mt-2 text-xs leading-5 text-ivory/50">ETL GIS Consulting LLC delivers geospatial intelligence, GIS architecture, spatial analytics, and location-based technology solutions from Florida, USA.</p><a href="https://etl-gis-consulting-llc.vercel.app" target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-bold text-gold">Visit ETL GIS Consulting LLC</a></div>; }
 
 function MobileSearchPill({ query, setQuery, onCountrySelect, stations, onStationSelect }: { query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; stations: Station[]; onStationSelect: (station: Station) => void }) {
   return <><label className="fixed left-4 right-4 top-[76px] z-40 flex min-h-12 items-center gap-3 rounded-full border border-white/10 bg-slate-950/65 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 text-sky" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, station, genre, or language" className="w-full bg-transparent text-sm outline-none placeholder:text-ivory/45" /></label><div className="fixed left-4 right-4 top-[132px] z-50 max-h-[55dvh] overflow-y-auto"><GroupedSearchResults query={query} stations={stations} onStationSelect={onStationSelect} onCountrySelect={onCountrySelect} setQuery={setQuery} /></div></>;
@@ -1056,7 +1166,7 @@ function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: strin
   return <nav className="fixed bottom-0 left-0 right-0 z-[60] border-t border-white/10 bg-slate-950/85 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 backdrop-blur-xl"><div className="grid grid-cols-4 gap-2 rounded-full border border-white/10 bg-white/5 p-1">{[[Compass,"Atlas"],[Radio,"Dial"],[Search,"Discover"],[Heart,"Library"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; logoLoaded: boolean; logoFailed: boolean; setLogoLoaded: (v: boolean) => void; setLogoFailed: (v: boolean) => void }) {
+function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, logoLoaded, logoFailed, setLogoLoaded, setLogoFailed, wandererIntent, setWandererIntent }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; logoLoaded: boolean; logoFailed: boolean; setLogoLoaded: (v: boolean) => void; setLogoFailed: (v: boolean) => void; wandererIntent: string; setWandererIntent: (intent: string) => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [resetSignal, setResetSignal] = useState(0);
@@ -1067,7 +1177,9 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
     {showWeather ? <AroundMePanel station={current} /> : null}
     <MobileMapControls onReset={() => setResetSignal((n) => n + 1)} onRecenter={() => usePlayer.getState().setStation(current)} setQuery={setQuery} showWeather={showWeather} setShowWeather={setShowWeather} />
+    <div className="fixed bottom-[230px] left-4 right-4 z-40 flex justify-center"><TakeMeSomewhereButton stations={stations} current={current} onTravel={setWandererIntent} /></div>
     <FloatingScanButton stations={stations} current={current} />
+    <div className="fixed left-4 right-4 top-[250px] z-30 max-h-[190px] overflow-hidden"><PresenceCompanion station={current} intent={wandererIntent} /></div>
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode !== "Atlas"} setOpen={setSheetOpen} />
     <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m !== "Atlas") setSheetOpen(true); }} />
@@ -1086,6 +1198,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
+  const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [deepLinkUuid] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("station")?.trim() || "");
   const initialStationPoolRef = useRef(stationPool);
 
@@ -1157,7 +1270,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       <AudioEngine />
       <SignalInitializationSequence />
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. WaveAtlas will not substitute another station for this shared link.`}</p></div> : null}
-      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
+      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} />
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-4">
@@ -1183,7 +1296,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           <div>
             <b className="text-xl">WaveAtlas™</b>
             <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">
-              TRAVEL THE WORLD THROUGH SOUND™
+              EXPERIENCE HUMANITY THROUGH SOUND™
             </p>
           </div>
         </div>
@@ -1202,12 +1315,13 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         <div id="atlas-map" className="scroll-mt-6">
           <WaveAtlasMap station={current} resetSignal={desktopResetSignal} />
           <div className="mt-3 flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-slate-950/55 p-3 backdrop-blur-xl">
+            <TakeMeSomewhereButton stations={stationPool} current={current} onTravel={setWandererIntent} />
             <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stationPool[(stationPool.findIndex((s) => s.id === current.id) + 1) % stationPool.length])} className="rounded-full bg-gold px-4 py-2 font-black text-midnight"><ScanLine className="mr-2 inline size-4" />Scan</button>
             <button aria-label="Recenter on current playing station" onClick={() => usePlayer.getState().setStation(current)} className="rounded-full border border-white/10 px-4 py-2 text-ivory"><MapPin className="mr-2 inline size-4" />Recenter</button>
             <button aria-label="Reset Earth" onClick={() => setDesktopResetSignal((n) => n + 1)} className="rounded-full border border-white/10 px-4 py-2 text-ivory"><Compass className="mr-2 inline size-4" />Reset Earth</button>
           </div>
         </div>
-        <NowPlaying station={current} stations={stationPool} setQuery={setQuery} />
+        <div className="space-y-6"><PresenceCompanion station={current} intent={wandererIntent} /><NowPlaying station={current} stations={stationPool} setQuery={setQuery} /></div>
       </div>
       <section className="mx-auto mt-6 grid max-w-7xl gap-6 lg:grid-cols-3">
         <div className="glass rounded-[2rem] p-6">
