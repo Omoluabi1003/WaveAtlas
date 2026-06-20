@@ -1547,7 +1547,10 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
-    {mode === "Add Signal" ? <div className="fixed inset-x-4 bottom-[180px] z-[55] max-h-[58dvh] overflow-y-auto rounded-[2rem] shadow-2xl"><AddYourSignalPanel compact /></div> : null}
+    {mode === "Add Signal" ? <>
+      <div className="pointer-events-auto fixed inset-0 z-[54] bg-black/40 backdrop-blur-[8px]" aria-hidden="true" />
+      <div className="fixed inset-x-4 bottom-[180px] z-[55] max-h-[90dvh] max-w-[95vw] overflow-y-auto rounded-[28px] shadow-[0_16px_48px_rgba(0,0,0,0.45)]"><AddYourSignalPanel compact /></div>
+    </> : null}
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const destination = chooseWonderStation(stations, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); handleTravel("Take me somewhere surprising"); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
@@ -1598,24 +1601,24 @@ function AddYourSignalPanel({ compact = false }: { compact?: boolean }) {
     setMessage(data.message || "Your signal has been received. Once verified, it may join the WaveAtlas™ global map.");
   }
 
-  return <section className={`rounded-[2rem] border border-radio/20 bg-radio/10 ${compact ? "p-4" : "p-5"}`}>
+  return <section className={`rounded-[28px] border border-white/10 bg-[rgba(7,17,31,0.88)] shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-[24px] ${compact ? "max-h-[90dvh] max-w-[95vw] overflow-y-auto p-4" : "max-w-[640px] bg-[rgba(7,17,31,0.90)] p-5"}`}>
     <p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Add Your Signal</p>
     <h2 className={`${compact ? "mt-2 text-2xl" : "mt-3 text-[32px]"} font-display font-bold leading-tight text-white`}>Help us map the sound of Earth.</h2>
-    <p className="mt-2 text-sm leading-6 text-ivory/70">Have a favorite radio station anywhere in the world? Send us the working stream URL and help WaveAtlas™ grow.</p>
+    <p className="mt-2 text-sm leading-6 text-ivory/80">Have a favorite radio station anywhere in the world? Send us the working stream URL and help WaveAtlas™ grow.</p>
     <p className="mt-2 text-xs font-semibold text-gold">If it is broadcasting on Earth, it belongs here.</p>
     <form onSubmit={submit} className="mt-4 grid gap-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        {fields.map(([name, label, placeholder, required]) => <label key={name} className="text-xs font-medium text-ivory/65">
+        {fields.map(([name, label, placeholder, required]) => <label key={name} className="rounded-2xl border border-white/[0.08] bg-[rgba(12,26,42,0.92)] p-3 text-xs font-medium text-ivory/80">
           {label}{required ? <span className="text-radio"> *</span> : null}
-          <input name={name} required={required} placeholder={placeholder} className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-ivory/30 focus:border-radio/60" />
+          <input name={name} required={required} placeholder={placeholder} className="mt-1 w-full rounded-2xl border border-white/10 bg-[rgba(5,10,20,0.85)] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/[0.55] focus:border-[#00D68F] focus:ring-2 focus:ring-[#00D68F]/20" />
         </label>)}
       </div>
-      <label className="text-xs font-medium text-ivory/65">Notes (optional)
-        <textarea name="notes_optional" rows={3} placeholder="Tell the review agent anything useful about this stream." className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-ivory/30 focus:border-radio/60" />
+      <label className="rounded-2xl border border-white/[0.08] bg-[rgba(12,26,42,0.92)] p-3 text-xs font-medium text-ivory/80">Notes (optional)
+        <textarea name="notes_optional" rows={3} placeholder="Tell the review agent anything useful about this stream." className="mt-1 w-full rounded-2xl border border-white/10 bg-[rgba(5,10,20,0.85)] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/[0.55] focus:border-[#00D68F] focus:ring-2 focus:ring-[#00D68F]/20" />
       </label>
-      <button disabled={status === "submitting"} className="rounded-full bg-radio px-5 py-3 text-sm font-semibold text-midnight transition hover:bg-gold disabled:cursor-wait disabled:opacity-70"><Signal className="mr-2 inline size-4" />{status === "submitting" ? "Reviewing signal…" : "Submit Signal for Review"}</button>
+      <button disabled={status === "submitting"} className="rounded-full bg-gradient-to-r from-[#00D68F] via-radio to-emerald-300 px-5 py-3 text-sm font-semibold text-midnight shadow-[0_14px_34px_rgba(0,214,143,0.24)] transition hover:shadow-[0_18px_42px_rgba(0,214,143,0.34)] disabled:cursor-wait disabled:opacity-70"><Signal className="mr-2 inline size-4" />{status === "submitting" ? "Reviewing signal…" : "Submit Signal for Review"}</button>
       {message ? <p className={`rounded-2xl border px-3 py-2 text-sm ${status === "error" ? "border-red-400/30 bg-red-500/10 text-red-100" : "border-radio/30 bg-radio/10 text-radio"}`}>{message}</p> : null}
-      <p className="text-[11px] leading-5 text-ivory/45">Signal Review Agent validates, enriches, deduplicates, and creates an admin review record. It never auto-publishes to production.</p>
+      <p className="text-[11px] leading-5 text-ivory/60">Signal Review Agent validates, enriches, deduplicates, and creates an admin review record. It never auto-publishes to production.</p>
     </form>
   </section>;
 }
