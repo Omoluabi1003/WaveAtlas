@@ -1,14 +1,15 @@
-import { countryBounds, isoCountryCentroids } from './geotruth-resolver';
+import { countryBounds } from './geotruth-resolver';
 
 export type GeoFocus = { lat: number; lng: number; zoom: number; radiusKm: number; countryCode?: string; countryName?: string; city?: string; label: string; mode: 'world' | 'country' | 'city' | 'street' };
 
 const countryNames = new Intl.DisplayNames(['en'], { type: 'region' });
 
 export function radiusForZoom(zoom: number) {
-  if (zoom < 3) return 1400;
-  if (zoom < 6) return 500;
-  if (zoom < 10) return 100;
-  return 25;
+  if (zoom <= 2) return 1200;
+  if (zoom <= 4) return 500;
+  if (zoom <= 7) return 150;
+  if (zoom <= 10) return 50;
+  return 20;
 }
 
 export function modeForZoom(zoom: number): GeoFocus['mode'] {
@@ -34,10 +35,7 @@ function inBounds(lat: number, lng: number, bounds: { minLat: number; maxLat: nu
 
 export function countryCodeForPoint(lat: number, lng: number) {
   const exact = Object.entries(countryBounds).find(([, bounds]) => inBounds(lat, lng, bounds));
-  if (exact) return exact[0];
-  return Object.entries(isoCountryCentroids)
-    .map(([code, point]) => ({ code, distance: haversineKm({ lat, lng }, point) }))
-    .sort((a, b) => a.distance - b.distance)[0]?.code;
+  return exact?.[0];
 }
 
 export function focusForPoint(lat: number, lng: number, zoom: number, radiusKm = radiusForZoom(zoom)): GeoFocus {

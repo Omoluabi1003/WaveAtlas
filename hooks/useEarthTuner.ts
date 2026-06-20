@@ -5,9 +5,18 @@ import type { Map } from 'maplibre-gl';
 import type { GeoFocus } from '@/lib/geo-focus';
 import type { RankedStationCandidate } from '@/lib/station-ranking';
 
-export type EarthTunerState = 'idle' | 'tuning' | 'scanning' | 'candidate_found' | 'locked' | 'playing' | 'no_signal';
+export type EarthTunerState = 'idle' | 'scanning' | 'weak_signal' | 'signal_found' | 'locked' | 'no_signal';
 
-type NearbyResponse = { focus: GeoFocus; candidates: RankedStationCandidate[]; best: RankedStationCandidate | null };
+type NearbyResponse = {
+  focusedPlace?: GeoFocus;
+  focus?: GeoFocus;
+  countryCode?: string;
+  candidates: RankedStationCandidate[];
+  bestCandidate?: RankedStationCandidate | null;
+  best?: RankedStationCandidate | null;
+  signalStrength?: number;
+  searchRadiusKm?: number;
+};
 
 export function useEarthTuner(map: Map | null) {
   const [state, setState] = useState<EarthTunerState>('idle');
@@ -27,14 +36,16 @@ export function useEarthTuner(map: Map | null) {
     const controller = new AbortController();
     abort.current = controller;
     try {
-      const params = new URLSearchParams({ lat: String(center.lat), lng: String(center.lng), zoom: String(zoom), limit: '5' });
+      const radiusKm = zoom <= 2 ? 1200 : zoom <= 4 ? 500 : zoom <= 7 ? 150 : zoom <= 10 ? 50 : 20;
+      const params = new URLSearchParams({ lat: String(center.lat), lng: String(center.lng), zoom: String(zoom), radiusKm: String(radiusKm), limit: '5' });
       const res = await fetch(`/api/stations/nearby?${params}`, { signal: controller.signal });
       if (!res.ok) throw new Error('Nearby station scan failed');
       const data = (await res.json()) as NearbyResponse;
-      setFocus(data.focus);
+      const bestCandidate = data.bestCandidate ?? data.best ?? null;
+      setFocus(data.focusedPlace ?? data.focus ?? null);
       setCandidates(data.candidates);
-      setBest(data.best);
-      setState(data.best ? 'candidate_found' : 'no_signal');
+      setBest(bestCandidate);
+      setState(bestCandidate ? (bestCandidate.signalStrength < 35 ? 'weak_signal' : 'signal_found') : 'no_signal');
       setError('');
     } catch (scanError) {
       if (scanError instanceof DOMException && scanError.name === 'AbortError') return;
@@ -49,7 +60,7 @@ export function useEarthTuner(map: Map | null) {
     if (!map) return;
     const start = () => {
       if (timer.current) window.clearTimeout(timer.current);
-      setState('tuning');
+      setState('scanning');
     };
     const moving = () => setState('scanning');
     const settle = () => {

@@ -19,7 +19,7 @@ export function EarthDialMode({ current, onStationSelect, mobile = false }: { cu
   const [map, setMap] = useState<Map | null>(null);
   const marker = useRef<Marker | null>(null);
   const { state, setState, focus, candidates, best, error } = useEarthTuner(map);
-  const strength = best?.signalStrength ?? (state === 'scanning' || state === 'tuning' ? 38 : 0);
+  const strength = best?.signalStrength ?? (state === 'scanning' ? 38 : 0);
 
   useEffect(() => {
     if (!container.current) return;
@@ -55,7 +55,7 @@ export function EarthDialMode({ current, onStationSelect, mobile = false }: { cu
     marker.current = new maplibregl.Marker({ element, anchor: 'center' }).setLngLat([geo.lng, geo.lat]).addTo(map);
   }, [current, map]);
 
-  const statusCopy = useMemo(() => state === 'candidate_found' ? 'Map center became a playable frequency. Lock the strongest local signal.' : state === 'no_signal' ? 'No verified playable station is close enough to this focus.' : 'Move Earth. The center reticle is the tuner needle.', [state]);
+  const statusCopy = useMemo(() => state === 'signal_found' || state === 'weak_signal' ? 'Map center became a playable frequency. Lock the strongest local signal.' : state === 'no_signal' ? 'No verified playable station is close enough to this focus.' : 'Move Earth. The center reticle is the tuner needle.', [state]);
 
   return <div className={mobile ? 'fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950' : 'relative h-[620px] overflow-hidden rounded-[2rem] border border-slate-700/60 bg-slate-950 shadow-2xl'}>
     <div ref={container} className="absolute inset-0 h-full w-full" />
