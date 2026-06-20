@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
-import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
+import { isoCountryCentroids, resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import { BRAND, WAVEATLAS_LOGO_PATH, getBrandShareMetadata } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
@@ -100,9 +100,9 @@ function geotruth(station: Station): GeoPoint {
   return { ...resolved, label: station.state || station.city || station.country || "Unknown location", tone: stationTone(station.country_code) };
 }
 
-const countryFallbacks: Record<string, { lat: number; lng: number; tone: GeoPoint["tone"] }> = {
-  NG: { lat: 9.082, lng: 8.6753, tone: "green-gold" }, AE: { lat: 23.4241, lng: 53.8478, tone: "blue-gold" }, FR: { lat: 46.2276, lng: 2.2137, tone: "radio-gold" }, GB: { lat: 55.3781, lng: -3.436, tone: "radio-gold" }, US: { lat: 39.8283, lng: -98.5795, tone: "radio-gold" }, BR: { lat: -14.235, lng: -51.9253, tone: "radio-gold" }, ZA: { lat: -30.5595, lng: 22.9375, tone: "green-gold" }, GH: { lat: 7.9465, lng: -1.0232, tone: "green-gold" }, JP: { lat: 36.2048, lng: 138.2529, tone: "radio-gold" }, CN: { lat: 35.8617, lng: 104.1954, tone: "radio-gold" }, IN: { lat: 20.5937, lng: 78.9629, tone: "radio-gold" }, AU: { lat: -25.2744, lng: 133.7751, tone: "radio-gold" }, NZ: { lat: -40.9006, lng: 174.886, tone: "radio-gold" }, SG: { lat: 1.3521, lng: 103.8198, tone: "blue-gold" },
-};
+const countryFallbacks: Record<string, { lat: number; lng: number; tone: GeoPoint["tone"] }> = Object.fromEntries(
+  Object.entries(isoCountryCentroids).map(([code, point]) => [code, { ...point, tone: stationTone(code) }]),
+);
 
 function getStationStreamUrl(station?: Station) {
   return station?.url_resolved?.trim() || station?.url?.trim() || "";
@@ -749,9 +749,25 @@ const WANDER_VISITED_COUNTRIES = new Set<string>();
 const WANDER_VISITED_CONTINENTS = new Set<string>();
 
 function stationContinent(station: Station) { return CONTINENT_BY_COUNTRY[station.country_code] ?? 'Global'; }
+function interleaveByContinent(stations: Station[]) {
+  const groups = new globalThis.Map<string, Station[]>();
+  for (const station of stations.filter((item) => item.is_active && item.url).sort((a, b) => b.health_score - a.health_score || b.votes - a.votes)) {
+    const continent = stationContinent(station);
+    groups.set(continent, [...(groups.get(continent) ?? []), station]);
+  }
+  const orderedContinents = ["Africa", "Europe", "Asia", "Oceania", "North America", "South America", "Global"];
+  const interleaved: Station[] = [];
+  for (let i = 0; i < 12; i += 1) {
+    for (const continent of orderedContinents) {
+      const station = groups.get(continent)?.[i];
+      if (station) interleaved.push(station);
+    }
+  }
+  return interleaved;
+}
+
 function diverseGlobalPool(stations: Station[], current: Station) {
-  const seenContinents = new Set<string>();
-  return stations.filter((station) => station.id !== current.id && station.is_active && station.url).sort((a,b)=>b.health_score-a.health_score).filter((station) => { const continent = stationContinent(station); const first = !seenContinents.has(continent); if (first) seenContinents.add(continent); return first || seenContinents.size >= 6; });
+  return interleaveByContinent(stations).filter((station) => station.id !== current.id);
 }
 
 function sameCountryCandidatePool(stations: Station[], anchor: Station) {
@@ -1182,23 +1198,35 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   const candidate = candidates[index] ?? null;
   const lockAnchor = useMemo(() => getCandidateLockAnchor(current, stations), [current, stations]);
   const fallbackCandidates = useCallback((anchor: Station | null, explorationMode = false) => {
-    if (!anchor) return [];
+    const globalPool = interleaveByContinent(stations).filter((station) => station.id !== anchor?.id);
+    if (!anchor || !selectedCountry) {
+      return globalPool.map((station) => ({ station, signalStrength: Math.max(70, station.health_score), metadata: buildCandidateMetadata(station) })).slice(0, 18);
+    }
     const localRoutes = generateCandidateRoutes(anchor, stations, explorationMode);
     if (localRoutes.length) return localRoutes;
     const countryRoutes = sameCountryCandidatePool(stations, anchor);
     if (countryRoutes.length || !explorationMode) return countryRoutes;
-    return diverseGlobalPool(stations, anchor).map((station) => ({ station, signalStrength: station.health_score, metadata: buildCandidateMetadata(station) })).slice(0, 12);
-  }, [stations]);
-  const scan = useCallback((wander = false) => {
+    return globalPool.map((station) => ({ station, signalStrength: station.health_score, metadata: buildCandidateMetadata(station) })).slice(0, 18);
+  }, [selectedCountry, stations]);
+  const scan = useCallback(async (wander = false) => {
     const anchor = getCandidateLockAnchor(usePlayer.getState().current ?? current, stations);
     setState("scanning");
-    const next = fallbackCandidates(anchor, wander);
+    let next = fallbackCandidates(anchor, wander);
+    if (!selectedCountry) {
+      try {
+        const res = await fetch(`/api/stations/nearby?global=true&limit=18`);
+        const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
+        next = data.candidates?.length ? data.candidates : next;
+      } catch {
+        // Local interleaved stations preserve global scan when Radio Browser is unavailable.
+      }
+    }
     setCandidates(next);
     setIndex(0);
     setState(next.length ? "found" : "none");
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setState("idle"), 8000);
-  }, [current, fallbackCandidates, stations]);
+  }, [current, fallbackCandidates, selectedCountry, stations]);
   const tune = () => {
     if (!candidate) return;
     usePlayer.getState().setStation(candidate.station);
@@ -1520,17 +1548,10 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           ))}
         </div>
       </nav>
-      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.65fr_.75fr]">
+      <div className="mx-auto grid max-w-7xl gap-6">
         <div id="atlas-map" className="scroll-mt-6">
-          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} searchActive={query.trim().length > 0} />{desktopMode === "Dial" ? <SignalDial key={current.id} mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} onWander={() => setDesktopMode("Wander")} /> : null}</div>
-          <div className="mt-3 flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-slate-950/55 p-3 backdrop-blur-xl">
-            <TakeMeSomewhereButton stations={stationPool} current={current} onTravel={setWandererIntent} />
-            <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stationPool[(stationPool.findIndex((s) => s.id === current.id) + 1) % stationPool.length])} className="rounded-full bg-gold px-4 py-2 font-black text-midnight"><ScanLine className="mr-2 inline size-4" />Scan</button>
-            <button aria-label="Recenter on current playing station" onClick={() => usePlayer.getState().setStation(current)} className="rounded-full border border-white/10 px-4 py-2 text-ivory"><MapPin className="mr-2 inline size-4" />Recenter</button>
-            <button aria-label="Reset Earth" onClick={() => setDesktopResetSignal((n) => n + 1)} className="rounded-full border border-white/10 px-4 py-2 text-ivory"><Compass className="mr-2 inline size-4" />Reset Earth</button>
-          </div>
+          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} searchActive={query.trim().length > 0} /><SignalDial key={current.id} mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} onWander={() => setDesktopMode("Wander")} /></div>
         </div>
-        <div className="space-y-6"><NowPlaying station={current} stations={stationPool} setQuery={setQuery} /></div>
       </div>
       <section className="mx-auto mt-6 max-w-7xl">
         <div className="glass rounded-[2rem] p-6">
@@ -1543,8 +1564,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               className="w-full bg-transparent outline-none placeholder:text-ivory/40"
             />
           </div>
-          <CountryAutocomplete query={query} onSelect={selectCountry} />
-          <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} />
+          {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
+          {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} /> : null}
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1558,13 +1579,13 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               </div>
             </div>
           ) : null}
-          <div className="mt-5 flex flex-wrap gap-2">
+          {desktopMode !== "Atlas" || query.trim() ? <div className="mt-5 flex flex-wrap gap-2">
             {[
               "Nigeria",
               "Dubai",
               "France",
-              "United States",
-              "News",
+              "Afrobeat",
+              "Amapiano",
               "Jazz",
             ].map((chip) => (
               <button
@@ -1576,8 +1597,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
                 {chip}
               </button>
             ))}
-          </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          </div> : null}
+          {desktopMode !== "Atlas" || query.trim() || selectedCountry ? <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {visible.map((s) => (
               <button
                 key={s.id}
@@ -1590,12 +1611,12 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
                 </p>
               </button>
             ))}
-          </div>
+          </div> : null}
           {selectedCountry && !visible.length && !loadingCountry ? <p className="mt-5 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No active stations found for {selectedCountry.name} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.</p> : null}
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-black text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </section>
-      <div className="fixed inset-x-3 bottom-3 z-20 mx-auto flex max-w-md items-center justify-between rounded-full border border-white/15 bg-midnight/90 p-2 pl-4 shadow-glow backdrop-blur md:hidden">
+      <div className="fixed inset-x-3 bottom-3 z-20 mx-auto flex max-w-md items-center justify-between rounded-full border border-white/15 bg-midnight/90 p-2 pl-4 shadow-glow backdrop-blur md:flex">
         <span className="truncate text-sm">
           <Compass className="mr-2 inline size-4 text-gold" />
           {current.name}
