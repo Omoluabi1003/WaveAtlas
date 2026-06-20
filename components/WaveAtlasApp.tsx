@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Check,
   Compass,
-  Copy,
   Gauge,
   Globe2,
   Heart,
@@ -17,7 +16,7 @@ import {
   Radio,
   Plane,
   Search,
-  Share2,
+  Link,
   Signal,
   Trophy,
   Layers,
@@ -27,7 +26,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { isoCountryCentroids, resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
-import { BRAND, WAVEATLAS_LOGO_PATH, getBrandShareMetadata } from "@/lib/branding";
+import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import { flagFor, type Station } from "@/lib/stations";
@@ -241,17 +240,13 @@ function ShareStationButton({ station }: { station: Station }) {
     const stationUuid = station.station_uuid;
     if (!stationUuid) return;
     const url = `${window.location.origin}?station=${encodeURIComponent(stationUuid)}`;
-    const title = `Listen to ${station.name} on ${BRAND.name}`;
-    const text = `Travel to ${station.country} through sound with ${station.name} on ${BRAND.name}.`;
-    const metadata = getBrandShareMetadata();
-    if (navigator.share) await navigator.share({ title, text: `${text} ${metadata.image}`, url });
-    else await navigator.clipboard.writeText([url, metadata.image].join("\n"));
+    await navigator.clipboard.writeText(url);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   };
   return (
     <button onClick={share} className="rounded-full border border-white/10 px-4 py-2 text-sm transition hover:bg-white/[0.08]">
-      {copied ? <Check className="mr-2 inline size-4 text-radio" /> : typeof navigator !== "undefined" && "share" in navigator ? <Share2 className="mr-2 inline size-4" /> : <Copy className="mr-2 inline size-4" />}
+      {copied ? <Check className="mr-2 inline size-4 text-radio" /> : <Link className="mr-2 inline size-4" />}
       {copied ? "Destination link copied" : "Share destination"}
     </button>
   );
@@ -1127,7 +1122,7 @@ function NowPlaying({
           <Heart />
         </button>
         <button className="rounded-full border border-white/15 p-4">
-          <Share2 />
+          <Link />
         </button>
         <Volume2 />
         <input
