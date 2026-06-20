@@ -1149,18 +1149,26 @@ function NowPlaying({
 function MobileBrandBar({ viewportOffsetTop = 0 }: { viewportOffsetTop?: number }) {
   return (
     <div style={{ top: viewportOffsetTop }} className="fixed left-4 right-4 z-40 max-w-[calc(100%-2rem)] box-border pt-3">
-      <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/80 px-3 py-2 shadow-2xl backdrop-blur-xl">
-        <div className="flex items-center gap-2">
+      <div className="relative grid grid-cols-[1fr_auto_1fr] items-center rounded-full border border-white/10 bg-slate-950/80 px-3 py-2 shadow-2xl backdrop-blur-xl">
+        <div className="min-w-0" aria-hidden="true" />
+        <div className="flex min-w-0 items-center justify-center gap-2 text-center">
           <Image
             src={WAVEATLAS_LOGO_PATH}
             alt="WaveAtlas logo"
             width={48}
             height={48}
-            className="h-12 w-12 object-contain rounded-full"
+            className="h-11 w-11 object-contain rounded-full"
           />
-          <div><b className="font-display text-sm font-bold leading-none">{BRAND.name}</b></div>
+          <div className="min-w-0">
+            <b className="block truncate font-display text-sm font-bold leading-none">{BRAND.name}</b>
+            <p className="mt-0.5 hidden truncate font-display text-[10px] font-semibold text-gold min-[390px]:block">
+              Explore Humanity Through Sound™
+            </p>
+          </div>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-radio"><span className="size-2 rounded-full bg-radio shadow-[0_0_12px_rgba(88,225,132,.9)]" />Live</span>
+        <div className="flex min-w-0 justify-end">
+          <span className="hidden items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-radio min-[390px]:inline-flex"><span className="size-2 rounded-full bg-radio shadow-[0_0_12px_rgba(88,225,132,.9)]" />Live</span>
+        </div>
       </div>
     </div>
   );
@@ -1749,23 +1757,26 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
-      <nav className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-center justify-between rounded-[1.75rem] border border-white/10 bg-slate-950/60 px-5 py-4 shadow-2xl backdrop-blur-xl xl:left-8 xl:right-8">
-        <div className="flex items-center gap-4">
+      <nav className="pointer-events-none fixed left-6 right-6 top-6 z-40 grid grid-cols-[1fr_auto_1fr] items-center rounded-[1.75rem] border border-white/10 bg-slate-950/60 px-5 py-4 shadow-2xl backdrop-blur-xl xl:left-8 xl:right-8">
+        <div className="min-w-0" aria-hidden="true" />
+        <div className="flex min-w-0 items-center justify-center gap-4 text-center">
           <Image
             src={WAVEATLAS_LOGO_PATH}
             alt="WaveAtlas logo"
-            width={48}
-            height={48}
-            className="h-12 w-12 object-contain rounded-full"
+            width={52}
+            height={52}
+            className="h-14 w-14 object-contain rounded-full"
           />
-          <div>
-            <b className="font-display text-xl">{BRAND.name}</b>
-            <p className="font-display text-xs font-semibold text-gold">
+          <div className="min-w-0">
+            <b className="block font-display text-2xl leading-none tracking-tight xl:text-3xl">{BRAND.name}</b>
+            <p className="mt-1 font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold/90">
               Explore Humanity Through Sound™
             </p>
           </div>
         </div>
-        <p className="hidden text-sm text-ivory/70 lg:block">Google Earth-style live radio exploration.</p>
+        <div className="flex min-w-0 justify-end">
+          <p className="hidden rounded-full border border-gold/20 bg-gold/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-gold/90 lg:block">The Entire World. Live.</p>
+        </div>
       </nav>
       <div className="absolute inset-0 z-0">
         <div className="hidden"><DailyFlightPanel stations={stationPool} /></div>
