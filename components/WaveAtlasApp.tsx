@@ -788,6 +788,30 @@ function diverseGlobalPool(stations: Station[], current: Station) {
   return interleaveByContinent(stations).filter((station) => station.id !== current.id);
 }
 
+const TELEPORT_HISTORY_KEY = "waveatlas.teleport.history.v1";
+type TeleportHistory = { countries: string[]; continents: string[]; cities: string[]; languages: string[]; genres: string[]; tags: string[]; stationIds: string[] };
+const emptyTeleportHistory = (): TeleportHistory => ({ countries: [], continents: [], cities: [], languages: [], genres: [], tags: [], stationIds: [] });
+function readTeleportHistory(): TeleportHistory {
+  if (typeof window === "undefined") return emptyTeleportHistory();
+  try { return { ...emptyTeleportHistory(), ...JSON.parse(window.localStorage.getItem(TELEPORT_HISTORY_KEY) || "{}") }; } catch { return emptyTeleportHistory(); }
+}
+function rememberTeleport(station: Station) {
+  if (typeof window === "undefined") return;
+  const history = readTeleportHistory();
+  const keep = <T,>(items: T[]) => items.slice(-100);
+  const next = {
+    countries: keep([...history.countries, station.country_code]),
+    continents: keep([...history.continents, stationContinent(station)]),
+    cities: keep([...history.cities, stationRegion(station).toLowerCase()]),
+    languages: keep([...history.languages, ...stationLanguages(station)]),
+    genres: keep([...history.genres, getPrimaryGenre(station).toLowerCase()]),
+    tags: keep([...history.tags, ...station.tags.map((tag) => tag.toLowerCase())]),
+    stationIds: keep([...history.stationIds, station.station_uuid || station.id]),
+  };
+  window.localStorage.setItem(TELEPORT_HISTORY_KEY, JSON.stringify(next));
+}
+
+
 function sameCountryCandidatePool(stations: Station[], anchor: Station) {
   return stations
     .filter((station) => station.id !== anchor.id && station.country_code === anchor.country_code && isValidCandidateLockStation(station) && station.is_active && station.failure_count <= 2)
@@ -1232,7 +1256,8 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
     let next = fallbackCandidates(anchor, wander);
     if (!selectedCountry) {
       try {
-        const res = await fetch(`/api/stations/nearby?global=true&limit=18`);
+        const params = new URLSearchParams({ global: "true", limit: "18", anchor: JSON.stringify(anchor), recent: JSON.stringify(readTeleportHistory()) });
+        const res = await fetch(`/api/stations/nearby?${params.toString()}`);
         const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
         next = data.candidates?.length ? data.candidates : next;
       } catch {
@@ -1247,18 +1272,27 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   }, [current, fallbackCandidates, selectedCountry, stations]);
   const tune = () => {
     if (!candidate) return;
+    rememberTeleport(candidate.station);
     usePlayer.getState().setStation(candidate.station);
     onStationResolved?.(candidate.station);
     setState("idle");
   };
   return <>
     <motion.div animate={{ scale: compact ? 0.65 : 1 }} transition={{ type: "spring", damping: 24, stiffness: 260 }} className={`${mobile ? "fixed bottom-[172px] right-5 z-50 origin-bottom-right" : "absolute bottom-5 right-5 z-40 origin-bottom-right"}`}>
-      <button type="button" aria-label="Take me somewhere unexpected." title="Take me somewhere unexpected." onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void teleport(false); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl transition-[width,height,opacity] duration-300">
-        <span className="absolute inset-1 rounded-full border border-gold/45 bg-[conic-gradient(from_90deg,rgba(214,168,79,.75),rgba(88,225,132,.85),transparent_62%)] opacity-80 transition group-hover:rotate-45" />
-        <span className="absolute inset-3 rounded-full bg-slate-950/90" />
-        <span className="relative text-center"><Plane className="mx-auto size-6 text-radio" /><span className={`${compact ? "sr-only" : "mt-1 block"} text-[10px] font-black uppercase tracking-[.18em] text-gold`}>Teleport</span></span>
+      <button type="button" aria-label="Take me somewhere unexpected." title="Take me somewhere unexpected." onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void teleport(false); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/80 text-white shadow-[0_24px_80px_rgba(0,0,0,.45)] backdrop-blur-xl transition duration-300 hover:border-radio/40 hover:bg-slate-950/90">
+        <span className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_48%,rgba(88,225,132,.18),transparent_46%)]" />
+        <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 8, ease: "linear" }} className="absolute inset-1 rounded-full bg-[conic-gradient(from_90deg,rgba(88,225,132,.95),rgba(88,225,132,.25),rgba(255,255,255,.08),rgba(88,225,132,.95))] opacity-80" />
+        <span className="absolute inset-[6px] rounded-full bg-slate-950/95 shadow-inner" />
+        <Plane className="relative size-7 text-radio drop-shadow-[0_0_14px_rgba(88,225,132,.75)] transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
       </button>
-      <AnimatePresence>{!compact ? <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Teleport</span><span>•</span><span>Next</span><span>•</span><span>Lock</span></motion.div> : null}</AnimatePresence>
+      <AnimatePresence>{!compact ? <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-3 flex flex-col items-center gap-2 font-sans">
+        <span className="text-xs font-medium tracking-normal text-ivory/75">Teleport</span>
+        <div className="flex justify-center gap-2 text-xs font-medium text-ivory/75">
+          <button type="button" onClick={() => void teleport(false)} className="rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 transition hover:border-radio/30 hover:bg-radio/10 hover:text-white">✈ Teleport</button>
+          <button type="button" onClick={() => setIndex((n) => candidates.length ? (n + 1) % candidates.length : 0)} className="rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 transition hover:border-radio/30 hover:bg-radio/10 hover:text-white">⟳ Next</button>
+          <button type="button" onClick={tune} className="rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 transition hover:border-radio/30 hover:bg-radio/10 hover:text-white">📍 Lock</button>
+        </div>
+      </motion.div> : null}</AnimatePresence>
     </motion.div>
     <AnimatePresence><SignalCandidatePreview candidate={candidate} state={state} anchor={lockAnchor} onTune={tune} onNext={() => setIndex((n) => candidates.length ? (n + 1) % candidates.length : 0)} /></AnimatePresence>
   </>;
