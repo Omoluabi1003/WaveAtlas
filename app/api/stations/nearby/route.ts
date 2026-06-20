@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { focusForPoint, radiusForZoom } from '@/lib/geo-focus';
 import { rankNearbyStations } from '@/lib/station-ranking';
-import { ariyoSeedStations, fallbackStations, fetchGlobalCandidateStations, fetchStations, fetchStationsForCountryIntent, isCuratedStation, logCuratedStationDiagnostic, searchCountries, type Station } from '@/lib/stations';
+import { ariyoSeedStations, fallbackStations, fetchGlobalCandidateStations, fetchStations, fetchStationsForCountryIntent, isCuratedStation, isStationAvailable, logCuratedStationDiagnostic, searchCountries, type Station } from '@/lib/stations';
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
@@ -80,7 +80,7 @@ async function fetchTeleportCandidatePool() {
     const curated = isCuratedStation(station);
     if (!station.url) { logCuratedStationDiagnostic(station, 'excluded from teleport pool: missing stream URL', 'fetchTeleportCandidatePool'); return false; }
     if (seen.has(key)) { logCuratedStationDiagnostic(station, 'excluded from teleport pool: duplicate station id already present', 'fetchTeleportCandidatePool'); return false; }
-    if (!curated && (!station.is_active || station.failure_count > 2)) return false;
+    if (!isStationAvailable(station)) return false;
     if (curated && (!station.is_active || station.failure_count > 2)) logCuratedStationDiagnostic(station, 'kept in teleport pool as curated needs_review despite health flags', 'fetchTeleportCandidatePool');
     seen.add(key);
     return true;
