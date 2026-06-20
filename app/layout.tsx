@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { BRAND } from "@/lib/branding";
+import { BRAND, WAVEATLAS_LOGO_PATH, WAVEATLAS_LOGO_URL } from "@/lib/branding";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,22 +8,22 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   applicationName: BRAND.name,
   icons: {
-    icon: BRAND.logo,
-    shortcut: BRAND.logo,
-    apple: BRAND.logo,
+    icon: WAVEATLAS_LOGO_PATH,
+    shortcut: WAVEATLAS_LOGO_PATH,
+    apple: WAVEATLAS_LOGO_URL,
   },
   openGraph: {
     title: "WaveAtlas™",
     description: BRAND.description,
     siteName: BRAND.name,
-    images: [{ url: BRAND.logo }],
+    images: [{ url: WAVEATLAS_LOGO_URL }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "WaveAtlas™",
     description: BRAND.description,
-    images: [BRAND.logo],
+    images: [WAVEATLAS_LOGO_URL],
   },
 };
 
