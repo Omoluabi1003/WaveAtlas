@@ -32,6 +32,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import type { Station } from "@/lib/stations";
+import { EarthDialMode } from "@/components/EarthDialMode";
 
 type CountryResult = {
   name: string;
@@ -1255,9 +1256,9 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     window.setTimeout(() => setPresenceVisible(false), 5000);
   };
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
-    <WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
+    {mode === "Dial" ? <EarthDialMode current={current} mobile onStationSelect={(station) => usePlayer.getState().setStation(station)} /> : <WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onStationSelect={(station) => usePlayer.getState().setStation(station)} />}
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
-    <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
+    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} /> : null}
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={scan} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
@@ -1281,6 +1282,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
+  const [desktopMode, setDesktopMode] = useState("Atlas");
   const [deepLinkUuid] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("station")?.trim() || "");
   const initialStationPoolRef = useRef(stationPool);
 
@@ -1384,18 +1386,20 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
         <div className="hidden gap-2 md:flex">
           {["Atlas", "Dial", "Wander", "Library"].map((x) => (
-            <span
-              className="rounded-full border border-white/10 px-4 py-2 text-sm text-ivory/70"
+            <button
+              type="button"
+              onClick={() => setDesktopMode(x)}
+              className={`rounded-full border border-white/10 px-4 py-2 text-sm ${desktopMode === x ? "bg-radio text-midnight" : "text-ivory/70"}`}
               key={x}
             >
               {x}
-            </span>
+            </button>
           ))}
         </div>
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.65fr_.75fr]">
         <div id="atlas-map" className="scroll-mt-6">
-          <WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} onStationSelect={(station) => usePlayer.getState().setStation(station)} />
+          {desktopMode === "Dial" ? <EarthDialMode current={current} onStationSelect={(station) => usePlayer.getState().setStation(station)} /> : <WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} onStationSelect={(station) => usePlayer.getState().setStation(station)} />}
           <div className="mt-3 flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-slate-950/55 p-3 backdrop-blur-xl">
             <TakeMeSomewhereButton stations={stationPool} current={current} onTravel={setWandererIntent} />
             <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stationPool[(stationPool.findIndex((s) => s.id === current.id) + 1) % stationPool.length])} className="rounded-full bg-gold px-4 py-2 font-black text-midnight"><ScanLine className="mr-2 inline size-4" />Scan</button>
