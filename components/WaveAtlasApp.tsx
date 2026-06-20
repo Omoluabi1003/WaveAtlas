@@ -1008,13 +1008,13 @@ function MobileBrandBar() {
     <div className="fixed left-0 right-0 top-0 z-40 px-4 pt-3">
       <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/80 px-3 py-2 shadow-2xl backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <div className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-sky/15 text-sky">
-            <img
-              src={BRAND.logo}
-              alt={`${BRAND.name} logo`}
-              className="h-10 w-10 object-contain"
-            />
-          </div>
+          <img
+            src={BRAND.logo}
+            alt="WaveAtlas logo"
+            width={48}
+            height={48}
+            className="h-12 w-12 object-contain rounded-full"
+          />
           <div><b className="text-sm leading-none">{BRAND.name}</b></div>
         </div>
         <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 font-mono text-[10px] uppercase tracking-[.18em] text-radio"><span className="size-2 rounded-full bg-radio shadow-[0_0_12px_rgba(88,225,132,.9)]" />Live</span>
@@ -1368,13 +1368,13 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-sky/15 text-sky">
-            <img
-              src={BRAND.logo}
-              alt={`${BRAND.name} logo`}
-              className="h-10 w-10 object-contain"
-            />
-          </div>
+          <img
+            src={BRAND.logo}
+            alt="WaveAtlas logo"
+            width={48}
+            height={48}
+            className="h-12 w-12 object-contain rounded-full"
+          />
           <div>
             <b className="text-xl">{BRAND.name}</b>
             <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">
