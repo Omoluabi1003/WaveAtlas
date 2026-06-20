@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "raw.githubusercontent.com",
+        pathname: "/Omoluabi1003/WaveAtlas/main/**",
       },
     ],
   },

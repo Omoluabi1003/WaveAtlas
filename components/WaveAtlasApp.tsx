@@ -3,7 +3,6 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import maplibregl, { type Map, type Marker } from "maplibre-gl";
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
 import {
   Check,
   Compass,
@@ -28,7 +27,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
-import { BRAND, getBrandLogoAlt } from "@/lib/branding";
+import { BRAND } from "@/lib/branding";
 import type { Station } from "@/lib/stations";
 
 type CountryResult = {
@@ -1004,14 +1003,17 @@ function NowPlaying({
   );
 }
 
-function MobileBrandBar({ logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }: { logoLoaded: boolean; logoFailed: boolean; setLogoLoaded: (v: boolean) => void; setLogoFailed: (v: boolean) => void }) {
+function MobileBrandBar() {
   return (
     <div className="fixed left-0 right-0 top-0 z-40 px-4 pt-3">
       <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/80 px-3 py-2 shadow-2xl backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <div className="relative flex size-10 items-center justify-center overflow-hidden rounded-full bg-sky/15 text-sky">
-            {(!logoLoaded || logoFailed) && <Globe2 className="size-5 animate-pulse" />}
-            {!logoFailed && <Image src={BRAND.logo} alt={getBrandLogoAlt()} width={40} height={40} priority className={`absolute inset-0 h-full w-full object-contain transition-opacity ${logoLoaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLogoLoaded(true)} onError={() => setLogoFailed(true)} />}
+          <div className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-sky/15 text-sky">
+            <img
+              src={BRAND.logo}
+              alt={`${BRAND.name} logo`}
+              className="h-10 w-10 object-contain"
+            />
           </div>
           <div><b className="text-sm leading-none">{BRAND.name}</b></div>
         </div>
@@ -1247,7 +1249,7 @@ function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: strin
   return <nav className="fixed bottom-0 left-0 right-0 z-[60] px-4 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-4 gap-1 rounded-full border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{[[Compass,"Atlas"],[Radio,"Dial"],[Globe2,"Wander"],[Heart,"Library"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, logoLoaded, logoFailed, setLogoLoaded, setLogoFailed, wandererIntent, setWandererIntent }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; logoLoaded: boolean; logoFailed: boolean; setLogoLoaded: (v: boolean) => void; setLogoFailed: (v: boolean) => void; wandererIntent: string; setWandererIntent: (intent: string) => void }) {
+function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [resetSignal, setResetSignal] = useState(0);
@@ -1265,7 +1267,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   };
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} />
-    <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
+    <MobileBrandBar />
     {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { usePlayer.getState().setStation(station); setQuery(""); }} /> : null}
     <SignalDial key={current.id} mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
@@ -1286,8 +1288,6 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [activeTag, setActiveTag] = useState("");
   const [offset, setOffset] = useState(stations.length);
   const [loadingCountry, setLoadingCountry] = useState(false);
-  const [logoLoaded, setLogoLoaded] = useState(false);
-  const [logoFailed, setLogoFailed] = useState(false);
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
@@ -1364,28 +1364,16 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       <AudioEngine />
       <SignalInitializationSequence />
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. WaveAtlas will not substitute another station for this shared link.`}</p></div> : null}
-      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} />
+      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} />
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-sky/15 text-sky">
-            {(!logoLoaded || logoFailed) && (
-              <Globe2 className="h-7 w-7 animate-pulse" aria-hidden="true" />
-            )}
-            {!logoFailed && (
-              <Image
-                src={BRAND.logo}
-                alt={getBrandLogoAlt()}
-                width={56}
-                height={56}
-                priority
-                className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
-                  logoLoaded ? "opacity-100" : "opacity-0"
-                }`}
-                onLoad={() => setLogoLoaded(true)}
-                onError={() => setLogoFailed(true)}
-              />
-            )}
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-sky/15 text-sky">
+            <img
+              src={BRAND.logo}
+              alt={`${BRAND.name} logo`}
+              className="h-10 w-10 object-contain"
+            />
           </div>
           <div>
             <b className="text-xl">{BRAND.name}</b>
