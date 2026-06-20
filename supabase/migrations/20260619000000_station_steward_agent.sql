@@ -102,3 +102,34 @@ create index if not exists stations_uuid_lookup_idx on public.stations (station_
 create index if not exists station_aliases_alias_idx on public.station_aliases using gin (alias gin_trgm_ops);
 create index if not exists station_redirects_new_uuid_idx on public.station_redirects (new_station_uuid);
 create index if not exists station_identity_audit_uuid_checked_idx on public.station_identity_audit (station_uuid, checked_at desc);
+
+alter table public.stations add column if not exists geo_confidence_score integer not null default 0 check (geo_confidence_score between 0 and 100);
+
+create table if not exists public.station_geo_overrides (
+  station_uuid text primary key,
+  lat double precision,
+  lng double precision,
+  precision text not null check (precision in ('station', 'city', 'country', 'unknown')),
+  source text not null check (source in ('manual_override', 'city_gazetteer', 'verified_api_geo', 'country_centroid', 'unknown')),
+  confidence integer not null default 0 check (confidence between 0 and 100),
+  notes text,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.station_geo_audit (
+  id uuid primary key default gen_random_uuid(),
+  station_uuid text not null,
+  reported_country_code text,
+  reported_lat double precision,
+  reported_lng double precision,
+  resolved_lat double precision,
+  resolved_lng double precision,
+  resolution_source text not null,
+  confidence integer not null default 0 check (confidence between 0 and 100),
+  warning text,
+  audited_at timestamptz not null default now()
+);
+
+create index if not exists station_geo_audit_uuid_audited_idx on public.station_geo_audit (station_uuid, audited_at desc);
+create index if not exists station_geo_audit_confidence_idx on public.station_geo_audit (confidence, resolution_source);
+alter table public.agent_runs add column if not exists geo_conflicts_flagged integer not null default 0;

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
+import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import type { Station } from "@/lib/stations";
 
 type CountryResult = {
@@ -40,13 +41,7 @@ type CountryResult = {
   station_count: number;
 };
 
-type GeoPoint = {
-  lat: number;
-  lng: number;
-  label: string;
-  precision: "station" | "city" | "country";
-  tone: "green-gold" | "blue-gold" | "radio-gold";
-};
+type GeoPoint = ResolvedStationGeo & { label: string; tone: "green-gold" | "blue-gold" | "radio-gold" };
 type PlaybackStatus =
   | "idle"
   | "buffering"
@@ -97,63 +92,18 @@ const usePlayer = create<PlayerState>((set) => ({
     set({ status, error, playing: status === "playing" }),
 }));
 
-const countryFallbacks: Record<
-  string,
-  Omit<GeoPoint, "label" | "precision">
-> = {
-  NG: { lat: 9.082, lng: 8.6753, tone: "green-gold" },
-  AE: { lat: 23.4241, lng: 53.8478, tone: "blue-gold" },
-  FR: { lat: 46.2276, lng: 2.2137, tone: "radio-gold" },
-  GB: { lat: 55.3781, lng: -3.436, tone: "radio-gold" },
-  US: { lat: 39.8283, lng: -98.5795, tone: "radio-gold" },
-  BR: { lat: -14.235, lng: -51.9253, tone: "radio-gold" },
-  ZA: { lat: -30.5595, lng: 22.9375, tone: "green-gold" },
-  GH: { lat: 7.9465, lng: -1.0232, tone: "green-gold" },
-  JP: { lat: 36.2048, lng: 138.2529, tone: "radio-gold" },
-  CN: { lat: 35.8617, lng: 104.1954, tone: "radio-gold" },
-  IN: { lat: 20.5937, lng: 78.9629, tone: "radio-gold" },
-  AU: { lat: -25.2744, lng: 133.7751, tone: "radio-gold" },
-  NZ: { lat: -40.9006, lng: 174.886, tone: "radio-gold" },
-  SG: { lat: 1.3521, lng: 103.8198, tone: "blue-gold" },
-};
-const cityFallbacks: Record<string, Omit<GeoPoint, "label" | "precision">> = {
-  lagos: { lat: 6.5244, lng: 3.3792, tone: "green-gold" },
-  abuja: { lat: 9.0765, lng: 7.3986, tone: "green-gold" },
-  dubai: { lat: 25.2048, lng: 55.2708, tone: "blue-gold" },
-  paris: { lat: 48.8566, lng: 2.3522, tone: "radio-gold" },
-  london: { lat: 51.5072, lng: -0.1276, tone: "radio-gold" },
-  "new york": { lat: 40.7128, lng: -74.006, tone: "radio-gold" },
-};
-
-function resolveStationGeo(station: Station): GeoPoint {
-  if (
-    typeof station.latitude === "number" &&
-    typeof station.longitude === "number"
-  )
-    return {
-      lat: station.latitude,
-      lng: station.longitude,
-      label: station.state || station.country,
-      precision: "station",
-      tone:
-        station.country_code === "NG"
-          ? "green-gold"
-          : station.country_code === "AE"
-            ? "blue-gold"
-            : "radio-gold",
-    };
-  const city =
-    cityFallbacks[(station.state || "").toLowerCase()] ||
-    cityFallbacks[station.country.toLowerCase()];
-  if (city)
-    return {
-      ...city,
-      label: station.state || station.country,
-      precision: "city",
-    };
-  const country = countryFallbacks[station.country_code] || countryFallbacks.US;
-  return { ...country, label: station.country, precision: "country" };
+function stationTone(countryCode?: string): GeoPoint["tone"] {
+  return countryCode === "NG" || countryCode === "GH" || countryCode === "ZA" ? "green-gold" : countryCode === "AE" || countryCode === "SG" ? "blue-gold" : "radio-gold";
 }
+
+function geotruth(station: Station): GeoPoint {
+  const resolved = resolveStationGeo(station);
+  return { ...resolved, label: station.state || station.city || station.country || "Unknown location", tone: stationTone(station.country_code) };
+}
+
+const countryFallbacks: Record<string, { lat: number; lng: number; tone: GeoPoint["tone"] }> = {
+  NG: { lat: 9.082, lng: 8.6753, tone: "green-gold" }, AE: { lat: 23.4241, lng: 53.8478, tone: "blue-gold" }, FR: { lat: 46.2276, lng: 2.2137, tone: "radio-gold" }, GB: { lat: 55.3781, lng: -3.436, tone: "radio-gold" }, US: { lat: 39.8283, lng: -98.5795, tone: "radio-gold" }, BR: { lat: -14.235, lng: -51.9253, tone: "radio-gold" }, ZA: { lat: -30.5595, lng: 22.9375, tone: "green-gold" }, GH: { lat: 7.9465, lng: -1.0232, tone: "green-gold" }, JP: { lat: 36.2048, lng: 138.2529, tone: "radio-gold" }, CN: { lat: 35.8617, lng: 104.1954, tone: "radio-gold" }, IN: { lat: 20.5937, lng: 78.9629, tone: "radio-gold" }, AU: { lat: -25.2744, lng: 133.7751, tone: "radio-gold" }, NZ: { lat: -40.9006, lng: 174.886, tone: "radio-gold" }, SG: { lat: 1.3521, lng: 103.8198, tone: "blue-gold" },
+};
 
 function getStationStreamUrl(station?: Station) {
   return station?.url_resolved?.trim() || station?.url?.trim() || "";
@@ -174,9 +124,9 @@ const neighboringCountries: Record<string, string[]> = {
 const LISTENER_HOME = { lat: 28.5383, lng: -81.3792, label: "Florida, USA" };
 const PASSPORT_KEY = "waveatlas:signal-passport";
 type PassportEntry = { country: string; city: string; station: string; date: string; duration: number };
-function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) { const r = 6371; const dLat = ((b.lat - a.lat) * Math.PI) / 180; const dLng = ((b.lng - a.lng) * Math.PI) / 180; const lat1 = (a.lat * Math.PI) / 180; const lat2 = (b.lat * Math.PI) / 180; const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2; return Math.round(2 * r * Math.asin(Math.sqrt(h))); }
-function localTimeFor(lng: number) { const offset = Math.round(lng / 15); return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(Date.now() + offset * 3600_000)); }
-function estimatedTemperature(geo: GeoPoint) { return Math.round(72 - Math.abs(geo.lat) * 0.28 + ((geo.lng + 180) % 11)); }
+function distanceKm(a: { lat: number; lng: number }, b: { lat: number | null; lng: number | null }) { if (b.lat === null || b.lng === null) return 0; const r = 6371; const dLat = ((b.lat - a.lat) * Math.PI) / 180; const dLng = ((b.lng - a.lng) * Math.PI) / 180; const lat1 = (a.lat * Math.PI) / 180; const lat2 = (b.lat * Math.PI) / 180; const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2; return Math.round(2 * r * Math.asin(Math.sqrt(h))); }
+function localTimeFor(lng: number | null) { if (lng === null) return "Unknown local time"; const offset = Math.round(lng / 15); return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(Date.now() + offset * 3600_000)); }
+function estimatedTemperature(geo: GeoPoint) { return geo.lat === null || geo.lng === null ? 72 : Math.round(72 - Math.abs(geo.lat) * 0.28 + ((geo.lng + 180) % 11)); }
 function readPassport(): PassportEntry[] { if (typeof window === "undefined") return []; try { const parsed = JSON.parse(window.localStorage.getItem(PASSPORT_KEY) || "[]") as unknown; return Array.isArray(parsed) ? parsed.filter((e): e is PassportEntry => typeof e === "object" && !!e && "country" in e) : []; } catch { return []; } }
 function passportBadges(entries: PassportEntry[]) { const countries = new Set(entries.map((e) => e.country)); return [["Explorer", countries.size >= 1], ["Continental Traveler", countries.size >= 3], ["Global Citizen", countries.size >= 6], ["Signal Navigator", entries.reduce((s, e) => s + e.duration, 0) >= 30], ["Master Cartographer", countries.size >= 12]] as const; }
 function useSignalPassport(station: Station) {
@@ -315,7 +265,7 @@ function ShareStationButton({ station }: { station: Station }) {
 }
 
 function MiniCountryMapCard({ station }: { station: Station }) {
-  const geo = useMemo(() => resolveStationGeo(station), [station]);
+  const geo = useMemo(() => geotruth(station), [station]);
   return (
     <button
       onClick={() => document.getElementById("atlas-map")?.scrollIntoView({ behavior: "smooth", block: "start" })}
@@ -328,7 +278,7 @@ function MiniCountryMapCard({ station }: { station: Station }) {
       <div className="p-4">
         <p className="text-[10px] uppercase tracking-[0.25em] text-slate-400">Country map</p>
         <p className="mt-2 text-sm font-semibold text-slate-100">{station.country}</p>
-        <p className="mt-1 text-xs text-ivory/50">Fly to {geo.lat.toFixed(2)}, {geo.lng.toFixed(2)}</p>
+        <p className="mt-1 text-xs text-ivory/50">{geo.lat === null || geo.lng === null ? "GeoTruth pending" : `Fly to ${geo.lat.toFixed(2)}, ${geo.lng.toFixed(2)}`}</p>
       </div>
     </button>
   );
@@ -373,6 +323,7 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <MiniCountryMapCard station={station} />
+        <GeoTrustCards station={station} />
         <StationMetricCard icon={<Languages className="size-4" />} label="Language" value={station.language || "Unknown"} detail="Filter Discover" onClick={() => setQuery(station.language || "")} />
         <StationMetricCard icon={<Radio className="size-4" />} label="Genre" value={genre} detail="Find similar formats" onClick={() => setQuery(genre)} />
         <StationMetricCard icon={<Gauge className="size-4" />} label="Bitrate" value={station.bitrate ? `${station.bitrate} kbps` : "Unknown kbps"} detail={`${station.codec || "Unknown codec"} stream`} />
@@ -388,8 +339,21 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
   );
 }
 
+function GeoTrustCards({ station }: { station: Station }) {
+  const geo = useMemo(() => geotruth(station), [station]);
+  const confidence = geo.confidence >= 75 ? "High" : geo.confidence >= 60 ? "Medium" : "Low";
+  const precision = geo.precision === "station" ? "Station location" : geo.precision === "city" ? "City-level" : geo.precision === "country" ? "Country-level" : "Unknown";
+  const source = geo.source === "country_centroid" ? "Verified centroid" : geo.source === "verified_api_geo" ? "Verified API geo" : geo.source === "city_gazetteer" ? "Trusted gazetteer" : geo.source === "manual_override" ? "Manual override" : "Unknown";
+  return (
+    <>
+      <StationMetricCard icon={<MapPin className="size-4" />} label="Geo Confidence" value={confidence} detail={`${geo.confidence}/100 · ${geo.warning ?? "Country verified"}`} />
+      <StationMetricCard icon={<Globe2 className="size-4" />} label="Geo Precision" value={precision} detail={`Location Source: ${source}`} />
+    </>
+  );
+}
+
 function AroundMePanel({ station }: { station: Station }) {
-  const geo = useMemo(() => resolveStationGeo(station), [station]);
+  const geo = useMemo(() => geotruth(station), [station]);
   const genre = getPrimaryGenre(station);
   return <div className="fixed left-4 top-[132px] z-30 max-w-[220px] rounded-3xl border border-white/10 bg-slate-950/62 p-3 text-xs shadow-2xl backdrop-blur-xl"><p className="font-mono text-[10px] uppercase tracking-[.24em] text-radio">Around Me™</p><p className="mt-2 font-semibold text-ivory">You are traveling through sound.</p><div className="mt-3 space-y-1 text-ivory/65"><p>From {LISTENER_HOME.label}</p><p>To {station.country}</p><p>{distanceKm(LISTENER_HOME, geo).toLocaleString()} km · {localTimeFor(geo.lng)}</p><p>{estimatedTemperature(geo)}°F · {station.language || "Unknown"} · {genre}</p><p>Nearby: {(neighboringCountries[station.country_code] || ["regional signals"]).slice(0, 3).join(", ")}</p></div></div>;
 }
@@ -398,7 +362,7 @@ function SignalPassportPanel({ station }: { station: Station }) {
   const countries = new Set(entries.map((e) => e.country));
   const duration = entries.reduce((sum, e) => sum + e.duration, 0);
   const favorite = [...countries][0] || station.country;
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">Signal Passport™</p><div className="mt-3 grid grid-cols-2 gap-2 text-sm"><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-radio">{countries.size || 1}</b>Countries explored</span><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-sky">{Math.max(1, Math.min(6, countries.size))}</b>Continents explored</span><span className="rounded-xl bg-white/5 p-3">Favorite destination<br/><b>{favorite}</b></span><span className="rounded-xl bg-white/5 p-3">Longest signal route<br/><b>{distanceKm(LISTENER_HOME, resolveStationGeo(station)).toLocaleString()} km</b></span></div><div className="mt-3 flex flex-wrap gap-2">{passportBadges(entries).map(([badge, earned]) => <span key={badge} className={`rounded-full border px-3 py-1 text-xs ${earned ? "border-gold/40 bg-gold/15 text-gold" : "border-white/10 text-ivory/35"}`}>{badge}</span>)}</div><p className="mt-3 text-xs text-slate-300">{Math.round(duration / 60)} listening minutes logged locally.</p></div>;
+  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">Signal Passport™</p><div className="mt-3 grid grid-cols-2 gap-2 text-sm"><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-radio">{countries.size || 1}</b>Countries explored</span><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-sky">{Math.max(1, Math.min(6, countries.size))}</b>Continents explored</span><span className="rounded-xl bg-white/5 p-3">Favorite destination<br/><b>{favorite}</b></span><span className="rounded-xl bg-white/5 p-3">Longest signal route<br/><b>{distanceKm(LISTENER_HOME, geotruth(station)).toLocaleString()} km</b></span></div><div className="mt-3 flex flex-wrap gap-2">{passportBadges(entries).map(([badge, earned]) => <span key={badge} className={`rounded-full border px-3 py-1 text-xs ${earned ? "border-gold/40 bg-gold/15 text-gold" : "border-white/10 text-ivory/35"}`}>{badge}</span>)}</div><p className="mt-3 text-xs text-slate-300">{Math.round(duration / 60)} listening minutes logged locally.</p></div>;
 }
 
 
@@ -640,13 +604,14 @@ function MapFlyToController({
   station: Station;
   status: PlaybackStatus;
 }) {
-  const geo = useMemo(() => resolveStationGeo(station), [station]);
+  const geo = useMemo(() => geotruth(station), [station]);
   useEffect(() => {
     if (!map || !marker) return;
+    if (geo.lat === null || geo.lng === null) return;
     marker.setLngLat([geo.lng, geo.lat]);
     map.flyTo({
       center: [geo.lng, geo.lat],
-      zoom: geo.precision === "station" ? 7 : 4.4,
+      zoom: geo.precision === "station" ? 7 : geo.precision === "city" ? 6 : 4.4,
       speed: 0.72,
       curve: 1.35,
       essential: true,
@@ -668,7 +633,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0 }: { station: S
   const [basemap, setBasemap] = useState<BasemapKey>(() => getInitialBasemap(mobile));
   const initialBasemap = useRef(basemap);
   const viewMode = useRef<"desktop" | "mobile">(mobile ? "mobile" : "desktop");
-  const geo = useMemo(() => resolveStationGeo(station), [station]);
+  const geo = useMemo(() => geotruth(station), [station]);
   const initialGeo = useRef(geo);
   useEffect(() => {
     if (!container.current) return;
@@ -683,13 +648,16 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0 }: { station: S
       attributionControl: false,
     });
     m.addControl(new maplibregl.AttributionControl({ compact: true }));
-    const markerRoot = document.createElement("div");
-    markerRoot.className = `station-pulse-marker tone-${start.tone} status-playing`;
-    markerRoot.innerHTML =
-      '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pulse-dot"></span>';
-    const mk = new maplibregl.Marker({ element: markerRoot, anchor: "center" })
-      .setLngLat([start.lng, start.lat])
-      .addTo(m);
+    let mk: Marker | null = null;
+    if (start.lat !== null && start.lng !== null) {
+      const markerRoot = document.createElement("div");
+      markerRoot.className = `station-pulse-marker tone-${start.tone} status-playing`;
+      markerRoot.innerHTML =
+        '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pulse-dot"></span>';
+      mk = new maplibregl.Marker({ element: markerRoot, anchor: "center" })
+        .setLngLat([start.lng, start.lat])
+        .addTo(m);
+    }
     setMap(m);
     setMarker(mk);
     const resize = () => requestAnimationFrame(() => m.resize());
@@ -702,7 +670,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0 }: { station: S
       window.removeEventListener("orientationchange", resize);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", resize);
-      mk.remove();
+      mk?.remove();
       m.remove();
     };
   }, []);
@@ -769,8 +737,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0 }: { station: S
                 {station.country} · {station.language || "Unknown language"}
               </p>
               <p className="mt-1 text-xs text-ivory/50">
-                {geo.precision} coordinates · {geo.lat.toFixed(3)},{" "}
-                {geo.lng.toFixed(3)}
+                {geo.precision === "station" ? "Station location" : geo.precision === "city" ? "City-level location" : geo.precision === "country" ? "Country-level location" : "Unknown location"} · {geo.lat === null || geo.lng === null ? "Beacon suppressed" : `${geo.lat.toFixed(3)}, ${geo.lng.toFixed(3)}`}
               </p>
             </div>
             <span className="rounded-full bg-radio px-3 py-1 text-xs font-bold text-midnight">
