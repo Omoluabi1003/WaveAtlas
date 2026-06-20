@@ -348,7 +348,7 @@ function GeoTrustCards({ station }: { station: Station }) {
 }
 
 
-const SIGNAL_SPLASH_KEY = "waveatlas:signal-initialized";
+const SIGNAL_SPLASH_KEY = "waveatlas:splash-seen";
 const signalInitializationPhases = [
   "Acquiring signal...",
   "Resolving Earth...",
@@ -356,33 +356,37 @@ const signalInitializationPhases = [
   "Loading station intelligence...",
   "Traveling through sound...",
 ];
-function SignalInitializationSequence() {
-  const [visible, setVisible] = useState(() => typeof window !== "undefined" && window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) !== "true");
+function SignalInitializationSequence({ onComplete }: { onComplete?: () => void }) {
+  const [visible, setVisible] = useState(true);
   const [phase, setPhase] = useState(0);
-  const dismiss = useCallback(() => { window.sessionStorage.setItem(SIGNAL_SPLASH_KEY, "true"); setVisible(false); }, []);
+  const completed = useRef(false);
+  const dismiss = useCallback(() => {
+    if (completed.current) return;
+    completed.current = true;
+    try { window.sessionStorage.setItem(SIGNAL_SPLASH_KEY, "true"); } catch { /* Splash persistence is optional. */ }
+    setVisible(false);
+    onComplete?.();
+  }, [onComplete]);
   useEffect(() => {
-    if (!visible) return;
-    const phaseTimer = window.setInterval(() => setPhase((p) => Math.min(p + 1, signalInitializationPhases.length - 1)), 1850);
-    const doneTimer = window.setTimeout(dismiss, 9800);
+    const phaseTimer = window.setInterval(() => setPhase((p) => (p + 1) % signalInitializationPhases.length), 420);
+    const doneTimer = window.setTimeout(dismiss, 1900);
     return () => { window.clearInterval(phaseTimer); window.clearTimeout(doneTimer); };
-  }, [dismiss, visible]);
-  return <AnimatePresence>{visible ? <motion.div className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-[#020617] text-ivory" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .8 }}>
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(56,189,248,.2),transparent_24%),radial-gradient(circle_at_50%_58%,rgba(214,168,79,.14),transparent_26%)]" />
+  }, [dismiss]);
+  return <AnimatePresence>{visible ? <motion.div className="fixed inset-0 z-[110] grid place-items-center overflow-hidden bg-[#020617] text-ivory" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .45 }}>
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(56,189,248,.22),transparent_24%),radial-gradient(circle_at_50%_58%,rgba(214,168,79,.16),transparent_26%)]" />
     <div className="cloud-layer absolute inset-0 opacity-20" />
     <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:52px_52px] opacity-50" />
-    <button onClick={dismiss} className="absolute right-5 top-5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[.2em] text-ivory/70 hover:text-white" aria-label="Skip Signal Initialization Sequence">Skip</button>
     <div className="relative flex max-w-xl flex-col items-center px-6 text-center">
-      <motion.div className="relative grid size-64 place-items-center rounded-full border border-sky/20 bg-[radial-gradient(circle,rgba(56,189,248,.18),rgba(15,23,42,.35)_55%,transparent_70%)] shadow-[0_0_100px_rgba(56,189,248,.22)]" animate={{ rotate: 360 }} transition={{ duration: 26, repeat: Infinity, ease: "linear" }}>
+      <motion.div className="relative grid size-56 place-items-center rounded-full border border-sky/20 bg-[radial-gradient(circle,rgba(56,189,248,.18),rgba(15,23,42,.35)_55%,transparent_70%)] shadow-[0_0_100px_rgba(56,189,248,.22)]" animate={{ rotate: 360 }} transition={{ duration: 24, repeat: Infinity, ease: "linear" }}>
         <div className="absolute inset-7 rounded-full border border-gold/25" />
         <div className="absolute inset-12 rounded-full border border-radio/20" />
-        <img src={WAVEATLAS_LOGO_PATH} alt="WaveAtlas logo" width={144} height={144} className="size-36 object-contain" />
-        <span className="absolute size-5 rounded-full bg-radio shadow-[0_0_0_18px_rgba(88,225,132,.12),0_0_50px_rgba(88,225,132,.8)]" />
+        <img src={WAVEATLAS_LOGO_PATH} alt="WaveAtlas logo" width={132} height={132} className="size-32 object-contain" />
+        <span className="absolute size-4 rounded-full bg-radio shadow-[0_0_0_18px_rgba(88,225,132,.12),0_0_50px_rgba(88,225,132,.8)]" />
       </motion.div>
-      <p className="mt-8 font-mono text-xs uppercase tracking-[.4em] text-gold">Signal Initialization Sequence™</p>
+      <p className="mt-7 font-mono text-xs uppercase tracking-[.4em] text-gold">Signal Initialization</p>
       <h1 className="mt-3 text-4xl font-black">{BRAND.name}</h1>
       <p className="mt-2 text-lg text-ivory/70">Explore Humanity Through Sound™</p>
       <AnimatePresence mode="wait"><motion.p key={phase} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6 font-mono text-sm uppercase tracking-[.28em] text-radio">{signalInitializationPhases[phase]}</motion.p></AnimatePresence>
-      <p className="mt-7 max-w-md text-center text-[10px] leading-5 text-ivory/40">Built by ETL GIS Consulting LLC • Geospatial Intelligence • Spatial Analytics • GIS Architecture • Florida, USA</p>
     </div>
   </motion.div> : null}</AnimatePresence>;
 }
@@ -1477,8 +1481,8 @@ function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { st
   </motion.section>;
 }
 
-function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: string) => void }) {
-  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-5 gap-1 rounded-full border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[10px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
+function MobileCommandDock({ mode, setMode, onTeleport }: { mode: string; setMode: (m: string) => void; onTeleport: () => void }) {
+  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-5 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; const isTeleport = label === "Teleport"; return <button key={label as string} type="button" onClick={() => { if (isTeleport) onTeleport(); setMode(label as string); }} className={`min-h-14 rounded-2xl px-1.5 py-2 text-[10px] font-bold leading-tight transition ${mode === label ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to a new destination" : String(label)}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : label as string}</button>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -1504,14 +1508,13 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <MobileBrandBar viewportOffsetTop={visualViewport.viewportOffsetTop} />
     {mode !== "Dial" ? <MobileSearchPill viewportOffsetTop={visualViewport.viewportOffsetTop} onOpen={() => setSearchOverlayOpen(true)} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
-    <SignalDial key={current.id} mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
-    <MobileCommandDock mode={mode} setMode={(m) => { setMode(m); if (m === "Teleport") setWanderOpen(true); else if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+    <MobileCommandDock mode={mode} onTeleport={() => { const destination = chooseWonderStation(stations, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); handleTravel("Take me somewhere surprising"); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
 
@@ -1571,6 +1574,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [stationPool, setStationPool] = useState(stations);
   const [arrival, setArrival] = useState<ArrivalDestination | undefined>();
   const [arrivalVisible, setArrivalVisible] = useState(false);
+  const [splashVisible, setSplashVisible] = useState(() => typeof window !== "undefined" && window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) !== "true");
+  const [splashComplete, setSplashComplete] = useState(() => typeof window === "undefined" || window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) === "true");
   const [startupPreview] = useState(() => stations[Math.floor(Math.random() * Math.max(1, stations.length))]);
   const current = usePlayer((s) => s.current) ?? arrival?.station ?? startupPreview ?? stationPool[0] ?? stations[0];
   const [query, setQuery] = useState("");
@@ -1596,7 +1601,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   }, [current]);
 
   useEffect(() => {
-    if (deepLinkUuid || arrival || !stationPool.length) return;
+    if (!splashComplete || deepLinkUuid || arrival || !stationPool.length) return;
     const destination = createArrivalDestination(stationPool, window.localStorage);
     if (!destination) return;
     usePlayer.getState().prepareStation(destination.station);
@@ -1607,7 +1612,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       timer = window.setTimeout(() => setArrivalVisible(false), 3000);
     });
     return () => { if (timer) window.clearTimeout(timer); };
-  }, [arrival, deepLinkUuid, stationPool]);
+  }, [arrival, deepLinkUuid, splashComplete, stationPool]);
 
   useEffect(() => {
     const stationUuid = deepLinkUuid;
@@ -1683,8 +1688,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   return (
     <>
       <AudioEngine stations={stationPool} />
+      {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible ? <ArrivalCard arrival={arrival} onEnter={() => setArrivalVisible(false)} /> : null}</AnimatePresence>
-      {/* Signal initialization is intentionally not auto-mounted so travelers are never trapped behind a transition screen. */}
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
