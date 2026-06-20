@@ -766,7 +766,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(7,17,31,.35)),linear-gradient(180deg,rgba(2,6,23,.35),transparent_30%,rgba(2,6,23,.54))]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />
-      <div className="absolute right-6 top-6 z-30 opacity-95 xl:right-8 xl:top-8"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div>
+      <div className="absolute right-6 top-28 z-50 opacity-95 xl:right-8"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div>
       <div className="pointer-events-none absolute left-6 top-6 z-20 rounded-full border border-white/15 bg-slate-950/70 px-3 py-1.5 font-mono text-[10px] font-semibold text-emerald-300 shadow-lg backdrop-blur xl:left-8 xl:top-8">
         <Signal className="mr-1.5 inline size-3" />
         GIS · Tap Earth to tune a place
@@ -1827,24 +1827,25 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
       <nav className="pointer-events-none fixed left-6 right-6 top-6 z-40 grid grid-cols-[minmax(240px,1fr)_auto_minmax(240px,1fr)] items-center overflow-visible rounded-[1.75rem] border border-white/10 bg-slate-950/60 px-5 py-4 shadow-2xl backdrop-blur-xl xl:left-8 xl:right-8">
         <div className="min-w-0" aria-hidden="true" />
-        <div className="flex min-w-0 items-center justify-center gap-4 text-center">
-          <Image
-            src={WAVEATLAS_LOGO_PATH}
-            alt="WaveAtlas logo"
-            width={52}
-            height={52}
-            className="h-14 w-14 object-contain rounded-full"
-          />
-          <div className="min-w-0">
-            <b className="block font-display text-2xl leading-none tracking-tight xl:text-3xl">{BRAND.name}</b>
-            <p className="mt-1 font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold/90">
-              Explore Humanity Through Sound™
-            </p>
+        <div className="flex min-w-0 flex-col items-center justify-center gap-2 text-center">
+          <div className="flex min-w-0 items-center justify-center gap-4">
+            <Image
+              src={WAVEATLAS_LOGO_PATH}
+              alt="WaveAtlas logo"
+              width={52}
+              height={52}
+              className="h-14 w-14 object-contain rounded-full"
+            />
+            <div className="min-w-0">
+              <b className="block font-display text-2xl leading-none tracking-tight xl:text-3xl">{BRAND.name}</b>
+              <p className="mt-1 font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold/90">
+                Explore Humanity Through Sound™
+              </p>
+            </div>
           </div>
+          <p className="whitespace-nowrap rounded-full border border-gold/20 bg-gold/10 px-[22px] py-2 text-[13px] font-semibold normal-case tracking-normal text-gold/90">The Entire World. Live.</p>
         </div>
-        <div className="flex min-w-0 justify-end overflow-visible">
-          <p className="hidden whitespace-nowrap rounded-full border border-gold/20 bg-gold/10 px-[22px] py-2.5 text-[13px] font-semibold normal-case tracking-normal text-gold/90 lg:block">The Entire World. Live.</p>
-        </div>
+        <div className="min-w-0" aria-hidden="true" />
       </nav>
       <div className="absolute inset-0 z-0">
         <div className="hidden"><DailyFlightPanel stations={stationPool} /></div>
