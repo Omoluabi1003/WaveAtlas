@@ -22,8 +22,6 @@ import {
   Signal,
   Trophy,
   Layers,
-  Info,
-  SkipForward,
   Sparkles,
   Volume2,
 } from "lucide-react";
@@ -120,27 +118,8 @@ const neighboringCountries: Record<string, string[]> = {
   JP: ["South Korea", "Taiwan", "China", "Philippines", "Russia"],
 };
 
-const LISTENER_HOME = { lat: 28.5383, lng: -81.3792, label: "Florida, USA" };
-const PASSPORT_KEY = "waveatlas:signal-passport";
-type PassportEntry = { country: string; city: string; station: string; date: string; duration: number };
-function distanceKm(a: { lat: number; lng: number }, b: { lat: number | null; lng: number | null }) { if (b.lat === null || b.lng === null) return 0; const r = 6371; const dLat = ((b.lat - a.lat) * Math.PI) / 180; const dLng = ((b.lng - a.lng) * Math.PI) / 180; const lat1 = (a.lat * Math.PI) / 180; const lat2 = (b.lat * Math.PI) / 180; const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2; return Math.round(2 * r * Math.asin(Math.sqrt(h))); }
 function localTimeFor(lng: number | null) { if (lng === null) return "Unknown local time"; const offset = Math.round(lng / 15); return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(Date.now() + offset * 3600_000)); }
 function estimatedTemperature(geo: GeoPoint) { return geo.lat === null || geo.lng === null ? 72 : Math.round(72 - Math.abs(geo.lat) * 0.28 + ((geo.lng + 180) % 11)); }
-function readPassport(): PassportEntry[] { if (typeof window === "undefined") return []; try { const parsed = JSON.parse(window.localStorage.getItem(PASSPORT_KEY) || "[]") as unknown; return Array.isArray(parsed) ? parsed.filter((e): e is PassportEntry => typeof e === "object" && !!e && "country" in e) : []; } catch { return []; } }
-function passportBadges(entries: PassportEntry[]) { const countries = new Set(entries.map((e) => e.country)); return [["Explorer", countries.size >= 1], ["Continental Traveler", countries.size >= 3], ["Global Citizen", countries.size >= 6], ["Signal Navigator", entries.reduce((s, e) => s + e.duration, 0) >= 30], ["Master Cartographer", countries.size >= 12]] as const; }
-function useSignalPassport(station: Station) {
-  const [entries, setEntries] = useState<PassportEntry[]>(() => readPassport());
-  useEffect(() => {
-    const started = Date.now();
-    return () => {
-      const duration = Math.max(1, Math.round((Date.now() - started) / 1000));
-      const next = [{ country: station.country, city: station.state || station.country, station: station.name, date: new Date().toISOString(), duration }, ...readPassport()].slice(0, 100);
-      window.localStorage.setItem(PASSPORT_KEY, JSON.stringify(next));
-      setEntries(next);
-    };
-  }, [station.id, station.country, station.name, station.state]);
-  return entries;
-}
 
 function getPrimaryGenre(station: Station) {
   return station.tags.find(Boolean) || "Mixed Radio";
@@ -349,19 +328,6 @@ function GeoTrustCards({ station }: { station: Station }) {
       <StationMetricCard icon={<Globe2 className="size-4" />} label="Geo Precision" value={precision} detail={`Location Source: ${source}`} />
     </>
   );
-}
-
-function AroundMePanel({ station }: { station: Station }) {
-  const geo = useMemo(() => geotruth(station), [station]);
-  const genre = getPrimaryGenre(station);
-  return <div className="fixed left-4 top-[132px] z-30 max-w-[220px] rounded-3xl border border-white/10 bg-slate-950/62 p-3 text-xs shadow-2xl backdrop-blur-xl"><p className="font-mono text-[10px] uppercase tracking-[.24em] text-radio">Around Me™</p><p className="mt-2 font-semibold text-ivory">You are traveling through sound.</p><div className="mt-3 space-y-1 text-ivory/65"><p>From {LISTENER_HOME.label}</p><p>To {station.country}</p><p>{distanceKm(LISTENER_HOME, geo).toLocaleString()} km · {localTimeFor(geo.lng)}</p><p>{estimatedTemperature(geo)}°F · {station.language || "Unknown"} · {genre}</p><p>Nearby: {(neighboringCountries[station.country_code] || ["regional signals"]).slice(0, 3).join(", ")}</p></div></div>;
-}
-function SignalPassportPanel({ station }: { station: Station }) {
-  const entries = useSignalPassport(station);
-  const countries = new Set(entries.map((e) => e.country));
-  const duration = entries.reduce((sum, e) => sum + e.duration, 0);
-  const favorite = [...countries][0] || station.country;
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">Signal Passport™</p><div className="mt-3 grid grid-cols-2 gap-2 text-sm"><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-radio">{countries.size || 1}</b>Countries explored</span><span className="rounded-xl bg-white/5 p-3"><b className="block text-xl text-sky">{Math.max(1, Math.min(6, countries.size))}</b>Continents explored</span><span className="rounded-xl bg-white/5 p-3">Favorite destination<br/><b>{favorite}</b></span><span className="rounded-xl bg-white/5 p-3">Longest signal route<br/><b>{distanceKm(LISTENER_HOME, geotruth(station)).toLocaleString()} km</b></span></div><div className="mt-3 flex flex-wrap gap-2">{passportBadges(entries).map(([badge, earned]) => <span key={badge} className={`rounded-full border px-3 py-1 text-xs ${earned ? "border-gold/40 bg-gold/15 text-gold" : "border-white/10 text-ivory/35"}`}>{badge}</span>)}</div><p className="mt-3 text-xs text-slate-300">{Math.round(duration / 60)} listening minutes logged locally.</p></div>;
 }
 
 
@@ -843,77 +809,6 @@ function TakeMeSomewhereButton({ stations, current, onTravel }: { stations: Stat
   return <button onClick={travel} className="group rounded-full border border-white/10 bg-slate-950/85 px-4 py-2 text-sm font-black text-ivory shadow-xl backdrop-blur-xl transition hover:border-gold/40"><Globe2 className="mr-2 inline size-5 transition group-hover:rotate-12" />🌎 Take Me Somewhere™</button>;
 }
 
-function PresenceCompanion({ station, intent }: { station: Station; intent: string }) {
-  const experience = useMemo(() => getWandererExperience(station, intent), [station, intent]);
-  return <section className="rounded-[2rem] border border-gold/20 bg-[radial-gradient(circle_at_top_left,rgba(214,168,79,.16),transparent_34%),rgba(255,255,255,.045)] p-5 shadow-glow"><p className="font-mono text-[10px] uppercase tracking-[.3em] text-gold">Presence AI™ · Wanderer™ Agent</p><h2 className="mt-3 text-2xl font-black">{experience.intent}</h2><p className="mt-3 text-sm leading-6 text-ivory/75">{experience.narration}</p><div className="mt-4 grid gap-2 sm:grid-cols-2"><span className="rounded-2xl bg-white/5 p-3 text-sm"><b className="block text-radio">Human Presence Index™</b>{experience.presenceIndex}/100 · {experience.earthMood}</span><span className="rounded-2xl bg-white/5 p-3 text-sm"><b className="block text-sky">Signal Passport™ memory</b>{experience.memoryLine}</span></div></section>;
-}
-
-function RadioDial({ stations }: { stations: Station[] }) {
-  const [index, setIndex] = useState(0);
-  const current = stations[index] ?? stations[0];
-  const setStation = usePlayer((s) => s.setStation);
-  const ticks = useMemo(() => Array.from({ length: 49 }, (_, i) => i), []);
-  const tune = (delta: number) => {
-    const next = (index + delta + stations.length) % stations.length;
-    setIndex(next);
-    setStation(stations[next]);
-  };
-  return (
-    <section className="glass overflow-hidden rounded-[2rem] p-5 shadow-glow md:p-8">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
-        <div className="flex-1">
-          <p className="mb-3 font-mono text-xs uppercase tracking-[.35em] text-gold">
-            <Radio className="mr-2 inline size-4" />
-            Global terrestrial dial
-          </p>
-          <h1 className="text-4xl font-black tracking-tight md:text-7xl">
-            Experience Humanity Through Sound.
-          </h1>
-          <p className="mt-4 max-w-2xl text-ivory/70">
-            Not stations. Not playlists. A living atlas where Earth is the interface, sound is the vehicle, and wonder is the destination.
-          </p>
-        </div>
-        <button
-          onClick={() => tune(1)}
-          className="min-h-14 rounded-full bg-gold px-6 font-bold text-midnight shadow-lg shadow-gold/20"
-        >
-          <SkipForward className="mr-2 inline" />
-          Scan the World
-        </button>
-      </div>
-      <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-midnight/70 p-4">
-        <div
-          onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
-          onPointerMove={(e) => {
-            if (e.buttons) tune(e.movementX < 0 ? 1 : -1);
-          }}
-          className="dial-texture relative h-40 cursor-grab select-none overflow-hidden rounded-3xl border border-sky/20"
-        >
-          <div className="absolute inset-x-1/2 top-0 h-full w-px bg-gold shadow-[0_0_24px_#D6A84F]" />
-          <div className="flex h-full items-end justify-around px-6 pb-6">
-            {ticks.map((t) => (
-              <span
-                key={t}
-                className={`w-px rounded ${t % 5 === 0 ? "h-24 bg-ivory/80" : "h-12 bg-ivory/35"}`}
-              />
-            ))}
-          </div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              className="absolute left-1/2 top-7 -translate-x-1/2 rounded-full border border-gold/50 bg-gold/10 px-4 py-2 font-mono text-sm text-gold"
-              key={current?.station_uuid}
-              initial={{ opacity: 0, scale: 0.88 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-            >
-              {(88 + index * 0.7).toFixed(1)} WA · {current?.country_code}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-    </section>
-  );
-}
 function NowPlaying({
   station,
   stations,
@@ -1117,10 +1012,6 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
 function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
   return <div className="rounded-3xl border border-white/10 bg-slate-900 p-4 shadow-lg"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/5 bg-slate-800 px-3 py-2 text-left text-slate-100 hover:border-sky/40"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-slate-300">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
 }
-function DeveloperAttribution({ compact = false }: { compact?: boolean }) { return <a href="https://etl-gis-consulting-llc.vercel.app" target="_blank" rel="noreferrer" className={`${compact ? "text-[10px]" : "text-xs"} inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono uppercase tracking-[.18em] text-ivory/55 transition hover:border-gold/40 hover:text-gold`}><Info className="size-3" />Built by ETL GIS Consulting LLC</a>; }
-function AboutWaveAtlasModal() { return <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5"><p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">About WaveAtlas™</p><p className="mt-3 text-sm leading-6 text-ivory/70">Experience Humanity Through Sound™ — the Living Atlas of Human Presence™ built by ETL GIS Consulting LLC.</p><p className="mt-2 text-xs leading-5 text-ivory/50">ETL GIS Consulting LLC delivers geospatial intelligence, GIS architecture, spatial analytics, and location-based technology solutions from Florida, USA.</p><a href="https://etl-gis-consulting-llc.vercel.app" target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-bold text-gold">Visit ETL GIS Consulting LLC</a></div>; }
-
-
 type SignalCandidate = { station: Station; distanceKm?: number; signalStrength?: number };
 
 type SignalDialProps = {
