@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { focusForPoint, radiusForZoom } from '@/lib/geo-focus';
 import { rankNearbyStations } from '@/lib/station-ranking';
-import { fallbackStations, fetchGlobalCandidateStations, fetchStations, fetchStationsForCountryIntent, searchCountries, type Station } from '@/lib/stations';
+import { ariyoSeedStations, fallbackStations, fetchGlobalCandidateStations, fetchStations, fetchStationsForCountryIntent, isCuratedStation, logCuratedStationDiagnostic, searchCountries, type Station } from '@/lib/stations';
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
@@ -75,9 +75,13 @@ async function fetchTeleportCandidatePool() {
     fetchGlobalCandidateStations(40),
   ]);
   const seen = new Set<string>();
-  return [...broad, ...continentSeeded, ...fallbackStations].filter((station) => {
+  return [...ariyoSeedStations, ...broad, ...continentSeeded, ...fallbackStations].filter((station) => {
     const key = station.station_uuid || station.id;
-    if (!station.url || !station.is_active || station.failure_count > 2 || seen.has(key)) return false;
+    const curated = isCuratedStation(station);
+    if (!station.url) { logCuratedStationDiagnostic(station, 'excluded from teleport pool: missing stream URL', 'fetchTeleportCandidatePool'); return false; }
+    if (seen.has(key)) { logCuratedStationDiagnostic(station, 'excluded from teleport pool: duplicate station id already present', 'fetchTeleportCandidatePool'); return false; }
+    if (!curated && (!station.is_active || station.failure_count > 2)) return false;
+    if (curated && (!station.is_active || station.failure_count > 2)) logCuratedStationDiagnostic(station, 'kept in teleport pool as curated needs_review despite health flags', 'fetchTeleportCandidatePool');
     seen.add(key);
     return true;
   });
@@ -104,7 +108,7 @@ function scoreTeleportCandidates(pool: Station[], anchor: Station, recent: Telep
       const stationGenre = genre(station);
       const stationLanguages = languages(station);
       const km = distanceKm(anchor, station);
-      let score = station.health_score * 2 + Math.min(80, station.bitrate / 2) + Math.min(45, station.votes / 500) + Math.min(35, station.click_count / 2000);
+      let score = (isCuratedStation(station) ? 35 : 0) + station.health_score * 2 + Math.min(80, station.bitrate / 2) + Math.min(45, station.votes / 500) + Math.min(35, station.click_count / 2000);
       score += km ? Math.min(220, km / 45) : 25;
       if (station.country_code !== anchor.country_code) score += 180; else score -= 280;
       if (stationContinent !== anchorContinent) score += 220; else score -= 140;

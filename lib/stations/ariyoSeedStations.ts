@@ -14,6 +14,8 @@ type AriyoSeedInput = {
   language?: string;
   tags?: string[];
   homepage?: string;
+  state?: string;
+  id?: string;
 };
 
 function slugify(value: string) {
@@ -30,13 +32,15 @@ function ariyoSeedStation(input: AriyoSeedInput): Station {
   const tags = uniqueTags([
     'live radio',
     'ariyo-ai-seed',
+    'waveatlas-curated',
+    'curators-picks',
     ...(isAfrica ? ['africa', 'african radio'] : ['global discovery']),
     ...(isNigeria ? ['nigeria', 'lagos', 'pidgin', 'afrobeats', 'talk', 'news'] : []),
     ...(input.tags ?? []),
     input.city,
     input.country,
   ]);
-  const id = `ariyo-ai-${slugify(input.name)}`;
+  const id = input.id ?? `ariyo-ai-${slugify(input.name)}`;
   return {
     id,
     station_uuid: id,
@@ -48,7 +52,7 @@ function ariyoSeedStation(input: AriyoSeedInput): Station {
     favicon: input.thumbnail || '',
     country: input.country,
     country_code: input.country_code,
-    state: input.city,
+    state: input.state ?? input.city,
     city: input.city,
     language: input.language ?? (isNigeria ? 'English, Pidgin' : 'English'),
     tags,
@@ -64,10 +68,15 @@ function ariyoSeedStation(input: AriyoSeedInput): Station {
     last_checked_at: ARIYO_SEED_CHECKED_AT,
     failure_count: 0,
     response_time_ms: 180,
+    curation_source: 'Ariyo AI',
+    curation_tier: 'curated_atlas',
+    validation_status: 'verified',
+    validation_reason: 'Imported from Ariyo AI curated station seeds.',
   };
 }
 
 const sourceStations: AriyoSeedInput[] = [
+  { name: 'Agidigbo 88.7 FM Ibadan', id: 'ariyo-ai-agidigbo-887-fm-ibadan', url: 'https://agidigbostream.com.ng/radio/8000/radio.mp3', city: 'Ibadan', state: 'Oyo', country: 'Nigeria', country_code: 'NG', latitude: 7.3775, longitude: 3.947, language: 'Yoruba, English, Pidgin', homepage: 'https://agidigbo887fm.com/', tags: ['oyo', 'ibadan', 'yoruba', 'news', 'talk', 'current affairs', 'local radio', 'community'] },
   { name: 'Rhythm FM 93.7 Lagos', url: 'https://stream.radio.co/s61726bb1d/listen', city: 'Lagos', country: 'Nigeria', country_code: 'NG', latitude: 6.5244, longitude: 3.3792, tags: ['music', 'afrobeats', 'pop'] },
   { name: 'Cool FM 96.9 Lagos', url: 'https://ais.streamonkey.net/coolfm_lagos-mp3', city: 'Lagos', country: 'Nigeria', country_code: 'NG', latitude: 6.5244, longitude: 3.3792, tags: ['music', 'talk', 'pop'] },
   { name: 'Beat FM 99.9 Lagos', url: 'https://stream.radio.co/s5f042e61a/listen', city: 'Lagos', country: 'Nigeria', country_code: 'NG', latitude: 6.5244, longitude: 3.3792, tags: ['music', 'afrobeats', 'entertainment'] },
