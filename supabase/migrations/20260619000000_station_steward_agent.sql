@@ -133,3 +133,84 @@ create table if not exists public.station_geo_audit (
 create index if not exists station_geo_audit_uuid_audited_idx on public.station_geo_audit (station_uuid, audited_at desc);
 create index if not exists station_geo_audit_confidence_idx on public.station_geo_audit (confidence, resolution_source);
 alter table public.agent_runs add column if not exists geo_conflicts_flagged integer not null default 0;
+
+alter table public.stations add column if not exists consensus_score integer not null default 0 check (consensus_score between 0 and 100);
+alter table public.stations add column if not exists confidence_score integer not null default 0 check (confidence_score between 0 and 100);
+alter table public.stations add column if not exists source_count integer not null default 1;
+
+create table if not exists public.station_sources (
+  id uuid primary key default gen_random_uuid(),
+  station_uuid text not null,
+  source text not null,
+  source_tier integer not null check (source_tier between 1 and 4),
+  source_weight numeric not null check (source_weight >= 0 and source_weight <= 1),
+  external_id text,
+  url text,
+  raw_payload jsonb not null default '{}'::jsonb,
+  fetched_at timestamptz not null default now(),
+  unique (station_uuid, source)
+);
+
+create table if not exists public.station_health (
+  id uuid primary key default gen_random_uuid(),
+  station_uuid text not null,
+  stream_url text not null,
+  status text not null check (status in ('ok', 'failed', 'redirected', 'timeout', 'unsupported')),
+  response_time_ms integer,
+  content_type text,
+  checked_at timestamptz not null default now()
+);
+
+create table if not exists public.station_conflicts (
+  id uuid primary key default gen_random_uuid(),
+  station_uuid text not null,
+  field text not null,
+  winning_value text,
+  rejected_values text[] not null default '{}',
+  confidence_score integer not null default 0 check (confidence_score between 0 and 100),
+  detected_at timestamptz not null default now()
+);
+
+create table if not exists public.source_scores (
+  id uuid primary key default gen_random_uuid(),
+  station_uuid text not null,
+  source text not null,
+  identity_score integer not null default 0 check (identity_score between 0 and 100),
+  geo_score integer not null default 0 check (geo_score between 0 and 100),
+  metadata_score integer not null default 0 check (metadata_score between 0 and 100),
+  stream_health_score integer not null default 0 check (stream_health_score between 0 and 100),
+  consensus_score integer not null default 0 check (consensus_score between 0 and 100),
+  confidence_score integer not null default 0 check (confidence_score between 0 and 100),
+  scored_at timestamptz not null default now(),
+  unique (station_uuid, source)
+);
+
+create table if not exists public.coverage_stats (
+  id uuid primary key default gen_random_uuid(),
+  source text not null,
+  region text not null,
+  countries_scanned integer not null default 0,
+  stations_found integer not null default 0,
+  empty_country_codes text[] not null default '{}',
+  measured_at timestamptz not null default now()
+);
+
+create table if not exists public.truth_audit (
+  id uuid primary key default gen_random_uuid(),
+  station_uuid text not null,
+  source_count integer not null default 1,
+  identity_score integer not null default 0 check (identity_score between 0 and 100),
+  geo_score integer not null default 0 check (geo_score between 0 and 100),
+  metadata_score integer not null default 0 check (metadata_score between 0 and 100),
+  stream_health_score integer not null default 0 check (stream_health_score between 0 and 100),
+  consensus_score integer not null default 0 check (consensus_score between 0 and 100),
+  confidence_score integer not null default 0 check (confidence_score between 0 and 100),
+  audited_at timestamptz not null default now()
+);
+
+create index if not exists station_sources_uuid_source_idx on public.station_sources (station_uuid, source);
+create index if not exists station_health_uuid_checked_idx on public.station_health (station_uuid, checked_at desc);
+create index if not exists station_conflicts_uuid_detected_idx on public.station_conflicts (station_uuid, detected_at desc);
+create index if not exists source_scores_uuid_source_idx on public.source_scores (station_uuid, source);
+create index if not exists coverage_stats_source_region_idx on public.coverage_stats (source, region, measured_at desc);
+create index if not exists truth_audit_uuid_audited_idx on public.truth_audit (station_uuid, audited_at desc);

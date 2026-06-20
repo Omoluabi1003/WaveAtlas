@@ -2,6 +2,26 @@
 
 WaveAtlas is a global radio discovery application backed by Radio Browser data.
 
+
+## Source Oracle™ and Station Truth Mesh™
+
+WaveAtlas is designed to avoid single-directory dependency. The Source Oracle aggregates source claims, assigns provider weights, records conflicts, and emits station-level truth scores so canonical station data can be reconciled from consensus instead of copied blindly from one provider.
+
+### Source tiers
+
+- **Tier 1 primary directories**: Radio Browser (`0.8`), TuneIn (`0.9`), MyTuner (`0.85`), Streema (`0.8`), and Radio Garden (`0.75`).
+- **Tier 2 authoritative broadcasters**: BBC, NHK, ABC Australia, CBC, Radio France, RFI, DW, SABC, VOA, and Vatican Radio (`1.0`).
+- **Tier 3 direct discovery**: Station Steward crawls homepages, playlists, Icecast/Shoutcast, HLS manifests, and feeds (`0.95`).
+- **Tier 4 community layer**: user-submitted station facts with dynamic confidence, modeled after OpenStreetMap review flows.
+
+### Truth Mesh scores
+
+Every reconciled station can carry an identity score, geo score, metadata score, stream health score, consensus score, and confidence score. GeoTruth validation must prefer gazetteers, country centroids, and explicit station/city evidence; it must never infer location from stream IP and must never default unknown stations to the United States.
+
+### Database additions
+
+The Station Truth Mesh migration adds `station_sources`, `station_aliases`, `station_redirects`, `station_health`, `station_geo_overrides`, `station_conflicts`, `source_scores`, `coverage_stats`, and `truth_audit` so provider claims, health checks, conflicts, and scoring decisions remain inspectable.
+
 ## Station Steward Agent™
 
 The Station Steward Agent is a scheduled backend worker that safely improves station data without changing application code or deploying anything automatically. It discovers candidate stations from Radio Browser, deduplicates them, validates stream URLs, enriches station metadata, calculates health scores, softly retires repeatedly failing streams, and writes audit records for every run.
