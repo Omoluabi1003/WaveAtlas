@@ -28,7 +28,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
-import { BRAND } from "@/lib/branding";
+import { BRAND, getBrandLogoAlt } from "@/lib/branding";
 import type { Station } from "@/lib/stations";
 
 type CountryResult = {
@@ -1011,7 +1011,7 @@ function MobileBrandBar({ logoLoaded, logoFailed, setLogoLoaded, setLogoFailed }
         <div className="flex items-center gap-2">
           <div className="relative flex size-10 items-center justify-center overflow-hidden rounded-full bg-sky/15 text-sky">
             {(!logoLoaded || logoFailed) && <Globe2 className="size-5 animate-pulse" />}
-            {!logoFailed && <Image src={BRAND.logo} alt={`${BRAND.name} Logo`} width={40} height={40} priority className={`absolute inset-0 h-full w-full object-contain transition-opacity ${logoLoaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLogoLoaded(true)} onError={() => setLogoFailed(true)} />}
+            {!logoFailed && <Image src={BRAND.logo} alt={getBrandLogoAlt()} width={40} height={40} priority className={`absolute inset-0 h-full w-full object-contain transition-opacity ${logoLoaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLogoLoaded(true)} onError={() => setLogoFailed(true)} />}
           </div>
           <div><b className="text-sm leading-none">{BRAND.name}</b></div>
         </div>
@@ -1375,7 +1375,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             {!logoFailed && (
               <Image
                 src={BRAND.logo}
-                alt={`${BRAND.name} Logo`}
+                alt={getBrandLogoAlt()}
                 width={56}
                 height={56}
                 priority

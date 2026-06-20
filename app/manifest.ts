@@ -1,28 +1,15 @@
 import type { MetadataRoute } from "next";
-import { BRAND } from "@/lib/branding";
+import { BRAND, getBrandManifestIcons } from "@/lib/branding";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "WaveAtlas",
-    short_name: "WaveAtlas",
-    description: "Tune the World with a global live radio dial.",
+    name: BRAND.shortName,
+    short_name: BRAND.shortName,
+    description: BRAND.description,
     start_url: "/",
     display: "standalone",
-    background_color: "#07111F",
-    theme_color: "#07111F",
-    icons: [
-      {
-        src: BRAND.logo,
-        sizes: "any",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: BRAND.logo,
-        sizes: "any",
-        type: "image/png",
-        purpose: "maskable",
-      },
-    ],
+    background_color: BRAND.themeColor,
+    theme_color: BRAND.themeColor,
+    icons: getBrandManifestIcons(),
   };
 }
