@@ -7,7 +7,7 @@ import type { EarthTunerState } from '@/hooks/useEarthTuner';
 import { StationCandidateSheet } from './StationCandidateSheet';
 
 export function SignalLockCard({ state, focus, best, candidates, error, onTune, onPick }: { state: EarthTunerState; focus: GeoFocus | null; best: RankedStationCandidate | null; candidates: RankedStationCandidate[]; error?: string; onTune: () => void; onPick: (candidate: RankedStationCandidate) => void }) {
-  return <div className="absolute bottom-[5.4rem] left-3 right-3 z-40 rounded-3xl border border-white/10 bg-slate-950/90 p-3 text-white shadow-2xl backdrop-blur-xl md:bottom-4 md:left-4 md:right-4">
+  return <div className="absolute bottom-[10.75rem] left-3 right-3 z-50 rounded-3xl border border-white/10 bg-slate-950/90 p-3 text-white shadow-2xl backdrop-blur-xl md:bottom-4 md:left-4 md:right-4">
     <div className="flex min-h-[72px] items-center justify-between gap-3">
       <div className="min-w-0">
         <p className="font-mono text-[10px] uppercase tracking-[.24em] text-gold">{state === 'no_signal' ? 'No signal here' : state === 'scanning' ? 'Scanning…' : state === 'weak_signal' ? 'Weak Signal' : 'Signal Lock'}</p>
