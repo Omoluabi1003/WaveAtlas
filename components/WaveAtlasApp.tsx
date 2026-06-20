@@ -766,8 +766,8 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(7,17,31,.35)),linear-gradient(180deg,rgba(2,6,23,.35),transparent_30%,rgba(2,6,23,.54))]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />
-      <div className="absolute right-6 top-28 z-50 opacity-95 xl:right-8"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div>
-      <div className="pointer-events-none absolute left-6 top-6 z-20 rounded-full border border-white/15 bg-slate-950/70 px-3 py-1.5 font-mono text-[10px] font-semibold text-emerald-300 shadow-lg backdrop-blur xl:left-8 xl:top-8">
+      <div className="absolute right-6 top-24 z-50 opacity-95 xl:right-8"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div>
+      <div className="pointer-events-none absolute left-6 top-20 z-20 rounded-full border border-white/15 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold text-emerald-300 shadow-lg backdrop-blur-xl xl:left-8">
         <Signal className="mr-1.5 inline size-3" />
         GIS · Tap Earth to tune a place
       </div>
@@ -1148,34 +1148,24 @@ function NowPlaying({
 
 function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch }: { viewportOffsetTop?: number; onOpenSearch: () => void }) {
   return (
-    <div style={{ top: viewportOffsetTop }} className="fixed left-4 right-4 z-40 box-border max-w-[calc(100%-2rem)] pt-3">
-      <div className="relative flex flex-col items-center justify-center gap-2 overflow-visible rounded-[1.75rem] border border-white/10 bg-slate-950/80 px-[18px] pb-[18px] pt-5 text-center shadow-2xl backdrop-blur-xl">
-        <Image
-          src={WAVEATLAS_LOGO_PATH}
-          alt="WaveAtlas logo"
-          width={48}
-          height={48}
-          className="h-11 w-11 rounded-full object-contain"
-        />
-        <div className="min-w-0">
-          <b className="block truncate font-display text-sm font-bold leading-none">{BRAND.name}</b>
-          <p className="mt-1 truncate font-display text-[10px] font-semibold text-gold">
-            Explore Humanity Through Sound™
-          </p>
-        </div>
-        <span className="inline-flex w-fit max-w-[90vw] items-center justify-center whitespace-nowrap rounded-full border border-gold/35 bg-gold/10 px-[14px] py-[6px] text-[11px] font-bold leading-none tracking-[0.04em] text-gold shadow-[0_0_18px_rgba(212,166,74,0.12)]">
-          The Entire World. Live.
-        </span>
-        <button
-          type="button"
-          onClick={onOpenSearch}
-          className="mt-1 flex min-h-12 w-full items-center gap-3 rounded-full border border-white/10 bg-slate-950/90 px-4 text-left shadow-2xl backdrop-blur-xl"
-          aria-label="Open station search"
-        >
-          <Search className="size-4 shrink-0 text-sky" />
-          <span className="min-w-0 flex-1 truncate text-sm text-ivory/55">Search country, city, destination...</span>
+    <div style={{ top: viewportOffsetTop }} className="pointer-events-none fixed inset-x-0 z-40 pt-[calc(env(safe-area-inset-top)+12px)]">
+      <div className="mx-4 flex items-center justify-between gap-3">
+        <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/45 px-3 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-xl backdrop-blur-2xl">
+          WaveAtlas™
+        </b>
+        <button type="button" className="pointer-events-auto grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/45 text-xl leading-none text-ivory shadow-xl backdrop-blur-2xl" aria-label="Open menu">
+          ☰
         </button>
       </div>
+      <button
+        type="button"
+        onClick={onOpenSearch}
+        className="pointer-events-auto mx-auto mt-3 flex h-14 w-[min(700px,90vw)] items-center gap-3 rounded-full border border-white/15 bg-slate-950/45 px-5 text-left shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl"
+        aria-label="Open station search"
+      >
+        <Search className="size-4 shrink-0 text-sky" />
+        <span className="min-w-0 flex-1 truncate text-sm text-ivory/60">Search country, city, destination...</span>
+      </button>
     </div>
   );
 }
@@ -1488,7 +1478,7 @@ function PresenceToast({ station, intent, visible }: { station: Station; intent:
 }
 
 function MobileMapControls({ onOpenBasemap }: { onRecenter: () => void; onOpenBasemap: () => void; onOpenSearch: () => void; onOpenFavorites: () => void; onTeleport: () => void }) {
-  return <button onClick={onOpenBasemap} aria-label="Basemap" className="fixed right-4 top-[212px] z-40 grid size-10 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><Layers className="size-4" /></button>;
+  return <button onClick={onOpenBasemap} aria-label="Basemap" className="fixed right-4 top-[148px] z-40 grid size-10 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><Layers className="size-4" /></button>;
 }
 
 function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { station: Station; stations: Station[]; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
@@ -1817,28 +1807,14 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
-      <nav className="pointer-events-none fixed left-6 right-6 top-6 z-40 grid grid-cols-[minmax(240px,1fr)_auto_minmax(240px,1fr)] items-center overflow-visible rounded-[1.75rem] border border-white/10 bg-slate-950/60 px-5 py-4 shadow-2xl backdrop-blur-xl xl:left-8 xl:right-8">
-        <div className="min-w-0" aria-hidden="true" />
-        <div className="flex min-w-0 flex-col items-center justify-center gap-2 text-center">
-          <div className="flex min-w-0 items-center justify-center gap-4">
-            <Image
-              src={WAVEATLAS_LOGO_PATH}
-              alt="WaveAtlas logo"
-              width={52}
-              height={52}
-              className="h-14 w-14 object-contain rounded-full"
-            />
-            <div className="min-w-0">
-              <b className="block font-display text-2xl leading-none tracking-tight xl:text-3xl">{BRAND.name}</b>
-              <p className="mt-1 font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold/90">
-                Explore Humanity Through Sound™
-              </p>
-            </div>
-          </div>
-          <p className="whitespace-nowrap rounded-full border border-gold/20 bg-gold/10 px-[22px] py-2 text-[13px] font-semibold normal-case tracking-normal text-gold/90">The Entire World. Live.</p>
-        </div>
-        <div className="min-w-0" aria-hidden="true" />
-      </nav>
+      <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">
+        <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
+          WaveAtlas™
+        </b>
+        <button type="button" className="pointer-events-auto mr-24 grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/40 text-xl leading-none text-ivory shadow-2xl backdrop-blur-2xl" aria-label="Open menu">
+          ☰
+        </button>
+      </div>
       <div className="absolute inset-0 z-0">
         <div className="hidden"><DailyFlightPanel stations={stationPool} /></div>
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-40 rounded-[2rem] border border-radio/30 bg-slate-950/75 p-4 text-left font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
@@ -1846,17 +1822,19 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           <WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
         </div>
       </div>
-      <section className="fixed left-6 top-28 z-30 w-[min(34rem,calc(100vw-3rem))] xl:left-8 xl:w-[38rem]">
-        <div className="glass max-h-[calc(100vh-14rem)] overflow-y-auto rounded-[2rem] p-5 shadow-2xl">
+      <section className="pointer-events-none fixed left-1/2 top-6 z-30 w-[min(700px,90vw)] -translate-x-1/2">
+        <div className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/40 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl">
           <div className="flex gap-3">
-            <Search className="text-sky" />
+            <Search className="shrink-0 text-sky" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search country, city, genre, or language"
-              className="w-full bg-transparent outline-none placeholder:text-ivory/40"
+              placeholder="Search country, city, destination..."
+              className="w-full bg-transparent outline-none placeholder:text-ivory/45"
             />
           </div>
+        </div>
+        {(query.trim() || selectedCountry || desktopMode !== "Atlas") ? <div className="pointer-events-auto mt-3 max-h-[calc(100vh-15rem)] overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-2xl">
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} /> : null}
@@ -1908,7 +1886,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div> : null}
           {selectedCountry && !visible.length && !loadingCountry ? <p className="mt-5 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No active stations found for {selectedCountry.name} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.</p> : null}
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
-        </div>
+        </div> : null}
       </section>
       <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
