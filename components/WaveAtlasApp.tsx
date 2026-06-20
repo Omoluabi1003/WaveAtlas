@@ -1217,23 +1217,97 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   </>;
 }
 
-function MobileSearchPill({ query, setQuery, onCountrySelect, stations, onStationSelect, viewportHeight, viewportOffsetTop, keyboardOpen }: { query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; stations: Station[]; onStationSelect: (station: Station) => void; viewportHeight: number; viewportOffsetTop: number; keyboardOpen: boolean }) {
-  const [focused, setFocused] = useState(false);
+function MobileSearchPill({ onOpen, viewportOffsetTop }: { onOpen: () => void; viewportOffsetTop: number }) {
+  return (
+    <button
+      type="button"
+      style={{ top: viewportOffsetTop + 76 }}
+      onClick={onOpen}
+      className="fixed left-4 right-4 z-40 box-border flex min-h-12 w-auto max-w-full items-center gap-3 rounded-full border border-white/10 bg-slate-950/90 px-4 text-left shadow-2xl backdrop-blur-xl"
+      aria-label="Open station search"
+    >
+      <Search className="size-4 shrink-0 text-sky" />
+      <span className="min-w-0 flex-1 truncate text-sm text-ivory/55">Search country, city, station...</span>
+    </button>
+  );
+}
+
+function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, onCountrySelect, onStationSelect }: { open: boolean; query: string; setQuery: (q: string) => void; stations: Station[]; onClose: () => void; onCountrySelect: (country: CountryResult) => void; onStationSelect: (station: Station) => void }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
-    if (!focused) return;
-    const previous = document.body.style.overflow;
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 50);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        inputRef.current?.blur();
+        onClose();
+      }
     };
-  }, [focused]);
-  const pillTop = viewportOffsetTop + 76;
-  const resultsTop = viewportOffsetTop + 132;
-  const layoutHeight = typeof window === "undefined" ? viewportHeight : window.innerHeight;
-  const resultsBottom = Math.max(16, layoutHeight - viewportOffsetTop - viewportHeight + 16);
-  const showResults = query.trim().length > 0 || focused;
-  const blurSearch = () => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.blur();
-  return <><label style={{ top: pillTop }} className="fixed left-4 right-4 z-40 box-border flex min-h-12 max-w-[calc(100%-2rem)] items-center gap-3 rounded-full border border-white/10 bg-slate-950/90 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 shrink-0 text-sky" /><input value={query} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, station..." className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-ivory/55" /></label>{showResults ? <div style={{ top: resultsTop, bottom: keyboardOpen ? resultsBottom : undefined, maxHeight: keyboardOpen ? undefined : "55dvh" }} className="fixed left-4 right-4 z-50 box-border max-w-[calc(100%-2rem)] overflow-y-auto"><GroupedSearchResults query={query} stations={stations} onStationSelect={(station) => { blurSearch(); onStationSelect(station); }} onCountrySelect={(country) => { blurSearch(); window.setTimeout(() => onCountrySelect(country), 250); }} setQuery={setQuery} /></div> : null}</>;
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose, open]);
+
+  const closeWithBlur = () => {
+    inputRef.current?.blur();
+    onClose();
+  };
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16 }}
+          className="fixed inset-0 z-[9999] flex h-[100dvh] w-full max-w-full flex-col overflow-hidden bg-slate-950/98 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-[calc(env(safe-area-inset-top)+14px)] text-white backdrop-blur-2xl md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Search stations"
+        >
+          <div className="flex shrink-0 items-center gap-3">
+            <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-full border border-white/15 bg-white/[0.06] px-4 shadow-2xl">
+              <Search className="size-4 shrink-0 text-sky" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search country, city, station..."
+                className="w-full min-w-0 bg-transparent text-base outline-none placeholder:text-ivory/45"
+              />
+            </label>
+            <button type="button" onClick={closeWithBlur} className="grid size-12 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-ivory" aria-label="Close search">
+              ×
+            </button>
+          </div>
+          <button type="button" onClick={closeWithBlur} className="mt-3 self-end rounded-full px-3 py-1.5 text-sm font-bold text-sky">
+            Cancel
+          </button>
+          <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6">
+            <GroupedSearchResults
+              query={query}
+              stations={stations}
+              onStationSelect={(station) => {
+                inputRef.current?.blur();
+                onStationSelect(station);
+              }}
+              onCountrySelect={(country) => {
+                inputRef.current?.blur();
+                onCountrySelect(country);
+              }}
+              setQuery={setQuery}
+            />
+          </div>
+        </motion.section>
+      ) : null}
+    </AnimatePresence>
+  );
 }
 
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
@@ -1299,6 +1373,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [wanderOpen, setWanderOpen] = useState(false);
   const [presenceVisible, setPresenceVisible] = useState(false);
   const [mapContext, setMapContext] = useState<MapScanContext | null>(null);
+  const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
   const presenceTimer = useRef<number | null>(null);
   const handleTravel = (intent: string) => {
     setWandererIntent(intent);
@@ -1308,11 +1383,12 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   };
   const visualViewport = useIOSVisualViewport();
   return <section className="fixed inset-0 h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-white md:hidden">
-    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} searchActive={query.trim().length > 0} keyboardOpen={visualViewport.keyboardOpen} />
+    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     <MobileBrandBar viewportOffsetTop={visualViewport.viewportOffsetTop} />
-    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} keyboardOpen={visualViewport.keyboardOpen} viewportHeight={visualViewport.viewportHeight} viewportOffsetTop={visualViewport.viewportOffsetTop} onStationSelect={(station) => { document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.blur(); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} /> : null}
+    {mode !== "Dial" ? <MobileSearchPill viewportOffsetTop={visualViewport.viewportOffsetTop} onOpen={() => setSearchOverlayOpen(true)} /> : null}
+    <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
     <SignalDial key={current.id} mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
-    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
+    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
@@ -1384,7 +1460,6 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const centerAppAfterQuery = useCallback(() => {
     window.requestAnimationFrame(() => {
       document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station, genre, or language"]')?.blur();
-      document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.blur();
     });
   }, []);
 
