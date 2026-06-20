@@ -5,8 +5,10 @@ import type { ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { flagFor } from "@/lib/stations";
 export function ArrivalCard({ arrival, onEnter }: { arrival?: ArrivalDestination; onEnter?: () => void }) {
   if (!arrival) return null;
-  return <motion.div className="fixed inset-0 z-[90] grid place-items-center bg-midnight/85 px-5 backdrop-blur-2xl" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
-    <motion.div initial={{ y: 28, scale: 0.96, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1 }} exit={{ y: -18, opacity: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} className="relative w-full max-w-xl overflow-visible rounded-[2rem] border border-white/15 bg-slate-950/90 p-6 shadow-[0_30px_120px_rgba(0,0,0,.55)]">
+  return <motion.div className="fixed inset-0 z-[90] grid place-items-center overflow-hidden bg-midnight/55 px-5 backdrop-blur-xl" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,20,.42),rgba(7,17,31,.70))]" />
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(0,214,143,.10),transparent_34%),radial-gradient(circle_at_80%_16%,rgba(212,166,74,.08),transparent_30%)]" />
+    <motion.div initial={{ y: 28, scale: 0.96, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1 }} exit={{ y: -18, opacity: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} className="relative w-full max-w-xl overflow-visible rounded-[2rem] border border-white/15 bg-slate-950/82 p-6 backdrop-blur-xl shadow-[0_30px_120px_rgba(0,0,0,.55)]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2rem]">
         <motion.div className="absolute -right-14 -top-14 size-52 rounded-full border border-sky/20 bg-[radial-gradient(circle,rgba(56,189,248,.18),transparent_68%)]" animate={{ rotate: 360, x: [0, -10, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "linear" }} />
       </div>
