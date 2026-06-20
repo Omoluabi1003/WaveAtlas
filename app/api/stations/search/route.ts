@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { inferGenreCountries } from "@/lib/cultural-atlas";
 import {
+  countryAliases,
   fetchStations,
   fetchStationsForCountryIntent,
   rankStations,
   resolveCountryIntent,
+  searchCountries,
 } from "@/lib/stations";
 
 export async function GET(req: NextRequest) {
@@ -17,11 +20,17 @@ export async function GET(req: NextRequest) {
   const language = p.get("language") ?? undefined;
   const tag = p.get("tag") ?? p.get("genre") ?? undefined;
 
+  const embeddedCountryCode = !explicitCountryCode && q
+    ? Object.entries(countryAliases).find(([name]) => new RegExp(String.raw`(^|\b)${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\b|$)`, "i").test(q))?.[1]
+    : undefined;
+  const embeddedCountry = embeddedCountryCode ? (await searchCountries(embeddedCountryCode)).find((country) => country.code === embeddedCountryCode) : undefined;
   const countryIntent = explicitCountryCode
     ? { name: explicitCountry ?? explicitCountryCode, code: explicitCountryCode }
-    : q
-      ? await resolveCountryIntent(q)
-      : undefined;
+    : embeddedCountry
+      ? embeddedCountry
+      : q
+        ? await resolveCountryIntent(q)
+        : undefined;
 
   if (countryIntent) {
     const stations = await fetchStationsForCountryIntent(countryIntent.name, countryIntent.code, {
@@ -45,6 +54,10 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const genreCountries = inferGenreCountries(q);
+  const stationGroups = genreCountries.length && !explicitCountryCode
+    ? await Promise.all(genreCountries.slice(0, 6).map((countryCode) => fetchStationsForCountryIntent(countryCode, countryCode, { language, tag: tag ?? q, limit: "20", offset: "0" }).catch(() => [])))
+    : [];
   const stations = await fetchStations({
     q,
     name: q,
@@ -56,7 +69,8 @@ export async function GET(req: NextRequest) {
     offset,
   });
 
-  const ranked = rankStations(stations, q);
+  const merged = [...stationGroups.flat(), ...stations].filter((station, index, all) => all.findIndex((item) => (item.station_uuid || item.id) === (station.station_uuid || station.id)) === index);
+  const ranked = rankStations(merged, q);
   return NextResponse.json({
     query: normalizedQuery,
     intent: tag ? "genre" : "station",
