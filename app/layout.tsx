@@ -8,6 +8,7 @@ import {
   WAVEATLAS_SHARE_IMAGE_URL,
   WAVEATLAS_SITE_URL,
 } from "@/lib/branding";
+import { BackgroundRotationProvider } from "@/components/background-rotation-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
     </html>
   );
 }
