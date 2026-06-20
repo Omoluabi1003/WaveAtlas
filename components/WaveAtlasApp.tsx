@@ -722,30 +722,16 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_44%,rgba(7,17,31,.46)),linear-gradient(180deg,rgba(2,6,23,.22),transparent_36%,rgba(2,6,23,.5))]" />
           <div className="pointer-events-none absolute -right-10 -top-10 z-10 size-40 rounded-full border border-radio/10 shadow-[0_0_80px_rgba(52,211,153,.16)]" />
           <div className="pointer-events-none absolute -bottom-14 left-10 z-10 size-32 rounded-full border border-sky/10 shadow-[0_0_70px_rgba(56,189,248,.14)]" />
-          <div className="absolute right-4 top-4 z-30"><BasemapSwitcher value={basemap} onChange={setBasemap} /></div><div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-white/15 bg-slate-950/80 px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[.35em] text-emerald-300 shadow-lg backdrop-blur">
-            <Signal className="mr-2 inline size-4" />
-            Live GIS beacon
+          <div className="absolute right-4 top-4 z-30 opacity-90"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div><div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-white/15 bg-slate-950/75 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[.28em] text-emerald-300 shadow-lg backdrop-blur">
+            <Signal className="mr-1.5 inline size-3" />
+            GIS
           </div>
         </div>
-        <div className="relative w-full rounded-[1.5rem] border border-slate-700/60 bg-slate-950/90 p-5 shadow-glow backdrop-blur md:p-6">
-          <p className="font-mono text-[10px] uppercase tracking-[.28em] text-gold">
-            Fly-to signal lock
-          </p>
-          <div className="mt-3 flex items-start justify-between gap-3">
-            <div>
-              <b className="text-lg">{station.name}</b>
-              <p className="mt-1 text-sm text-ivory/70">
-                {station.country} · {station.language || "Unknown language"}
-              </p>
-              <p className="mt-1 text-xs text-ivory/50">
-                {geo.precision === "station" ? "Station location" : geo.precision === "city" ? "City-level location" : geo.precision === "country" ? "Country-level location" : "Unknown location"} · {geo.lat === null || geo.lng === null ? "Beacon suppressed" : `${geo.lat.toFixed(3)}, ${geo.lng.toFixed(3)}`}
-              </p>
-            </div>
-            <span className="rounded-full bg-radio px-3 py-1 text-xs font-bold text-midnight">
-              {status}
-            </span>
-          </div>
+        <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/70 px-4 py-2 text-sm backdrop-blur">
+          <span className="truncate font-bold text-ivory">{station.name}</span>
+          <span className="ml-3 shrink-0 text-xs text-ivory/55">{station.country}</span>
         </div>
+
       </div>
     </div>
   );
@@ -1150,29 +1136,30 @@ function SignalCandidatePreview({ candidate, state, onTune, onNext }: { candidat
   if (state === "idle") return null;
   return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="fixed bottom-[166px] left-4 right-4 z-50 rounded-3xl border border-white/10 bg-slate-950/92 p-3 text-white shadow-2xl backdrop-blur-xl md:absolute md:bottom-4 md:left-auto md:right-4 md:w-80">
     <p className="font-mono text-[10px] uppercase tracking-[.24em] text-gold">{state === "scanning" ? "Scanning signal" : state === "none" ? "No signal" : "Candidate lock"}</p>
-    {candidate ? <div className="mt-2 flex items-center justify-between gap-3"><div className="min-w-0"><b className="block truncate text-sm">{candidate.station.name}</b><p className="truncate text-xs text-ivory/65">{candidate.station.city || candidate.station.state || candidate.station.country} · {candidate.signalStrength ?? candidate.station.health_score}% confidence</p></div><div className="flex shrink-0 gap-2"><button onClick={onNext} className="rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-ivory">Next</button><button onClick={onTune} className="rounded-full bg-radio px-3 py-2 text-xs font-black text-midnight">Tune</button></div></div> : <p className="mt-2 text-sm text-ivory/70">No verified station matched this map focus. Try another country or long-press for Wander.</p>}
+    {candidate ? <div className="mt-2 flex items-center justify-between gap-3"><div className="min-w-0"><b className="block truncate text-sm">{candidate.station.name}</b><p className="truncate text-xs text-ivory/65">{candidate.station.city || candidate.station.state || candidate.station.country} · {candidate.signalStrength ?? candidate.station.health_score}% confidence</p></div><div className="flex shrink-0 gap-2"><button onClick={onNext} className="rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-ivory">Next</button><button onClick={onTune} className="rounded-full bg-radio px-3 py-2 text-xs font-black text-midnight">Lock</button></div></div> : <p className="mt-2 text-sm text-ivory/70">No verified station matched this map focus. Try another country or long-press for Wander.</p>}
   </motion.div>;
 }
 
 function SignalDial({ mapContext, selectedCountry, stations, current, mobile = false, onStationResolved }: SignalDialProps) {
   const [state, setState] = useState<"idle" | "scanning" | "found" | "none">("idle");
+  const [mode, setMode] = useState<"Global" | "Nearby" | "Unvisited" | "Mood">("Global");
   const [candidates, setCandidates] = useState<SignalCandidate[]>([]);
   const [index, setIndex] = useState(0);
   const timer = useRef<number | null>(null);
   const longPressTriggered = useRef(false);
   const candidate = candidates[index] ?? null;
   const fallbackCandidates = useCallback(() => {
-    const countryCode = selectedCountry?.code;
+    const countryCode = mode === "Nearby" ? selectedCountry?.code : undefined;
     const pool = stations.filter((station) => station.is_active && station.url && station.failure_count <= 2 && (!countryCode || station.country_code === countryCode));
     return pool.map((station) => ({ station, signalStrength: station.health_score })).slice(0, 8);
-  }, [selectedCountry?.code, stations]);
+  }, [mode, selectedCountry?.code, stations]);
   const scan = useCallback(async (wander = false) => {
     setState("scanning");
     const params = new URLSearchParams({ limit: "6" });
-    if (!wander && selectedCountry) {
+    if (!wander && mode === "Nearby" && selectedCountry) {
       params.set("countryCode", selectedCountry.code);
       params.set("country", selectedCountry.name);
-    } else if (!wander && mapContext) {
+    } else if (!wander && mode === "Nearby" && mapContext) {
       params.set("lat", String(mapContext.lat));
       params.set("lng", String(mapContext.lng));
       params.set("zoom", String(mapContext.zoom));
@@ -1195,7 +1182,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
       setIndex(0);
       setState(next.length ? "found" : "none");
     }
-  }, [current.id, fallbackCandidates, mapContext, selectedCountry]);
+  }, [current.id, fallbackCandidates, mapContext, mode, selectedCountry]);
   const tune = () => {
     if (!candidate) return;
     usePlayer.getState().setStation(candidate.station);
@@ -1209,7 +1196,8 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
         <span className="absolute inset-3 rounded-full bg-slate-950/90" />
         <span className="relative text-center"><ScanLine className="mx-auto size-6 text-radio" /><span className="mt-1 block text-[10px] font-black uppercase tracking-[.18em] text-gold">Scan</span></span>
       </button>
-      <div className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Scan</span><span>•</span><span>Tune</span><span>•</span><span>Lock</span></div>
+      <div className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Scan</span><span>•</span><span>Next</span><span>•</span><span>Lock</span></div>
+      <div className="mt-2 grid grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-slate-950/70 p-1 text-[9px] font-black uppercase tracking-[.12em] backdrop-blur">{(["Global", "Nearby", "Unvisited", "Mood"] as const).map((item) => <button key={item} onClick={() => setMode(item)} className={`rounded-xl px-2 py-1 ${mode === item ? "bg-radio text-midnight" : "text-ivory/55"}`}>{item}</button>)}</div>
     </div>
     <AnimatePresence><SignalCandidatePreview candidate={candidate} state={state} onTune={tune} onNext={() => setIndex((n) => candidates.length ? (n + 1) % candidates.length : 0)} /></AnimatePresence>
   </>;
@@ -1236,16 +1224,16 @@ function MobileBasemapSheet({ open, value, onChange, onClose }: { open: boolean;
 }
 
 function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { open: boolean; stations: Station[]; current: Station; onTravel: (intent: string) => void; onClose: () => void }) {
-  const options = ["Surprise Me", "Somewhere Peaceful", "Somewhere Busy", "Somewhere Spiritual", "Somewhere Rainy", "Somewhere I Have Never Been", "Somewhere Waking Up", "Somewhere Falling Asleep"];
+  const options = ["Surprise Me", "Unvisited Country", "Unvisited Continent", "Somewhere Waking Up", "Somewhere Falling Asleep", "Somewhere Rainy", "Somewhere Spiritual", "Somewhere Busy", "Somewhere Peaceful", "Spin the Globe"];
   const travel = (option: string) => {
-    const intent = option === "Surprise Me" ? "Take me somewhere surprising" : option;
+    const intent = option === "Surprise Me" ? "Take me somewhere surprising" : option === "Spin the Globe" ? "Tonight we are going global" : option;
     usePlayer.getState().setStation(chooseWonderStation(stations, current, intent));
     onTravel(intent);
     onClose();
   };
   return <AnimatePresence>{open ? <motion.section initial={{ y: 360, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 360, opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+96px)] z-50 rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl">
     <button onClick={onClose} className="mx-auto mb-4 block h-1.5 w-14 rounded-full bg-white/30" aria-label="Close Wander" />
-    <p className="mb-3 font-mono text-[10px] uppercase tracking-[.28em] text-gold">🌎 Wander</p>
+    <p className="mb-1 font-mono text-[10px] uppercase tracking-[.28em] text-gold">Wander</p><h2 className="mb-3 text-xl font-black">Tonight we are going somewhere.</h2>
     <div className="grid grid-cols-2 gap-2">{options.map((option) => <button key={option} onClick={() => travel(option)} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-bold text-ivory active:scale-[.98]">{option}</button>)}</div>
   </motion.section> : null}</AnimatePresence>;
 }
@@ -1255,15 +1243,8 @@ function PresenceToast({ station, intent, visible }: { station: Station; intent:
   return <AnimatePresence>{visible ? <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed bottom-[166px] left-4 right-4 z-40 rounded-3xl border border-gold/20 bg-slate-950/90 p-4 text-sm leading-6 text-ivory shadow-2xl backdrop-blur-xl">{experience.narration}</motion.div> : null}</AnimatePresence>;
 }
 
-function MobileMapControls({ onRecenter, onOpenBasemap, onOpenSearch, onOpenFavorites, onScan }: { onRecenter: () => void; onOpenBasemap: () => void; onOpenSearch: () => void; onOpenFavorites: () => void; onScan: () => void }) {
-  const controls = [
-    { icon: MapPin, label: "Center on playing station", action: onRecenter, glyph: "📍" },
-    { icon: Globe2, label: "Open Basemap Cockpit", action: onOpenBasemap, glyph: "🌍" },
-    { icon: Search, label: "Open search", action: onOpenSearch, glyph: "🔎" },
-    { icon: Heart, label: "Open favorites", action: onOpenFavorites, glyph: "❤️" },
-    { icon: ScanLine, label: "Start scan", action: onScan, glyph: "📡" },
-  ];
-  return <div className="fixed right-4 top-[146px] z-40 grid gap-2">{controls.map(({ icon: Icon, label, action, glyph }) => <button key={label} onClick={action} aria-label={label} className="grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/75 text-lg text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><span aria-hidden>{glyph}</span><Icon className="sr-only" /></button>)}</div>;
+function MobileMapControls({ onOpenBasemap }: { onRecenter: () => void; onOpenBasemap: () => void; onOpenSearch: () => void; onOpenFavorites: () => void; onScan: () => void }) {
+  return <button onClick={onOpenBasemap} aria-label="Basemap" className="fixed right-4 top-[146px] z-40 grid size-10 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><Layers className="size-4" /></button>;
 }
 
 function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { station: Station; stations: Station[]; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {

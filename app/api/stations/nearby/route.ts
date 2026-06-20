@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { focusForPoint, radiusForZoom } from '@/lib/geo-focus';
 import { rankNearbyStations } from '@/lib/station-ranking';
-import { fallbackStations, fetchStations, fetchStationsForCountryIntent, searchCountries } from '@/lib/stations';
+import { fallbackStations, fetchGlobalCandidateStations, fetchStations, fetchStationsForCountryIntent, searchCountries } from '@/lib/stations';
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
@@ -27,9 +27,11 @@ export async function GET(req: NextRequest) {
       : focusForPoint(lat, lng, zoom, radiusKm);
   const resolvedCountry = focusedPlace.countryCode ? (country ?? (await searchCountries(focusedPlace.countryCode)).find((item) => item.code === focusedPlace.countryCode)) : undefined;
   const countryStations = focusedPlace.countryCode ? await fetchStationsForCountryIntent(resolvedCountry?.name ?? countryNameParam ?? focusedPlace.countryCode, focusedPlace.countryCode, { limit: '120' }) : [];
-  const globalStations = countryStations.length ? [] : await fetchStations({ limit: '120', allowFallback: 'false' });
+  const globalStations = globalScan ? await fetchGlobalCandidateStations(4) : countryStations.length ? [] : await fetchStations({ limit: '120', allowFallback: 'false' });
   const fallbackPool = focusedPlace.countryCode ? fallbackStations.filter((station) => station.country_code === focusedPlace.countryCode) : fallbackStations;
-  const candidates = rankNearbyStations([...countryStations, ...globalStations, ...fallbackPool], focusedPlace, limit);
+  const candidates = globalScan
+    ? globalStations.slice(0, limit).map((station) => ({ station, signalStrength: Math.max(station.health_score, 70), distanceKm: 0 }))
+    : rankNearbyStations([...countryStations, ...globalStations, ...fallbackPool], focusedPlace, limit);
   const bestCandidate = candidates[0] ?? null;
 
   return NextResponse.json({
