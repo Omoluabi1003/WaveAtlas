@@ -214,3 +214,62 @@ create index if not exists station_conflicts_uuid_detected_idx on public.station
 create index if not exists source_scores_uuid_source_idx on public.source_scores (station_uuid, source);
 create index if not exists coverage_stats_source_region_idx on public.coverage_stats (source, region, measured_at desc);
 create index if not exists truth_audit_uuid_audited_idx on public.truth_audit (station_uuid, audited_at desc);
+
+-- Source Oracle™ / Station Truth Mesh™ foundation: source evidence is evidence, not canonical truth.
+create table if not exists public.station_source_evidence (
+  id uuid primary key default gen_random_uuid(),
+  station_uuid text not null,
+  source_name text not null,
+  source_station_id text not null,
+  source_url text,
+  raw_name text,
+  raw_country text,
+  raw_country_code text,
+  raw_city text,
+  raw_language text,
+  raw_genres text[] not null default '{}',
+  raw_stream_url text,
+  raw_homepage text,
+  raw_lat double precision,
+  raw_lng double precision,
+  evidence_confidence numeric not null default 0.5 check (evidence_confidence >= 0 and evidence_confidence <= 1),
+  collected_at timestamptz not null default now(),
+  unique (station_uuid, source_name, source_station_id)
+);
+
+create table if not exists public.station_truth_scores (
+  station_uuid text primary key,
+  identity_score integer not null default 0 check (identity_score between 0 and 100),
+  geo_score integer not null default 0 check (geo_score between 0 and 100),
+  metadata_score integer not null default 0 check (metadata_score between 0 and 100),
+  stream_health_score integer not null default 0 check (stream_health_score between 0 and 100),
+  consensus_score integer not null default 0 check (consensus_score between 0 and 100),
+  confidence_label text not null default 'low' check (confidence_label in ('verified', 'high', 'medium', 'low', 'conflict')),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.coverage_gaps (
+  country_code text primary key,
+  country text not null,
+  continent text not null default 'unknown',
+  active_station_count integer not null default 0,
+  verified_station_count integer not null default 0,
+  coverage_score integer not null default 0 check (coverage_score between 0 and 100),
+  last_checked_at timestamptz not null default now()
+);
+
+create table if not exists public.source_oracle_audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  station_uuid text,
+  action text not null,
+  source_names text[] not null default '{}',
+  confidence_label text,
+  message text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists station_source_evidence_uuid_collected_idx on public.station_source_evidence (station_uuid, collected_at desc);
+create index if not exists station_source_evidence_source_idx on public.station_source_evidence (source_name, collected_at desc);
+create index if not exists station_truth_scores_consensus_idx on public.station_truth_scores (consensus_score desc, confidence_label);
+create index if not exists coverage_gaps_score_idx on public.coverage_gaps (coverage_score asc, active_station_count asc);
+create index if not exists source_oracle_audit_logs_created_idx on public.source_oracle_audit_logs (created_at desc);
