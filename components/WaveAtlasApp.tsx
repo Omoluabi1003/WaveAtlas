@@ -1149,25 +1149,26 @@ function NowPlaying({
 function MobileBrandBar({ viewportOffsetTop = 0 }: { viewportOffsetTop?: number }) {
   return (
     <div style={{ top: viewportOffsetTop }} className="fixed left-4 right-4 z-40 max-w-[calc(100%-2rem)] box-border pt-3">
-      <div className="relative grid grid-cols-[1fr_auto_1fr] items-center rounded-full border border-white/10 bg-slate-950/80 px-3 py-2 shadow-2xl backdrop-blur-xl">
-        <div className="min-w-0" aria-hidden="true" />
-        <div className="flex min-w-0 items-center justify-center gap-2 text-center">
-          <Image
-            src={WAVEATLAS_LOGO_PATH}
-            alt="WaveAtlas logo"
-            width={48}
-            height={48}
-            className="h-11 w-11 object-contain rounded-full"
-          />
-          <div className="min-w-0">
-            <b className="block truncate font-display text-sm font-bold leading-none">{BRAND.name}</b>
-            <p className="mt-0.5 hidden truncate font-display text-[10px] font-semibold text-gold min-[390px]:block">
-              Explore Humanity Through Sound™
-            </p>
+      <div className="relative flex items-center justify-center rounded-[1.75rem] border border-white/10 bg-slate-950/80 px-4 py-3 text-center shadow-2xl backdrop-blur-xl">
+        <div className="flex min-w-0 flex-col items-center justify-center gap-1.5">
+          <div className="flex min-w-0 items-center justify-center gap-2">
+            <Image
+              src={WAVEATLAS_LOGO_PATH}
+              alt="WaveAtlas logo"
+              width={48}
+              height={48}
+              className="h-11 w-11 object-contain rounded-full"
+            />
+            <div className="min-w-0">
+              <b className="block truncate font-display text-sm font-bold leading-none">{BRAND.name}</b>
+              <p className="mt-0.5 truncate font-display text-[10px] font-semibold text-gold">
+                Explore Humanity Through Sound™
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex min-w-0 justify-end">
-          <span className="hidden items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-radio min-[390px]:inline-flex"><span className="size-2 rounded-full bg-radio shadow-[0_0_12px_rgba(88,225,132,.9)]" />Live</span>
+          <span className="inline-flex max-w-[90vw] items-center justify-center whitespace-nowrap rounded-full border border-gold/35 bg-gold/10 px-3 py-1.5 text-[11px] font-semibold leading-none text-gold">
+            The Entire World. Live.
+          </span>
         </div>
       </div>
     </div>
@@ -1508,7 +1509,7 @@ function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { st
 }
 
 function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wandererActive }: { mode: string; setMode: (m: string) => void; onTeleport: () => void; onToggleWanderer: () => void; wandererActive: boolean }) {
-  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-7 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; return <button key={value} type="button" onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`min-h-14 rounded-2xl px-1 py-2 text-[9px] font-medium leading-tight transition ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : value}</button>; })}</div></nav>;
+  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; return <button key={value} type="button" onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto min-h-14 rounded-2xl px-1 py-2 text-[9px] font-medium leading-tight transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : value}</button>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -1824,7 +1825,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
-      <nav className="pointer-events-none fixed left-6 right-6 top-6 z-40 grid grid-cols-[1fr_auto_1fr] items-center rounded-[1.75rem] border border-white/10 bg-slate-950/60 px-5 py-4 shadow-2xl backdrop-blur-xl xl:left-8 xl:right-8">
+      <nav className="pointer-events-none fixed left-6 right-6 top-6 z-40 grid grid-cols-[minmax(240px,1fr)_auto_minmax(240px,1fr)] items-center overflow-visible rounded-[1.75rem] border border-white/10 bg-slate-950/60 px-5 py-4 shadow-2xl backdrop-blur-xl xl:left-8 xl:right-8">
         <div className="min-w-0" aria-hidden="true" />
         <div className="flex min-w-0 items-center justify-center gap-4 text-center">
           <Image
@@ -1841,8 +1842,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             </p>
           </div>
         </div>
-        <div className="flex min-w-0 justify-end">
-          <p className="hidden rounded-full border border-gold/20 bg-gold/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-gold/90 lg:block">The Entire World. Live.</p>
+        <div className="flex min-w-0 justify-end overflow-visible">
+          <p className="hidden whitespace-nowrap rounded-full border border-gold/20 bg-gold/10 px-[22px] py-2.5 text-[13px] font-semibold normal-case tracking-normal text-gold/90 lg:block">The Entire World. Live.</p>
         </div>
       </nav>
       <div className="absolute inset-0 z-0">
@@ -1916,7 +1917,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </section>
-      <div className="fixed inset-x-6 bottom-6 z-40 mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
+      <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
             onClick={() => {
@@ -1935,8 +1936,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div>
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
         </div>
-        <nav className="grid grid-cols-7 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
-          {[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); const destination = chooseWonderStation(stationPool, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else setDesktopMode(value); }} className={`rounded-full px-3 py-2 text-[11px] font-medium ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
+        <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
+          {[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); const destination = chooseWonderStation(stationPool, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else setDesktopMode(value); }} className={`pointer-events-auto rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
         </nav>
       </div>
     </main>
