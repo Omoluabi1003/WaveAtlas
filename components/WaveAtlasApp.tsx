@@ -29,6 +29,7 @@ import { create } from "zustand";
 import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import { BRAND } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
+import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import type { Station } from "@/lib/stations";
 
 type CountryResult = {
@@ -568,7 +569,7 @@ function MapMarkerController({
 
 type MapScanContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
 
-function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, searchActive = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapScanContext) => void; searchActive?: boolean }) {
+function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, searchActive = false, keyboardOpen = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapScanContext) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -581,9 +582,10 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   const geo = useMemo(() => geotruth(station), [station]);
   const initialGeo = useRef(geo);
 
-  const cameraPadding = useMemo(() => mobile ? { top: 190, right: 24, bottom: 220, left: 24 } : { top: 28, right: 28, bottom: 28, left: 28 }, [mobile]);
+  const cameraPadding = useMemo(() => mobile ? { top: 160, right: 24, bottom: 180, left: 24 } : { top: 28, right: 28, bottom: 28, left: 28 }, [mobile]);
   const camera = useMapCameraController(map, cameraPadding);
   const lastStationId = useRef(station.id);
+  const pendingStationGeo = useRef<GeoPoint | null>(null);
   useEffect(() => {
     if (!container.current) return;
     const start = initialGeo.current;
@@ -651,11 +653,32 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
     if (!map) return;
     if (lastStationId.current !== station.id) {
       lastStationId.current = station.id;
-      camera.selectStation(geo);
+      if (mobile && keyboardOpen) {
+        pendingStationGeo.current = geo;
+        return;
+      }
+      const settleDelay = mobile ? 250 : 0;
+      window.setTimeout(() => {
+        map.resize();
+        camera.selectStation(geo);
+        window.setTimeout(() => map.resize(), 1000);
+      }, settleDelay);
       return;
     }
     camera.remember();
-  }, [camera, geo, map, station.id]);
+  }, [camera, geo, keyboardOpen, map, mobile, station.id]);
+
+  useEffect(() => {
+    if (!map || !mobile || keyboardOpen || !pendingStationGeo.current) return;
+    const nextGeo = pendingStationGeo.current;
+    pendingStationGeo.current = null;
+    const timer = window.setTimeout(() => {
+      map.resize();
+      camera.selectStation(nextGeo);
+      window.setTimeout(() => map.resize(), 1000);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [camera, keyboardOpen, map, mobile]);
 
   useEffect(() => {
     if (!map) return;
@@ -1006,9 +1029,9 @@ function NowPlaying({
   );
 }
 
-function MobileBrandBar() {
+function MobileBrandBar({ viewportOffsetTop = 0 }: { viewportOffsetTop?: number }) {
   return (
-    <div className="fixed left-4 right-4 top-0 z-40 max-w-full pt-3">
+    <div style={{ top: viewportOffsetTop }} className="fixed left-4 right-4 z-40 max-w-[calc(100%-2rem)] box-border pt-3">
       <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/80 px-3 py-2 shadow-2xl backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <img
@@ -1194,8 +1217,23 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   </>;
 }
 
-function MobileSearchPill({ query, setQuery, onCountrySelect, stations, onStationSelect }: { query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; stations: Station[]; onStationSelect: (station: Station) => void }) {
-  return <><label className="fixed left-4 right-4 top-[76px] z-40 flex min-h-12 items-center gap-3 rounded-full border border-white/10 bg-slate-950/90 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 text-sky" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, station..." className="w-full bg-transparent text-sm outline-none placeholder:text-ivory/55" /></label><div className="fixed left-4 right-4 top-[132px] z-50 max-h-[55dvh] overflow-y-auto"><GroupedSearchResults query={query} stations={stations} onStationSelect={onStationSelect} onCountrySelect={onCountrySelect} setQuery={setQuery} /></div></>;
+function MobileSearchPill({ query, setQuery, onCountrySelect, stations, onStationSelect, viewportHeight, viewportOffsetTop, keyboardOpen }: { query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; stations: Station[]; onStationSelect: (station: Station) => void; viewportHeight: number; viewportOffsetTop: number; keyboardOpen: boolean }) {
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [focused]);
+  const pillTop = viewportOffsetTop + 76;
+  const resultsTop = viewportOffsetTop + 132;
+  const layoutHeight = typeof window === "undefined" ? viewportHeight : window.innerHeight;
+  const resultsBottom = Math.max(16, layoutHeight - viewportOffsetTop - viewportHeight + 16);
+  const showResults = query.trim().length > 0 || focused;
+  const blurSearch = () => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.blur();
+  return <><label style={{ top: pillTop }} className="fixed left-4 right-4 z-40 box-border flex min-h-12 max-w-[calc(100%-2rem)] items-center gap-3 rounded-full border border-white/10 bg-slate-950/90 px-4 shadow-2xl backdrop-blur-xl"><Search className="size-4 shrink-0 text-sky" /><input value={query} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={(e) => setQuery(e.target.value)} placeholder="Search country, city, station..." className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-ivory/55" /></label>{showResults ? <div style={{ top: resultsTop, bottom: keyboardOpen ? resultsBottom : undefined, maxHeight: keyboardOpen ? undefined : "55dvh" }} className="fixed left-4 right-4 z-50 box-border max-w-[calc(100%-2rem)] overflow-y-auto"><GroupedSearchResults query={query} stations={stations} onStationSelect={(station) => { blurSearch(); onStationSelect(station); }} onCountrySelect={(country) => { blurSearch(); window.setTimeout(() => onCountrySelect(country), 250); }} setQuery={setQuery} /></div> : null}</>;
 }
 
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
@@ -1268,10 +1306,11 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     if (presenceTimer.current) window.clearTimeout(presenceTimer.current);
     presenceTimer.current = window.setTimeout(() => setPresenceVisible(false), 6000);
   };
-  return <section className="relative h-[100dvh] min-h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-white md:hidden">
-    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} searchActive={query.trim().length > 0} />
-    <MobileBrandBar />
-    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { setQuery(""); onQueryComplete(); requestAnimationFrame(() => { usePlayer.getState().setStation(station); }); }} /> : null}
+  const visualViewport = useIOSVisualViewport();
+  return <section className="fixed inset-0 h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-white md:hidden">
+    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} searchActive={query.trim().length > 0} keyboardOpen={visualViewport.keyboardOpen} />
+    <MobileBrandBar viewportOffsetTop={visualViewport.viewportOffsetTop} />
+    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} keyboardOpen={visualViewport.keyboardOpen} viewportHeight={visualViewport.viewportHeight} viewportOffsetTop={visualViewport.viewportOffsetTop} onStationSelect={(station) => { document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.blur(); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} /> : null}
     <SignalDial key={current.id} mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
