@@ -529,6 +529,7 @@ function SignalMeter({ score }: { score: number }) {
   );
 }
 type BasemapKey = "atlas" | "satellite" | "terrain" | "streets" | "night" | "blueMarble";
+type EarthViewMode = "map" | "globe";
 type DefaultMapView = { center: [number, number]; zoom: number; bearing: number; pitch: number; duration: number };
 const DEFAULT_MAP_VIEW: Record<"desktop" | "mobile", DefaultMapView> = {
   desktop: { center: [0, 20], zoom: 1.6, bearing: 0, pitch: 0, duration: 2500 },
@@ -536,6 +537,8 @@ const DEFAULT_MAP_VIEW: Record<"desktop" | "mobile", DefaultMapView> = {
 };
 const DEFAULT_BASEMAP: BasemapKey = "streets";
 const BASEMAP_STORAGE_KEY = "waveatlas:basemap";
+const EARTH_VIEW_STORAGE_KEY = "waveatlas:earth-view";
+const DEFAULT_EARTH_VIEW: EarthViewMode = "map";
 const basemapStyles: Record<BasemapKey, { label: string; name: string; description: string; style: string | maplibregl.StyleSpecification }> = {
   atlas: { label: "🌎 Atlas", name: "Atlas", description: "Premium dark vector map", style: { version: 8, sources: { carto: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" } }, layers: [{ id: "carto-dark-matter", type: "raster", source: "carto" }] } },
   satellite: { label: "🛰 Satellite", name: "Satellite", description: "Realistic Earth imagery", style: { version: 8, sources: { esri: { type: "raster", tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "esri-world-imagery", type: "raster", source: "esri" }] } },
@@ -545,6 +548,24 @@ const basemapStyles: Record<BasemapKey, { label: string; name: string; descripti
   blueMarble: { label: "🌊 Blue Marble", name: "Blue Marble", description: "Clean global Earth aesthetic", style: { version: 8, sources: { marble: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / Blue Marble" } }, layers: [{ id: "blue-marble", type: "raster", source: "marble" }] } },
 };
 function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
+function getInitialEarthView(): EarthViewMode {
+  if (typeof window === "undefined") return DEFAULT_EARTH_VIEW;
+  try {
+    const saved = window.localStorage.getItem(EARTH_VIEW_STORAGE_KEY);
+    return saved === "globe" || saved === "map" ? saved : DEFAULT_EARTH_VIEW;
+  } catch {
+    return DEFAULT_EARTH_VIEW;
+  }
+}
+function persistEarthView(value: EarthViewMode) {
+  try { window.localStorage.setItem(EARTH_VIEW_STORAGE_KEY, value); } catch { /* Earth View preference is optional when storage is unavailable. */ }
+}
+function EarthViewToggle({ value, onChange }: { value: EarthViewMode; onChange: (value: EarthViewMode) => void }) {
+  const options: { value: EarthViewMode; label: string; description: string }[] = [
+    { value: "map", label: "Map View", description: "Classic interactive atlas" },
+    { value: "globe", label: "Globe View", description: "Premium procedural Earth" },
+  ];
+  return <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-3"><p className="mb-3 font-mono text-[10px] uppercase tracking-[.28em] text-gold">Earth View</p><div className="grid grid-cols-2 gap-2">{options.map((option) => <button key={option.value} type="button" onClick={() => onChange(option.value)} className={`rounded-2xl border px-3 py-3 text-left text-sm font-black transition ${value === option.value ? "border-radio bg-radio text-midnight" : "border-white/10 bg-slate-950/50 text-ivory hover:border-gold/40"}`}><span className="block">{option.label}</span><span className="mt-1 block text-[11px] font-medium opacity-70">{option.description}</span></button>)}</div></div>; }
 function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "grid grid-cols-3 gap-1 rounded-2xl p-1"} border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-xl`} aria-label="Basemap Cockpit">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} aria-label={`Switch basemap to ${basemapStyles[key].name}`} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-2 text-[10px]" : "rounded-xl px-3 py-2 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}>{basemapStyles[key].label}</button>)}</div>; }
 function MapStyleController({ map, basemap, onResize }: { map: Map | null; basemap: BasemapKey; onResize?: () => void }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); try { window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); } catch { /* Basemap preference is non-critical. */ } const resize = () => requestAnimationFrame(() => { map.resize(); onResize?.(); }); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap, onResize]); return null; }
 
@@ -612,7 +633,52 @@ function nearestCountryResult(lat: number, lng: number): CountryResult | null {
 }
 
 
-function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onCountrySelect, searchActive = false, keyboardOpen = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
+
+function ProceduralGlobeView({ station, mobile = false, onMapContextChange, onCountrySelect, onGlobeError }: { station: Station; mobile?: boolean; onMapContextChange?: (context: MapTeleportContext) => void; onCountrySelect?: (country: CountryResult) => void; onGlobeError?: () => void }) {
+  const status = usePlayer((state) => state.status);
+  const geo = useMemo(() => geotruth(station), [station]);
+  const globeRef = useRef<HTMLButtonElement | null>(null);
+  const stationPosition = useMemo(() => {
+    if (geo.lat === null || geo.lng === null) return null;
+    return { left: ((geo.lng + 180) / 360) * 100, top: ((90 - geo.lat) / 180) * 100 };
+  }, [geo.lat, geo.lng]);
+  useEffect(() => {
+    try {
+      if (geo.lat !== null && geo.lng !== null) onMapContextChange?.({ lat: geo.lat, lng: geo.lng, zoom: mobile ? 1.35 : 1.6, countryCode: station.country_code, countryName: station.country });
+    } catch {
+      onGlobeError?.();
+    }
+  }, [geo.lat, geo.lng, mobile, onGlobeError, onMapContextChange, station.country, station.country_code]);
+  const selectFromGlobe = (event: React.PointerEvent<HTMLButtonElement>) => {
+    try {
+      const rect = globeRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = (event.clientX - rect.left) / rect.width;
+      const y = (event.clientY - rect.top) / rect.height;
+      const lng = x * 360 - 180;
+      const lat = 90 - y * 180;
+      const country = nearestCountryResult(lat, lng);
+      if (country) onCountrySelect?.(country);
+      onMapContextChange?.({ lat, lng, zoom: mobile ? 1.35 : 1.6, countryCode: country?.code, countryName: country?.name });
+    } catch {
+      onGlobeError?.();
+    }
+  };
+  return <button ref={globeRef} type="button" onPointerUp={selectFromGlobe} className="procedural-globe relative h-full w-full overflow-hidden text-left" aria-label="Globe View: tap the Earth to hear a place">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(56,189,248,.18),transparent_34%),linear-gradient(180deg,rgba(2,6,23,.2),rgba(2,6,23,.72))]" />
+    <div className="globe-sphere absolute left-1/2 top-1/2 aspect-square w-[min(86%,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-sky/20 bg-[radial-gradient(circle_at_35%_28%,rgba(248,245,237,.18),transparent_12%),radial-gradient(circle_at_50%_48%,rgba(56,189,248,.34),rgba(14,116,144,.42)_38%,rgba(15,23,42,.94)_71%)] shadow-[inset_-50px_-34px_90px_rgba(2,6,23,.92),inset_24px_18px_52px_rgba(255,255,255,.08),0_0_90px_rgba(56,189,248,.24)]">
+      <div className="globe-grid absolute inset-[2%] rounded-full opacity-60" />
+      <div className="globe-landmasses absolute inset-[8%] rounded-full opacity-75" />
+      <div className="cloud-layer absolute inset-[4%] rounded-full opacity-25" />
+      <div className="day-night-terminator absolute inset-y-0 right-0 w-1/2 rounded-r-full opacity-70" />
+      {stationPosition ? <div className="absolute" style={{ left: `${stationPosition.left}%`, top: `${stationPosition.top}%` }}><StationPulseMarker geo={geo} status={status} /></div> : null}
+    </div>
+    <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-white/15 bg-slate-950/75 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[.28em] text-emerald-300 shadow-lg backdrop-blur"><Globe2 className="mr-1.5 inline size-3" />Globe View</div>
+    <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-20 rounded-full border border-white/10 bg-slate-950/70 px-4 py-2 text-sm backdrop-blur"><b>Tap the Earth to hear a place</b><span className="ml-3 text-xs text-ivory/55">Current: {station.city || station.state || station.country}</span></div>
+  </button>;
+}
+
+function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, earthView = "map", onEarthViewFallback, onMapContextChange, onCountrySelect, searchActive = false, keyboardOpen = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean; earthView?: EarthViewMode; onEarthViewFallback?: () => void }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -632,6 +698,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   const lastStationId = useRef(station.id);
   const pendingStationGeo = useRef<GeoPoint | null>(null);
   useEffect(() => {
+    if (earthView !== "map") return;
     if (!container.current) return;
     const start = initialGeo.current;
     const m = new maplibregl.Map({
@@ -675,7 +742,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
       mk?.remove();
       m.remove();
     };
-  }, []);
+  }, [earthView]);
 
 
   useEffect(() => {
@@ -740,6 +807,10 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
     }
     camera.closeSearchWithoutSelection();
   }, [camera, map, searchActive]);
+  if (earthView === "globe") {
+    const globe = <ProceduralGlobeView station={station} mobile={mobile} onMapContextChange={onMapContextChange} onCountrySelect={onCountrySelect} onGlobeError={onEarthViewFallback} />;
+    return mobile ? <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">{globe}</div> : <div className="relative w-full rounded-[2rem] border border-slate-700/60 bg-slate-950/80 p-4 shadow-2xl md:p-6"><div className="relative block h-[360px] w-full overflow-hidden rounded-[1.5rem] border border-slate-700/60 bg-slate-900 shadow-[0_0_48px_rgba(16,185,129,.16)] sm:h-[420px] lg:h-[520px]">{globe}</div></div>;
+  }
   if (mobile) {
     return (
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
@@ -1459,10 +1530,11 @@ function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: (
   </div>;
 }
 
-function MobileBasemapSheet({ open, value, onChange, onClose }: { open: boolean; value: BasemapKey; onChange: (value: BasemapKey) => void; onClose: () => void }) {
+function MobileBasemapSheet({ open, value, onChange, earthView, onEarthViewChange, onClose }: { open: boolean; value: BasemapKey; onChange: (value: BasemapKey) => void; earthView: EarthViewMode; onEarthViewChange: (value: EarthViewMode) => void; onClose: () => void }) {
   return <AnimatePresence>{open ? <motion.section initial={{ y: 280, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 280, opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+96px)] z-50 rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl">
     <button onClick={onClose} className="mx-auto mb-4 block h-1.5 w-14 rounded-full bg-white/30" aria-label="Close basemap cockpit" />
     <p className="mb-3 font-mono text-[10px] uppercase tracking-[.28em] text-gold">Basemap Cockpit</p>
+    <div className="mb-3"><EarthViewToggle value={earthView} onChange={(next) => { onEarthViewChange(next); if (next === "map") onClose(); }} /></div>
     <div className="grid grid-cols-2 gap-2">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} onClick={() => { onChange(key); onClose(); }} className={`rounded-2xl border px-3 py-3 text-left text-sm font-bold ${value === key ? "border-gold bg-gold text-midnight" : "border-white/10 bg-white/5 text-ivory"}`}><span className="block">{basemapStyles[key].label}</span><span className="mt-1 block text-[11px] font-medium opacity-70">{basemapStyles[key].description}</span></button>)}</div>
   </motion.section> : null}</AnimatePresence>;
 }
@@ -1511,6 +1583,8 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [resetSignal, setResetSignal] = useState(0);
   const [basemap, setBasemap] = useState<BasemapKey>(() => getInitialBasemap(true));
   const [basemapOpen, setBasemapOpen] = useState(false);
+  const [earthView, setEarthViewState] = useState<EarthViewMode>(() => getInitialEarthView());
+  const setEarthView = useCallback((value: EarthViewMode) => { setEarthViewState(value); persistEarthView(value); }, []);
   const [wanderOpen, setWanderOpen] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
@@ -1542,14 +1616,14 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   }, [makeWandererHop, wandererActive]);
   const visualViewport = useIOSVisualViewport();
   return <section className="fixed inset-0 h-[100dvh] w-full max-w-full overflow-hidden bg-slate-950 text-white md:hidden">
-    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
+    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} earthView={earthView} onEarthViewFallback={() => setEarthView("map")} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     <MobileBrandBar viewportOffsetTop={visualViewport.viewportOffsetTop} />
     {mode !== "Dial" ? <MobileSearchPill viewportOffsetTop={visualViewport.viewportOffsetTop} onOpen={() => setSearchOverlayOpen(true)} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-black text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
-    <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
+    <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} earthView={earthView} onEarthViewChange={setEarthView} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
@@ -1629,6 +1703,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
   const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
+  const [desktopEarthView, setDesktopEarthViewState] = useState<EarthViewMode>(() => getInitialEarthView());
+  const setDesktopEarthView = useCallback((value: EarthViewMode) => { setDesktopEarthViewState(value); persistEarthView(value); }, []);
   const [deepLinkUuid] = useState(() => {
     if (typeof window === "undefined") return "";
     const value = new URLSearchParams(window.location.search).get("station")?.trim() || "";
@@ -1773,7 +1849,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         <DailyFlightPanel stations={stationPool} />
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="rounded-[2rem] border border-radio/30 bg-radio/10 p-4 text-left font-black text-radio">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
         <div id="atlas-map" className="scroll-mt-6">
-          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} /></div>
+          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} earthView={desktopEarthView} onEarthViewFallback={() => setDesktopEarthView("map")} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} /></div>
         </div>
       </div>
       <section className="mx-auto mt-6 max-w-7xl">
@@ -1802,6 +1878,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               </div>
             </div>
           ) : null}
+          {desktopMode === "Settings" ? <div className="mt-5"><EarthViewToggle value={desktopEarthView} onChange={setDesktopEarthView} /></div> : null}
           {desktopMode !== "Atlas" || query.trim() ? <div className="mt-5 flex flex-wrap gap-2">
             {[
               "Nigeria",
