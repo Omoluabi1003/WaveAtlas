@@ -716,6 +716,17 @@ type WandererExperience = {
   memoryLine: string;
 };
 
+
+const CONTINENT_BY_COUNTRY: Record<string, string> = { NG:'Africa', GH:'Africa', ZA:'Africa', KE:'Africa', EG:'Africa', MA:'Africa', SN:'Africa', TZ:'Africa', UG:'Africa', CM:'Africa', CD:'Africa', CG:'Africa', AO:'Africa', DZ:'Africa', BJ:'Africa', TG:'Africa', CI:'Africa', BW:'Africa', ZW:'Africa', NA:'Africa', MZ:'Africa', SL:'Africa', LR:'Africa', GA:'Africa', CV:'Africa', GB:'Europe', FR:'Europe', DE:'Europe', NL:'Europe', ES:'Europe', IT:'Europe', SE:'Europe', IE:'Europe', CH:'Europe', BE:'Europe', PT:'Europe', JP:'Asia', IN:'Asia', SG:'Asia', KR:'Asia', ID:'Asia', PH:'Asia', AE:'Asia', CN:'Asia', TH:'Asia', MY:'Asia', SA:'Asia', QA:'Asia', IL:'Asia', TR:'Asia', AU:'Oceania', NZ:'Oceania', FJ:'Oceania', PG:'Oceania', US:'North America', CA:'North America', MX:'North America', BR:'South America', AR:'South America', CL:'South America', CO:'South America', PE:'South America' };
+const WANDER_VISITED_COUNTRIES = new Set<string>();
+const WANDER_VISITED_CONTINENTS = new Set<string>();
+
+function stationContinent(station: Station) { return CONTINENT_BY_COUNTRY[station.country_code] ?? 'Global'; }
+function diverseGlobalPool(stations: Station[], current: Station) {
+  const seenContinents = new Set<string>();
+  return stations.filter((station) => station.id !== current.id && station.is_active && station.url).sort((a,b)=>b.health_score-a.health_score).filter((station) => { const continent = stationContinent(station); const first = !seenContinents.has(continent); if (first) seenContinents.add(continent); return first || seenContinents.size >= 6; });
+}
+
 const WANDERER_INTENTS = [
   "Take me somewhere peaceful",
   "Take me somewhere rainy",
@@ -784,26 +795,39 @@ function getWandererExperience(station: Station, intent = "Take me somewhere sur
 
 function chooseWonderStation(stations: Station[], current: Station, intent: string) {
   const lower = intent.toLowerCase();
-  const currentIndex = stations.findIndex((station) => station.id === current.id);
-  const rotated = [...stations.slice(currentIndex + 1), ...stations.slice(0, currentIndex + 1)];
+  const currentIndex = Math.max(0, stations.findIndex((station) => station.id === current.id));
+  const rotated = [...stations.slice(currentIndex + 1), ...stations.slice(0, currentIndex + 1)].filter((station) => station.id !== current.id && station.is_active && station.url);
+  const globalFallback = diverseGlobalPool(stations, current);
   const matches = rotated.filter((station) => {
-    const haystack = `${station.name} ${station.country} ${station.language} ${station.tags.join(" ")}`.toLowerCase();
-    if (lower.includes("christian")) return /christian|gospel|worship|religious/.test(haystack);
-    if (lower.includes("french")) return /french|français|france|canada|senegal|côte|ivory|belgium/.test(haystack);
-    if (lower.includes("busy")) return station.click_count > 500 || station.votes > 100;
-    if (lower.includes("quiet") || lower.includes("peaceful") || lower.includes("rainy")) return /classical|ambient|jazz|easy|chill|calm|lounge/.test(haystack);
+    const haystack = `${station.name} ${station.country} ${station.country_code} ${station.language} ${station.tags.join(" ")}`.toLowerCase();
+    const continent = stationContinent(station);
+    const hour = hourFromLongitude(geotruth(station).lng);
+    if (lower.includes("unvisited country")) return !WANDER_VISITED_COUNTRIES.has(station.country_code);
+    if (lower.includes("unvisited continent")) return !WANDER_VISITED_CONTINENTS.has(continent);
+    if (lower.includes("spiritual") || lower.includes("christian")) return /christian|gospel|worship|islamic|religious|sermon/.test(haystack) || ['NG','GH','CD','ZA','BR','PH','US'].includes(station.country_code);
+    if (lower.includes("busy")) return /tokyo|london|paris|lagos|mumbai|delhi|são paulo|sao paulo|new york|johannesburg|news|hits/.test(haystack) || ['JP','GB','FR','NG','IN','BR','US','ZA'].includes(station.country_code) || station.click_count > 500 || station.votes > 100;
+    if (lower.includes("peaceful") || lower.includes("quiet")) return /classical|ambient|jazz|easy|chill|calm|lounge|sleep|nature/.test(haystack);
+    if (lower.includes("rainy")) return /rain|ambient|jazz|chill|lounge/.test(haystack) || ['GB','IE','NL','BE','BR','ID','JP'].includes(station.country_code);
+    if (lower.includes("falling asleep")) return hour >= 21 || hour < 1;
+    if (lower.includes("waking")) return hour >= 5 && hour < 9;
     if (lower.includes("joyful")) return /pop|dance|gospel|hits|salsa|afro|music/.test(haystack);
-    if (lower.includes("waking")) return hourFromLongitude(geotruth(station).lng) >= 5 && hourFromLongitude(geotruth(station).lng) < 10;
     return true;
   });
-  return (matches.find((station) => station.id !== current.id && station.is_active) ?? rotated.find((station) => station.id !== current.id && station.is_active) ?? current);
+  const destination = matches[0] ?? globalFallback[0] ?? rotated[0] ?? current;
+  WANDER_VISITED_COUNTRIES.add(destination.country_code);
+  WANDER_VISITED_CONTINENTS.add(stationContinent(destination));
+  return destination;
 }
 
 function TakeMeSomewhereButton({ stations, current, onTravel }: { stations: Station[]; current: Station; onTravel?: (intent: string) => void }) {
   const travel = () => {
     const intent = WANDERER_INTENTS[Math.floor(Math.random() * WANDERER_INTENTS.length)];
-    const destination = chooseWonderStation(stations, current, intent);
-    usePlayer.getState().setStation(destination);
+    fetch(`/api/stations/nearby?global=true&limit=18`).then(async (res) => {
+      const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
+      const globalStations = data.candidates?.map((item) => item.station) ?? [];
+      const destination = chooseWonderStation([...globalStations, ...stations], current, intent);
+      usePlayer.getState().setStation(destination);
+    }).catch(() => usePlayer.getState().setStation(chooseWonderStation(stations, current, intent)));
     onTravel?.(intent);
   };
   return <button onClick={travel} className="group rounded-full border border-white/10 bg-slate-950/85 px-4 py-2 text-sm font-black text-ivory shadow-xl backdrop-blur-xl transition hover:border-gold/40"><Globe2 className="mr-2 inline size-5 transition group-hover:rotate-12" />🌎 Take Me Somewhere™</button>;
@@ -1045,16 +1069,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   const scan = useCallback(async (wander = false) => {
     setState("scanning");
     const params = new URLSearchParams({ limit: "6" });
-    if (!wander && selectedCountry) {
-      params.set("countryCode", selectedCountry.code);
-      params.set("country", selectedCountry.name);
-    } else if (!wander && mapContext) {
-      params.set("lat", String(mapContext.lat));
-      params.set("lng", String(mapContext.lng));
-      params.set("zoom", String(mapContext.zoom));
-    } else {
-      params.set("global", "true");
-    }
+    params.set("global", "true");
     try {
       const res = await fetch(`/api/stations/nearby?${params}`);
       if (!res.ok) throw new Error("Scan failed");
@@ -1071,7 +1086,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
       setIndex(0);
       setState(next.length ? "found" : "none");
     }
-  }, [current.id, fallbackCandidates, mapContext, selectedCountry]);
+  }, [current.id, fallbackCandidates]);
   const tune = () => {
     if (!candidate) return;
     usePlayer.getState().setStation(candidate.station);
@@ -1080,7 +1095,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   };
   return <>
     <div className={`${mobile ? "fixed bottom-[166px] right-5 z-50" : "absolute bottom-5 right-5 z-40"}`}>
-      <button type="button" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(false); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl">
+      <button type="button" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(true); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl">
         <span className="absolute inset-1 rounded-full border border-gold/45 bg-[conic-gradient(from_90deg,rgba(214,168,79,.75),rgba(88,225,132,.85),transparent_62%)] opacity-80 transition group-hover:rotate-45" />
         <span className="absolute inset-3 rounded-full bg-slate-950/90" />
         <span className="relative text-center"><ScanLine className="mx-auto size-6 text-radio" /><span className="mt-1 block text-[10px] font-black uppercase tracking-[.18em] text-gold">Scan</span></span>
@@ -1115,7 +1130,10 @@ function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { ope
   const options = ["Surprise Me", "Unvisited Country", "Unvisited Continent", "Somewhere Waking Up", "Somewhere Falling Asleep", "Somewhere Rainy", "Somewhere Spiritual", "Somewhere Busy", "Somewhere Peaceful", "Spin the Globe"];
   const travel = (option: string) => {
     const intent = option === "Surprise Me" ? "Take me somewhere surprising" : option === "Spin the Globe" ? "Tonight we are going global" : option;
-    usePlayer.getState().setStation(chooseWonderStation(stations, current, intent));
+    fetch(`/api/stations/nearby?global=true&limit=18`).then(async (res) => {
+      const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
+      usePlayer.getState().setStation(chooseWonderStation([...(data.candidates?.map((item) => item.station) ?? []), ...stations], current, intent));
+    }).catch(() => usePlayer.getState().setStation(chooseWonderStation(stations, current, intent)));
     onTravel(intent);
     onClose();
   };
@@ -1163,7 +1181,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
-    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} /> : null}
+    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { usePlayer.getState().setStation(station); setQuery(""); }} /> : null}
     <SignalDial mobile mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
@@ -1328,7 +1346,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             />
           </div>
           <CountryAutocomplete query={query} onSelect={selectCountry} />
-          <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); }} onCountrySelect={selectCountry} setQuery={setQuery} />
+          <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); }} onCountrySelect={selectCountry} setQuery={setQuery} />
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
