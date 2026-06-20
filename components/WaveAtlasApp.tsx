@@ -1508,7 +1508,7 @@ function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { st
 }
 
 function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wandererActive }: { mode: string; setMode: (m: string) => void; onTeleport: () => void; onToggleWanderer: () => void; wandererActive: boolean }) {
-  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-6 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; return <button key={value} type="button" onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`min-h-14 rounded-2xl px-1 py-2 text-[9px] font-medium leading-tight transition ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : value}</button>; })}</div></nav>;
+  return <nav className="fixed bottom-0 left-4 right-4 z-[60] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-7 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; return <button key={value} type="button" onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`min-h-14 rounded-2xl px-1 py-2 text-[9px] font-medium leading-tight transition ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : value}</button>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -1557,9 +1557,76 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
+    {mode === "Add Signal" ? <div className="fixed inset-x-4 bottom-[180px] z-[55] max-h-[58dvh] overflow-y-auto rounded-[2rem] shadow-2xl"><AddYourSignalPanel compact /></div> : null}
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const destination = chooseWonderStation(stations, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); handleTravel("Take me somewhere surprising"); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+  </section>;
+}
+
+
+type SignalSubmissionResponse = {
+  message: string;
+  review?: { status: string; quality_score: number; recommendation: string };
+  error?: string;
+};
+
+function AddYourSignalPanel({ compact = false }: { compact?: boolean }) {
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+  const fields = [
+    ["station_name", "Station name", "BBC World Service", true],
+    ["stream_url", "Working stream URL", "https://example.com/live.mp3", true],
+    ["city", "City", "Accra", false],
+    ["country", "Country", "Ghana", false],
+    ["genre", "Genre", "News, jazz, amapiano…", false],
+    ["language", "Language", "English", false],
+    ["station_website", "Station website", "https://station.example", false],
+    ["submitted_by", "Submitted by", "Your name", false],
+    ["submitter_email_optional", "Email (optional)", "you@example.com", false],
+  ] as const;
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("submitting");
+    setMessage("");
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+    const res = await fetch("/api/signals/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = (await res.json()) as SignalSubmissionResponse;
+    if (!res.ok) {
+      setStatus("error");
+      setMessage(data.error || "Signal submission failed. Please check the stream URL and try again.");
+      return;
+    }
+    event.currentTarget.reset();
+    setStatus("success");
+    setMessage(data.message || "Your signal has been received. Once verified, it may join the WaveAtlas™ global map.");
+  }
+
+  return <section className={`rounded-[2rem] border border-radio/20 bg-radio/10 ${compact ? "p-4" : "p-5"}`}>
+    <p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Add Your Signal</p>
+    <h2 className={`${compact ? "mt-2 text-2xl" : "mt-3 text-[32px]"} font-display font-bold leading-tight text-white`}>Help us map the sound of Earth.</h2>
+    <p className="mt-2 text-sm leading-6 text-ivory/70">Have a favorite radio station anywhere in the world? Send us the working stream URL and help WaveAtlas™ grow.</p>
+    <p className="mt-2 text-xs font-semibold text-gold">If it is broadcasting on Earth, it belongs here.</p>
+    <form onSubmit={submit} className="mt-4 grid gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {fields.map(([name, label, placeholder, required]) => <label key={name} className="text-xs font-medium text-ivory/65">
+          {label}{required ? <span className="text-radio"> *</span> : null}
+          <input name={name} required={required} placeholder={placeholder} className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-ivory/30 focus:border-radio/60" />
+        </label>)}
+      </div>
+      <label className="text-xs font-medium text-ivory/65">Notes (optional)
+        <textarea name="notes_optional" rows={3} placeholder="Tell the review agent anything useful about this stream." className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/55 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-ivory/30 focus:border-radio/60" />
+      </label>
+      <button disabled={status === "submitting"} className="rounded-full bg-radio px-5 py-3 text-sm font-semibold text-midnight transition hover:bg-gold disabled:cursor-wait disabled:opacity-70"><Signal className="mr-2 inline size-4" />{status === "submitting" ? "Reviewing signal…" : "Submit Signal for Review"}</button>
+      {message ? <p className={`rounded-2xl border px-3 py-2 text-sm ${status === "error" ? "border-red-400/30 bg-red-500/10 text-red-100" : "border-radio/30 bg-radio/10 text-radio"}`}>{message}</p> : null}
+      <p className="text-[11px] leading-5 text-ivory/45">Signal Review Agent validates, enriches, deduplicates, and creates an admin review record. It never auto-publishes to production.</p>
+    </form>
   </section>;
 }
 
@@ -1797,6 +1864,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             />
           </div>
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
+          {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} /> : null}
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
@@ -1867,8 +1935,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div>
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
         </div>
-        <nav className="grid grid-cols-6 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
-          {[[Heart,"Favorites"],[Globe2,"Explore"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); const destination = chooseWonderStation(stationPool, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else setDesktopMode(value); }} className={`rounded-full px-3 py-2 text-[11px] font-medium ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
+        <nav className="grid grid-cols-7 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
+          {[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); const destination = chooseWonderStation(stationPool, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else setDesktopMode(value); }} className={`rounded-full px-3 py-2 text-[11px] font-medium ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
         </nav>
       </div>
     </main>
