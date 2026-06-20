@@ -1,4 +1,5 @@
 import { resolveStationGeo } from './geotruth-resolver';
+import { buildRadioBrowserClaim, reconcileStationTruth } from './source-oracle';
 import { fetchStations, fetchStationsByCountry, type Station, validateStream } from './stations';
 
 export type StewardStationRecord = Station & {
@@ -95,8 +96,9 @@ function calculateHealthScore(station: Station, validation?: Awaited<ReturnType<
   return Math.max(0, Math.min(100, Math.round(base + successBoost + bitrateBoost + codecBoost + metadataBoost - failures * 12)));
 }
 
-function normalizeForDatabase(station: Station, validation?: Awaited<ReturnType<typeof validateStream>>): Omit<StewardStationRecord, 'id'> & { station_uuid: string; geo_confidence_score: number } {
+function normalizeForDatabase(station: Station, validation?: Awaited<ReturnType<typeof validateStream>>): Omit<StewardStationRecord, 'id'> & { station_uuid: string; geo_confidence_score: number; consensus_score: number; confidence_score: number; source_count: number } {
   const geo = resolveStationGeo(station);
+  const truth = reconcileStationTruth([buildRadioBrowserClaim(station)]);
   const ok = validation?.is_active ?? station.is_active;
   const now = new Date().toISOString();
   const failure_count = ok ? 0 : Math.max(1, station.failure_count + (validation ? 1 : 0));
@@ -111,7 +113,7 @@ function normalizeForDatabase(station: Station, validation?: Awaited<ReturnType<
     genres: station.tags,
     tags: station.tags,
     source: geo.source === 'verified_api_geo' ? 'radio_browser' : geo.source,
-    health_score: calculateHealthScore(station, validation),
+    health_score: Math.round((calculateHealthScore(station, validation) * 0.7) + (truth.scores.confidenceScore * 0.3)),
     last_check_ok: ok,
     last_checked_at: validation?.last_checked_at ?? station.last_checked_at,
     response_time_ms: validation?.response_time_ms ?? station.response_time_ms,
@@ -120,6 +122,9 @@ function normalizeForDatabase(station: Station, validation?: Awaited<ReturnType<
     is_active: ok && failure_count < RETIRE_AFTER_FAILURES,
     is_retired: failure_count >= RETIRE_AFTER_FAILURES,
     geo_confidence_score: geo.confidence,
+    consensus_score: truth.scores.consensusScore,
+    confidence_score: truth.scores.confidenceScore,
+    source_count: truth.canonical.source_count,
     updated_at: now,
   };
 }
@@ -139,6 +144,7 @@ async function getExisting(config: SupabaseConfig, station: Station) {
 
 async function upsertStation(config: SupabaseConfig, station: Station, validation?: Awaited<ReturnType<typeof validateStream>>) {
   const existing = await getExisting(config, station);
+  const truth = reconcileStationTruth([buildRadioBrowserClaim(station)]);
   const normalized = normalizeForDatabase(station, validation);
   if (existing) {
     normalized.success_count = (existing.success_count ?? 0) + (normalized.last_check_ok ? 1 : 0);
@@ -150,6 +156,11 @@ async function upsertStation(config: SupabaseConfig, station: Station, validatio
   const saved = result[0];
   if (saved?.id) {
     const geo = resolveStationGeo(station);
+    await supabaseRequest(config, 'station_sources?on_conflict=station_uuid,source', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, source: 'radio_browser', source_tier: 1, source_weight: 0.8, external_id: station.station_uuid, url: station.url, raw_payload: buildRadioBrowserClaim(station), fetched_at: normalized.updated_at }) }).catch(() => undefined);
+    await supabaseRequest(config, 'source_scores?on_conflict=station_uuid,source', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, source: 'radio_browser', identity_score: truth.scores.identityScore, geo_score: truth.scores.geoScore, metadata_score: truth.scores.metadataScore, stream_health_score: truth.scores.streamHealthScore, consensus_score: truth.scores.consensusScore, confidence_score: truth.scores.confidenceScore, scored_at: normalized.updated_at }) }).catch(() => undefined);
+    await Promise.all(truth.conflicts.map((conflict) => supabaseRequest(config, 'station_conflicts', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, field: conflict.field, winning_value: conflict.winningValue, rejected_values: conflict.rejectedValues, confidence_score: truth.scores.confidenceScore, detected_at: normalized.updated_at }) }).catch(() => undefined)));
+    await supabaseRequest(config, 'truth_audit', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, source_count: truth.canonical.source_count, identity_score: truth.scores.identityScore, geo_score: truth.scores.geoScore, metadata_score: truth.scores.metadataScore, stream_health_score: truth.scores.streamHealthScore, consensus_score: truth.scores.consensusScore, confidence_score: truth.scores.confidenceScore, audited_at: normalized.updated_at }) }).catch(() => undefined);
+    await supabaseRequest(config, 'station_health', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, stream_url: normalized.url_resolved || normalized.url, status: normalized.last_check_ok ? 'ok' : 'failed', response_time_ms: normalized.response_time_ms, content_type: validation?.content_type, checked_at: normalized.last_checked_at }) }).catch(() => undefined);
     await supabaseRequest(config, 'station_checks', { method: 'POST', body: JSON.stringify({ station_id: saved.id, status: normalized.last_check_ok ? 'ok' : 'failed', response_time_ms: normalized.response_time_ms, error_message: normalized.last_check_ok ? null : 'Stream validation failed', checked_at: normalized.last_checked_at }) });
     await supabaseRequest(config, 'station_geo_overrides?on_conflict=station_uuid', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, lat: normalized.latitude ?? null, lng: normalized.longitude ?? null, precision: geo.precision, source: geo.source, confidence: geo.confidence, notes: geo.warning, updated_at: normalized.updated_at }) }).catch(() => undefined);
     await supabaseRequest(config, 'station_geo_audit', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, reported_country_code: station.country_code, reported_lat: station.latitude ?? null, reported_lng: station.longitude ?? null, resolved_lat: geo.lat, resolved_lng: geo.lng, resolution_source: geo.source, confidence: geo.confidence, warning: geo.warning, audited_at: normalized.updated_at }) }).catch(() => undefined);
