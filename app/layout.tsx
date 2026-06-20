@@ -1,29 +1,42 @@
 import type { Metadata } from "next";
-import { BRAND, WAVEATLAS_LOGO_PATH, WAVEATLAS_LOGO_URL } from "@/lib/branding";
+import {
+  BRAND,
+  WAVEATLAS_APPLE_ICON_PATH,
+  WAVEATLAS_FAVICON_16_PATH,
+  WAVEATLAS_FAVICON_32_PATH,
+  WAVEATLAS_FAVICON_48_PATH,
+  WAVEATLAS_SHARE_IMAGE_URL,
+  WAVEATLAS_SITE_URL,
+} from "@/lib/branding";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "WaveAtlas™",
+  metadataBase: new URL(WAVEATLAS_SITE_URL),
+  title: BRAND.title,
   description: BRAND.description,
   manifest: "/manifest.webmanifest",
   applicationName: BRAND.name,
   icons: {
-    icon: WAVEATLAS_LOGO_PATH,
-    shortcut: WAVEATLAS_LOGO_PATH,
-    apple: WAVEATLAS_LOGO_URL,
+    icon: [
+      { url: WAVEATLAS_FAVICON_16_PATH, sizes: "16x16", type: "image/png" },
+      { url: WAVEATLAS_FAVICON_32_PATH, sizes: "32x32", type: "image/png" },
+    ],
+    shortcut: [{ url: WAVEATLAS_FAVICON_48_PATH, sizes: "48x48", type: "image/png" }],
+    apple: [{ url: WAVEATLAS_APPLE_ICON_PATH, sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
-    title: "WaveAtlas™",
+    title: BRAND.title,
     description: BRAND.description,
+    url: WAVEATLAS_SITE_URL,
     siteName: BRAND.name,
-    images: [{ url: WAVEATLAS_LOGO_URL }],
+    images: [{ url: WAVEATLAS_SHARE_IMAGE_URL, width: 1024, height: 1024, alt: "WaveAtlas logo" }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "WaveAtlas™",
+    title: BRAND.title,
     description: BRAND.description,
-    images: [WAVEATLAS_LOGO_URL],
+    images: [WAVEATLAS_SHARE_IMAGE_URL],
   },
 };
 
