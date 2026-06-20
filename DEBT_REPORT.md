@@ -62,3 +62,19 @@
 3. Consolidate `z-index` values into named CSS custom properties or Tailwind tokens.
 4. Remove or hide desktop station cards by default so Earth, Search, Signal Dial, Mini Player, and Bottom Nav dominate.
 5. Audit API routes against current product surface before deleting server code.
+
+## 2026-06-20 refinement pass
+
+### Signal Dial simplified
+- Removed the extra Signal Dial mode selector (`Global`, `Nearby`, `Unvisited`, `Mood`) so the dial reads as one instrument instead of another mini dashboard.
+- Kept the canonical actions on the instrument: tap to Scan, Next Candidate from the candidate preview, Lock from the preview, and long-press/right-click to open Wander.
+- Default candidate scans now prefer the map/country context when present and fall back to global search without exposing the implementation as another visible control.
+
+### UI clutter reduced
+- The mobile surface remains anchored to the calm default set: Earth, Search pill, Signal Dial, Mini player, and Bottom nav.
+- Wander is now reached directly from the Signal Dial long press, reducing competing controls around the map.
+
+### Remaining debt
+- Desktop still carries richer Search and Now Playing surfaces than the mobile-first product ideal.
+- Station Intelligence is useful but visually dense; it should remain tucked behind explicit Library/sheet intent.
+- Candidate pools should move out of `WaveAtlasApp.tsx` once Source Oracle storage is ready.

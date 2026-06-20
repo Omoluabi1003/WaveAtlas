@@ -1031,26 +1031,24 @@ function SignalCandidatePreview({ candidate, state, onTune, onNext }: { candidat
   </motion.div>;
 }
 
-function SignalDial({ mapContext, selectedCountry, stations, current, mobile = false, onStationResolved }: SignalDialProps) {
+function SignalDial({ mapContext, selectedCountry, stations, current, mobile = false, onStationResolved, onWander }: SignalDialProps & { onWander?: () => void }) {
   const [state, setState] = useState<"idle" | "scanning" | "found" | "none">("idle");
-  const [mode, setMode] = useState<"Global" | "Nearby" | "Unvisited" | "Mood">("Global");
   const [candidates, setCandidates] = useState<SignalCandidate[]>([]);
   const [index, setIndex] = useState(0);
   const timer = useRef<number | null>(null);
   const longPressTriggered = useRef(false);
   const candidate = candidates[index] ?? null;
   const fallbackCandidates = useCallback(() => {
-    const countryCode = mode === "Nearby" ? selectedCountry?.code : undefined;
-    const pool = stations.filter((station) => station.is_active && station.url && station.failure_count <= 2 && (!countryCode || station.country_code === countryCode));
-    return pool.map((station) => ({ station, signalStrength: station.health_score })).slice(0, 8);
-  }, [mode, selectedCountry?.code, stations]);
+    const pool = stations.filter((station) => station.is_active && station.url && station.failure_count <= 2);
+    return pool.map((station) => ({ station, signalStrength: station.health_score })).slice(0, 12);
+  }, [stations]);
   const scan = useCallback(async (wander = false) => {
     setState("scanning");
     const params = new URLSearchParams({ limit: "6" });
-    if (!wander && mode === "Nearby" && selectedCountry) {
+    if (!wander && selectedCountry) {
       params.set("countryCode", selectedCountry.code);
       params.set("country", selectedCountry.name);
-    } else if (!wander && mode === "Nearby" && mapContext) {
+    } else if (!wander && mapContext) {
       params.set("lat", String(mapContext.lat));
       params.set("lng", String(mapContext.lng));
       params.set("zoom", String(mapContext.zoom));
@@ -1073,7 +1071,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
       setIndex(0);
       setState(next.length ? "found" : "none");
     }
-  }, [current.id, fallbackCandidates, mapContext, mode, selectedCountry]);
+  }, [current.id, fallbackCandidates, mapContext, selectedCountry]);
   const tune = () => {
     if (!candidate) return;
     usePlayer.getState().setStation(candidate.station);
@@ -1082,13 +1080,12 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   };
   return <>
     <div className={`${mobile ? "fixed bottom-[166px] right-5 z-50" : "absolute bottom-5 right-5 z-40"}`}>
-      <button type="button" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(false); }} onContextMenu={(e) => { e.preventDefault(); void scan(true); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; void scan(true); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl">
+      <button type="button" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(false); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl">
         <span className="absolute inset-1 rounded-full border border-gold/45 bg-[conic-gradient(from_90deg,rgba(214,168,79,.75),rgba(88,225,132,.85),transparent_62%)] opacity-80 transition group-hover:rotate-45" />
         <span className="absolute inset-3 rounded-full bg-slate-950/90" />
         <span className="relative text-center"><ScanLine className="mx-auto size-6 text-radio" /><span className="mt-1 block text-[10px] font-black uppercase tracking-[.18em] text-gold">Scan</span></span>
       </button>
       <div className="mt-2 flex justify-center gap-1 text-[9px] font-black uppercase tracking-[.18em] text-ivory/60"><span>Scan</span><span>•</span><span>Next</span><span>•</span><span>Lock</span></div>
-      <div className="mt-2 grid grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-slate-950/70 p-1 text-[9px] font-black uppercase tracking-[.12em] backdrop-blur">{(["Global", "Nearby", "Unvisited", "Mood"] as const).map((item) => <button key={item} onClick={() => setMode(item)} className={`rounded-xl px-2 py-1 ${mode === item ? "bg-radio text-midnight" : "text-ivory/55"}`}>{item}</button>)}</div>
     </div>
     <AnimatePresence><SignalCandidatePreview candidate={candidate} state={state} onTune={tune} onNext={() => setIndex((n) => candidates.length ? (n + 1) % candidates.length : 0)} /></AnimatePresence>
   </>;
@@ -1167,7 +1164,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} />
     <MobileBrandBar logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => usePlayer.getState().setStation(station)} /> : null}
-    <SignalDial mobile mapContext={mapContext} stations={stations} current={current} selectedCountry={null} />
+    <SignalDial mobile mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
@@ -1309,7 +1306,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.65fr_.75fr]">
         <div id="atlas-map" className="scroll-mt-6">
-          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} />{desktopMode === "Dial" ? <SignalDial mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} /> : null}</div>
+          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} />{desktopMode === "Dial" ? <SignalDial mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} onWander={() => setDesktopMode("Wander")} /> : null}</div>
           <div className="mt-3 flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-slate-950/55 p-3 backdrop-blur-xl">
             <TakeMeSomewhereButton stations={stationPool} current={current} onTravel={setWandererIntent} />
             <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stationPool[(stationPool.findIndex((s) => s.id === current.id) + 1) % stationPool.length])} className="rounded-full bg-gold px-4 py-2 font-black text-midnight"><ScanLine className="mr-2 inline size-4" />Scan</button>
