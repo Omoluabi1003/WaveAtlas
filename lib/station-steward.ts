@@ -1,3 +1,4 @@
+import { resolveStationGeo } from './geotruth-resolver';
 import { fetchStations, fetchStationsByCountry, type Station, validateStream } from './stations';
 
 export type StewardStationRecord = Station & {
@@ -23,6 +24,7 @@ export type StewardRunSummary = {
   dry_run: boolean;
   coverage_stats: Record<string, { countries_scanned: number; stations_found: number }>;
   countries_with_no_results: string[];
+  geo_conflicts_flagged: number;
 };
 
 type SupabaseConfig = { url: string; serviceRoleKey: string };
@@ -93,19 +95,22 @@ function calculateHealthScore(station: Station, validation?: Awaited<ReturnType<
   return Math.max(0, Math.min(100, Math.round(base + successBoost + bitrateBoost + codecBoost + metadataBoost - failures * 12)));
 }
 
-function normalizeForDatabase(station: Station, validation?: Awaited<ReturnType<typeof validateStream>>): Omit<StewardStationRecord, 'id'> & { station_uuid: string } {
+function normalizeForDatabase(station: Station, validation?: Awaited<ReturnType<typeof validateStream>>): Omit<StewardStationRecord, 'id'> & { station_uuid: string; geo_confidence_score: number } {
+  const geo = resolveStationGeo(station);
   const ok = validation?.is_active ?? station.is_active;
   const now = new Date().toISOString();
   const failure_count = ok ? 0 : Math.max(1, station.failure_count + (validation ? 1 : 0));
   return {
     ...station,
+    latitude: geo.lat ?? undefined,
+    longitude: geo.lng ?? undefined,
     station_uuid: station.station_uuid || station.id,
     normalized_name: station.normalized_name || normalizedName(station.name),
     url_resolved: station.url_resolved || station.url,
     city: station.state,
     genres: station.tags,
     tags: station.tags,
-    source: 'radio_browser',
+    source: geo.source === 'verified_api_geo' ? 'radio_browser' : geo.source,
     health_score: calculateHealthScore(station, validation),
     last_check_ok: ok,
     last_checked_at: validation?.last_checked_at ?? station.last_checked_at,
@@ -114,6 +119,7 @@ function normalizeForDatabase(station: Station, validation?: Awaited<ReturnType<
     success_count: ok ? 1 : 0,
     is_active: ok && failure_count < RETIRE_AFTER_FAILURES,
     is_retired: failure_count >= RETIRE_AFTER_FAILURES,
+    geo_confidence_score: geo.confidence,
     updated_at: now,
   };
 }
@@ -143,7 +149,10 @@ async function upsertStation(config: SupabaseConfig, station: Station, validatio
   const result = await supabaseRequest<StewardStationRecord[]>(config, 'stations?on_conflict=station_uuid', { method: 'POST', body: JSON.stringify(normalized) });
   const saved = result[0];
   if (saved?.id) {
+    const geo = resolveStationGeo(station);
     await supabaseRequest(config, 'station_checks', { method: 'POST', body: JSON.stringify({ station_id: saved.id, status: normalized.last_check_ok ? 'ok' : 'failed', response_time_ms: normalized.response_time_ms, error_message: normalized.last_check_ok ? null : 'Stream validation failed', checked_at: normalized.last_checked_at }) });
+    await supabaseRequest(config, 'station_geo_overrides?on_conflict=station_uuid', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, lat: normalized.latitude ?? null, lng: normalized.longitude ?? null, precision: geo.precision, source: geo.source, confidence: geo.confidence, notes: geo.warning, updated_at: normalized.updated_at }) }).catch(() => undefined);
+    await supabaseRequest(config, 'station_geo_audit', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, reported_country_code: station.country_code, reported_lat: station.latitude ?? null, reported_lng: station.longitude ?? null, resolved_lat: geo.lat, resolved_lng: geo.lng, resolution_source: geo.source, confidence: geo.confidence, warning: geo.warning, audited_at: normalized.updated_at }) }).catch(() => undefined);
     await Promise.all(aliasesFor(station).map((alias) => supabaseRequest(config, 'station_aliases?on_conflict=station_id,alias', { method: 'POST', body: JSON.stringify({ station_id: saved.id, alias, source: 'station_steward', confidence: alias === station.name ? 1 : 0.9 }) }).catch(() => undefined)));
     if (existing && (existing.name !== normalized.name || existing.url !== normalized.url)) {
       await supabaseRequest(config, 'station_identity_audit', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, old_name: existing.name, new_name: normalized.name, old_url: existing.url, new_url: normalized.url, change_reason: 'Station Steward metadata refresh without changing canonical UUID', checked_at: normalized.updated_at }) });
@@ -196,6 +205,7 @@ export async function runStationStewardAgent(options: { dryRun?: boolean; valida
   let stations_retired = 0;
   let coverage_stats: StewardRunSummary['coverage_stats'] = {};
   let countries_with_no_results: string[] = [];
+  let geo_conflicts_flagged = 0;
 
   try {
     const discovery = await discoverCandidateStations();
@@ -206,6 +216,7 @@ export async function runStationStewardAgent(options: { dryRun?: boolean; valida
     for (const [index, station] of candidates.entries()) {
       const validation = index < validateLimit ? await validateStream(station.url) : undefined;
       const normalized = normalizeForDatabase(station, validation);
+      if (resolveStationGeo(station).warning) geo_conflicts_flagged += 1;
       if (normalized.is_retired) stations_retired += 1;
       if (dryRun || !config) {
         stations_discovered += 1;
@@ -221,7 +232,7 @@ export async function runStationStewardAgent(options: { dryRun?: boolean; valida
 
   const finished_at = new Date().toISOString();
   const status: StewardRunSummary['status'] = errors.length ? 'failed' : dryRun ? 'dry_run' : 'completed';
-  const summary = { status, started_at, finished_at, stations_discovered, stations_updated, stations_retired, errors, dry_run: dryRun, coverage_stats, countries_with_no_results };
+  const summary = { status, started_at, finished_at, stations_discovered, stations_updated, stations_retired, errors, dry_run: dryRun, coverage_stats, countries_with_no_results, geo_conflicts_flagged };
 
   if (config && !dryRun) {
     await supabaseRequest(config, 'agent_runs', { method: 'POST', body: JSON.stringify(summary) }).catch((error) => errors.push(error instanceof Error ? error.message : 'Failed to log agent run'));
