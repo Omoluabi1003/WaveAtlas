@@ -727,6 +727,14 @@ function diverseGlobalPool(stations: Station[], current: Station) {
   return stations.filter((station) => station.id !== current.id && station.is_active && station.url).sort((a,b)=>b.health_score-a.health_score).filter((station) => { const continent = stationContinent(station); const first = !seenContinents.has(continent); if (first) seenContinents.add(continent); return first || seenContinents.size >= 6; });
 }
 
+function sameCountryCandidatePool(stations: Station[], anchor: Station) {
+  return stations
+    .filter((station) => station.id !== anchor.id && station.country_code === anchor.country_code && isValidCandidateLockStation(station) && station.is_active && station.failure_count <= 2)
+    .sort((a, b) => b.health_score - a.health_score || b.votes - a.votes || b.click_count - a.click_count)
+    .map((station) => ({ station, distanceKm: stationDistanceKm(anchor, station) ?? undefined, signalStrength: Math.max(65, station.health_score), metadata: buildCandidateMetadata(station) }))
+    .slice(0, 12);
+}
+
 
 function isValidCandidateLockStation(station?: Station | null) {
   return Boolean(station?.id && station.name?.trim() && getStationStreamUrl(station));
@@ -1147,6 +1155,8 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
     if (!anchor) return [];
     const localRoutes = generateCandidateRoutes(anchor, stations, explorationMode);
     if (localRoutes.length) return localRoutes;
+    const countryRoutes = sameCountryCandidatePool(stations, anchor);
+    if (countryRoutes.length || !explorationMode) return countryRoutes;
     return diverseGlobalPool(stations, anchor).map((station) => ({ station, signalStrength: station.health_score, metadata: buildCandidateMetadata(station) })).slice(0, 12);
   }, [stations]);
   const scan = useCallback((wander = false) => {
@@ -1167,7 +1177,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   };
   return <>
     <motion.div animate={{ scale: compact ? 0.65 : 1 }} transition={{ type: "spring", damping: 24, stiffness: 260 }} className={`${mobile ? "fixed bottom-[172px] right-5 z-50 origin-bottom-right" : "absolute bottom-5 right-5 z-40 origin-bottom-right"}`}>
-      <button type="button" aria-label="Scan signal" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(true); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl transition-[width,height,opacity] duration-300">
+      <button type="button" aria-label="Scan signal" onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void scan(false); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/75 text-white shadow-2xl backdrop-blur-xl transition-[width,height,opacity] duration-300">
         <span className="absolute inset-1 rounded-full border border-gold/45 bg-[conic-gradient(from_90deg,rgba(214,168,79,.75),rgba(88,225,132,.85),transparent_62%)] opacity-80 transition group-hover:rotate-45" />
         <span className="absolute inset-3 rounded-full bg-slate-950/90" />
         <span className="relative text-center"><ScanLine className="mx-auto size-6 text-radio" /><span className={`${compact ? "sr-only" : "mt-1 block"} text-[10px] font-black uppercase tracking-[.18em] text-gold`}>Scan</span></span>
