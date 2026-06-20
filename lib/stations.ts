@@ -49,6 +49,36 @@ export function sortStations(a:Station,b:Station){ return Number(b.is_active)-Nu
 function rankStation(station: Station, rawQuery = '') { const q = rawQuery.trim().toLowerCase(); const name = station.name.toLowerCase(); let score = 0; if (q) { const tokens = q.split(/\s+/).filter((token) => token.length > 2); if (name === q) score += 10000; else if (name.startsWith(q)) score += 7000; else if (name.includes(q)) score += 4500; score += tokens.filter((token) => name.includes(token)).length * 2200; if (tokens[0] && name.includes(tokens[0])) score += 5000; if (`${station.country} ${station.country_code} ${station.language} ${station.tags.join(' ')}`.toLowerCase().includes(q)) score += 900; } score += station.is_active ? 1800 : -2000; score += Math.min(1400, station.votes * 1.5); score += Math.min(1200, station.click_count / 4); score += station.bitrate > 0 ? Math.min(800, station.bitrate * 2) : 0; score += station.codec && station.codec !== 'Unknown' ? 350 : 0; score += station.url ? 250 : 0; return score; }
 export function rankStations(stations: Station[], q = '') { return [...stations].sort((a,b)=>rankStation(b,q)-rankStation(a,q) || sortStations(a,b)); }
 
+const candidateContinentSeeds = [
+  { continent: 'Africa', codes: ['NG', 'GH', 'ZA', 'KE', 'EG', 'MA', 'SN'] },
+  { continent: 'Europe', codes: ['GB', 'FR', 'DE', 'NL', 'ES', 'IT', 'SE'] },
+  { continent: 'Asia', codes: ['JP', 'IN', 'SG', 'KR', 'ID', 'PH', 'AE'] },
+  { continent: 'Oceania', codes: ['AU', 'NZ', 'FJ', 'PG'] },
+  { continent: 'North America', codes: ['US', 'CA', 'MX'] },
+  { continent: 'South America', codes: ['BR', 'AR', 'CL', 'CO', 'PE'] },
+];
+
+export async function fetchGlobalCandidateStations(limitPerContinent = 4): Promise<Station[]> {
+  const groups = await Promise.all(candidateContinentSeeds.map(async (group) => {
+    const stations = (await Promise.all(group.codes.map((countryCode) => fetchStationsByCountry({ countryCode, limit: String(limitPerContinent * 3) }).catch(() => [])))).flat();
+    const fallback = fallbackStations.filter((station) => group.codes.includes(station.country_code));
+    return { continent: group.continent, stations: rankStations([...stations, ...fallback]).slice(0, limitPerContinent) };
+  }));
+  const seen = new Set<string>();
+  const interleaved: Station[] = [];
+  for (let i = 0; i < limitPerContinent; i += 1) {
+    for (const group of groups) {
+      const station = group.stations[i];
+      const key = station?.station_uuid || station?.id;
+      if (station?.url && key && !seen.has(key)) {
+        seen.add(key);
+        interleaved.push(station);
+      }
+    }
+  }
+  return interleaved;
+}
+
 export async function fetchStations(params: Record<string,string|undefined> = {}): Promise<Station[]> { const limit=params.limit ?? '50'; const offset=params.offset ?? '0'; const allowFallback = params.allowFallback === 'true'; const query = new URLSearchParams({ hidebroken:'true', limit, offset, order: params.order ?? 'votes', reverse:'true' }); if(params.country) query.set('country', params.country); if(params.countryCode) query.set('countrycode', params.countryCode.toUpperCase()); if(params.language) query.set('language', params.language); if(params.tag) query.set('tag', params.tag); if(params.name || params.q) query.set('name', params.name || params.q || ''); return cached(`stations:${query.toString()}`, 5*60_000, async()=>{ try { const res = await fetch(`${API_BASE}/stations/search?${query}`, { headers:{ 'User-Agent': UA }, next:{ revalidate: 300 } }); if(!res.ok) throw new Error(`Radio Browser ${res.status}`); const data = await res.json() as RadioBrowserStation[]; const stations = data.map(normalize).filter(s=>s.url && /^https?:\/\//i.test(s.url)).sort(sortStations); return stations.length ? rankStations(stations, params.name || params.q) : (allowFallback ? rankStations(fallbackStations, params.name || params.q) : []); } catch { return allowFallback ? rankStations(fallbackStations, params.name || params.q) : []; } }); }
 
 export async function fetchStationsByCountry(params: Record<string,string|undefined> = {}) { const code=params.countryCode?.toUpperCase() || countryAliases[(params.country || '').toLowerCase()]; const limit=params.limit ?? '50'; const offset=params.offset ?? '0'; const base = code ? `/stations/bycountrycodeexact/${encodeURIComponent(code)}` : `/stations/bycountry/${encodeURIComponent(params.country ?? '')}`; const query = new URLSearchParams({ hidebroken:'true', limit, offset, order:'votes', reverse:'true' }); if(params.tag) query.set('tag', params.tag); if(params.language) query.set('language', params.language); return cached(`country:${base}:${query.toString()}`, 5*60_000, async()=>{ try { const res=await fetch(`${API_BASE}${base}?${query}`, { headers:{ 'User-Agent': UA }, next:{ revalidate: 300 } }); if(!res.ok) throw new Error(`Radio Browser ${res.status}`); const data=await res.json() as RadioBrowserStation[]; return data.map(normalize).filter(s=>s.url && /^https?:\/\//i.test(s.url) && (!code || s.country_code === code)).sort(sortStations); } catch { return []; } }); }
