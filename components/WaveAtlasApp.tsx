@@ -560,6 +560,11 @@ function StationPulseMarker({
     >
       <span className="station-pulse-ring" />
       <span className="station-pulse-ring two" />
+      <span className="station-pin" aria-hidden="true">
+        <svg viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 40C16 40 29 25.6 29 14.8C29 7.73 23.18 2 16 2C8.82 2 3 7.73 3 14.8C3 25.6 16 40 16 40Z" fill="currentColor" stroke="rgba(255,255,255,.9)" strokeWidth="2.2" />
+        </svg>
+      </span>
       <span className="station-pulse-dot" />
     </div>
   );
@@ -582,7 +587,7 @@ function MapMarkerController({
     if (!element) return;
     element.className = `station-pulse-marker tone-${geo.tone} status-${status}`;
     element.innerHTML =
-      '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pulse-dot"></span>';
+      '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pin" aria-hidden="true"><svg viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 40C16 40 29 25.6 29 14.8C29 7.73 23.18 2 16 2C8.82 2 3 7.73 3 14.8C3 25.6 16 40 16 40Z" fill="currentColor" stroke="rgba(255,255,255,.9)" stroke-width="2.2" /></svg></span><span class="station-pulse-dot"></span>';
   }, [geo.tone, marker, status]);
   return null;
 }
@@ -648,7 +653,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
       const markerRoot = document.createElement("div");
       markerRoot.className = `station-pulse-marker tone-${start.tone} status-playing`;
       markerRoot.innerHTML =
-        '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pulse-dot"></span>';
+        '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pin" aria-hidden="true"><svg viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 40C16 40 29 25.6 29 14.8C29 7.73 23.18 2 16 2C8.82 2 3 7.73 3 14.8C3 25.6 16 40 16 40Z" fill="currentColor" stroke="rgba(255,255,255,.9)" stroke-width="2.2" /></svg></span><span class="station-pulse-dot"></span>';
       mk = new maplibregl.Marker({ element: markerRoot, anchor: "center" })
         .setLngLat([start.lng, start.lat])
         .addTo(m);
@@ -755,25 +760,19 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
     );
   }
   return (
-    <div className="relative w-full rounded-[2rem] border border-slate-700/60 bg-slate-950/80 p-4 shadow-2xl md:p-6">
-      <div className="flex w-full flex-col gap-5">
-        <div className="relative block h-[360px] w-full overflow-hidden rounded-[1.5rem] border border-slate-700/60 bg-slate-900 shadow-[0_0_48px_rgba(16,185,129,.16)] sm:h-[420px] lg:h-[520px]">
-          <div ref={container} className="absolute inset-0 h-full w-full" />
-          <MapMarkerController marker={marker} geo={geo} status={status} />
-          <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_44%,rgba(7,17,31,.46)),linear-gradient(180deg,rgba(2,6,23,.22),transparent_36%,rgba(2,6,23,.5))]" />
-          <div className="pointer-events-none absolute -right-10 -top-10 z-10 size-40 rounded-full border border-radio/10 shadow-[0_0_80px_rgba(52,211,153,.16)]" />
-          <div className="pointer-events-none absolute -bottom-14 left-10 z-10 size-32 rounded-full border border-sky/10 shadow-[0_0_70px_rgba(56,189,248,.14)]" />
-          <div className="absolute right-4 top-4 z-30 opacity-90"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div><div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-white/15 bg-slate-950/75 px-3 py-1.5 font-mono text-[10px] font-semibold  text-emerald-300 shadow-lg backdrop-blur">
-            <Signal className="mr-1.5 inline size-3" />
-            GIS
-          </div>
-        </div>
-        <div className="flex items-center justify-between rounded-full border border-white/10 bg-slate-950/70 px-4 py-2 text-sm backdrop-blur">
-          <span className="truncate font-medium text-ivory">Tap the Earth to hear a place</span>
-          <span className="ml-3 shrink-0 text-xs text-ivory/55">Current: {station.city || station.state || station.country}</span>
-        </div>
-
+    <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
+      <div ref={container} className="absolute inset-0 h-full w-full" />
+      <MapMarkerController marker={marker} geo={geo} status={status} />
+      <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(7,17,31,.35)),linear-gradient(180deg,rgba(2,6,23,.35),transparent_30%,rgba(2,6,23,.54))]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />
+      <div className="absolute right-6 top-6 z-30 opacity-95 xl:right-8 xl:top-8"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div>
+      <div className="pointer-events-none absolute left-6 top-6 z-20 rounded-full border border-white/15 bg-slate-950/70 px-3 py-1.5 font-mono text-[10px] font-semibold text-emerald-300 shadow-lg backdrop-blur xl:left-8 xl:top-8">
+        <Signal className="mr-1.5 inline size-3" />
+        GIS · Tap Earth to tune a place
+      </div>
+      <div className="pointer-events-none absolute bottom-28 right-6 z-20 hidden rounded-full border border-white/10 bg-slate-950/65 px-4 py-2 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl lg:block xl:right-8">
+        Current: {station.city || station.state || station.country}
       </div>
     </div>
   );
@@ -1749,8 +1748,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       <AnimatePresence>{arrivalVisible ? <ArrivalCard arrival={arrival} onEnter={() => setArrivalVisible(false)} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
-    <main className="hidden min-h-screen overflow-hidden bg-transparent p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
-      <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
+    <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
+      <nav className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-center justify-between rounded-[1.75rem] border border-white/10 bg-slate-950/60 px-5 py-4 shadow-2xl backdrop-blur-xl xl:left-8 xl:right-8">
         <div className="flex items-center gap-4">
           <Image
             src={WAVEATLAS_LOGO_PATH}
@@ -1766,17 +1765,17 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             </p>
           </div>
         </div>
-        <p className="hidden text-sm text-ivory/55 md:block">Tap countries and regions to discover live stations.</p>
+        <p className="hidden text-sm text-ivory/70 lg:block">Google Earth-style live radio exploration.</p>
       </nav>
-      <div className="mx-auto grid max-w-7xl gap-6">
-        <DailyFlightPanel stations={stationPool} />
-        {wandererActive ? <button onClick={() => setWandererActive(false)} className="rounded-[2rem] border border-radio/30 bg-radio/10 p-4 text-left font-medium text-radio">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
-        <div id="atlas-map" className="scroll-mt-6">
-          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} /></div>
+      <div className="absolute inset-0 z-0">
+        <div className="hidden"><DailyFlightPanel stations={stationPool} /></div>
+        {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-40 rounded-[2rem] border border-radio/30 bg-slate-950/75 p-4 text-left font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
+        <div id="atlas-map" className="h-full w-full scroll-mt-0">
+          <WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
         </div>
       </div>
-      <section className="mx-auto mt-6 max-w-7xl">
-        <div className="glass rounded-[2rem] p-6">
+      <section className="fixed left-6 top-28 z-30 w-[min(34rem,calc(100vw-3rem))] xl:left-8 xl:w-[38rem]">
+        <div className="glass max-h-[calc(100vh-14rem)] overflow-y-auto rounded-[2rem] p-5 shadow-2xl">
           <div className="flex gap-3">
             <Search className="text-sky" />
             <input
@@ -1838,7 +1837,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </section>
-      <div className="fixed inset-x-4 bottom-4 z-30 mx-auto grid max-w-5xl grid-cols-[1fr_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/92 p-2 shadow-glow backdrop-blur-xl">
+      <div className="fixed inset-x-6 bottom-6 z-40 mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
             onClick={() => {
