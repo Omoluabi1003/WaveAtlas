@@ -1,0 +1,6 @@
+import type { ArrivalHistory } from "./history";
+export type StartupMode = "wander" | "around-the-world" | "hidden-gems" | "cultural-pulse" | "time-zone";
+export const startupModes: { id: StartupMode; label: string; description: string }[] = [ { id: "wander", label: "Wander Mode", description: "Fully randomized global discovery." }, { id: "around-the-world", label: "Around the World", description: "Rotates continents in sequence." }, { id: "hidden-gems", label: "Hidden Gems", description: "Prioritizes lesser-known cities and countries." }, { id: "cultural-pulse", label: "Cultural Pulse", description: "Finds stations with strong local identity." }, { id: "time-zone", label: "Time Zone Mode", description: "Matches local time and mood." } ];
+export const continentCycle = ["Africa", "Europe", "Asia", "Oceania", "North America", "South America"];
+export function chooseStartupMode(history: ArrivalHistory): StartupMode { const modes: StartupMode[] = ["wander", "around-the-world", "hidden-gems", "cultural-pulse", "time-zone"]; return modes[(history.last50Stations.length + Math.floor(Math.random() * modes.length)) % modes.length]; }
+export function nextContinent(history: ArrivalHistory) { const last = history.last5Continents[0]; const index = continentCycle.indexOf(last); return continentCycle[(index + 1) % continentCycle.length]; }

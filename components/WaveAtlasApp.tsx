@@ -31,6 +31,10 @@ import { BRAND, WAVEATLAS_LOGO_PATH, getBrandShareMetadata } from "@/lib/brandin
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import type { Station } from "@/lib/stations";
+import { ArrivalCard } from "@/components/arrival-card";
+import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
+import { readArrivalHistory } from "@/lib/discovery/history";
+import { pickFallbackStation } from "@/lib/discovery/station-picker";
 
 type CountryResult = {
   name: string;
@@ -373,7 +377,7 @@ function SignalInitializationSequence() {
   </motion.div> : null}</AnimatePresence>;
 }
 
-function AudioEngine() {
+function AudioEngine({ stations }: { stations: Station[] }) {
   const { current, status, volume, userActivated, setStatus } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
 
@@ -385,10 +389,13 @@ function AudioEngine() {
     audio.current = element;
     const onError = () => {
       const code = element.error?.code;
-      setStatus(
-        "failed",
-        `Stream failed${code ? ` (audio error ${code})` : ""}. Try another station.`,
-      );
+      const failed = usePlayer.getState().current;
+      const fallback = failed ? pickFallbackStation(stations, failed, readArrivalHistory()) : undefined;
+      if (fallback) {
+        usePlayer.getState().setStation(fallback);
+        return;
+      }
+      setStatus("failed", `Stream failed${code ? ` (audio error ${code})` : ""}. No alternate live destination was available.`);
     };
     element.addEventListener("error", onError);
 
@@ -399,7 +406,7 @@ function AudioEngine() {
       element.load();
       audio.current = null;
     };
-  }, [setStatus]);
+  }, [setStatus, stations]);
 
   useEffect(() => {
     const element = audio.current;
@@ -455,14 +462,12 @@ function AudioEngine() {
             error instanceof Error
               ? error.message
               : "Playback was blocked or the stream failed.";
-          setStatus(
-            message.toLowerCase().includes("user") ||
-              message.toLowerCase().includes("gesture") ||
-              message.toLowerCase().includes("allowed")
-              ? "blocked"
-              : "failed",
-            message,
-          );
+          const fallback = current ? pickFallbackStation(stations, current, readArrivalHistory()) : undefined;
+          if (fallback && !message.toLowerCase().includes("user") && !message.toLowerCase().includes("gesture") && !message.toLowerCase().includes("allowed")) {
+            usePlayer.getState().setStation(fallback);
+          } else {
+            setStatus(message.toLowerCase().includes("user") || message.toLowerCase().includes("gesture") || message.toLowerCase().includes("allowed") ? "blocked" : "failed", message);
+          }
         }
       }
     };
@@ -472,7 +477,7 @@ function AudioEngine() {
     return () => {
       cancelled = true;
     };
-  }, [current, status, userActivated, setStatus, volume]);
+  }, [current, status, userActivated, setStatus, volume, stations]);
 
   useEffect(() => {
     const element = audio.current;
@@ -1429,7 +1434,10 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
 
 export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [stationPool, setStationPool] = useState(stations);
-  const current = usePlayer((s) => s.current) ?? stationPool[0] ?? stations[0];
+  const [arrival, setArrival] = useState<ArrivalDestination | undefined>();
+  const [arrivalVisible, setArrivalVisible] = useState(false);
+  const [startupPreview] = useState(() => stations[Math.floor(Math.random() * Math.max(1, stations.length))]);
+  const current = usePlayer((s) => s.current) ?? arrival?.station ?? startupPreview ?? stationPool[0] ?? stations[0];
   const [query, setQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<CountryResult | null>(null);
   const [activeTag, setActiveTag] = useState("");
@@ -1442,6 +1450,20 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [desktopMapContext, setDesktopMapContext] = useState<MapScanContext | null>(null);
   const [deepLinkUuid] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("station")?.trim() || "");
   const initialStationPoolRef = useRef(stationPool);
+
+  useEffect(() => {
+    if (deepLinkUuid || arrival || !stationPool.length) return;
+    const destination = createArrivalDestination(stationPool, window.localStorage);
+    if (!destination) return;
+    usePlayer.getState().setStation(destination.station);
+    let timer: number | undefined;
+    window.queueMicrotask(() => {
+      setArrival(destination);
+      setArrivalVisible(true);
+      timer = window.setTimeout(() => setArrivalVisible(false), 2700);
+    });
+    return () => { if (timer) window.clearTimeout(timer); };
+  }, [arrival, deepLinkUuid, stationPool]);
 
   useEffect(() => {
     const stationUuid = deepLinkUuid;
@@ -1514,7 +1536,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     );
   return (
     <>
-      <AudioEngine />
+      <AudioEngine stations={stationPool} />
+      <AnimatePresence>{arrivalVisible ? <ArrivalCard arrival={arrival} /> : null}</AnimatePresence>
       <SignalInitializationSequence />
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. WaveAtlas will not substitute another station for this shared link.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
