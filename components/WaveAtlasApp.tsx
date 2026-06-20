@@ -1249,7 +1249,7 @@ function MobileCommandDock({ mode, setMode }: { mode: string; setMode: (m: strin
   return <nav className="fixed bottom-0 left-0 right-0 z-[60] px-4 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="grid grid-cols-4 gap-1 rounded-full border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{[[Compass,"Atlas"],[Radio,"Dial"],[Globe2,"Wander"],[Heart,"Library"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} onClick={() => setMode(label as string)} className={`rounded-full px-2 py-2 text-[11px] font-bold ${mode === label ? "bg-radio text-midnight" : "text-ivory/70"}`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void }) {
+function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [resetSignal, setResetSignal] = useState(0);
@@ -1268,7 +1268,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} />
     <MobileBrandBar />
-    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { usePlayer.getState().setStation(station); setQuery(""); }} /> : null}
+    {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { usePlayer.getState().setStation(station); setQuery(""); onQueryComplete(); }} /> : null}
     <SignalDial key={current.id} mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
     <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.focus()} onOpenFavorites={() => setQuery("favorites")} onScan={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
@@ -1339,11 +1339,19 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     }
     setLoadingCountry(false);
   };
+  const centerAppAfterQuery = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      document.getElementById("atlas-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station, genre, or language"]')?.blur();
+      document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.blur();
+    });
+  }, []);
+
   const selectCountry = (country: CountryResult) => {
     setSelectedCountry(country);
-    setQuery(country.name);
+    setQuery("");
     setActiveTag("");
-    void loadCountryStations(country, 0, "");
+    void loadCountryStations(country, 0, "").finally(centerAppAfterQuery);
   };
   const selectTag = (tag: string) => {
     setActiveTag(tag);
@@ -1364,7 +1372,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       <AudioEngine />
       <SignalInitializationSequence />
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. WaveAtlas will not substitute another station for this shared link.`}</p></div> : null}
-      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} />
+      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-4">
@@ -1419,7 +1427,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             />
           </div>
           <CountryAutocomplete query={query} onSelect={selectCountry} />
-          <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); }} onCountrySelect={selectCountry} setQuery={setQuery} />
+          <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} />
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1456,7 +1464,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             {visible.map((s) => (
               <button
                 key={s.id}
-                onClick={() => usePlayer.getState().setStation(s)}
+                onClick={() => { usePlayer.getState().setStation(s); setQuery(""); centerAppAfterQuery(); }}
                 className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:border-gold/50"
               >
                 <b>{s.name}</b>
