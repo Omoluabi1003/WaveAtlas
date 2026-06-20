@@ -60,6 +60,7 @@ type PlayerState = {
   error?: string;
   userActivated: boolean;
   setStation: (s: Station) => void;
+  prepareStation: (s: Station) => void;
   toggle: () => void;
   setVolume: (n: number) => void;
   setStatus: (s: PlaybackStatus, error?: string) => void;
@@ -78,6 +79,13 @@ const usePlayer = create<PlayerState>((set) => ({
       error: undefined,
       userActivated: true,
     }),
+  prepareStation: (current) =>
+    set((state) => ({
+      current,
+      playing: false,
+      status: state.userActivated ? "buffering" : "idle",
+      error: undefined,
+    })),
   toggle: () =>
     set((s) => {
       if (!s.current) return s;
@@ -383,7 +391,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
 
   useEffect(() => {
     const element = new Audio();
-    element.preload = "none";
+    element.preload = "metadata";
     element.volume = 1;
     element.muted = false;
     audio.current = element;
@@ -433,6 +441,9 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     }
 
     if (!userActivated) {
+      element.src = streamUrl;
+      element.preload = "metadata";
+      element.load();
       setStatus(
         "blocked",
         "Tap to Play: browsers require a click before live audio can start.",
@@ -448,7 +459,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
         setStatus("buffering");
         element.pause();
         element.src = streamUrl;
-        element.preload = "none";
+        element.preload = "metadata";
         element.volume = volume;
         element.muted = false;
         element.load();
@@ -1455,12 +1466,12 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     if (deepLinkUuid || arrival || !stationPool.length) return;
     const destination = createArrivalDestination(stationPool, window.localStorage);
     if (!destination) return;
-    usePlayer.getState().setStation(destination.station);
+    usePlayer.getState().prepareStation(destination.station);
     let timer: number | undefined;
     window.queueMicrotask(() => {
       setArrival(destination);
       setArrivalVisible(true);
-      timer = window.setTimeout(() => setArrivalVisible(false), 2700);
+      timer = window.setTimeout(() => setArrivalVisible(false), 3000);
     });
     return () => { if (timer) window.clearTimeout(timer); };
   }, [arrival, deepLinkUuid, stationPool]);
@@ -1489,6 +1500,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
+        const fallback = initialStationPoolRef.current[0];
+        if (fallback) usePlayer.getState().prepareStation(fallback);
         setDeepLinkStatus("unavailable");
       });
     return () => controller.abort();
@@ -1537,9 +1550,9 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   return (
     <>
       <AudioEngine stations={stationPool} />
-      <AnimatePresence>{arrivalVisible ? <ArrivalCard arrival={arrival} /> : null}</AnimatePresence>
+      <AnimatePresence>{arrivalVisible ? <ArrivalCard arrival={arrival} onEnter={() => setArrivalVisible(false)} /> : null}</AnimatePresence>
       <SignalInitializationSequence />
-      {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. WaveAtlas will not substitute another station for this shared link.`}</p></div> : null}
+      {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">
