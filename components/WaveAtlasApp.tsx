@@ -296,9 +296,12 @@ function SaveStationButton({ station }: { station: Station }) {
 function ShareStationButton({ station }: { station: Station }) {
   const [copied, setCopied] = useState(false);
   const share = async () => {
-    const url = `${window.location.origin}?station=${encodeURIComponent(station.station_uuid || station.id)}`;
-    const text = `Listen to ${station.name} on WaveAtlas`;
-    if (navigator.share) await navigator.share({ title: station.name, text, url });
+    const stationUuid = station.station_uuid;
+    if (!stationUuid) return;
+    const url = `${window.location.origin}?station=${encodeURIComponent(stationUuid)}`;
+    const title = `Listen to ${station.name} on WaveAtlas™`;
+    const text = `Travel to ${station.country} through sound with ${station.name} on WaveAtlas™.`;
+    if (navigator.share) await navigator.share({ title, text, url });
     else await navigator.clipboard.writeText(url);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
@@ -306,7 +309,7 @@ function ShareStationButton({ station }: { station: Station }) {
   return (
     <button onClick={share} className="rounded-full border border-white/10 px-4 py-2 text-sm transition hover:bg-white/[0.08]">
       {copied ? <Check className="mr-2 inline size-4 text-radio" /> : typeof navigator !== "undefined" && "share" in navigator ? <Share2 className="mr-2 inline size-4" /> : <Copy className="mr-2 inline size-4" />}
-      {copied ? "Link copied" : "Share station"}
+      {copied ? "Station link copied" : "Share station"}
     </button>
   );
 }
@@ -1115,6 +1118,39 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
+  const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
+  const [deepLinkUuid] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("station")?.trim() || "");
+  const initialStationPoolRef = useRef(stationPool);
+
+  useEffect(() => {
+    const stationUuid = deepLinkUuid;
+    if (!stationUuid) return;
+    const existing = initialStationPoolRef.current.find((station) => station.station_uuid === stationUuid);
+    if (existing) {
+      usePlayer.getState().setStation(existing);
+      setDeepLinkStatus("idle");
+      return;
+    }
+    const controller = new AbortController();
+    setDeepLinkStatus("loading");
+    fetch(`/api/stations/by-uuid?station_uuid=${encodeURIComponent(stationUuid)}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Station unavailable or moved");
+        return (await res.json()) as { station: Station };
+      })
+      .then(({ station }) => {
+        if (station.station_uuid !== stationUuid) throw new Error("Station identity mismatch");
+        setStationPool((prev) => prev.some((item) => item.station_uuid === stationUuid) ? prev : [station, ...prev]);
+        usePlayer.getState().setStation(station);
+        setDeepLinkStatus("idle");
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setDeepLinkStatus("unavailable");
+      });
+    return () => controller.abort();
+  }, [deepLinkUuid]);
+
   const loadCountryStations = async (country: CountryResult, nextOffset = 0, tag = activeTag) => {
     setLoadingCountry(true);
     if (!nextOffset) setStationPool([]);
@@ -1153,6 +1189,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     <>
       <AudioEngine />
       <SignalInitializationSequence />
+      {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. WaveAtlas will not substitute another station for this shared link.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} logoLoaded={logoLoaded} logoFailed={logoFailed} setLogoLoaded={setLogoLoaded} setLogoFailed={setLogoFailed} />
     <main className="hidden min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#12385a,transparent_35%),#07111F] p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:block md:p-8">
       <nav className="mx-auto mb-6 flex max-w-7xl items-center justify-between">

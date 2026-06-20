@@ -68,7 +68,15 @@ function headers(config: SupabaseConfig) {
 }
 
 function uniqueKey(station: Station) {
-  return [station.station_uuid, station.url, `${station.name.toLowerCase()}::${station.country_code}`].filter(Boolean).join('|');
+  return station.station_uuid || [station.url, `${station.name.toLowerCase()}::${station.country_code}`].filter(Boolean).join('|');
+}
+
+function normalizedName(name: string) {
+  return name.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function aliasesFor(station: Station) {
+  return Array.from(new Set([station.name, station.normalized_name, normalizedName(station.name)].filter(Boolean) as string[]));
 }
 
 function metadataQuality(station: Station) {
@@ -92,7 +100,8 @@ function normalizeForDatabase(station: Station, validation?: Awaited<ReturnType<
   return {
     ...station,
     station_uuid: station.station_uuid || station.id,
-    url_resolved: station.url,
+    normalized_name: station.normalized_name || normalizedName(station.name),
+    url_resolved: station.url_resolved || station.url,
     city: station.state,
     genres: station.tags,
     tags: station.tags,
@@ -135,6 +144,10 @@ async function upsertStation(config: SupabaseConfig, station: Station, validatio
   const saved = result[0];
   if (saved?.id) {
     await supabaseRequest(config, 'station_checks', { method: 'POST', body: JSON.stringify({ station_id: saved.id, status: normalized.last_check_ok ? 'ok' : 'failed', response_time_ms: normalized.response_time_ms, error_message: normalized.last_check_ok ? null : 'Stream validation failed', checked_at: normalized.last_checked_at }) });
+    await Promise.all(aliasesFor(station).map((alias) => supabaseRequest(config, 'station_aliases?on_conflict=station_id,alias', { method: 'POST', body: JSON.stringify({ station_id: saved.id, alias, source: 'station_steward', confidence: alias === station.name ? 1 : 0.9 }) }).catch(() => undefined)));
+    if (existing && (existing.name !== normalized.name || existing.url !== normalized.url)) {
+      await supabaseRequest(config, 'station_identity_audit', { method: 'POST', body: JSON.stringify({ station_uuid: normalized.station_uuid, old_name: existing.name, new_name: normalized.name, old_url: existing.url, new_url: normalized.url, change_reason: 'Station Steward metadata refresh without changing canonical UUID', checked_at: normalized.updated_at }) });
+    }
   }
   return existing ? 'updated' : 'discovered';
 }
