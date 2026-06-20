@@ -28,6 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import { BRAND } from "@/lib/branding";
+import { useMapCameraController } from "@/hooks/useMapCameraController";
 import type { Station } from "@/lib/stations";
 
 type CountryResult = {
@@ -521,7 +522,7 @@ const basemapStyles: Record<BasemapKey, { label: string; name: string; descripti
 };
 function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
 function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "grid grid-cols-3 gap-1 rounded-2xl p-1"} border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-xl`} aria-label="Basemap Cockpit">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} aria-label={`Switch basemap to ${basemapStyles[key].name}`} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-2 text-[10px]" : "rounded-xl px-3 py-2 text-xs"} font-bold transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}>{basemapStyles[key].label}</button>)}</div>; }
-function MapStyleController({ map, basemap }: { map: Map | null; basemap: BasemapKey }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); const resize = () => requestAnimationFrame(() => map.resize()); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap]); return null; }
+function MapStyleController({ map, basemap, onResize }: { map: Map | null; basemap: BasemapKey; onResize?: () => void }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); const resize = () => requestAnimationFrame(() => { map.resize(); onResize?.(); }); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap, onResize]); return null; }
 
 function StationPulseMarker({
   geo,
@@ -541,41 +542,33 @@ function StationPulseMarker({
     </div>
   );
 }
-function MapFlyToController({
-  map,
+function MapMarkerController({
   marker,
-  station,
+  geo,
   status,
 }: {
-  map: Map | null;
   marker: Marker | null;
-  station: Station;
+  geo: GeoPoint;
   status: PlaybackStatus;
 }) {
-  const geo = useMemo(() => geotruth(station), [station]);
   useEffect(() => {
-    if (!map || !marker) return;
     if (geo.lat === null || geo.lng === null) return;
-    marker.setLngLat([geo.lng, geo.lat]);
-    map.flyTo({
-      center: [geo.lng, geo.lat],
-      zoom: geo.precision === "station" ? 7 : geo.precision === "city" ? 6 : 4.4,
-      speed: 0.72,
-      curve: 1.35,
-      essential: true,
-    });
-  }, [geo, map, marker]);
+    marker?.setLngLat([geo.lng, geo.lat]);
+  }, [geo, marker]);
   useEffect(() => {
-    marker
-      ?.getElement()
-      .classList.toggle("status-playing", status === "playing");
-  }, [marker, status]);
+    const element = marker?.getElement();
+    if (!element) return;
+    element.className = `station-pulse-marker tone-${geo.tone} status-${status}`;
+    element.innerHTML =
+      '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pulse-dot"></span>';
+  }, [geo.tone, marker, status]);
   return null;
 }
 
+
 type MapScanContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
 
-function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapScanContext) => void }) {
+function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, searchActive = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapScanContext) => void; searchActive?: boolean }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -587,6 +580,10 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   const viewMode = useRef<"desktop" | "mobile">(mobile ? "mobile" : "desktop");
   const geo = useMemo(() => geotruth(station), [station]);
   const initialGeo = useRef(geo);
+
+  const cameraPadding = useMemo(() => mobile ? { top: 96, right: 24, bottom: 188, left: 24 } : { top: 28, right: 28, bottom: 28, left: 28 }, [mobile]);
+  const camera = useMapCameraController(map, cameraPadding);
+  const lastStationId = useRef(station.id);
   useEffect(() => {
     if (!container.current) return;
     const start = initialGeo.current;
@@ -647,23 +644,34 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   useEffect(() => {
     if (!map || !resetSignal) return;
     const view = DEFAULT_MAP_VIEW[viewMode.current];
-    map.easeTo({ ...view, essential: true });
-    window.setTimeout(() => map.resize(), view.duration + 80);
-  }, [map, resetSignal]);
+    camera.reset({ center: view.center, zoom: view.zoom, bearing: view.bearing, pitch: view.pitch });
+    window.setTimeout(() => camera.resizeThenReapplyIntended(), view.duration + 80);
+  }, [camera, map, resetSignal]);
   useEffect(() => {
-    if (!map || !marker) return;
-    const element = marker.getElement();
-    element.className = `station-pulse-marker tone-${geo.tone} status-${status}`;
-    element.innerHTML =
-      '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pulse-dot"></span>';
-    requestAnimationFrame(() => map.resize());
-  }, [geo.tone, map, marker, station, status]);
+    if (!map) return;
+    if (lastStationId.current !== station.id) {
+      lastStationId.current = station.id;
+      camera.selectStation(geo);
+      return;
+    }
+    camera.remember();
+  }, [camera, geo, map, station.id]);
+
+  useEffect(() => {
+    if (!map) return;
+    if (searchActive) {
+      camera.beginSearch();
+      camera.openResults();
+      return;
+    }
+    camera.closeSearchWithoutSelection();
+  }, [camera, map, searchActive]);
   if (mobile) {
     return (
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="absolute inset-0 h-full w-full" />
-        <MapFlyToController map={map} marker={marker} station={station} status={status} />
-        <MapStyleController map={map} basemap={basemap} />
+        <MapMarkerController marker={marker} geo={geo} status={status} />
+        <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_30%,rgba(7,17,31,.28)_64%,rgba(7,17,31,.68)),linear-gradient(180deg,rgba(2,6,23,.28),transparent_32%,rgba(2,6,23,.48))]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
         <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
@@ -678,13 +686,8 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
       <div className="flex w-full flex-col gap-5">
         <div className="relative block h-[360px] w-full overflow-hidden rounded-[1.5rem] border border-slate-700/60 bg-slate-900 shadow-[0_0_48px_rgba(16,185,129,.16)] sm:h-[420px] lg:h-[520px]">
           <div ref={container} className="absolute inset-0 h-full w-full" />
-          <MapFlyToController
-            map={map}
-            marker={marker}
-            station={station}
-            status={status}
-          />
-          <MapStyleController map={map} basemap={basemap} />
+          <MapMarkerController marker={marker} geo={geo} status={status} />
+          <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_44%,rgba(7,17,31,.46)),linear-gradient(180deg,rgba(2,6,23,.22),transparent_36%,rgba(2,6,23,.5))]" />
           <div className="pointer-events-none absolute -right-10 -top-10 z-10 size-40 rounded-full border border-radio/10 shadow-[0_0_80px_rgba(52,211,153,.16)]" />
           <div className="pointer-events-none absolute -bottom-14 left-10 z-10 size-32 rounded-full border border-sky/10 shadow-[0_0_70px_rgba(56,189,248,.14)]" />
@@ -1266,7 +1269,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     presenceTimer.current = window.setTimeout(() => setPresenceVisible(false), 6000);
   };
   return <section className="md:hidden relative h-[100dvh] min-h-[100dvh] overflow-hidden overflow-x-hidden bg-slate-950 text-white">
-    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} />
+    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} searchActive={query.trim().length > 0} />
     <MobileBrandBar />
     {mode !== "Dial" ? <MobileSearchPill query={query} setQuery={setQuery} onCountrySelect={onCountrySelect} stations={stations} onStationSelect={(station) => { usePlayer.getState().setStation(station); setQuery(""); onQueryComplete(); }} /> : null}
     <SignalDial key={current.id} mobile compact={presenceVisible} mapContext={mapContext} stations={stations} current={current} selectedCountry={null} onWander={() => setWanderOpen(true)} />
@@ -1341,7 +1344,6 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   };
   const centerAppAfterQuery = useCallback(() => {
     window.requestAnimationFrame(() => {
-      document.getElementById("atlas-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
       document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station, genre, or language"]')?.blur();
       document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, station..."]')?.blur();
     });
@@ -1405,7 +1407,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       </nav>
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.65fr_.75fr]">
         <div id="atlas-map" className="scroll-mt-6">
-          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} />{desktopMode === "Dial" ? <SignalDial key={current.id} mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} onWander={() => setDesktopMode("Wander")} /> : null}</div>
+          <div className="relative"><WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} searchActive={query.trim().length > 0} />{desktopMode === "Dial" ? <SignalDial key={current.id} mapContext={desktopMapContext} stations={stationPool} current={current} selectedCountry={selectedCountry} onWander={() => setDesktopMode("Wander")} /> : null}</div>
           <div className="mt-3 flex flex-wrap gap-2 rounded-3xl border border-white/10 bg-slate-950/55 p-3 backdrop-blur-xl">
             <TakeMeSomewhereButton stations={stationPool} current={current} onTravel={setWandererIntent} />
             <button aria-label="Scan global stations" onClick={() => usePlayer.getState().setStation(stationPool[(stationPool.findIndex((s) => s.id === current.id) + 1) % stationPool.length])} className="rounded-full bg-gold px-4 py-2 font-black text-midnight"><ScanLine className="mr-2 inline size-4" />Scan</button>
