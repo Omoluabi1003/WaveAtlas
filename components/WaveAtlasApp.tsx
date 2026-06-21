@@ -40,7 +40,9 @@ import { BriefPanel } from "@/components/BriefPanel";
 import { PlaceHero } from "@/components/PlaceHero";
 import { RadioDNA } from "@/components/RadioDNA";
 import { WorldContextPanel } from "@/components/WorldContextPanel";
+import { SpatialAtmosphere } from "@/components/SpatialAtmosphere";
 import type { WorldContext } from "@/lib/world-engine/types";
+import { getAmbientTheme } from "@/lib/world-engine/ambient-theme";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
@@ -408,9 +410,8 @@ function ListCard({ title, items }: { title: string; items: { key: string; label
   );
 }
 
-function StationIntelligencePanel({ station, stations, setQuery }: { station: Station; stations: Station[]; setQuery: (q: string) => void }) {
-  const { playing, status } = usePlayer();
-  const genre = getPrimaryGenre(station);
+
+function useStationWorldContext(station: Station) {
   const geo = useMemo(() => geotruth(station), [station]);
   const [worldContext, setWorldContext] = useState<WorldContext | null>(null);
   const [worldContextStatus, setWorldContextStatus] = useState<"loading" | "ready" | "empty">("loading");
@@ -418,6 +419,7 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
   const stationWorldKey = `${stationKey(station)}:${geo.lat ?? ""}:${geo.lng ?? ""}`;
   const visibleWorldContext = worldContextStationKey === stationWorldKey ? worldContext : null;
   const visibleWorldContextStatus = worldContextStationKey === stationWorldKey ? worldContextStatus : "loading";
+
   useEffect(() => {
     const controller = new AbortController();
     const params = new URLSearchParams();
@@ -435,12 +437,11 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
         if (payload?.radioDNA) {
           setWorldContext(payload);
           setWorldContextStatus("ready");
-          setWorldContextStationKey(stationWorldKey);
         } else {
           setWorldContext(null);
           setWorldContextStatus("empty");
-          setWorldContextStationKey(stationWorldKey);
         }
+        setWorldContextStationKey(stationWorldKey);
       })
       .catch((error) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
@@ -451,6 +452,41 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
       });
     return () => controller.abort();
   }, [geo.lat, geo.lng, station.city, station.country, station.country_code, station.language, station.name, station.state, stationWorldKey]);
+
+  return { geo, visibleWorldContext, visibleWorldContextStatus };
+}
+
+function SelectedStationTheater({ station }: { station: Station }) {
+  const { playing, status } = usePlayer();
+  const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
+  const theme = getAmbientTheme(visibleWorldContext);
+  const fallbackPlace = [station.city || station.state, station.country].filter(Boolean).join(", ");
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-30" aria-live="polite">
+      <SpatialAtmosphere theme={theme} intensity="strong" />
+      <div className="absolute bottom-[10.75rem] left-4 right-4 md:hidden">
+        <div className="pointer-events-auto max-h-[42dvh] overflow-y-auto rounded-[2rem] shadow-2xl">
+          <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={fallbackPlace} isPlaying={playing || status === "buffering"} />
+        </div>
+      </div>
+      <div className="absolute bottom-[8.25rem] left-1/2 hidden w-[min(880px,calc(100vw-32rem))] min-w-[520px] -translate-x-1/2 md:block xl:bottom-36">
+        <div className="pointer-events-auto space-y-3">
+          <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={fallbackPlace} isPlaying={playing || status === "buffering"} />
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(280px,0.78fr)] gap-3">
+            <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
+            <WorldContextPanel context={visibleWorldContext} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StationIntelligencePanel({ station, stations, setQuery }: { station: Station; stations: Station[]; setQuery: (q: string) => void }) {
+  const { playing, status } = usePlayer();
+  const genre = getPrimaryGenre(station);
+  const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
   return (
     <section className="mt-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2058,6 +2094,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setCurrentStationAndDestination(station); }, 250); }} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
+    <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
     {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact /></div> : null}
@@ -2456,6 +2493,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
           <WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
         </div>
+        <SelectedStationTheater station={current} />
       </div>
       <section className="pointer-events-none fixed left-1/2 top-6 z-50 w-[min(560px,calc(100vw-3rem))] -translate-x-1/2">
         <div className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/40 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl">
