@@ -64,6 +64,9 @@ type PlayerState = {
   arrivalStation?: Station;
   startupQueue: Station[];
   replacementReason?: string;
+  teleportQueue: Station[];
+  setTeleportQueue: (stations: Station[]) => void;
+  clearArrivalContext: () => void;
   setArrivalStation: (station: Station, queue?: Station[]) => void;
   replaceStartupStation: (previous: Station, next: Station, reason: string) => void;
   setStation: (s: Station) => void;
@@ -79,6 +82,9 @@ const usePlayer = create<PlayerState>((set) => ({
   volume: 1,
   userActivated: false,
   startupQueue: [],
+  teleportQueue: [],
+  setTeleportQueue: (teleportQueue) => set({ teleportQueue }),
+  clearArrivalContext: () => set({ arrivalStation: undefined, startupQueue: [], replacementReason: undefined }),
   setArrivalStation: (station, queue = [station]) => set({ arrivalStation: station, startupQueue: queue.length ? queue : [station], replacementReason: undefined }),
   replaceStartupStation: (previous, next, reason) => {
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("waveatlas:startup-station-replaced", { detail: { previousStation: previous, nextStation: next, reason } }));
@@ -96,6 +102,7 @@ const usePlayer = create<PlayerState>((set) => ({
       status: "buffering",
       error: undefined,
       userActivated: true,
+      teleportQueue: [],
     }),
   prepareStation: (current) =>
     set((state) => ({
@@ -134,6 +141,21 @@ function geotruth(station: Station): GeoPoint {
 const countryFallbacks: Record<string, { lat: number; lng: number; tone: GeoPoint["tone"] }> = Object.fromEntries(
   Object.entries(isoCountryCentroids).map(([code, point]) => [code, { ...point, tone: stationTone(code) }]),
 );
+
+function teleportDebugEnabled() {
+  return typeof window !== "undefined" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_TELEPORT === "true";
+}
+
+function debugTeleport(label: string, payload: Record<string, unknown>) {
+  if (!teleportDebugEnabled()) return;
+  console.debug(`[WaveAtlas Teleport] ${label}`, payload);
+}
+
+function commitTeleportStation(station: Station, queue: Station[] = []) {
+  const player = usePlayer.getState();
+  player.setStation(station);
+  player.setTeleportQueue(queue.filter((candidate) => stationKey(candidate) !== stationKey(station)));
+}
 
 
 const neighboringCountries: Record<string, string[]> = {
@@ -414,11 +436,23 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
     markStationFailure(failed, errorType, detail);
     attempted.current = [...new Set([...attempted.current, stationKey(failed)])];
-    const fallback = nextFastConnectCandidate(stations, failed, attempted.current) ?? pickFallbackStation(stations, failed, readArrivalHistory());
+    const state = usePlayer.getState();
+    const failedContinent = stationContinent(failed);
+    const queueFallback = state.teleportQueue.find((station) => !attempted.current.includes(stationKey(station)) && stationContinent(station) !== failedContinent)
+      ?? state.teleportQueue.find((station) => !attempted.current.includes(stationKey(station)));
+    const fallback = queueFallback ?? nextFastConnectCandidate(stations, failed, attempted.current) ?? pickFallbackStation(stations, failed, readArrivalHistory());
     if (fallback) {
+      const reason = errorType === "startup_timeout" || errorType === "waiting" || errorType === "stalled" ? "weak_signal" : "fallback";
+      debugTeleport("fast-connect fallback", { failed: failed.name, failedContinent, replacement: fallback.name, replacementContinent: stationContinent(fallback), reason, usedTeleportQueue: Boolean(queueFallback), ignoredArrivalContext: Boolean(state.arrivalStation) });
       setStatus("buffering", FAST_CONNECT_COPY.retrying);
-      usePlayer.getState().replaceStartupStation(failed, fallback, errorType === "startup_timeout" || errorType === "waiting" || errorType === "stalled" ? "weak_signal" : "fallback");
-      usePlayer.getState().setStation(fallback);
+      if (queueFallback) {
+        commitTeleportStation(fallback, state.teleportQueue.filter((station) => stationKey(station) !== stationKey(fallback)));
+      } else if (state.arrivalStation && stationKey(state.arrivalStation) === stationKey(failed)) {
+        state.replaceStartupStation(failed, fallback, reason);
+        usePlayer.getState().setStation(fallback);
+      } else {
+        usePlayer.getState().setStation(fallback);
+      }
       return true;
     }
     setStatus("failed", FAST_CONNECT_COPY.failed);
@@ -505,6 +539,8 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       clearBufferTimer();
       markStationSuccess(current);
       rememberTeleport(current);
+      usePlayer.getState().clearArrivalContext();
+      debugTeleport("final station playing", { station: current.name, country: current.country_code, continent: stationContinent(current) });
       setStatus("playing");
     };
     const onWaiting = () => {
@@ -1122,6 +1158,37 @@ function chooseWonderStation(stations: Station[], current: Station, intent: stri
   return destination;
 }
 
+async function resolveTeleportDestination(stations: Station[], current: Station) {
+  const player = usePlayer.getState();
+  const anchor = getCandidateLockAnchor(player.current ?? current, stations) ?? current;
+  const arrivalStation = player.arrivalStation;
+  const recent = readTeleportHistory();
+  const params = new URLSearchParams({ global: "true", limit: "25", anchor: JSON.stringify(anchor), recent: JSON.stringify(recent), journey: "teleport" });
+  debugTeleport("request", {
+    params: Object.fromEntries(params.entries()),
+    anchor: { name: anchor.name, country: anchor.country_code, continent: stationContinent(anchor) },
+    arrivalContextPresentAndIgnored: Boolean(arrivalStation),
+    forbiddenDefaultsOmitted: ["countryCode", "continent", "arrivalStation", "mapFocus"],
+  });
+  try {
+    const res = await fetch(`/api/stations/nearby?${params.toString()}`);
+    const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
+    const queue = data.candidates?.map((item) => item.station).filter(Boolean) ?? [];
+    debugTeleport("candidates", {
+      poolSize: queue.length,
+      byContinent: queue.reduce<Record<string, number>>((acc, station) => { const continent = stationContinent(station); acc[continent] = (acc[continent] ?? 0) + 1; return acc; }, {}),
+      top10: queue.slice(0, 10).map((station) => ({ name: station.name, country: station.country_code, continent: stationContinent(station) })),
+    });
+    const selected = queue[0] ?? chooseWonderStation(stations, anchor, "Take me somewhere surprising");
+    debugTeleport("selected", { station: selected.name, country: selected.country_code, continent: stationContinent(selected), queuedFallbacks: Math.max(0, queue.length - 1) });
+    return { station: selected, queue };
+  } catch (error) {
+    const fallback = chooseWonderStation(stations, anchor, "Take me somewhere surprising");
+    debugTeleport("fallback", { reason: error instanceof Error ? error.message : "request_failed", station: fallback.name, country: fallback.country_code, continent: stationContinent(fallback) });
+    return { station: fallback, queue: diverseGlobalPool(stations, anchor) };
+  }
+}
+
 async function resolveGlobalJourneyDestination(stations: Station[], current: Station, intent: string) {
   const anchor = getCandidateLockAnchor(usePlayer.getState().current ?? current, stations) ?? current;
   try {
@@ -1419,7 +1486,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   }, [current, fallbackCandidates, selectedCountry, stations]);
   const tune = () => {
     if (!candidate) return;
-    usePlayer.getState().setStation(candidate.station);
+    commitTeleportStation(candidate.station, candidates.map((item) => item.station));
     onStationResolved?.(candidate.station);
     setState("idle");
   };
@@ -1616,7 +1683,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
-    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => { void resolveGlobalJourneyDestination(stations, current, "Take me somewhere surprising").then((destination) => usePlayer.getState().setStation(destination)); }} />
+    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => { void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => commitTeleportStation(station, queue)); }} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
@@ -1628,7 +1695,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     ) : null}
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
-    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const intent = "Take me somewhere surprising"; void resolveGlobalJourneyDestination(stations, current, intent).then((destination) => { usePlayer.getState().setStation(destination); handleTravel(intent); }); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const intent = "Take me somewhere surprising"; void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => { commitTeleportStation(station, queue); handleTravel(intent); }); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
 
@@ -2017,7 +2084,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
         </div>
         <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
-          {[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); const intent = "Take me somewhere surprising"; void resolveGlobalJourneyDestination(stationPool, current, intent).then((destination) => usePlayer.getState().setStation(destination)); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else setDesktopMode(value); }} className={`pointer-events-auto rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
+          {[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => commitTeleportStation(station, queue)); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else setDesktopMode(value); }} className={`pointer-events-auto rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
         </nav>
       </div>
     </main>
