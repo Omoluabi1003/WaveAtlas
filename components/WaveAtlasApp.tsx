@@ -151,6 +151,16 @@ function debugTeleport(label: string, payload: Record<string, unknown>) {
   console.debug(`[WaveAtlas Teleport] ${label}`, payload);
 }
 
+function readHasCompletedArrival() {
+  return typeof window !== "undefined" && window.sessionStorage.getItem(ARRIVAL_COMPLETED_SESSION_KEY) === "true";
+}
+
+function markArrivalCompleted() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(ARRIVAL_COMPLETED_SESSION_KEY, "true");
+  window.dispatchEvent(new Event(ARRIVAL_COMPLETED_EVENT));
+}
+
 function commitTeleportStation(station: Station, queue: Station[] = []) {
   const player = usePlayer.getState();
   player.setStation(station);
@@ -539,6 +549,8 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       clearBufferTimer();
       markStationSuccess(current);
       rememberTeleport(current);
+      const startupArrivalStation = usePlayer.getState().arrivalStation;
+      if (startupArrivalStation && stationKey(startupArrivalStation) === stationKey(current)) markArrivalCompleted();
       usePlayer.getState().clearArrivalContext();
       debugTeleport("final station playing", { station: current.name, country: current.country_code, continent: stationContinent(current) });
       setStatus("playing");
@@ -917,6 +929,8 @@ function diverseGlobalPool(stations: Station[], current: Station) {
   return interleaveByContinent(stations).filter((station) => station.id !== current.id);
 }
 
+const ARRIVAL_COMPLETED_SESSION_KEY = "waveatlas:arrival-completed";
+const ARRIVAL_COMPLETED_EVENT = "waveatlas:arrival-completed";
 const TELEPORT_HISTORY_KEY = "waveatlas_teleport_history";
 const TELEPORT_HISTORY_ALIAS_KEYS = ["waveatlas.teleport.history.v1"];
 const TELEPORT_HISTORY_SLICE_KEYS = { stationIds: "last25Stations", cities: "last10Cities", countries: "last5Countries", continents: "last3Continents", genres: "last10Genres", languages: "last10Languages" } as const;
@@ -1833,6 +1847,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [stationPool, setStationPool] = useState(stations);
   const [arrival, setArrival] = useState<ArrivalDestination | undefined>();
   const [arrivalVisible, setArrivalVisible] = useState(false);
+  const [hasCompletedArrival, setHasCompletedArrival] = useState(readHasCompletedArrival);
   const arrivalStation = usePlayer((s) => s.arrivalStation);
   const replacementReason = usePlayer((s) => s.replacementReason);
   const [splashVisible, setSplashVisible] = useState(() => typeof window !== "undefined" && window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) !== "true");
@@ -1858,13 +1873,30 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   });
   const initialStationPoolRef = useRef(stationPool);
 
+  const completeArrivalFlow = useCallback(() => {
+    markArrivalCompleted();
+    setHasCompletedArrival(true);
+    setArrivalVisible(false);
+    usePlayer.getState().clearArrivalContext();
+  }, []);
+
   useEffect(() => {
-    if (!arrival || !arrivalStation || stationKey(arrival.station) === stationKey(arrivalStation)) return;
+    const syncArrivalCompletion = () => {
+      setHasCompletedArrival(true);
+      setArrivalVisible(false);
+    };
+    window.addEventListener(ARRIVAL_COMPLETED_EVENT, syncArrivalCompletion);
+    return () => window.removeEventListener(ARRIVAL_COMPLETED_EVENT, syncArrivalCompletion);
+  }, []);
+
+  useEffect(() => {
+    if (hasCompletedArrival || !arrival || !arrivalStation || stationKey(arrival.station) === stationKey(arrivalStation)) return;
     window.queueMicrotask(() => {
+      if (readHasCompletedArrival()) return;
       setArrival({ ...arrival, station: arrivalStation, city: arrivalStation.city || arrivalStation.state || arrivalStation.country, country: arrivalStation.country || arrivalStation.country_code, genre: stationGenre(arrivalStation), localTime: localTimeForStation(arrivalStation) });
       setArrivalVisible(true);
     });
-  }, [arrival, arrivalStation]);
+  }, [arrival, arrivalStation, hasCompletedArrival]);
 
   useEffect(() => {
     if (!current || typeof window === "undefined") return;
@@ -1872,7 +1904,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   }, [current]);
 
   useEffect(() => {
-    if (!splashComplete || deepLinkUuid || arrival || !stationPool.length) return;
+    if (hasCompletedArrival || !splashComplete || deepLinkUuid || arrival || !stationPool.length) return;
     const destination = createArrivalDestination(stationPool, window.localStorage);
     if (!destination) return;
     const startupQueue = buildFastConnectQueue(stationPool, destination.station, FAST_CONNECT_PARALLEL_CANDIDATES - 1);
@@ -1880,12 +1912,13 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     usePlayer.getState().prepareStation(destination.station);
     let timer: number | undefined;
     window.queueMicrotask(() => {
+      if (readHasCompletedArrival()) return;
       setArrival(destination);
       setArrivalVisible(true);
-      timer = window.setTimeout(() => setArrivalVisible(false), 3000);
+      timer = window.setTimeout(completeArrivalFlow, 3000);
     });
     return () => { if (timer) window.clearTimeout(timer); };
-  }, [arrival, deepLinkUuid, splashComplete, stationPool]);
+  }, [arrival, completeArrivalFlow, deepLinkUuid, hasCompletedArrival, splashComplete, stationPool]);
 
   useEffect(() => {
     const stationUuid = deepLinkUuid;
@@ -1979,7 +2012,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     <>
       <AudioEngine stations={stationPool} />
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
-      <AnimatePresence>{arrivalVisible ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={() => setArrivalVisible(false)} /> : null}</AnimatePresence>
+      <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
