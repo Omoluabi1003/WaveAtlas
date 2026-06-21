@@ -2,6 +2,7 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import Image from "next/image";
+import NextLink from "next/link";
 import maplibregl, { type Map, type Marker } from "maplibre-gl";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -1870,6 +1871,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
+    {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact /></div> : null}
     {mode === "Add Signal" ? (
       <div className="pointer-events-auto fixed inset-0 z-[999] flex h-[100dvh] items-start justify-center overflow-y-auto overscroll-contain bg-black/45 px-3 pb-[calc(140px_+_env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))] backdrop-blur-[10px]">
         <AddYourSignalPanel compact onCancel={() => setMode("Atlas")} />
@@ -1888,6 +1890,26 @@ type SignalSubmissionResponse = {
   review?: { status: string; quality_score: number; recommendation: string };
   error?: string;
 };
+
+function UtilityLinksPanel({ compact = false }: { compact?: boolean }) {
+  const links = [
+    ["Demo", "/demo", "Learn the product in minutes."],
+    ["About", "/about", "Mission, indexing, and ownership."],
+    ["Legal", "/legal", "Terms, privacy, copyright, and signals."],
+    ["Press", "/press", "Tagline, mission, and brand colors."],
+  ] as const;
+  return <section className={`rounded-[2rem] border border-white/10 bg-slate-950/85 p-5 shadow-2xl backdrop-blur-2xl ${compact ? "mx-4 mt-24" : ""}`}>
+    <p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Settings</p>
+    <h2 className="mt-2 font-display text-2xl font-bold text-white">Trust & launch center</h2>
+    <p className="mt-2 text-sm leading-6 text-ivory/65">Quick links for onboarding, company context, legal policies, and press-ready brand language.</p>
+    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+      {links.map(([label, href, description]) => <NextLink key={href} href={href} className="rounded-2xl border border-white/10 bg-white/[0.05] p-3 transition hover:border-radio/30 hover:bg-radio/10">
+        <b className="block text-sm text-white">{label}</b>
+        <span className="mt-1 block text-xs leading-5 text-ivory/58">{description}</span>
+      </NextLink>)}
+    </div>
+  </section>;
+}
 
 function AddYourSignalPanel({ compact = false, onCancel }: { compact?: boolean; onCancel?: () => void }) {
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -2033,7 +2055,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
-  const [desktopMode, setDesktopMode] = useState("Teleport");
+  const [desktopMode, setDesktopMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "add-signal" ? "Add Signal" : "Teleport");
   const [briefOpen, setBriefOpen] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
@@ -2220,6 +2242,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
         {(query.trim() || selectedCountry || desktopMode !== "Atlas") ? <div className="pointer-events-auto mt-3 max-h-[calc(100vh-15rem)] overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-2xl">
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
+          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} /> : null}
           {selectedCountry ? (
