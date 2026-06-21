@@ -3,7 +3,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import Image from "next/image";
 import maplibregl, { type Map, type Marker } from "maplibre-gl";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Check,
   Compass,
@@ -441,9 +441,18 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   const { current, status, volume, userActivated, setStatus } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
   const attempted = useRef<string[]>([]);
+  const skipTimestamps = useRef<number[]>([]);
   const currentKey = current ? stationKey(current) : "";
 
   const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
+    const hardFailure = ["audio_error", "network_error", "unsupported_media", "autoplay_blocked", "missing_url", "abort", "playback_error"].includes(errorType);
+    const now = Date.now();
+    skipTimestamps.current = skipTimestamps.current.filter((timestamp) => now - timestamp < 20000);
+    if (!hardFailure && skipTimestamps.current.length >= 2) {
+      setStatus("buffering", "Finding a stronger live signal…");
+      return false;
+    }
+    skipTimestamps.current = [...skipTimestamps.current, now];
     markStationFailure(failed, errorType, detail);
     attempted.current = [...new Set([...attempted.current, stationKey(failed)])];
     const state = usePlayer.getState();
@@ -535,6 +544,9 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     let bufferTimer: number | undefined;
     let startupTimer: number | undefined;
     let lastReadyState = element.readyState;
+    let readyStatePatienceExtended = false;
+    let waitingEvents = 0;
+    let stalledEvents = 0;
     let loadedMetadata = false;
     let sawCanPlay = false;
     let sawProgress = false;
@@ -557,8 +569,11 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       sawProgress = true;
       if (readyStateImproved) lastReadyState = element.readyState;
       if (timeAdvanced) lastCurrentTime = element.currentTime;
-      if (readyStateImproved || timeAdvanced) {
+      if ((readyStateImproved || timeAdvanced) && !readyStatePatienceExtended) {
+        readyStatePatienceExtended = true;
         scheduleStartupTimer();
+        scheduleBufferTimer();
+      } else if (readyStateImproved || timeAdvanced) {
         scheduleBufferTimer();
       }
     };
@@ -579,7 +594,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       skipToNextCandidate(current, errorType, detail);
     };
     const onLoadedMetadata = () => { loadedMetadata = true; noteProgress(); };
-    const onCanPlay = () => { sawCanPlay = true; noteProgress(); clearStartupTimer(); clearBufferTimer(); };
+    const onCanPlay = () => { sawCanPlay = true; noteProgress(); clearStartupTimer(); scheduleBufferTimer(); };
     const onPlaying = () => {
       if (cancelled || failed) return;
       clearStartupTimer();
@@ -592,8 +607,16 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       debugTeleport("final station playing", { station: current.name, country: current.country_code, continent: stationContinent(current) });
       setStatus("playing");
     };
-    const onWaiting = () => scheduleBufferTimer("waiting");
-    const onStalled = () => scheduleBufferTimer("stalled");
+    const onWaiting = () => {
+      waitingEvents += 1;
+      const readyStateAtEvent = element.readyState;
+      scheduleBufferTimer(waitingEvents > 1 && readyStateAtEvent <= lastReadyState ? "waiting" : "buffer_timeout");
+    };
+    const onStalled = () => {
+      stalledEvents += 1;
+      const readyStateAtEvent = element.readyState;
+      scheduleBufferTimer(stalledEvents > 1 && readyStateAtEvent <= lastReadyState ? "stalled" : "buffer_timeout");
+    };
     const onAbort = () => fail("abort", "Audio request was aborted.");
     scheduleStartupTimer();
 
@@ -971,6 +994,7 @@ function diverseGlobalPool(stations: Station[], current: Station) {
 
 const ARRIVAL_COMPLETED_SESSION_KEY = "waveatlas:arrival-completed";
 const ARRIVAL_COMPLETED_EVENT = "waveatlas:arrival-completed";
+const TELEPORT_HINT_KEY = "waveatlas_seen_teleport_hint";
 const TELEPORT_HISTORY_KEY = "waveatlas_teleport_history";
 const TELEPORT_HISTORY_ALIAS_KEYS = ["waveatlas.teleport.history.v1"];
 const TELEPORT_HISTORY_SLICE_KEYS = { stationIds: "last25Stations", cities: "last10Cities", countries: "last5Countries", continents: "last3Continents", genres: "last10Genres", languages: "last10Languages" } as const;
@@ -1503,10 +1527,21 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   const [state, setState] = useState<"idle" | "teleporting" | "found" | "none">("idle");
   const [candidates, setCandidates] = useState<SignalCandidate[]>([]);
   const [index, setIndex] = useState(0);
+  const [showTeleportHint, setShowTeleportHint] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+  const playbackStatus = usePlayer((player) => player.status);
   const timer = useRef<number | null>(null);
   const longPressTriggered = useRef(false);
   const candidate = candidates[index] ?? null;
+  const pulseActive = !prefersReducedMotion && (playbackStatus === "idle" || playbackStatus === "playing") && state === "idle";
   const lockAnchor = useMemo(() => getCandidateLockAnchor(current, stations), [current, stations]);
+  useEffect(() => {
+    if (compact || !pulseActive || typeof window === "undefined" || window.localStorage.getItem(TELEPORT_HINT_KEY)) return;
+    window.localStorage.setItem(TELEPORT_HINT_KEY, "true");
+    const showTimer = window.setTimeout(() => setShowTeleportHint(true), 0);
+    const hideTimer = window.setTimeout(() => setShowTeleportHint(false), 3500);
+    return () => { window.clearTimeout(showTimer); window.clearTimeout(hideTimer); };
+  }, [compact, pulseActive]);
   const fallbackCandidates = useCallback((anchor: Station | null, explorationMode = false) => {
     const globalPool = interleaveByContinent(stations).filter((station) => station.id !== anchor?.id);
     if (!anchor || !selectedCountry) {
@@ -1547,11 +1582,13 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   return <>
     <motion.div animate={{ scale: compact ? 0.65 : 1 }} transition={{ type: "spring", damping: 24, stiffness: 260 }} className={`${mobile ? "fixed bottom-[172px] right-5 z-50 origin-bottom-right" : "absolute bottom-5 right-5 z-40 origin-bottom-right"}`}>
       <button type="button" aria-label="Take me somewhere unexpected." title="Take me somewhere unexpected." onClick={() => { if (longPressTriggered.current) { longPressTriggered.current = false; return; } void teleport(false); }} onContextMenu={(e) => { e.preventDefault(); onWander?.(); }} onPointerDown={() => { if (timer.current) window.clearTimeout(timer.current); longPressTriggered.current = false; timer.current = window.setTimeout(() => { longPressTriggered.current = true; onWander?.(); }, 650); }} onPointerUp={() => { if (timer.current) window.clearTimeout(timer.current); }} className="group relative grid size-20 place-items-center rounded-full border border-white/15 bg-slate-950/80 text-white shadow-[0_24px_80px_rgba(0,0,0,.45)] backdrop-blur-xl transition duration-300 hover:border-radio/40 hover:bg-slate-950/90">
+        {pulseActive ? <motion.span aria-hidden className="pointer-events-none absolute inset-[-10px] rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_28px_rgba(0,214,143,0.22)]" initial={{ scale: 1, opacity: 0.45 }} animate={{ scale: [1, 1.08], opacity: [0.45, 0] }} transition={{ repeat: Infinity, duration: 2.8, ease: "easeOut" }} /> : null}
         <span className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_48%,rgba(88,225,132,.18),transparent_46%)]" />
         <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 8, ease: "linear" }} className="absolute inset-1 rounded-full bg-[conic-gradient(from_90deg,rgba(88,225,132,.95),rgba(88,225,132,.25),rgba(255,255,255,.08),rgba(88,225,132,.95))] opacity-80" />
         <span className="absolute inset-[6px] rounded-full bg-slate-950/95 shadow-inner" />
         <Plane className="relative size-7 text-radio drop-shadow-[0_0_14px_rgba(88,225,132,.75)] transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
       </button>
+      <AnimatePresence>{showTeleportHint ? <motion.p initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="mt-3 rounded-full border border-radio/20 bg-slate-950/90 px-3 py-1.5 text-center text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Tap Teleport to land somewhere new.</motion.p> : null}</AnimatePresence>
       <AnimatePresence>{!compact ? <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-3 flex flex-col items-center gap-2 font-sans">
         <span className="text-xs font-medium tracking-normal text-ivory/75">Teleport</span>
         <div className="flex justify-center gap-2 text-xs font-medium text-ivory/75">
