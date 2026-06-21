@@ -97,22 +97,22 @@ export function WaveAtlasDaily({ station, open, onClose }: { station: Station; o
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-auto fixed inset-0 z-[65] bg-black/20 backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-        <motion.section ref={sheetRef} initial={{ opacity: 0, y: 26, rotateX: -2 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} exit={{ opacity: 0, y: 26 }} transition={{ duration: 0.3, ease: "easeOut" }} className="pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+86px)] z-[65] max-h-[78dvh] overflow-hidden rounded-t-[1.25rem] border border-[rgba(60,45,25,0.20)] bg-[#F4EFE2] text-[#151515] shadow-[0_24px_80px_rgba(0,0,0,0.35)] before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-8 before:rounded-b-[50%] before:bg-[linear-gradient(to_bottom,rgba(255,255,255,.65),rgba(20,20,20,.05),transparent)] md:left-1/2 md:right-auto md:bottom-28 md:w-[min(860px,calc(100vw-4rem))] md:-translate-x-1/2 md:rounded-[1.35rem]" role="dialog" aria-modal="true" aria-label="WaveAtlas Daily">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-auto fixed inset-0 z-[65] h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden overflow-y-auto bg-black/20 px-4 pb-[max(32px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))] backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+        <motion.section ref={sheetRef} initial={{ opacity: 0, y: 26, rotateX: -2 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} exit={{ opacity: 0, y: 26 }} transition={{ duration: 0.3, ease: "easeOut" }} className="pointer-events-auto relative z-[65] mx-auto mb-24 w-[min(720px,calc(100vw-32px))] max-w-full overflow-x-hidden rounded-t-[1.25rem] border border-[rgba(60,45,25,0.20)] bg-[#F4EFE2] text-[#151515] shadow-[0_24px_80px_rgba(0,0,0,0.35)] [box-sizing:border-box] before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-8 before:rounded-b-[50%] before:bg-[linear-gradient(to_bottom,rgba(255,255,255,.65),rgba(20,20,20,.05),transparent)] md:mb-28 md:w-[min(860px,calc(100vw-4rem))] md:rounded-[1.35rem]" role="dialog" aria-modal="true" aria-label="WaveAtlas Daily">
           <div className="pointer-events-none absolute inset-0 opacity-85 [background-image:radial-gradient(circle_at_18%_8%,rgba(255,255,255,.7),transparent_28%),radial-gradient(circle_at_78%_4%,rgba(138,90,34,.13),transparent_24%),linear-gradient(90deg,rgba(20,20,20,.028)_1px,transparent_1px),linear-gradient(rgba(20,20,20,.024)_1px,transparent_1px)] [background-size:100%_100%,100%_100%,16px_16px,16px_16px]" />
-          <div className="relative max-h-[78dvh] overflow-y-auto p-4 md:p-7">
-            <header className="border-b-4 border-double border-[#151515] pb-3 text-center">
-              <div className="mb-3 flex items-center justify-between gap-3 text-left">
-                <span className="rounded-full border border-slate-900/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#4A4033]"><Radio className="mr-1 inline size-3" />Live Signal</span>
-                <button type="button" onClick={onClose} className="pointer-events-auto grid size-10 place-items-center rounded-full border border-slate-900/20 bg-white/35 text-slate-950 hover:bg-white/60" aria-label="Close WaveAtlas Daily"><X className="size-4" /></button>
-              </div>
+          <div className="relative max-w-full overflow-x-hidden p-4 [box-sizing:border-box] md:p-7">
+            <div className="sticky top-[max(12px,env(safe-area-inset-top))] z-50 mb-3 flex max-w-full items-center justify-between gap-3 overflow-x-hidden text-left">
+              <span className="min-w-0 max-w-full rounded-full border border-slate-900/20 bg-[#F4EFE2]/90 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#4A4033] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word]"><Radio className="mr-1 inline size-3" />Live Signal</span>
+              <button type="button" onClick={onClose} className="pointer-events-auto ml-auto grid size-10 shrink-0 place-items-center rounded-full border border-slate-900/20 bg-white/80 text-slate-950 shadow-lg backdrop-blur hover:bg-white" aria-label="Close WaveAtlas Daily"><X className="size-4" /></button>
+            </div>
+            <header className="max-w-full overflow-x-hidden border-b-4 border-double border-[#151515] pb-3 text-center">
               <p className="font-serif text-xs font-black uppercase tracking-[0.32em] text-[#4A4033]">WaveAtlas Daily™</p>
-              <h2 className="mt-1 font-serif text-5xl font-black leading-none tracking-[-0.07em] text-[#151515] md:text-7xl">{editionTitle}</h2>
-              <p className="mt-2 font-serif text-sm italic text-[#4A4033]">{place.city}, {place.country} • {localDate}</p>
+              <h2 className="mt-1 max-w-full font-serif text-5xl font-black leading-none tracking-[-0.07em] text-[#151515] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word] md:text-7xl">{editionTitle}</h2>
+              <p className="mt-2 max-w-full font-serif text-sm italic text-[#4A4033] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word]">{place.city}, {place.country} • {localDate}</p>
               <p className="mt-1 font-serif text-xs font-bold uppercase tracking-[0.18em] text-[#4A4033]">Live stories from this destination</p>
             </header>
 
-            <nav className="my-4 flex gap-2 overflow-x-auto border-y border-slate-900/25 py-2">
+            <nav className="my-4 flex max-w-full flex-wrap gap-2 overflow-x-hidden border-y border-slate-900/25 py-2">
               {tabs.map((item) => <button key={item} onClick={() => setTab(item)} className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] ${tab === item ? "bg-slate-950 text-white" : "text-[#4A4033]"}`}>{item}</button>)}
             </nav>
 
@@ -123,8 +123,8 @@ export function WaveAtlasDaily({ station, open, onClose }: { station: Station; o
             {loading ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">Setting type and fetching open headlines without interrupting playback…</p> : null}
             {error ? <p className="mb-4 rounded-2xl border border-amber-700/30 bg-amber-200/35 p-4 font-serif text-sm text-amber-950">{error}</p> : null}
             {!loading && !headlines.length ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">No fresh local headlines found yet. Try another destination or keep listening while the next edition forms.</p> : null}
-            <div className="grid gap-x-6 gap-y-5 md:grid-cols-[1.15fr_.85fr]">{headlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0} />)}</div>
-            <footer className="mt-6 border-t-4 border-double border-[#151515]/70 pt-3 font-serif text-xs text-[#4A4033]">
+            <div className="grid max-w-full gap-x-6 gap-y-5 overflow-x-hidden md:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">{headlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0} />)}</div>
+            <footer className="mt-6 max-w-full overflow-x-hidden border-t-4 border-double border-[#151515]/70 pt-3 font-serif text-xs text-[#4A4033] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word]">
               <div className="grid gap-2 text-left sm:grid-cols-4"><span><b>Radio Signal:</b> {station.name}</span><span><b>Edition:</b> {place.city}, {place.country}</span><span><b>Genre:</b> {genre}</span><span><b>Local Time:</b> {localTime}</span></div>
               <p className="mt-3 text-center"><Newspaper className="mr-1 inline size-3" /> Open RSS + GDELT sources. Summaries and links only; full articles remain with publishers.</p>
             </footer>
