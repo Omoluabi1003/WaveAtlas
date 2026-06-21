@@ -8,11 +8,11 @@ export type StationTrustClass = "unknown_station" | "radio_browser_station" | "c
 export type AdaptiveBufferPolicy = { startupTimeoutMs: number; bufferTimeoutMs: number; maxAttempts: number; trusted: boolean; message: string; timeoutMessage: string };
 
 export const ADAPTIVE_BUFFER_POLICIES: Record<StationTrustClass, AdaptiveBufferPolicy> = {
-  unknown_station: { startupTimeoutMs: 4000, bufferTimeoutMs: 6000, maxAttempts: 1, trusted: false, message: "Finding a stronger signal…", timeoutMessage: "Finding a stronger signal…" },
-  radio_browser_station: { startupTimeoutMs: 5000, bufferTimeoutMs: 7000, maxAttempts: 1, trusted: false, message: "Finding a stronger signal…", timeoutMessage: "Finding a stronger signal…" },
-  curated_station: { startupTimeoutMs: 8000, bufferTimeoutMs: 12000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "This signal is taking too long. Trying another live station…" },
-  verified_station: { startupTimeoutMs: 10000, bufferTimeoutMs: 15000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "This signal is taking too long. Trying another live station…" },
-  recently_successful_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 18000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "This signal is taking too long. Trying another live station…" },
+  unknown_station: { startupTimeoutMs: 6500, bufferTimeoutMs: 10000, maxAttempts: 1, trusted: false, message: "Finding a stronger live signal…", timeoutMessage: "Finding a stronger live signal…" },
+  radio_browser_station: { startupTimeoutMs: 7500, bufferTimeoutMs: 11000, maxAttempts: 1, trusted: false, message: "Finding a stronger live signal…", timeoutMessage: "Finding a stronger live signal…" },
+  curated_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 16000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
+  verified_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 16000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
+  recently_successful_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 18000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
 };
 
 export const FAST_CONNECT_STARTUP_TIMEOUT_MS = ADAPTIVE_BUFFER_POLICIES.unknown_station.startupTimeoutMs;
@@ -21,7 +21,7 @@ export const FAST_CONNECT_PARALLEL_CANDIDATES = 5;
 export const FAST_CONNECT_MAX_ATTEMPTS_BEFORE_GLOBAL_FALLBACK = 3;
 export const FAST_CONNECT_COPY = {
   connecting: "Connecting to live signal…",
-  retrying: "Finding a stronger signal…",
+  retrying: "Finding a stronger live signal…",
   fallback: "Tuning into another destination…",
   failed: "This signal is weak. We are checking it in the background.",
 } as const;
