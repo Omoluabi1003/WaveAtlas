@@ -28,6 +28,7 @@ type Props = {
   teleporting?: boolean;
   onCountrySelect?: (country: CountryResult) => void;
   onFallback?: (reason: string) => void;
+  mobile?: boolean;
 };
 
 const COUNTRY_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
@@ -122,12 +123,14 @@ function lowPowerDevice() {
   return (nav.deviceMemory ?? 8) <= 3 || (nav.hardwareConcurrency ?? 8) <= 4;
 }
 
-export default function BlueMarbleGlobe({ station, teleporting = false, onCountrySelect, onFallback }: Props) {
+export default function BlueMarbleGlobe({ station, teleporting = false, onCountrySelect, onFallback, mobile = false }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
   const [landShapes, setLandShapes] = useState<LandShape[]>([]);
-  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false });
+  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false });
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchDistance = useRef<number | null>(null);
   const currentPoint = useMemo(() => stationPoint(station), [station]);
   const stationLabel = useMemo(() => [station.city || station.state, station.country].filter(Boolean).join(", ") || station.name, [station]);
 
@@ -221,8 +224,8 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       s.rotX += (s.targetX - s.rotX) * ease;
       s.rotY += (s.targetY - s.rotY) * ease;
       s.zoom += (s.targetZoom - s.zoom) * ease;
-      if (!s.dragging && !s.disabledMotion) s.targetY += 0.00035 * (teleporting ? 2.6 : 1);
-      const r = Math.min(w, h) * 0.34 * s.zoom;
+      if (!s.dragging && !s.disabledMotion && !s.hidden) s.targetY += (mobile ? 0.00016 : 0.00035) * (teleporting ? (mobile ? 1.4 : 2.6) : 1);
+      const r = Math.min(w, h) * (mobile ? 0.39 : 0.34) * s.zoom;
       const cx = w / 2, cy = h / 2;
 
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
@@ -246,37 +249,41 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       ctx.strokeStyle = "rgba(147,197,253,0.07)"; ctx.lineWidth = 0.7;
       for (let lat = -75; lat <= 75; lat += 15) { ctx.beginPath(); for (let lng = -180; lng <= 180; lng += 4) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) continue; lng === -180 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.stroke(); }
       for (let lng = -180; lng < 180; lng += 15) { ctx.beginPath(); let started = false; for (let lat = -85; lat <= 85; lat += 3) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) { started = false; continue; } started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); started = true; } ctx.stroke(); }
-      if (s.zoom > 1.28) {
+      if (!mobile && s.zoom > 1.28) {
         const visibleLabels = landShapes.filter((shape) => shape.code && isoCountryCentroids[shape.code]).slice(0, 70);
         for (const shape of visibleLabels) {
           const centroid = isoCountryCentroids[shape.code as keyof typeof isoCountryCentroids] ?? shape.centroid;
           drawLabel(shape.name, centroid.lat, centroid.lng, w, h, r);
         }
       }
-      if (currentPoint) { const p = project(currentPoint.lat, currentPoint.lng, w, h, r); if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / 180) * 0.22; ctx.fillStyle = "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, 18 * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); drawLabel(stationLabel, currentPoint.lat, currentPoint.lng, w, h, r, true); } }
+      if (currentPoint) { const p = project(currentPoint.lat, currentPoint.lng, w, h, r); if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / (mobile ? 260 : 180)) * (mobile ? 0.12 : 0.22); ctx.fillStyle = "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, 18 * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); drawLabel(stationLabel, currentPoint.lat, currentPoint.lng, w, h, r, true); } }
       ctx.restore();
       ctx.strokeStyle = "rgba(0,214,143,0.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
       raf = requestAnimationFrame(draw);
     };
+    const onVisibility = () => { state.current.hidden = document.hidden; };
+    document.addEventListener("visibilitychange", onVisibility);
     raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [currentPoint, focusPoint, landShapes, onFallback, stationLabel, teleporting]);
+    return () => { document.removeEventListener("visibilitychange", onVisibility); cancelAnimationFrame(raf); };
+  }, [currentPoint, focusPoint, landShapes, mobile, onFallback, stationLabel, teleporting]);
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, teleporting]);
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); };
-  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; s.targetY += dx * 0.006; s.targetX = Math.max(-70 * DEG, Math.min(70 * DEG, s.targetX + dy * 0.004)); s.lastX = event.clientX; s.lastY = event.clientY; };
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); };
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) s.targetZoom = Math.max(0.82, Math.min(1.65, s.targetZoom + (distance - pinchDistance.current) * 0.003)); pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; s.targetY += dx * (mobile ? 0.0045 : 0.006); s.targetX = Math.max(-70 * DEG, Math.min(70 * DEG, s.targetX + dy * (mobile ? 0.003 : 0.004))); s.lastX = event.clientX; s.lastY = event.clientY; };
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const s = state.current; s.dragging = false;
+    pointers.current.delete(event.pointerId);
+    pinchDistance.current = null;
+    const s = state.current; s.dragging = pointers.current.size > 0;
     if (Math.hypot(event.clientX - s.downX, event.clientY - s.downY) > 8) return;
-    const rect = event.currentTarget.getBoundingClientRect(); const x = event.clientX - rect.left - rect.width / 2; const y = rect.height / 2 - (event.clientY - rect.top); const r = Math.min(rect.width, rect.height) * 0.34 * s.zoom; const nx = x / r; const ny = y / r; if (nx * nx + ny * ny > 1) return;
+    const rect = event.currentTarget.getBoundingClientRect(); const x = event.clientX - rect.left - rect.width / 2; const y = rect.height / 2 - (event.clientY - rect.top); const r = Math.min(rect.width, rect.height) * (mobile ? 0.39 : 0.34) * s.zoom; const nx = x / r; const ny = y / r; if (nx * nx + ny * ny > 1) return;
     const nz = Math.sqrt(1 - nx * nx - ny * ny); const sinX = Math.sin(s.rotX); const cosX = Math.cos(s.rotX); const worldY = ny * cosX + nz * sinX; const worldZ = nz * cosX - ny * sinX; const lat = Math.asin(worldY) / DEG; const lng = (Math.atan2(nx, worldZ) - s.rotY) / DEG; const normalizedLng = ((lng + 540) % 360) - 180; const country = nearestCountry(lat, normalizedLng); if (country) onCountrySelect?.(country);
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.65, s.targetZoom - event.deltaY * 0.001)); };
 
-  return <div ref={wrapRef} className="relative h-full min-h-[620px] w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl">
+  return <div ref={wrapRef} className={`${mobile ? "fixed inset-0 h-[100dvh] min-h-[100dvh]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
     <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
-    <div className="pointer-events-none absolute left-6 top-20 z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 shadow-lg backdrop-blur-xl xl:left-8">Blue Marble Globe · drag, zoom, tap to tune</div>
-    <div className="pointer-events-none absolute bottom-28 right-6 z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl xl:right-8"><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing procedural globe…"}</span></div>
+    <div className={`${mobile ? "left-4 top-[calc(env(safe-area-inset-top)+88px)] text-[9px]" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 shadow-lg backdrop-blur-xl`}>Blue Marble Globe · drag, zoom, tap to tune</div>
+    <div className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing procedural globe…"}</span></div>
   </div>;
 }

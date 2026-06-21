@@ -46,7 +46,7 @@ import type { WorldContext } from "@/lib/world-engine/types";
 const BlueMarbleGlobe = dynamic(() => import("@/components/BlueMarbleGlobe"), {
   ssr: false,
   loading: () => (
-    <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.14),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl">
+    <div className="relative h-full min-h-[100dvh] w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.14),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl">
       <div className="absolute left-1/2 top-1/2 size-[min(58vw,58vh)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/20 bg-slate-950/60 shadow-[0_0_90px_rgba(0,214,143,.18)]" />
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-slate-950/65 px-5 py-3 text-sm font-medium text-ivory shadow-2xl backdrop-blur-xl">Preparing Audio Tourism globe…</div>
     </div>
@@ -2082,13 +2082,13 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, 
 }
 
 
-type AtlasGuideToastKind = "status" | "alert";
-type AtlasGuideToastEventDetail = { title: string; subtitle?: string; kind?: AtlasGuideToastKind; id?: string };
+type AtlasToastKind = "status" | "alert";
+type AtlasToastEventDetail = { title: string; subtitle?: string; kind?: AtlasToastKind; id?: string };
 
-const ATLAS_GUIDE_TOAST_EVENT = "waveatlas:atlas-guide-toast";
-const ATLAS_GUIDE_TOAST_DURATION_MS = 6000;
+const ATLAS_TOAST_EVENT = "waveatlas:atlas-toast";
+const ATLAS_TOAST_DURATION_MS = 6000;
 
-function uniqueGuideParts(parts: Array<string | undefined>) {
+function uniqueToastParts(parts: Array<string | undefined>) {
   const seen = new Set<string>();
   return parts.map((part) => part?.trim()).filter((part): part is string => {
     if (!part) return false;
@@ -2107,8 +2107,8 @@ function stationPlaceLabel(station: Station) {
   return [station.city || station.state, station.country].filter(Boolean).join(", ") || station.country || "Earth";
 }
 
-function buildAtlasGuideToast(station: Station, override?: Partial<AtlasGuideToastEventDetail>): AtlasGuideToastEventDetail {
-  const languages = uniqueGuideParts((station.language || "").split(/[,/•]+/).map((language) => language.trim())).slice(0, 2);
+function buildAtlasToast(station: Station, override?: Partial<AtlasToastEventDetail>): AtlasToastEventDetail {
+  const languages = uniqueToastParts((station.language || "").split(/[,/•]+/).map((language) => language.trim())).slice(0, 2);
   const languageLine = languages.length ? languages.join(" • ") : undefined;
   const soundTags = station.tags.filter((tag) => !["ariyo-ai-seed", "waveatlas-curated", "curators-picks", "verified"].includes(tag.toLowerCase())).slice(0, 2).map(titleCaseTag);
   const soundLine = soundTags.length ? soundTags.join(" • ") : getPrimaryGenre(station);
@@ -2119,24 +2119,24 @@ function buildAtlasGuideToast(station: Station, override?: Partial<AtlasGuideToa
       : undefined;
   return {
     title: `You've landed in ${stationPlaceLabel(station)}.`,
-    subtitle: uniqueGuideParts([languageLine, soundLine, signalLine]).slice(0, 3).join(" • "),
+    subtitle: uniqueToastParts([languageLine, soundLine, signalLine]).slice(0, 3).join(" • "),
     kind: "status",
     id: `station-${stationKey(station)}`,
     ...override,
   };
 }
 
-function dispatchAtlasGuideToast(detail: AtlasGuideToastEventDetail) {
+function dispatchAtlasToast(detail: AtlasToastEventDetail) {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent<AtlasGuideToastEventDetail>(ATLAS_GUIDE_TOAST_EVENT, { detail }));
+  window.dispatchEvent(new CustomEvent<AtlasToastEventDetail>(ATLAS_TOAST_EVENT, { detail }));
 }
 
-function AtlasGuide({ station, mobile = false }: { station: Station; mobile?: boolean }) {
+function AtlasToast({ station, mobile = false }: { station: Station; mobile?: boolean }) {
   const reducedMotion = useReducedMotion();
   const playerStatus = usePlayer((state) => state.status);
   const playerError = usePlayer((state) => state.error);
   const source = usePlayer((state) => state.stationSelectionSource);
-  const [toast, setToast] = useState<AtlasGuideToastEventDetail>(() => buildAtlasGuideToast(station));
+  const [toast, setToast] = useState<AtlasToastEventDetail>(() => buildAtlasToast(station));
   const [visible, setVisible] = useState(true);
   const [paused, setPaused] = useState(false);
   const toastKey = toast.id ?? `${toast.title}-${toast.subtitle ?? ""}`;
@@ -2144,7 +2144,7 @@ function AtlasGuide({ station, mobile = false }: { station: Station; mobile?: bo
   useEffect(() => {
     const titlePrefix = source === "fallback" ? "Signal unavailable. Trying another station." : undefined;
     window.queueMicrotask(() => {
-      setToast(buildAtlasGuideToast(station, titlePrefix ? { title: titlePrefix, kind: "alert", id: `fallback-${stationKey(station)}-${Date.now()}` } : undefined));
+      setToast(buildAtlasToast(station, titlePrefix ? { title: titlePrefix, kind: "alert", id: `fallback-${stationKey(station)}-${Date.now()}` } : undefined));
       setVisible(true);
       setPaused(false);
     });
@@ -2161,19 +2161,19 @@ function AtlasGuide({ station, mobile = false }: { station: Station; mobile?: bo
 
   useEffect(() => {
     const onToast = (event: Event) => {
-      const detail = (event as CustomEvent<AtlasGuideToastEventDetail>).detail;
+      const detail = (event as CustomEvent<AtlasToastEventDetail>).detail;
       if (!detail?.title) return;
       setToast({ kind: "status", id: `custom-${Date.now()}`, ...detail });
       setVisible(true);
       setPaused(false);
     };
-    window.addEventListener(ATLAS_GUIDE_TOAST_EVENT, onToast);
-    return () => window.removeEventListener(ATLAS_GUIDE_TOAST_EVENT, onToast);
+    window.addEventListener(ATLAS_TOAST_EVENT, onToast);
+    return () => window.removeEventListener(ATLAS_TOAST_EVENT, onToast);
   }, []);
 
   useEffect(() => {
     if (!visible || paused) return;
-    const timer = window.setTimeout(() => setVisible(false), ATLAS_GUIDE_TOAST_DURATION_MS);
+    const timer = window.setTimeout(() => setVisible(false), ATLAS_TOAST_DURATION_MS);
     return () => window.clearTimeout(timer);
   }, [paused, toastKey, visible]);
 
@@ -2193,7 +2193,7 @@ function AtlasGuide({ station, mobile = false }: { station: Station; mobile?: bo
           onFocus={() => setPaused(true)}
           onBlur={() => setPaused(false)}
           className={`${mobile ? "fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+174px)] z-[58] mx-auto w-[calc(100vw-32px)]" : "fixed bottom-28 left-1/2 z-[58] w-[min(380px,calc(100vw-32px))] -translate-x-1/2"} pointer-events-auto max-h-[92px] min-h-[52px] max-w-[380px] overflow-hidden rounded-[18px] border border-white/[0.10] bg-[rgba(8,17,29,0.88)] px-4 py-3 text-[#F8FAFC] shadow-[0_14px_42px_rgba(0,0,0,0.35)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(1.15)]`}
-          aria-label="Atlas Guide notification"
+          aria-label="Station notification"
         >
           <div className="flex items-start gap-3">
             <Compass className="mt-0.5 size-4 shrink-0 text-[#D4A64A]" aria-hidden="true" />
@@ -2258,6 +2258,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [mode, setMode] = useState("Atlas");
   const [resetSignal, setResetSignal] = useState(0);
   const [basemap, setBasemap] = useState<BasemapKey>(() => getInitialBasemap(true));
+  const [mobileGlobeFallbackReason, setMobileGlobeFallbackReason] = useState("");
   const [wanderOpen, setWanderOpen] = useState(false);
   const [mobileTeleporting, setMobileTeleporting] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
@@ -2285,7 +2286,12 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   }, [makeWandererHop, wandererActive]);
   const visualViewport = useIOSVisualViewport();
   return <section className="fixed inset-0 h-[100dvh] w-full max-w-full overflow-hidden bg-transparent text-white md:hidden">
-    <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
+    {mobileGlobeFallbackReason ? (
+      <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
+    ) : (
+      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile onCountrySelect={onCountrySelect} onFallback={setMobileGlobeFallbackReason} />
+    )}
+    {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setCurrentStationAndDestination(station); }, 250); }} />
     <SelectedStationTheater station={current} />
@@ -2297,7 +2303,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
         <AddYourSignalPanel compact onCancel={() => setMode("Atlas")} />
       </div>
     ) : null}
-    <AtlasGuide station={current} mobile />
+    <AtlasToast station={current} mobile />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <NewspaperBrief station={current} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
@@ -2362,13 +2368,13 @@ function AddYourSignalPanel({ compact = false, onCancel }: { compact?: boolean; 
     if (!res.ok) {
       setStatus("error");
       setMessage(data.error || "Signal submission failed. Please check the stream URL and try again.");
-      dispatchAtlasGuideToast({ title: data.error || "Signal submission failed. Please check the stream URL and try again.", kind: "alert" });
+      dispatchAtlasToast({ title: data.error || "Signal submission failed. Please check the stream URL and try again.", kind: "alert" });
       return;
     }
     event.currentTarget.reset();
     setStatus("success");
     setMessage(data.message || "Your signal has been received. Once verified, it may join the WaveAtlas™ global map.");
-    dispatchAtlasGuideToast({ title: "Your signal has been received.", subtitle: "Once verified, it may join the WaveAtlas™ global map." });
+    dispatchAtlasToast({ title: "Your signal has been received.", subtitle: "Once verified, it may join the WaveAtlas™ global map." });
   }
 
   return <section className={`flex w-full flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,17,31,0.92)] shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-[24px] ${compact ? "max-h-[calc(100dvh_-_48px_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] max-w-[94vw]" : "max-h-[86dvh] max-w-[720px]"}`}>
@@ -2770,7 +2776,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
       </aside> : null}
       <NewspaperBrief station={current} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
-      <AtlasGuide station={current} />
+      <AtlasToast station={current} />
       <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
