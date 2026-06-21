@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Newspaper, Radio, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NewspaperHeadline } from "@/components/NewspaperHeadline";
 import type { Headline } from "@/lib/news-agent";
 import type { Station } from "@/lib/stations";
@@ -48,9 +48,14 @@ export function WaveAtlasDaily({ station, open, onClose }: { station: Station; o
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<(typeof tabs)[number]>("Front Page");
+  const [editionClock] = useState(() => new Date());
+  const sheetRef = useRef<HTMLElement | null>(null);
   const key = useMemo(() => stationBriefKey(station), [station]);
   const place = destination(station);
   const editionTitle = `${place.city.toUpperCase()} DAILY`;
+  const localDate = useMemo(() => new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(editionClock), [editionClock]);
+  const localTime = useMemo(() => typeof station.longitude === "number" ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(editionClock.getTime() + Math.round(station.longitude / 15) * 3600_000)) : "Local time unavailable", [editionClock, station.longitude]);
+  const genre = station.tags?.[0] || station.language || "Live radio";
 
   useEffect(() => {
     if (!open) return;
@@ -80,12 +85,20 @@ export function WaveAtlasDaily({ station, open, onClose }: { station: Station; o
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [key, open, place.city, place.country, station.country_code, station.language]);
+  }, [key, open, place.city, place.country, station.country_code, station.language, station.longitude]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose, open]);
 
   return (
     <AnimatePresence>
       {open ? (
-        <motion.section initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 32 }} className="pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+86px)] z-[65] max-h-[78dvh] overflow-hidden rounded-t-[1.25rem] border border-[#141414]/20 bg-[#F4EFE2]/[.97] text-[#151515] shadow-2xl md:inset-x-auto md:bottom-28 md:right-8 md:w-[min(760px,calc(100vw-4rem))] md:rounded-[1.35rem]" role="dialog" aria-label="WaveAtlas Daily">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-auto fixed inset-0 z-[65] bg-black/20 backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+        <motion.section ref={sheetRef} initial={{ opacity: 0, y: 26, rotateX: -2 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} exit={{ opacity: 0, y: 26 }} transition={{ duration: 0.3, ease: "easeOut" }} className="pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+86px)] z-[65] max-h-[78dvh] overflow-hidden rounded-t-[1.25rem] border border-[rgba(60,45,25,0.20)] bg-[#F4EFE2] text-[#151515] shadow-[0_24px_80px_rgba(0,0,0,0.35)] before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-8 before:rounded-b-[50%] before:bg-[linear-gradient(to_bottom,rgba(255,255,255,.65),rgba(20,20,20,.05),transparent)] md:left-1/2 md:right-auto md:bottom-28 md:w-[min(860px,calc(100vw-4rem))] md:-translate-x-1/2 md:rounded-[1.35rem]" role="dialog" aria-modal="true" aria-label="WaveAtlas Daily">
           <div className="pointer-events-none absolute inset-0 opacity-85 [background-image:radial-gradient(circle_at_18%_8%,rgba(255,255,255,.7),transparent_28%),radial-gradient(circle_at_78%_4%,rgba(138,90,34,.13),transparent_24%),linear-gradient(90deg,rgba(20,20,20,.028)_1px,transparent_1px),linear-gradient(rgba(20,20,20,.024)_1px,transparent_1px)] [background-size:100%_100%,100%_100%,16px_16px,16px_16px]" />
           <div className="relative max-h-[78dvh] overflow-y-auto p-4 md:p-7">
             <header className="border-b-4 border-double border-[#151515] pb-3 text-center">
@@ -95,7 +108,8 @@ export function WaveAtlasDaily({ station, open, onClose }: { station: Station; o
               </div>
               <p className="font-serif text-xs font-black uppercase tracking-[0.32em] text-[#4A4033]">WaveAtlas Daily™</p>
               <h2 className="mt-1 font-serif text-5xl font-black leading-none tracking-[-0.07em] text-[#151515] md:text-7xl">{editionTitle}</h2>
-              <p className="mt-2 font-serif text-sm italic text-[#4A4033]">{place.city}, {place.country}. Live stories from this destination.</p>
+              <p className="mt-2 font-serif text-sm italic text-[#4A4033]">{place.city}, {place.country} • {localDate}</p>
+              <p className="mt-1 font-serif text-xs font-bold uppercase tracking-[0.18em] text-[#4A4033]">Live stories from this destination</p>
             </header>
 
             <nav className="my-4 flex gap-2 overflow-x-auto border-y border-slate-900/25 py-2">
@@ -109,10 +123,14 @@ export function WaveAtlasDaily({ station, open, onClose }: { station: Station; o
             {loading ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">Setting type and fetching open headlines without interrupting playback…</p> : null}
             {error ? <p className="mb-4 rounded-2xl border border-amber-700/30 bg-amber-200/35 p-4 font-serif text-sm text-amber-950">{error}</p> : null}
             {!loading && !headlines.length ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">No fresh local headlines found yet. Try another destination or keep listening while the next edition forms.</p> : null}
-            <div className="grid gap-5 md:grid-cols-2">{headlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0} />)}</div>
-            <footer className="mt-5 border-t border-slate-900/25 pt-3 text-center font-serif text-xs text-[#4A4033]"><Newspaper className="mr-1 inline size-3" /> Open RSS + GDELT sources. Summaries and links only; full articles remain with publishers.</footer>
+            <div className="grid gap-x-6 gap-y-5 md:grid-cols-[1.15fr_.85fr]">{headlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0} />)}</div>
+            <footer className="mt-6 border-t-4 border-double border-[#151515]/70 pt-3 font-serif text-xs text-[#4A4033]">
+              <div className="grid gap-2 text-left sm:grid-cols-4"><span><b>Radio Signal:</b> {station.name}</span><span><b>Edition:</b> {place.city}, {place.country}</span><span><b>Genre:</b> {genre}</span><span><b>Local Time:</b> {localTime}</span></div>
+              <p className="mt-3 text-center"><Newspaper className="mr-1 inline size-3" /> Open RSS + GDELT sources. Summaries and links only; full articles remain with publishers.</p>
+            </footer>
           </div>
         </motion.section>
+        </motion.div>
       ) : null}
     </AnimatePresence>
   );
