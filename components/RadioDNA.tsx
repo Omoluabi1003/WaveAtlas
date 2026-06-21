@@ -59,15 +59,15 @@ export function RadioDNA({ context, status = "idle" }: { context: WorldContext |
   const isLowConfidence = geoConfidence < 50;
 
   return (
-    <section className="overflow-hidden rounded-[1.5rem] border border-white/8 bg-white/[0.025] p-4 text-left shadow-lg shadow-black/10">
-      <div className="flex items-start justify-between gap-3">
+    <details className="group overflow-hidden rounded-[1.5rem] border border-white/8 bg-white/[0.025] p-4 text-left shadow-lg shadow-black/10">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
         <div>
           <p className="font-display text-[11px] font-semibold uppercase tracking-[0.24em] text-gold/80">Radio DNA</p>
           <h3 className="mt-1.5 text-base font-semibold tracking-tight text-white/88">Station signal profile</h3>
           <p className="mt-1 text-xs text-ivory/48">Playback-safe metadata and supporting context.</p>
         </div>
         <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${confidenceTone(geoConfidence)}`}>{geoConfidence}% geo</span>
-      </div>
+      </summary>
 
       {isLowConfidence ? <p className="mt-4 rounded-2xl border border-gold/20 bg-gold/10 px-3 py-2 text-xs leading-5 text-gold/85">Low confidence: treating this as country-level context until stronger station geography is available.</p> : null}
 
@@ -78,10 +78,10 @@ export function RadioDNA({ context, status = "idle" }: { context: WorldContext |
         <span className="rounded-full border border-white/8 bg-black/10 px-2.5 py-1">{openDataCount ? "Open data ready" : "Open data pending"}</span>
       </div>
 
-      <details className="group mt-4 rounded-2xl border border-white/8 bg-black/10 px-3.5 py-3">
+      <details className="group/support mt-4 rounded-2xl border border-white/8 bg-black/10 px-3.5 py-3">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-ivory/58 [&::-webkit-details-marker]:hidden">
           <span className="flex items-center gap-2"><Sparkles className="size-3.5 text-gold" />Supporting intelligence</span>
-          <ChevronDown className="size-3.5 transition group-open:rotate-180" />
+          <ChevronDown className="size-3.5 transition group-open/support:rotate-180" />
         </summary>
         <div className="mt-3 grid gap-2 text-sm leading-6 text-ivory/70 sm:grid-cols-2">
           <p><b className="text-ivory/90">Culture:</b> {dna.culturalSummary || "Pending."}</p>
@@ -90,6 +90,6 @@ export function RadioDNA({ context, status = "idle" }: { context: WorldContext |
           <p><b className="text-ivory/90">Sources:</b> {sourceCount ? successfulSources.map((source) => source.source).slice(0, 4).join(" · ") : "Fallback"}</p>
         </div>
       </details>
-    </section>
+    </details>
   );
 }
