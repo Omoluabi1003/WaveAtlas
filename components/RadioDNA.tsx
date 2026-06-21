@@ -30,7 +30,7 @@ export function RadioDNA({ context, status = "idle" }: { context: WorldContext |
 
   if (status === "loading") {
     return (
-      <section className="rounded-[1.75rem] border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.025))] p-4 text-left shadow-2xl shadow-black/20">
+      <section className="rounded-[1.5rem] border border-white/8 bg-white/[0.025] p-4 text-left shadow-lg shadow-black/10">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="font-display text-[11px] font-semibold uppercase tracking-[0.24em] text-gold/80">Radio DNA</p>
@@ -47,7 +47,7 @@ export function RadioDNA({ context, status = "idle" }: { context: WorldContext |
 
   if (!dna || (!dna.country && !dna.nearestCity && !dna.localTime)) {
     return (
-      <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-4 text-left">
+      <section className="rounded-[1.5rem] border border-white/8 bg-white/[0.025] p-4 text-left">
         <p className="font-display text-[11px] font-semibold uppercase tracking-[0.24em] text-gold/80">Radio DNA</p>
         <p className="mt-2 text-sm text-ivory/62">Place context will appear when open-data geography is available for this station.</p>
       </section>
@@ -59,28 +59,23 @@ export function RadioDNA({ context, status = "idle" }: { context: WorldContext |
   const isLowConfidence = geoConfidence < 50;
 
   return (
-    <section className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(214,168,79,.13),transparent_34%),linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.026))] p-4 text-left shadow-2xl shadow-black/25">
+    <section className="overflow-hidden rounded-[1.5rem] border border-white/8 bg-white/[0.025] p-4 text-left shadow-lg shadow-black/10">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-display text-[11px] font-semibold uppercase tracking-[0.24em] text-gold/80">Radio DNA</p>
-          <h3 className="mt-1.5 text-lg font-semibold tracking-tight text-white">{dna.country ?? "Open-data place context"}</h3>
-          <p className="mt-1 text-xs text-ivory/48">A calm geographic read on the station you are hearing.</p>
+          <h3 className="mt-1.5 text-base font-semibold tracking-tight text-white/88">Station signal profile</h3>
+          <p className="mt-1 text-xs text-ivory/48">Playback-safe metadata and supporting context.</p>
         </div>
         <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${confidenceTone(geoConfidence)}`}>{geoConfidence}% geo</span>
       </div>
 
       {isLowConfidence ? <p className="mt-4 rounded-2xl border border-gold/20 bg-gold/10 px-3 py-2 text-xs leading-5 text-gold/85">Low confidence: treating this as country-level context until stronger station geography is available.</p> : null}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        <div className="rounded-2xl border border-white/8 bg-black/10 p-3"><MapPin className="mb-2 size-4 text-gold" /><p className="text-[11px] uppercase tracking-[0.18em] text-ivory/42">Place</p><p className="mt-1 truncate text-sm font-semibold text-white">{place}</p></div>
-        <div className="rounded-2xl border border-white/8 bg-black/10 p-3"><Clock3 className="mb-2 size-4 text-gold" /><p className="text-[11px] uppercase tracking-[0.18em] text-ivory/42">Local time</p><p className="mt-1 text-sm font-semibold text-white">{dna.localTime ?? "Pending"}</p></div>
-        <div className="rounded-2xl border border-white/8 bg-black/10 p-3"><ShieldCheck className="mb-2 size-4 text-gold" /><p className="text-[11px] uppercase tracking-[0.18em] text-ivory/42">Confidence</p><p className="mt-1 text-sm font-semibold text-white">{confidenceLabel(geoConfidence)}</p></div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <span className={`rounded-full border px-2.5 py-1 text-[11px] ${confidenceTone(geoConfidence)}`}>{confidenceLabel(geoConfidence)}</span>
-        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-ivory/60">{sourceCount} sources</span>
-        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-ivory/60">{openDataCount ? "Open data ready" : "Open data pending"}</span>
+      <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-ivory/58">
+        <span className="rounded-full border border-white/8 bg-black/10 px-2.5 py-1"><MapPin className="mr-1 inline size-3 text-gold/80" />{place}</span>
+        <span className="rounded-full border border-white/8 bg-black/10 px-2.5 py-1"><Clock3 className="mr-1 inline size-3 text-gold/80" />{dna.localTime ?? "Time pending"}</span>
+        <span className={`rounded-full border px-2.5 py-1 ${confidenceTone(geoConfidence)}`}><ShieldCheck className="mr-1 inline size-3" />{confidenceLabel(geoConfidence)}</span>
+        <span className="rounded-full border border-white/8 bg-black/10 px-2.5 py-1">{openDataCount ? "Open data ready" : "Open data pending"}</span>
       </div>
 
       <details className="group mt-4 rounded-2xl border border-white/8 bg-black/10 px-3.5 py-3">
@@ -92,7 +87,7 @@ export function RadioDNA({ context, status = "idle" }: { context: WorldContext |
           <p><b className="text-ivory/90">Culture:</b> {dna.culturalSummary || "Pending."}</p>
           <p><b className="text-ivory/90">Nearby:</b> {dna.nearbyLandmarks.length ? dna.nearbyLandmarks.slice(0, 4).join(" · ") : "Pending."}</p>
           <p><b className="text-ivory/90">People:</b> {compactList([dna.languages.join(", "), dna.currency], "Pending")}</p>
-          <p><b className="text-ivory/90">Sources:</b> {successfulSources.map((source) => source.source).slice(0, 4).join(" · ") || "Fallback"}</p>
+          <p><b className="text-ivory/90">Sources:</b> {sourceCount ? successfulSources.map((source) => source.source).slice(0, 4).join(" · ") : "Fallback"}</p>
         </div>
       </details>
     </section>

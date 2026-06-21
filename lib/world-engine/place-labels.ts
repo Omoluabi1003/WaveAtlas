@@ -1,4 +1,5 @@
 import type { WorldContext } from "./types";
+import type { AmbientTheme } from "./ambient-theme";
 
 const KNOWN_IDENTITIES: Record<string, string> = {
   paris: "City of Light",
@@ -66,4 +67,12 @@ export function buildPlaceDescriptor(context: WorldContext | null | undefined) {
 export function buildStationLine(context: WorldContext | null | undefined, fallbackStationName?: string) {
   const station = context?.radioDNA.stationName || fallbackStationName;
   return station ? `Listening to ${station}` : "Listening to a live station";
+}
+
+
+export function buildAtmosphereLine(context: WorldContext | null | undefined, theme: AmbientTheme) {
+  const descriptor = buildPlaceDescriptor(context);
+  const mood = theme.moodLabel;
+  if (!context) return `${mood} · Signal arriving from Earth`;
+  return `${mood} · ${descriptor}`;
 }
