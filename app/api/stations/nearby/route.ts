@@ -6,9 +6,10 @@ import { ariyoSeedStations, fallbackStations, fetchGlobalCandidateStations, fetc
 
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
-  const countryCodeParam = p.get('countryCode')?.toUpperCase() || undefined;
+  const rawCountryCodeParam = p.get('countryCode')?.toUpperCase() || undefined;
   const countryNameParam = p.get('country') || undefined;
   const globalTeleport = p.get('global') === 'true';
+  const countryCodeParam = globalTeleport ? undefined : rawCountryCodeParam;
   const lat = Number(p.get('lat'));
   const lng = Number(p.get('lng'));
   const zoom = Number(p.get('zoom') ?? (countryCodeParam ? 4 : 2));
@@ -41,6 +42,15 @@ export async function GET(req: NextRequest) {
       ? globalStations.slice(0, limit).map((station) => ({ station, signalStrength: Math.max(station.health_score, 70), distanceKm: 0 }))
       : rankNearbyStations([...countryStations, ...globalStations, ...fallbackPool], focusedPlace, limit);
   const bestCandidate = candidates[0] ?? null;
+  const teleportDebug = globalTeleport && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_TELEPORT === 'true';
+  const debug = teleportDebug ? {
+    requestParams: Object.fromEntries(p.entries()),
+    restrictiveFiltersIgnored: globalTeleport ? { countryCode: rawCountryCodeParam ?? null, country: countryNameParam ?? null } : null,
+    anchor: anchor ? { name: anchor.name, country: anchor.country_code, continent: continent(anchor) } : null,
+    candidatePoolByContinent: globalStations.reduce<Record<string, number>>((acc, station) => { const name = continent(station); acc[name] = (acc[name] ?? 0) + 1; return acc; }, {}),
+    top10CandidateCountriesContinents: candidates.slice(0, 10).map((candidate) => ({ country: candidate.station.country_code, continent: continent(candidate.station), station: candidate.station.name })),
+  } : undefined;
+  if (debug) console.debug('[WaveAtlas Teleport API]', debug);
 
   return NextResponse.json({
     focusedPlace: { ...focusedPlace, countryName: resolvedCountry?.name ?? focusedPlace.countryName, country: resolvedCountry },
@@ -53,6 +63,7 @@ export async function GET(req: NextRequest) {
     focus: { ...focusedPlace, countryName: resolvedCountry?.name ?? focusedPlace.countryName, country: resolvedCountry },
     best: bestCandidate,
     totalReturned: candidates.length,
+    ...(debug ? { debug } : {}),
   });
 }
 
