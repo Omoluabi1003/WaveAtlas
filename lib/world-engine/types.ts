@@ -40,6 +40,14 @@ export type WorldContext = {
   culture: Record<string, unknown>;
   people: Record<string, unknown>;
   environment: Record<string, unknown>;
+  climate?: {
+    temperatureC?: number;
+    humidityPercent?: number;
+    windSpeedMetersPerSecond?: number;
+    rainfallMillimeters?: number;
+    solarRadiation?: number;
+    date?: string;
+  };
   openData: Array<{ name: string; description: string; url?: string; attribution: string }>;
   sources: SourceResult[];
   generatedAt: string;

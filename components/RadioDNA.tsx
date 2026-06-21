@@ -37,7 +37,7 @@ function PanelSection({ icon, title, children }: { icon: ReactNode; title: strin
 
 export function RadioDNA({ context, status = "idle" }: { context: WorldContext | null; status?: RadioDNAStatus }) {
   const dna = context?.radioDNA;
-  const successfulSources = context?.sources.filter((source) => source.status === "success") ?? [];
+  const successfulSources = context?.sources.filter((source) => source.status === "success" && source.source !== "NASA POWER") ?? [];
   const sourceCount = successfulSources.length;
   const openDataCount = context?.openData.length ?? 0;
 
