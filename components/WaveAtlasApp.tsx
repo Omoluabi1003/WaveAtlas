@@ -36,13 +36,12 @@ import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
-import { BriefPanel } from "@/components/BriefPanel";
 import { PlaceHero } from "@/components/PlaceHero";
 import { RadioDNA } from "@/components/RadioDNA";
 import { WorldContextPanel } from "@/components/WorldContextPanel";
-import { SpatialAtmosphere } from "@/components/SpatialAtmosphere";
 import type { WorldContext } from "@/lib/world-engine/types";
 import { getAmbientTheme } from "@/lib/world-engine/ambient-theme";
+import { buildAtmosphereLine, buildPlaceDescriptor, buildPlaceLabel } from "@/lib/world-engine/place-labels";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
@@ -456,49 +455,79 @@ function useStationWorldContext(station: Station) {
   return { geo, visibleWorldContext, visibleWorldContextStatus };
 }
 
-function SelectedStationTheater({ station }: { station: Station }) {
-  const { playing, status } = usePlayer();
-  const { visibleWorldContext } = useStationWorldContext(station);
-  const theme = getAmbientTheme(visibleWorldContext);
-  const fallbackPlace = [station.city || station.state, station.country].filter(Boolean).join(", ");
-
-  return (
-    <div className="pointer-events-none fixed inset-0 z-30" aria-live="polite">
-      <SpatialAtmosphere theme={theme} intensity="subtle" />
-      <div className="pointer-events-auto absolute bottom-[166px] left-3 right-3 md:bottom-[6.35rem] md:left-1/2 md:right-auto md:w-[min(760px,calc(100vw-30rem))] md:-translate-x-1/2 xl:bottom-28">
-        <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={fallbackPlace} isPlaying={playing || status === "buffering"} />
-      </div>
-    </div>
-  );
+function climateOrMood(context: WorldContext | null) {
+  const theme = getAmbientTheme(context);
+  const temp = context?.climate && typeof context.climate.temperatureC === "number" ? `${Math.round(context.climate.temperatureC)}°C` : null;
+  return [temp, theme.moodLabel].filter(Boolean).join(" · ") || "Live signal";
 }
 
-function StationContextBrief({ station, open }: { station: Station; open: boolean }) {
+function SelectedStationTheater({ station }: { station: Station }) {
+  return <div className="pointer-events-none fixed inset-0 z-30" aria-live="polite" />;
+}
+
+function BriefRow({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold/72">{label}</p><p className="mt-1 text-sm leading-5 text-ivory/78">{value}</p></div>;
+}
+
+function BriefChip({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-full border border-white/10 bg-black/10 px-2.5 py-1 text-[11px] font-medium text-ivory/68">{children}</span>;
+}
+
+function StationContextBrief({ station, open, onClose }: { station: Station; open: boolean; onClose: () => void }) {
   const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
+  const context = visibleWorldContext;
+  const theme = getAmbientTheme(context);
+  const place = context ? buildPlaceLabel(context) : [station.city || station.state, station.country].filter(Boolean).join(", ") || "Tuning destination";
+  const descriptor = context ? buildPlaceDescriptor(context) : station.language || "Live radio";
+  const atmosphere = buildAtmosphereLine(context, theme);
+  const climate = context?.climate;
+  const weatherChips = [
+    typeof climate?.temperatureC === "number" ? `${Math.round(climate.temperatureC)}°C` : null,
+    typeof climate?.humidityPercent === "number" ? `${Math.round(climate.humidityPercent)}% humidity` : null,
+    typeof climate?.rainfallMillimeters === "number" ? `${Math.round(climate.rainfallMillimeters)}mm rain` : null,
+  ].filter(Boolean) as string[];
+  const landmarks = context?.radioDNA.nearbyLandmarks.slice(0, 4) ?? [];
+  const earthquakes = ((context?.environment.recentEarthquakes as Array<{ magnitude?: number; place?: string; distanceKm: number }> | undefined) ?? []).slice(0, 3);
+  const sources = context?.sources.filter((source) => source.status === "success").map((source) => source.source) ?? [];
   return (
     <AnimatePresence>
       {open ? (
-        <motion.aside
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 28 }}
-          transition={{ duration: 0.24, ease: "easeOut" }}
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-[66] flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:px-6 md:pb-32"
-          aria-label="Station intelligence brief"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="pointer-events-auto fixed inset-0 z-[66] flex items-end justify-center bg-black/10 px-3 pb-[calc(env(safe-area-inset-bottom)+5.25rem)] md:px-6 md:pb-28"
+          onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
         >
-          <div className="pointer-events-auto max-h-[44dvh] w-full max-w-3xl overflow-y-auto rounded-t-[1.75rem] border border-white/10 bg-slate-950/88 p-3 text-ivory shadow-[0_-18px_70px_rgba(0,0,0,.34)] backdrop-blur-2xl md:rounded-[1.75rem] md:p-4">
-            <div className="mb-3 flex items-center justify-between gap-3 px-1">
-              <div>
-                <p className="font-display text-[11px] font-semibold uppercase tracking-[0.24em] text-gold/85">Brief layers</p>
-                <p className="text-xs text-ivory/52">Radio DNA, place context, and open-data confidence stay on demand.</p>
+          <motion.aside
+            initial={{ y: 40 }}
+            animate={{ y: 0 }}
+            exit={{ y: 40 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="max-h-[55dvh] w-full max-w-3xl overflow-y-auto rounded-t-[1.6rem] border border-white/10 bg-slate-950/88 p-3 text-ivory shadow-[0_-16px_55px_rgba(0,0,0,.30)] backdrop-blur-xl md:max-h-[45dvh] md:rounded-[1.6rem] md:p-4"
+            role="dialog"
+            aria-modal="false"
+            aria-label="Station brief"
+          >
+            <div className="mx-auto mb-3 h-1 w-12 rounded-full bg-white/25" />
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gold/80">Brief</p>
+                <h2 className="mt-1 truncate text-lg font-semibold tracking-tight text-white">{place}</h2>
+                <p className="mt-1 truncate text-xs text-ivory/52">{station.name} · {climateOrMood(context)}</p>
               </div>
-              <StreamHealthBadge station={station} />
+              <button type="button" onClick={onClose} className="grid size-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-ivory/70 hover:text-white" aria-label="Close brief"><X className="size-4" /></button>
             </div>
-            <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
-              <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
-              <WorldContextPanel context={visibleWorldContext} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <BriefRow label="Place" value={descriptor || place} />
+              <BriefRow label="Atmosphere" value={visibleWorldContextStatus === "loading" ? "Loading open-data atmosphere…" : atmosphere} />
+              <BriefRow label="Culture" value={context?.radioDNA.culturalSummary || "Cultural signal pending from open sources."} />
+              <div className="rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold/72">Nearby</p><div className="mt-2 flex flex-wrap gap-1.5">{landmarks.length ? landmarks.map((item) => <BriefChip key={item}>{item}</BriefChip>) : <BriefChip>Landmarks pending</BriefChip>}</div></div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold/72">Earth</p><div className="mt-2 flex flex-wrap gap-1.5">{weatherChips.map((item) => <BriefChip key={item}>{item}</BriefChip>)}{earthquakes.length ? earthquakes.map((event) => <BriefChip key={`${event.place}-${event.distanceKm}`}>M{event.magnitude ?? "?"} · {Math.round(event.distanceKm)}km</BriefChip>) : <BriefChip>NASA POWER climate</BriefChip>}</div></div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold/72">Sources</p><div className="mt-2 flex flex-wrap gap-1.5">{sources.length ? sources.slice(0, 5).map((item) => <BriefChip key={item}>{item}</BriefChip>) : <BriefChip>Local fallback geography</BriefChip>}</div></div>
             </div>
-          </div>
-        </motion.aside>
+          </motion.aside>
+        </motion.div>
       ) : null}
     </AnimatePresence>
   );
@@ -1004,6 +1033,16 @@ function BasemapControl({ value, onChange, mobile = false }: { value: BasemapKey
 }
 function MapStyleController({ map, basemap, onResize }: { map: Map | null; basemap: BasemapKey; onResize?: () => void }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); try { window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); } catch { /* Basemap preference is non-critical. */ } const resize = () => requestAnimationFrame(() => { map.resize(); onResize?.(); }); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap, onResize]); return null; }
 
+
+function escapeMarkerText(value: string) {
+  return value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char] ?? char);
+}
+
+function markerHtml(geo: GeoPoint, status: PlaybackStatus, label?: { place: string; mood: string; station: string }) {
+  const labelHtml = label ? `<span class="station-living-label"><b>${escapeMarkerText(label.place)}</b><span>${escapeMarkerText(label.mood)}</span><em>${escapeMarkerText(label.station)}</em></span>` : "";
+  return `<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pin" aria-hidden="true"><svg viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 40C16 40 29 25.6 29 14.8C29 7.73 23.18 2 16 2C8.82 2 3 7.73 3 14.8C3 25.6 16 40 16 40Z" fill="currentColor" stroke="rgba(255,255,255,.9)" stroke-width="2.2" /></svg></span><span class="station-pulse-dot"></span>${labelHtml}`;
+}
+
 function StationPulseMarker({
   geo,
   status,
@@ -1031,10 +1070,12 @@ function MapMarkerController({
   marker,
   geo,
   status,
+  label,
 }: {
   marker: Marker | null;
   geo: GeoPoint;
   status: PlaybackStatus;
+  label?: { place: string; mood: string; station: string };
 }) {
   useEffect(() => {
     if (geo.lat === null || geo.lng === null) return;
@@ -1044,9 +1085,8 @@ function MapMarkerController({
     const element = marker?.getElement();
     if (!element) return;
     element.className = `station-pulse-marker tone-${geo.tone} status-${status}`;
-    element.innerHTML =
-      '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pin" aria-hidden="true"><svg viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 40C16 40 29 25.6 29 14.8C29 7.73 23.18 2 16 2C8.82 2 3 7.73 3 14.8C3 25.6 16 40 16 40Z" fill="currentColor" stroke="rgba(255,255,255,.9)" stroke-width="2.2" /></svg></span><span class="station-pulse-dot"></span>';
-  }, [geo.tone, marker, status]);
+    element.innerHTML = markerHtml(geo, status, label);
+  }, [geo, label, marker, status]);
   return null;
 }
 
@@ -1120,6 +1160,8 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   const initialBasemap = useRef(basemap);
   const viewMode = useRef<"desktop" | "mobile">(mobile ? "mobile" : "desktop");
   const geo = useMemo(() => geotruth(station), [station]);
+  const { visibleWorldContext } = useStationWorldContext(station);
+  const livingLabel = useMemo(() => ({ place: visibleWorldContext ? buildPlaceLabel(visibleWorldContext) : [station.city || station.state, station.country].filter(Boolean).join(", ") || geo.label, mood: climateOrMood(visibleWorldContext), station: station.name }), [geo.label, station.city, station.country, station.name, station.state, visibleWorldContext]);
   const initialGeo = useRef(geo);
   const onCountrySelectRef = useRef(onCountrySelect);
   useEffect(() => { onCountrySelectRef.current = onCountrySelect; }, [onCountrySelect]);
@@ -1145,8 +1187,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
     if (start.lat !== null && start.lng !== null) {
       const markerRoot = document.createElement("div");
       markerRoot.className = `station-pulse-marker tone-${start.tone} status-playing`;
-      markerRoot.innerHTML =
-        '<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pin" aria-hidden="true"><svg viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 40C16 40 29 25.6 29 14.8C29 7.73 23.18 2 16 2C8.82 2 3 7.73 3 14.8C3 25.6 16 40 16 40Z" fill="currentColor" stroke="rgba(255,255,255,.9)" stroke-width="2.2" /></svg></span><span class="station-pulse-dot"></span>';
+      markerRoot.innerHTML = markerHtml(start, "playing");
       mk = new maplibregl.Marker({ element: markerRoot, anchor: "center" })
         .setLngLat([start.lng, start.lat])
         .addTo(m);
@@ -1243,7 +1284,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
     return (
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
-        <MapMarkerController marker={marker} geo={geo} status={status} />
+        <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
         <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
@@ -1258,7 +1299,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   return (
     <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
-      <MapMarkerController marker={marker} geo={geo} status={status} />
+      <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />
@@ -2126,8 +2167,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     ) : null}
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
-    <BriefPanel station={current} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
-    <StationContextBrief station={current} open={mode === "Brief"} />
+    <StationContextBrief station={current} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
     <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) { commitTeleportStation(station, queue); handleTravel(intent); } }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Teleport could not find a live signal yet."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
@@ -2579,8 +2619,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </aside> : null}
-      <BriefPanel station={current} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
-      <StationContextBrief station={current} open={briefOpen} />
+      <StationContextBrief station={current} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
       <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
