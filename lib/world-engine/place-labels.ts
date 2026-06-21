@@ -41,8 +41,9 @@ export function buildPlaceLabel(context: WorldContext | null | undefined) {
   if (!context) return "Unknown destination";
   const city = cityFrom(context);
   const country = countryFrom(context);
-  if (city && country && city.toLowerCase() !== country.toLowerCase()) return `${city}, ${country}`;
-  return city || country || "Unknown destination";
+  const base = city && country && city.toLowerCase() !== country.toLowerCase() ? `${city}, ${country}` : city || country || "Unknown destination";
+  const identity = city ? KNOWN_IDENTITIES[city.toLowerCase()] : undefined;
+  return identity ? `${identity} · ${base}` : base;
 }
 
 function descriptorFromSummary(summary?: string) {
