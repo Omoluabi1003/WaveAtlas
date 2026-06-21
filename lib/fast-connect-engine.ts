@@ -1,15 +1,17 @@
 import type { Station } from "@/lib/stations";
+import { rotatedStartupStations, startupStations } from "@/lib/startupStations";
 import { isCuratedStation, isStationAvailable } from "@/lib/stations";
 import { stationCity } from "@/lib/discovery/history";
 import { stationContinent } from "@/lib/discovery/station-picker";
 
 export const FAST_CONNECT_STARTUP_TIMEOUT_MS = 4000;
 export const FAST_CONNECT_BUFFER_TIMEOUT_MS = 6000;
+export const FAST_CONNECT_PARALLEL_CANDIDATES = 5;
 export const FAST_CONNECT_MAX_ATTEMPTS_BEFORE_GLOBAL_FALLBACK = 3;
 export const FAST_CONNECT_COPY = {
   connecting: "Connecting to live signal…",
   retrying: "Finding a stronger signal…",
-  fallback: "Tuning into a nearby live station…",
+  fallback: "Tuning into another destination…",
   failed: "This signal is weak. We are checking it in the background.",
 } as const;
 
@@ -21,8 +23,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DIRECT_STREAM_PATTERN = /(?:mp3|aac|mpeg|audio)/i;
 
 type HealthRecord = { failures: number; successes: number; degradedUntil?: number; lastFailureAt?: number; lastSuccessAt?: number; errorType?: string };
+type StoredStationEvent = { key: string; name: string; country?: string; at: number };
 type HealthMemory = Record<string, HealthRecord>;
-export type SignalFailureType = "audio_error" | "startup_timeout" | "buffer_timeout" | "stalled" | "waiting" | "network_error" | "unsupported_media" | "autoplay_blocked" | "missing_url" | "playback_error";
+export type SignalFailureType = "audio_error" | "startup_timeout" | "buffer_timeout" | "stalled" | "waiting" | "network_error" | "unsupported_media" | "autoplay_blocked" | "missing_url" | "abort" | "playback_error";
 
 function storage() { return typeof window === "undefined" ? undefined : window.localStorage; }
 export function stationKey(station: Station) { return station.station_uuid || station.id || `${station.name}:${station.url}`; }
@@ -36,8 +39,21 @@ export function readStationHealthMemory(): HealthMemory {
 }
 
 function rememberList(key: string, station: Station) {
-  const previous = readJson<Array<{ key: string; name: string; at: number }>>(key, []).filter((item) => Date.now() - item.at < DAY_MS);
-  writeJson(key, [{ key: stationKey(station), name: station.name, at: Date.now() }, ...previous.filter((item) => item.key !== stationKey(station))].slice(0, 50));
+  const previous = readJson<StoredStationEvent[]>(key, []).filter((item) => Date.now() - item.at < DAY_MS);
+  writeJson(key, [{ key: stationKey(station), name: station.name, country: station.country, at: Date.now() }, ...previous.filter((item) => item.key !== stationKey(station))].slice(0, 50));
+}
+
+function recentSuccessfulKeys() {
+  return readJson<StoredStationEvent[]>(SUCCESS_KEY, []).filter((item) => Date.now() - item.at < DAY_MS).map((item) => item.key);
+}
+
+function hasRecentFailure(station: Station) {
+  const record = readStationHealthMemory()[stationKey(station)];
+  return Boolean(record?.lastFailureAt && Date.now() - record.lastFailureAt < DAY_MS);
+}
+
+function eligibleStartupCandidate(station: Station) {
+  return isStationAvailable(station) && Boolean(getStationStreamUrl(station)) && !hasRecentFailure(station);
 }
 
 export function markStationSuccess(station: Station) {
@@ -85,21 +101,25 @@ export function buildFastConnectQueue(stations: Station[], selected: Station, mi
   const seen = new Set<string>();
   const city = stationCity(selected);
   const continent = stationContinent(selected);
+  const stationPool = [...stations, ...rotatedStartupStations()];
+  const successful = new Set(recentSuccessfulKeys());
+  const targetLength = Math.max(minimumBackups + 1, FAST_CONNECT_PARALLEL_CANDIDATES, FAST_CONNECT_MAX_ATTEMPTS_BEFORE_GLOBAL_FALLBACK + 2);
   const tiers = [
+    (s: Station) => successful.has(stationKey(s)),
     (s: Station) => stationKey(s) === stationKey(selected),
     (s: Station) => s.country_code === selected.country_code && stationCity(s) === city,
     (s: Station) => s.country_code === selected.country_code,
     (s: Station) => stationContinent(s) === continent,
     (s: Station) => isCuratedStation(s),
-    () => true,
+    (s: Station) => startupStations.some((atlasStation) => stationKey(atlasStation) === stationKey(s)),
   ];
   const candidates: Station[] = [];
   for (const tier of tiers) {
-    const ranked = stations.filter((station) => !seen.has(stationKey(station)) && isStationAvailable(station) && tier(station)).sort((a, b) => healthAdjustedScore(b, selected) - healthAdjustedScore(a, selected));
+    const ranked = stationPool.filter((station) => !seen.has(stationKey(station)) && eligibleStartupCandidate(station) && tier(station)).sort((a, b) => healthAdjustedScore(b, selected) - healthAdjustedScore(a, selected));
     for (const station of ranked) { seen.add(stationKey(station)); candidates.push(station); }
-    if (candidates.length >= minimumBackups + 1 && tier !== tiers[0]) break;
+    if (candidates.length >= targetLength && tier !== tiers[0]) break;
   }
-  return candidates.slice(0, Math.max(minimumBackups + 1, FAST_CONNECT_MAX_ATTEMPTS_BEFORE_GLOBAL_FALLBACK + 2));
+  return candidates.slice(0, targetLength);
 }
 
 export function nextFastConnectCandidate(stations: Station[], failed: Station, attemptedKeys: string[]) {

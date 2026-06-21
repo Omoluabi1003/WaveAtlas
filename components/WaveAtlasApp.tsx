@@ -35,7 +35,7 @@ import { ArrivalCard } from "@/components/arrival-card";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
-import { FAST_CONNECT_BUFFER_TIMEOUT_MS, FAST_CONNECT_COPY, FAST_CONNECT_STARTUP_TIMEOUT_MS, buildFastConnectQueue, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
+import { FAST_CONNECT_BUFFER_TIMEOUT_MS, FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, FAST_CONNECT_STARTUP_TIMEOUT_MS, buildFastConnectQueue, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
 
 type CountryResult = {
   name: string;
@@ -408,7 +408,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
 
   useEffect(() => {
     if (!current) return;
-    const queue = buildFastConnectQueue(stations, current, 3);
+    const queue = buildFastConnectQueue(stations, current, FAST_CONNECT_PARALLEL_CANDIDATES - 1);
     attempted.current = [stationKey(current)];
     if (queue.length > 1) setStatus("buffering", FAST_CONNECT_COPY.connecting);
   }, [currentKey, current, setStatus, stations]);
@@ -491,16 +491,15 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       clearBufferTimer();
       bufferTimer = window.setTimeout(() => fail("waiting", "Audio waiting event exceeded buffer timeout."), FAST_CONNECT_BUFFER_TIMEOUT_MS);
     };
-    const onStalled = () => {
-      clearBufferTimer();
-      bufferTimer = window.setTimeout(() => fail("stalled", "Audio stalled event exceeded buffer timeout."), FAST_CONNECT_BUFFER_TIMEOUT_MS);
-    };
+    const onStalled = () => fail("stalled", "Audio stalled before playback.");
+    const onAbort = () => fail("abort", "Audio request was aborted.");
     startupTimer = window.setTimeout(() => fail("startup_timeout", "No canplay or playing event before startup timeout."), FAST_CONNECT_STARTUP_TIMEOUT_MS);
 
     element.addEventListener("canplay", onCanPlay);
     element.addEventListener("playing", onPlaying);
     element.addEventListener("waiting", onWaiting);
     element.addEventListener("stalled", onStalled);
+    element.addEventListener("abort", onAbort);
 
     const playSelectedStream = async () => {
       try {
@@ -534,6 +533,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       element.removeEventListener("playing", onPlaying);
       element.removeEventListener("waiting", onWaiting);
       element.removeEventListener("stalled", onStalled);
+      element.removeEventListener("abort", onAbort);
     };
   }, [current, currentKey, status, userActivated, setStatus, volume, stations, skipToNextCandidate]);
 
