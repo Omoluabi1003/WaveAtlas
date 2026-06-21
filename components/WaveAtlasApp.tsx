@@ -968,6 +968,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
         <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
         <div className="cloud-layer pointer-events-none absolute inset-0 opacity-25" />
         <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
+        <div className="absolute right-4 top-[148px] z-50 opacity-95"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div>
 
       </div>
     );
@@ -1727,14 +1728,6 @@ function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: (
   </div>;
 }
 
-function MobileBasemapSheet({ open, value, onChange, onClose }: { open: boolean; value: BasemapKey; onChange: (value: BasemapKey) => void; onClose: () => void }) {
-  return <AnimatePresence>{open ? <motion.section initial={{ y: 280, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 280, opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+96px)] z-50 rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl">
-    <button onClick={onClose} className="mx-auto mb-4 block h-1.5 w-14 rounded-full bg-white/30" aria-label="Close basemap cockpit" />
-    <p className="mb-3 font-display text-xs font-semibold text-gold">Basemap Cockpit</p>
-    <div className="grid grid-cols-2 gap-2">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} onClick={() => { onChange(key); onClose(); }} className={`rounded-2xl border px-3 py-3 text-left text-sm font-medium ${value === key ? "border-gold bg-gold text-midnight" : "border-white/10 bg-white/5 text-ivory"}`}><span className="block">{basemapStyles[key].label}</span><span className="mt-1 block text-[11px] font-medium opacity-70">{basemapStyles[key].description}</span></button>)}</div>
-  </motion.section> : null}</AnimatePresence>;
-}
-
 function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { open: boolean; stations: Station[]; current: Station; onTravel: (intent: string) => void; onClose: () => void }) {
   const options = ["Surprise Me", "Unvisited Country", "Unvisited Continent", "Somewhere Waking Up", "Somewhere Falling Asleep", "Somewhere Rainy", "Somewhere Spiritual", "Somewhere Busy", "Somewhere Peaceful", "Global Shuffle"];
   const travel = (option: string) => {
@@ -1758,10 +1751,6 @@ function PresenceToast({ station, intent, visible }: { station: Station; intent:
   return <AnimatePresence>{visible ? <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ opacity: { duration: 0.28 }, y: { type: "spring", damping: 26, stiffness: 260 } }} className="fixed bottom-[260px] left-4 right-4 z-[55] rounded-3xl border border-gold/20 bg-slate-950/92 p-4 text-sm leading-6 text-ivory shadow-2xl backdrop-blur-xl">{experience.narration}</motion.div> : null}</AnimatePresence>;
 }
 
-function MobileMapControls({ onOpenBasemap }: { onRecenter: () => void; onOpenBasemap: () => void; onOpenSearch: () => void; onOpenFavorites: () => void; onTeleport: () => void }) {
-  return <button onClick={onOpenBasemap} aria-label="Basemap" className="fixed right-4 top-[148px] z-40 grid size-10 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-ivory shadow-xl backdrop-blur-xl hover:border-gold/40"><Layers className="size-4" /></button>;
-}
-
 function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { station: Station; stations: Station[]; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
   return <motion.section drag="y" dragConstraints={{ top: 0, bottom: 0 }} onDragEnd={(_, info) => setOpen(info.offset.y < -40 ? true : info.offset.y > 40 ? false : open)} initial={{ y: 680 }} animate={{ y: open ? 64 : 680 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-0 bottom-0 z-50 max-h-[92dvh] overflow-y-auto rounded-t-[2rem] border border-white/10 bg-slate-950/95 px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-3 shadow-2xl backdrop-blur-xl">
     <button onClick={() => setOpen(!open)} className="mx-auto block h-1.5 w-14 rounded-full bg-white/30" aria-label="Toggle Destination Intelligence" />
@@ -1779,7 +1768,6 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [mode, setMode] = useState("Atlas");
   const [resetSignal, setResetSignal] = useState(0);
   const [basemap, setBasemap] = useState<BasemapKey>(() => getInitialBasemap(true));
-  const [basemapOpen, setBasemapOpen] = useState(false);
   const [wanderOpen, setWanderOpen] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
@@ -1814,10 +1802,8 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
-    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => { void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => commitTeleportStation(station, queue)); }} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
-    <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
     {mode === "Add Signal" ? (
       <div className="pointer-events-auto fixed inset-0 z-[999] flex h-[100dvh] items-start justify-center overflow-y-auto overscroll-contain bg-black/45 px-3 pb-[calc(140px_+_env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))] backdrop-blur-[10px]">
@@ -1827,7 +1813,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <BriefPanel station={current} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
-    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const intent = "Take me somewhere surprising"; void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => { commitTeleportStation(station, queue); handleTravel(intent); }); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const intent = "Take me somewhere surprising"; void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => { commitTeleportStation(station, queue); handleTravel(intent); }); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
 
