@@ -76,6 +76,7 @@ function ariyoSeedStation(input: AriyoSeedInput): Station {
 }
 
 const sourceStations: AriyoSeedInput[] = [
+  { name: 'Jay 101.9 FM Jos', id: 'ariyo-ai-jay-1019-fm-jos', url: 'http://live2.rcast.net:8970/;', city: 'Jos', state: 'Plateau', country: 'Nigeria', country_code: 'NG', latitude: 9.8965, longitude: 8.8583, language: 'English', homepage: 'https://www.jayfm.ng/', tags: ['plateau', 'jos', 'talk', 'news', 'entertainment', 'sports', 'lifestyle', 'hits', 'local radio', 'tier 1 curated atlas', 'startup eligible', 'teleport eligible', 'wanderer eligible', 'favorite eligible'] },
   { name: 'Agidigbo 88.7 FM Ibadan', id: 'ariyo-ai-agidigbo-887-fm-ibadan', url: 'https://agidigbostream.com.ng/radio/8000/radio.mp3', city: 'Ibadan', state: 'Oyo', country: 'Nigeria', country_code: 'NG', latitude: 7.3775, longitude: 3.947, language: 'Yoruba, English, Pidgin', homepage: 'https://agidigbo887fm.com/', tags: ['oyo', 'ibadan', 'yoruba', 'news', 'talk', 'current affairs', 'local radio', 'community'] },
   { name: 'Rhythm FM 93.7 Lagos', url: 'https://stream.radio.co/s61726bb1d/listen', city: 'Lagos', country: 'Nigeria', country_code: 'NG', latitude: 6.5244, longitude: 3.3792, tags: ['music', 'afrobeats', 'pop'] },
   { name: 'Cool FM 96.9 Lagos', url: 'https://ais.streamonkey.net/coolfm_lagos-mp3', city: 'Lagos', country: 'Nigeria', country_code: 'NG', latitude: 6.5244, longitude: 3.3792, tags: ['music', 'talk', 'pop'] },

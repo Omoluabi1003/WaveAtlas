@@ -8,6 +8,16 @@ export const STATION_HEALTH_STORAGE_KEYS = {
 
 export const STATION_HEALTH_TTL_MS = 24 * 60 * 60 * 1000;
 
+export const CURATED_STATION_HEALTH_POLICY = {
+  rememberHours: 24,
+  successBoost: true,
+  failurePenalty: true,
+  autoRetest: true,
+  preserveOnFailure: true,
+} as const;
+
+export const CURATED_STATION_RETEST_QUEUE_KEY = 'waveatlas_curated_station_retest_queue';
+
 export type StationHealthRecord = {
   failures: number;
   successes: number;
@@ -67,6 +77,13 @@ export function markStationUnhealthy(station: Station, errorType = 'playback_err
   memory[key] = { ...previous, failures: previous.failures + 1, lastFailureAt: now, rememberUntil: now + STATION_HEALTH_TTL_MS, errorType };
   writeJson(STATION_HEALTH_STORAGE_KEYS.health, memory);
   rememberStationEvent(STATION_HEALTH_STORAGE_KEYS.failed, station, now);
+  if (station.curation_tier === 'curated_atlas') queueCuratedStationRetest(station, now);
+}
+
+export function queueCuratedStationRetest(station: Station, now = Date.now()) {
+  const previous = readJson<StoredStationEvent[]>(CURATED_STATION_RETEST_QUEUE_KEY, []).filter((event) => now - event.at < STATION_HEALTH_TTL_MS);
+  const event = { key: stationHealthKey(station), name: station.name, country: station.country, at: now };
+  writeJson(CURATED_STATION_RETEST_QUEUE_KEY, [event, ...previous.filter((item) => item.key !== event.key)].slice(0, 50));
 }
 
 export function healthMemoryBoost(station: Station, now = Date.now()) {
