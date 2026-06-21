@@ -458,36 +458,49 @@ function useStationWorldContext(station: Station) {
 
 function SelectedStationTheater({ station }: { station: Station }) {
   const { playing, status } = usePlayer();
-  const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
+  const { visibleWorldContext } = useStationWorldContext(station);
   const theme = getAmbientTheme(visibleWorldContext);
   const fallbackPlace = [station.city || station.state, station.country].filter(Boolean).join(", ");
 
   return (
     <div className="pointer-events-none fixed inset-0 z-30" aria-live="polite">
       <SpatialAtmosphere theme={theme} intensity="subtle" />
-      <details className="group pointer-events-auto absolute bottom-[9.75rem] left-3 right-3 md:hidden">
-        <summary className="list-none [&::-webkit-details-marker]:hidden">
-          <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={fallbackPlace} isPlaying={playing || status === "buffering"} />
-        </summary>
-        <div className="mt-2 max-h-[38dvh] overflow-y-auto rounded-[1.5rem] border border-white/10 bg-slate-950/86 p-3 shadow-2xl backdrop-blur-2xl">
-          <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
-          <div className="mt-3">
-            <WorldContextPanel context={visibleWorldContext} />
-          </div>
-        </div>
-      </details>
-      <details className="group pointer-events-auto absolute bottom-[8.25rem] right-6 hidden w-[min(430px,calc(100vw-32rem))] md:block xl:bottom-36 xl:right-8">
-        <summary className="list-none [&::-webkit-details-marker]:hidden">
-          <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={fallbackPlace} isPlaying={playing || status === "buffering"} />
-        </summary>
-        <div className="mt-3 max-h-[46vh] overflow-y-auto rounded-[1.5rem] border border-white/10 bg-slate-950/82 p-3 shadow-2xl backdrop-blur-2xl">
-          <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
-          <div className="mt-3">
-            <WorldContextPanel context={visibleWorldContext} />
-          </div>
-        </div>
-      </details>
+      <div className="pointer-events-auto absolute bottom-[166px] left-3 right-3 md:bottom-[6.35rem] md:left-1/2 md:right-auto md:w-[min(760px,calc(100vw-30rem))] md:-translate-x-1/2 xl:bottom-28">
+        <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={fallbackPlace} isPlaying={playing || status === "buffering"} />
+      </div>
     </div>
+  );
+}
+
+function StationContextBrief({ station, open }: { station: Station; open: boolean }) {
+  const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.aside
+          initial={{ opacity: 0, y: 28 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 28 }}
+          transition={{ duration: 0.24, ease: "easeOut" }}
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-[66] flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:px-6 md:pb-32"
+          aria-label="Station intelligence brief"
+        >
+          <div className="pointer-events-auto max-h-[44dvh] w-full max-w-3xl overflow-y-auto rounded-t-[1.75rem] border border-white/10 bg-slate-950/88 p-3 text-ivory shadow-[0_-18px_70px_rgba(0,0,0,.34)] backdrop-blur-2xl md:rounded-[1.75rem] md:p-4">
+            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+              <div>
+                <p className="font-display text-[11px] font-semibold uppercase tracking-[0.24em] text-gold/85">Brief layers</p>
+                <p className="text-xs text-ivory/52">Radio DNA, place context, and open-data confidence stay on demand.</p>
+              </div>
+              <StreamHealthBadge station={station} />
+            </div>
+            <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
+              <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
+              <WorldContextPanel context={visibleWorldContext} />
+            </div>
+          </div>
+        </motion.aside>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -2114,6 +2127,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <BriefPanel station={current} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
+    <StationContextBrief station={current} open={mode === "Brief"} />
     <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) { commitTeleportStation(station, queue); handleTravel(intent); } }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Teleport could not find a live signal yet."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
@@ -2517,7 +2531,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div>
         </div>
       </section>
-      {desktopDrawerActive ? <aside className={`${desktopDrawerOpen ? "translate-x-0 opacity-100" : "-translate-x-[calc(100%-3.5rem)] opacity-95"} pointer-events-auto fixed bottom-28 left-6 top-28 z-40 flex w-[min(420px,calc(100vw-3rem))] flex-col rounded-[2rem] border border-white/10 bg-slate-950/72 p-4 text-ivory shadow-2xl shadow-black/35 backdrop-blur-2xl transition duration-300 xl:left-8`} aria-label="Search and discovery drawer">
+      {desktopDrawerActive ? <aside className={`${desktopDrawerOpen ? "translate-x-0 opacity-100" : "-translate-x-[calc(100%-3.5rem)] opacity-95"} pointer-events-auto fixed bottom-28 left-6 top-28 z-40 flex w-[min(420px,calc(100vw-3rem))] flex-col rounded-[2rem] border border-white/10 bg-slate-950/52 p-4 text-ivory shadow-2xl shadow-black/25 backdrop-blur-xl transition duration-300 xl:left-8`} aria-label="Search and discovery drawer">
         <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div className="min-w-0">
             <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold">Atlas drawer</p>
@@ -2558,7 +2572,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div> : null}
           {desktopMode !== "Atlas" || query.trim() || selectedCountry ? <div className="mt-5 grid gap-3">
             {visible.map((s) => (
-              <button key={s.id} onClick={() => { setCurrentStationAndDestination(s); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:border-gold/50"><b>{s.name}</b><p className="mt-1 text-sm text-ivory/60">{s.country} · {s.tags.slice(0, 3).join(", ") || "live radio"}</p></button>
+              <button key={s.id} onClick={() => { setCurrentStationAndDestination(s); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} className="rounded-[1.15rem] border border-white/8 bg-white/[0.035] px-4 py-3 text-left transition hover:border-gold/45 hover:bg-white/[0.06]"><b className="block truncate font-display text-[15px] tracking-[-0.015em] text-white/92">{s.name}</b><p className="mt-1 truncate text-xs leading-5 text-ivory/56">{[s.city || s.state, s.country].filter(Boolean).join(" · ")} · {s.tags.slice(0, 2).join(", ") || "live radio"}</p></button>
             ))}
           </div> : null}
           {selectedCountry && !visible.length && !loadingCountry ? <p className="mt-5 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No live signal found here yet. Try Teleport or Add Your Signal.</p> : null}
@@ -2566,6 +2580,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
       </aside> : null}
       <BriefPanel station={current} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
+      <StationContextBrief station={current} open={briefOpen} />
       <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
