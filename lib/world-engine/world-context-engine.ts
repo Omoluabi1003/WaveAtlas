@@ -2,6 +2,7 @@ import { getNearestGeoName } from "./geonames";
 import { getNearbyOsmPoi } from "./osm";
 import { getRestCountry } from "./restcountries";
 import type { SourceResult, WorldContext, WorldContextInput } from "./types";
+import { buildPlaceDescriptor, buildPlaceLabel } from "./place-labels";
 import { getNasaPowerClimate } from "./nasa-power";
 import { getNearbyEarthquakes } from "./usgs-earthquake";
 import { getWikipediaSummary } from "./wikipedia";
@@ -27,7 +28,7 @@ export async function getWorldContext(input: WorldContextInput): Promise<WorldCo
   const quakes = source<{ nearby: Array<{ magnitude?: number; place?: string; distanceKm: number }> }>(sources, "USGS Earthquake");
   const climate = source<WorldContext["climate"]>(sources, "NASA POWER");
   const geoConfidence = Math.max(...sources.map((r) => r.confidence), input.latitude && input.longitude ? 0.55 : 0.25);
-  return {
+  const context: WorldContext = {
     radioDNA: { stationName: input.stationName, country: country?.name ?? input.country, nearestCity: geonames?.name ?? input.city ?? input.state, localTime: localTime(country?.timezones), languages: country?.languages?.length ? country.languages : input.language ? [input.language] : [], currency: country?.currency, population: country?.population, region: [country?.region, country?.subregion].filter(Boolean).join(" · ") || undefined, culturalSummary: wiki?.summary, nearbyLandmarks: (osm?.landmarks ?? []).map((p) => p.name).slice(0, 3), geoConfidence: Math.round(geoConfidence * 100) },
     place: { country: country?.name ?? input.country, capital: country?.capital, nearestCity: geonames?.name ?? input.city, coordinates: { lat: input.latitude, lng: input.longitude } },
     culture: { summary: wiki?.summary, wikipediaTitle: wiki?.title },
@@ -42,4 +43,7 @@ export async function getWorldContext(input: WorldContextInput): Promise<WorldCo
     sources,
     generatedAt: new Date().toISOString(),
   };
+  context.radioDNA.placeLabel = buildPlaceLabel(context);
+  context.radioDNA.placeDescriptor = buildPlaceDescriptor(context);
+  return context;
 }

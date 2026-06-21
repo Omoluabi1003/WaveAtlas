@@ -37,6 +37,7 @@ import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
 import { BriefPanel } from "@/components/BriefPanel";
+import { PlaceHero } from "@/components/PlaceHero";
 import { RadioDNA } from "@/components/RadioDNA";
 import { WorldContextPanel } from "@/components/WorldContextPanel";
 import type { WorldContext } from "@/lib/world-engine/types";
@@ -408,6 +409,7 @@ function ListCard({ title, items }: { title: string; items: { key: string; label
 }
 
 function StationIntelligencePanel({ station, stations, setQuery }: { station: Station; stations: Station[]; setQuery: (q: string) => void }) {
+  const { playing, status } = usePlayer();
   const genre = getPrimaryGenre(station);
   const geo = useMemo(() => geotruth(station), [station]);
   const [worldContext, setWorldContext] = useState<WorldContext | null>(null);
@@ -458,6 +460,7 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
         </div>
         <StreamHealthBadge station={station} />
       </div>
+      <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={[station.city || station.state, station.country].filter(Boolean).join(", ")} isPlaying={playing || status === "buffering"} />
       <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
       <WorldContextPanel context={visibleWorldContext} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
