@@ -1,3 +1,3 @@
 "use client";
 
-export { WaveAtlasDaily as BriefPanel } from "@/components/WaveAtlasDaily";
+export { NewspaperBrief as BriefPanel } from "@/components/NewspaperBrief";
