@@ -30,7 +30,7 @@ import { isoCountryCentroids, resolveStationGeo, type ResolvedStationGeo } from 
 import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
-import { flagFor, type Station } from "@/lib/stations";
+import { flagFor, isCuratedStation, type Station } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
@@ -54,8 +54,11 @@ type PlaybackStatus =
   | "paused"
   | "blocked"
   | "failed";
+type StationSelectionSource = "manual" | "startup" | "teleport" | "fallback" | "wanderer" | "deeplink" | "auto";
+
 type PlayerState = {
   current?: Station;
+  stationSelectionSource: StationSelectionSource;
   playing: boolean;
   status: PlaybackStatus;
   volume: number;
@@ -69,8 +72,8 @@ type PlayerState = {
   clearArrivalContext: () => void;
   setArrivalStation: (station: Station, queue?: Station[]) => void;
   replaceStartupStation: (previous: Station, next: Station, reason: string) => void;
-  setStation: (s: Station) => void;
-  prepareStation: (s: Station) => void;
+  setStation: (s: Station, source?: StationSelectionSource) => void;
+  prepareStation: (s: Station, source?: StationSelectionSource) => void;
   toggle: () => void;
   setVolume: (n: number) => void;
   setStatus: (s: PlaybackStatus, error?: string) => void;
@@ -79,6 +82,7 @@ type PlayerState = {
 const usePlayer = create<PlayerState>((set) => ({
   playing: false,
   status: "idle",
+  stationSelectionSource: "startup",
   volume: 1,
   userActivated: false,
   startupQueue: [],
@@ -95,18 +99,20 @@ const usePlayer = create<PlayerState>((set) => ({
       replacementReason: reason,
     }));
   },
-  setStation: (current) =>
+  setStation: (current, stationSelectionSource = "manual") =>
     set({
       current,
+      stationSelectionSource,
       playing: false,
       status: "buffering",
       error: undefined,
       userActivated: true,
       teleportQueue: [],
     }),
-  prepareStation: (current) =>
+  prepareStation: (current, stationSelectionSource = "startup") =>
     set((state) => ({
       current,
+      stationSelectionSource,
       startupQueue: state.arrivalStation && stationKey(state.arrivalStation) === stationKey(current) ? [current, ...state.startupQueue.filter((station) => stationKey(station) !== stationKey(current))] : state.startupQueue,
       playing: false,
       status: state.userActivated ? "buffering" : "idle",
@@ -151,6 +157,11 @@ function debugTeleport(label: string, payload: Record<string, unknown>) {
   console.debug(`[WaveAtlas Teleport] ${label}`, payload);
 }
 
+function debugPlayback(label: string, payload: Record<string, unknown>) {
+  if (typeof window === "undefined") return;
+  console.debug(`[WaveAtlas Playback] ${label}`, payload);
+}
+
 function readHasCompletedArrival() {
   return typeof window !== "undefined" && window.sessionStorage.getItem(ARRIVAL_COMPLETED_SESSION_KEY) === "true";
 }
@@ -163,7 +174,7 @@ function markArrivalCompleted() {
 
 function commitTeleportStation(station: Station, queue: Station[] = []) {
   const player = usePlayer.getState();
-  player.setStation(station);
+  player.setStation(station, "teleport");
   player.setTeleportQueue(queue.filter((candidate) => stationKey(candidate) !== stationKey(station)));
 }
 
@@ -438,7 +449,7 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
 }
 
 function AudioEngine({ stations }: { stations: Station[] }) {
-  const { current, status, volume, userActivated, setStatus } = usePlayer();
+  const { current, status, volume, userActivated, stationSelectionSource, setStatus } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
   const attempted = useRef<string[]>([]);
   const skipTimestamps = useRef<number[]>([]);
@@ -453,9 +464,16 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       return false;
     }
     skipTimestamps.current = [...skipTimestamps.current, now];
-    markStationFailure(failed, errorType, detail);
-    attempted.current = [...new Set([...attempted.current, stationKey(failed)])];
     const state = usePlayer.getState();
+    if (!(state.stationSelectionSource === "manual" && isCuratedStation(failed))) markStationFailure(failed, errorType, detail);
+    attempted.current = [...new Set([...attempted.current, stationKey(failed)])];
+    const manualSelection = state.stationSelectionSource === "manual";
+    debugPlayback("fallback check", { stationSelectionSource: state.stationSelectionSource, failed: failed.name, errorType, detail });
+    debugTeleport("playback fallback check", { stationSelectionSource: state.stationSelectionSource, failed: failed.name, errorType, detail });
+    if (manualSelection && !hardFailure && errorType !== "startup_timeout" && errorType !== "buffer_timeout") {
+      setStatus("buffering", "Holding the selected signal…");
+      return false;
+    }
     const failedContinent = stationContinent(failed);
     const queueFallback = state.teleportQueue.find((station) => !attempted.current.includes(stationKey(station)) && stationContinent(station) !== failedContinent)
       ?? state.teleportQueue.find((station) => !attempted.current.includes(stationKey(station)));
@@ -468,9 +486,9 @@ function AudioEngine({ stations }: { stations: Station[] }) {
         commitTeleportStation(fallback, state.teleportQueue.filter((station) => stationKey(station) !== stationKey(fallback)));
       } else if (state.arrivalStation && stationKey(state.arrivalStation) === stationKey(failed)) {
         state.replaceStartupStation(failed, fallback, reason);
-        usePlayer.getState().setStation(fallback);
+        usePlayer.getState().setStation(fallback, "fallback");
       } else {
-        usePlayer.getState().setStation(fallback);
+        usePlayer.getState().setStation(fallback, "fallback");
       }
       return true;
     }
@@ -482,7 +500,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     if (!current) return;
     const queue = buildFastConnectQueue(stations, current, FAST_CONNECT_PARALLEL_CANDIDATES - 1);
     attempted.current = [stationKey(current)];
-    if (queue.length > 1) setStatus("buffering", getAdaptiveBufferPolicy(current).message);
+    if (queue.length > 1) setStatus("buffering", usePlayer.getState().stationSelectionSource === "manual" ? "Holding the selected signal…" : getAdaptiveBufferPolicy(current).message);
   }, [currentKey, current, setStatus, stations]);
 
   useEffect(() => {
@@ -551,7 +569,14 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     let sawCanPlay = false;
     let sawProgress = false;
     let lastCurrentTime = element.currentTime || 0;
-    const policy = getAdaptiveBufferPolicy(current);
+    const selectionSource = stationSelectionSource;
+    const manualSelection = selectionSource === "manual";
+    const basePolicy = getAdaptiveBufferPolicy(current);
+    const policy = manualSelection
+      ? { ...basePolicy, startupTimeoutMs: 15000, bufferTimeoutMs: 22000, maxAttempts: Math.max(2, basePolicy.maxAttempts), trusted: true, message: "Holding the selected signal…", timeoutMessage: "Still trying the station you selected…" }
+      : basePolicy;
+    debugPlayback("attempt", { station: current.name, stationSelectionSource: selectionSource, startupTimeoutMs: policy.startupTimeoutMs, bufferTimeoutMs: policy.bufferTimeoutMs, maxAttempts: policy.maxAttempts });
+    debugTeleport("playback attempt", { station: current.name, stationSelectionSource: selectionSource, startupTimeoutMs: policy.startupTimeoutMs, bufferTimeoutMs: policy.bufferTimeoutMs, maxAttempts: policy.maxAttempts });
     const clearBufferTimer = () => { if (bufferTimer) window.clearTimeout(bufferTimer); bufferTimer = undefined; };
     const clearStartupTimer = () => { if (startupTimer) window.clearTimeout(startupTimer); startupTimer = undefined; };
     const hasProgress = () => loadedMetadata || sawCanPlay || sawProgress || element.readyState > 0 || element.currentTime > lastCurrentTime;
@@ -579,7 +604,12 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     };
     const fail = (errorType: SignalFailureType, detail?: string) => {
       if (cancelled || failed) return;
-      if ((errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled") && hasProgress() && attempt < policy.maxAttempts) {
+      if (manualSelection && (errorType === "waiting" || errorType === "stalled" || errorType === "abort")) {
+        setStatus("buffering", policy.message);
+        scheduleBufferTimer("buffer_timeout");
+        return;
+      }
+      if ((errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled") && (manualSelection || hasProgress()) && attempt < policy.maxAttempts) {
         attempt += 1;
         clearStartupTimer();
         clearBufferTimer();
@@ -591,11 +621,16 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       clearStartupTimer();
       clearBufferTimer();
       if (policy.trusted && (errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled")) setStatus("buffering", policy.timeoutMessage);
+      if (manualSelection && (errorType === "startup_timeout" || errorType === "buffer_timeout") && hasProgress()) {
+        setStatus("buffering", policy.timeoutMessage);
+        return;
+      }
       skipToNextCandidate(current, errorType, detail);
     };
-    const onLoadedMetadata = () => { loadedMetadata = true; noteProgress(); };
-    const onCanPlay = () => { sawCanPlay = true; noteProgress(); clearStartupTimer(); scheduleBufferTimer(); };
+    const onLoadedMetadata = () => { debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "loadedmetadata", readyState: element.readyState }); loadedMetadata = true; noteProgress(); };
+    const onCanPlay = () => { debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "canplay", readyState: element.readyState }); sawCanPlay = true; noteProgress(); clearStartupTimer(); scheduleBufferTimer(); };
     const onPlaying = () => {
+      debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "playing", readyState: element.readyState });
       if (cancelled || failed) return;
       clearStartupTimer();
       clearBufferTimer();
@@ -608,16 +643,18 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       setStatus("playing");
     };
     const onWaiting = () => {
+      debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "waiting", readyState: element.readyState });
       waitingEvents += 1;
       const readyStateAtEvent = element.readyState;
       scheduleBufferTimer(waitingEvents > 1 && readyStateAtEvent <= lastReadyState ? "waiting" : "buffer_timeout");
     };
     const onStalled = () => {
+      debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "stalled", readyState: element.readyState });
       stalledEvents += 1;
       const readyStateAtEvent = element.readyState;
       scheduleBufferTimer(stalledEvents > 1 && readyStateAtEvent <= lastReadyState ? "stalled" : "buffer_timeout");
     };
-    const onAbort = () => fail("abort", "Audio request was aborted.");
+    const onAbort = () => { debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "abort", readyState: element.readyState }); fail("abort", "Audio request was aborted."); };
     scheduleStartupTimer();
 
     element.addEventListener("loadedmetadata", onLoadedMetadata);
@@ -666,7 +703,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       element.removeEventListener("stalled", onStalled);
       element.removeEventListener("abort", onAbort);
     };
-  }, [current, currentKey, status, userActivated, setStatus, volume, stations, skipToNextCandidate]);
+  }, [current, currentKey, status, userActivated, stationSelectionSource, setStatus, volume, stations, skipToNextCandidate]);
 
   useEffect(() => {
     const element = audio.current;
@@ -1285,7 +1322,7 @@ function TakeMeSomewhereButton({ stations, current, onTravel }: { stations: Stat
     const intent = WANDERER_INTENTS[Math.floor(Math.random() * WANDERER_INTENTS.length)];
     void resolveGlobalJourneyDestination(stations, current, intent).then((destination) => {
       rememberJourneyStop(destination);
-      usePlayer.getState().setStation(destination);
+      usePlayer.getState().setStation(destination, "wanderer");
     });
     onTravel?.(intent);
   };
@@ -1702,8 +1739,8 @@ function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { ope
     const intent = option === "Surprise Me" ? "Take me somewhere surprising" : option === "Global Shuffle" ? "Take me somewhere global" : option;
     fetch(`/api/stations/nearby?global=true&limit=18`).then(async (res) => {
       const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
-      usePlayer.getState().setStation(chooseWonderStation([...(data.candidates?.map((item) => item.station) ?? []), ...stations], current, intent));
-    }).catch(() => usePlayer.getState().setStation(chooseWonderStation(stations, current, intent)));
+      usePlayer.getState().setStation(chooseWonderStation([...(data.candidates?.map((item) => item.station) ?? []), ...stations], current, intent), "wanderer");
+    }).catch(() => usePlayer.getState().setStation(chooseWonderStation(stations, current, intent), "wanderer"));
     onTravel(intent);
     onClose();
   };
@@ -1758,7 +1795,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     setWandererIntent(intent);
     void resolveGlobalJourneyDestination(stations, usePlayer.getState().current ?? current, intent).then((destination) => {
       rememberJourneyStop(destination);
-      usePlayer.getState().setStation(destination);
+      usePlayer.getState().setStation(destination, "wanderer");
       handleTravel(intent);
     });
   }, [current, handleTravel, stations, setWandererIntent]);
@@ -2002,7 +2039,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     if (!stationUuid) return;
     const existing = initialStationPoolRef.current.find((station) => station.station_uuid === stationUuid);
     if (existing) {
-      usePlayer.getState().setStation(existing);
+      usePlayer.getState().setStation(existing, "deeplink");
       setDeepLinkStatus("idle");
       return;
     }
@@ -2016,13 +2053,13 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       .then(({ station }) => {
         if (station.station_uuid !== stationUuid) throw new Error("Station identity mismatch");
         setStationPool((prev) => prev.some((item) => item.station_uuid === stationUuid) ? prev : [station, ...prev]);
-        usePlayer.getState().setStation(station);
+        usePlayer.getState().setStation(station, "deeplink");
         setDeepLinkStatus("idle");
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         const fallback = initialStationPoolRef.current[0];
-        if (fallback) usePlayer.getState().prepareStation(fallback);
+        if (fallback) usePlayer.getState().prepareStation(fallback, "deeplink");
         setDeepLinkStatus("unavailable");
       });
     return () => controller.abort();
@@ -2038,7 +2075,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       const data = (await res.json()) as { stations: Station[] };
       setStationPool((prev) => nextOffset ? [...prev, ...data.stations] : data.stations);
       setOffset(nextOffset + data.stations.length);
-      if (!nextOffset && data.stations[0]) usePlayer.getState().setStation(data.stations[0]);
+      if (!nextOffset && data.stations[0]) usePlayer.getState().setStation(data.stations[0], "auto");
     }
     setLoadingCountry(false);
   };
@@ -2064,7 +2101,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     void resolveGlobalJourneyDestination(stationPool, usePlayer.getState().current ?? current, intent).then((destination) => {
       rememberJourneyStop(destination);
       setStationPool((prev) => prev.some((station) => station.id === destination.id) ? prev : [destination, ...prev]);
-      usePlayer.getState().setStation(destination);
+      usePlayer.getState().setStation(destination, "wanderer");
     });
   }, [current, stationPool]);
   useEffect(() => {
