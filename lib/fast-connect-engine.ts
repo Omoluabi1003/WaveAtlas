@@ -4,15 +4,17 @@ import { isCuratedStation, isStationAvailable } from "@/lib/stations";
 import { stationCity } from "@/lib/discovery/history";
 import { stationContinent } from "@/lib/discovery/station-picker";
 
-export type StationTrustClass = "unknown_station" | "radio_browser_station" | "curated_station" | "verified_station" | "recently_successful_station";
+export type StationTrustClass = "unknown_station" | "radio_browser_station" | "curated_station" | "verified_station" | "verified_nigerian_station" | "manual_selection" | "recently_successful_station";
 export type AdaptiveBufferPolicy = { startupTimeoutMs: number; bufferTimeoutMs: number; maxAttempts: number; trusted: boolean; message: string; timeoutMessage: string };
 
 export const ADAPTIVE_BUFFER_POLICIES: Record<StationTrustClass, AdaptiveBufferPolicy> = {
-  unknown_station: { startupTimeoutMs: 6500, bufferTimeoutMs: 10000, maxAttempts: 1, trusted: false, message: "Finding a stronger live signal…", timeoutMessage: "Finding a stronger live signal…" },
-  radio_browser_station: { startupTimeoutMs: 7500, bufferTimeoutMs: 11000, maxAttempts: 1, trusted: false, message: "Finding a stronger live signal…", timeoutMessage: "Finding a stronger live signal…" },
+  unknown_station: { startupTimeoutMs: 8000, bufferTimeoutMs: 12000, maxAttempts: 1, trusted: false, message: "Finding a stronger live signal…", timeoutMessage: "Finding a stronger live signal…" },
+  radio_browser_station: { startupTimeoutMs: 9000, bufferTimeoutMs: 13000, maxAttempts: 1, trusted: false, message: "Finding a stronger live signal…", timeoutMessage: "Finding a stronger live signal…" },
   curated_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 16000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
   verified_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 16000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
-  recently_successful_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 18000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
+  verified_nigerian_station: { startupTimeoutMs: 16000, bufferTimeoutMs: 22000, maxAttempts: 2, trusted: true, message: "Holding the Nigerian signal…", timeoutMessage: "Still giving this Nigerian signal time…" },
+  manual_selection: { startupTimeoutMs: 18000, bufferTimeoutMs: 25000, maxAttempts: 2, trusted: true, message: "Holding the selected signal…", timeoutMessage: "Still trying the station you selected…" },
+  recently_successful_station: { startupTimeoutMs: 20000, bufferTimeoutMs: 28000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Still holding this recently working signal…" },
 };
 
 export const FAST_CONNECT_STARTUP_TIMEOUT_MS = ADAPTIVE_BUFFER_POLICIES.unknown_station.startupTimeoutMs;
@@ -31,9 +33,12 @@ const FAILED_KEY = "failed_stations";
 const SUCCESS_KEY = "successful_stations";
 const REVIEW_KEY = "waveatlas_signal_review_queue";
 const DAY_MS = 24 * 60 * 60 * 1000;
+const SOFT_FAILURE_TTL_MS = 6 * 60 * 60 * 1000;
+const HARD_FAILURE_TTL_MS = 24 * 60 * 60 * 1000;
 const DIRECT_STREAM_PATTERN = /(?:mp3|aac|mpeg|audio)/i;
+const SOFT_FAILURE_TYPES = new Set<SignalFailureType>(["startup_timeout", "buffer_timeout", "stalled", "waiting"]);
 
-type HealthRecord = { failures: number; successes: number; degradedUntil?: number; lastFailureAt?: number; lastSuccessAt?: number; errorType?: string };
+type HealthRecord = { failures: number; softFailures?: number; hardFailures?: number; successes: number; degradedUntil?: number; hardDegradedUntil?: number; lastFailureAt?: number; lastSoftFailureAt?: number; lastHardFailureAt?: number; lastSuccessAt?: number; errorType?: string; failureKind?: "soft" | "hard" };
 type StoredStationEvent = { key: string; name: string; country?: string; at: number };
 type HealthMemory = Record<string, HealthRecord>;
 export type SignalFailureType = "audio_error" | "startup_timeout" | "buffer_timeout" | "stalled" | "waiting" | "network_error" | "unsupported_media" | "autoplay_blocked" | "missing_url" | "abort" | "playback_error";
@@ -58,9 +63,16 @@ function recentSuccessfulKeys() {
   return readJson<StoredStationEvent[]>(SUCCESS_KEY, []).filter((item) => Date.now() - item.at < DAY_MS).map((item) => item.key);
 }
 
+export function isVerifiedNigerianStation(station: Station) {
+  const tags = station.tags.map((tag) => tag.toLowerCase());
+  return station.country_code === "NG" && (isCuratedStation(station) || station.validation_status === "verified" || tags.includes("verified"));
+}
+
 function hasRecentFailure(station: Station) {
   const record = readStationHealthMemory()[stationKey(station)];
-  return Boolean(record?.lastFailureAt && Date.now() - record.lastFailureAt < DAY_MS);
+  if (!record) return false;
+  if (isVerifiedNigerianStation(station) && record.failureKind !== "hard") return false;
+  return Boolean(record.lastHardFailureAt && Date.now() - record.lastHardFailureAt < HARD_FAILURE_TTL_MS);
 }
 
 function eligibleStartupCandidate(station: Station) {
@@ -71,7 +83,7 @@ export function markStationSuccess(station: Station) {
   const memory = readStationHealthMemory();
   const key = stationKey(station);
   const previous = memory[key] ?? { failures: 0, successes: 0 };
-  memory[key] = { ...previous, successes: previous.successes + 1, lastSuccessAt: Date.now(), degradedUntil: undefined };
+  memory[key] = { ...previous, successes: previous.successes + 1, lastSuccessAt: Date.now(), degradedUntil: undefined, hardDegradedUntil: undefined, errorType: undefined, failureKind: undefined };
   writeJson(HEALTH_KEY, memory);
   rememberList(SUCCESS_KEY, station);
 }
@@ -86,7 +98,21 @@ export function markStationFailure(station: Station, errorType: SignalFailureTyp
   const memory = readStationHealthMemory();
   const key = stationKey(station);
   const previous = memory[key] ?? { failures: 0, successes: 0 };
-  memory[key] = { ...previous, failures: previous.failures + 1, lastFailureAt: Date.now(), degradedUntil: Date.now() + DAY_MS, errorType };
+  const soft = SOFT_FAILURE_TYPES.has(errorType);
+  const ttl = soft && isVerifiedNigerianStation(station) ? SOFT_FAILURE_TTL_MS : HARD_FAILURE_TTL_MS;
+  memory[key] = {
+    ...previous,
+    failures: previous.failures + 1,
+    softFailures: (previous.softFailures ?? 0) + (soft ? 1 : 0),
+    hardFailures: (previous.hardFailures ?? 0) + (soft ? 0 : 1),
+    lastFailureAt: Date.now(),
+    lastSoftFailureAt: soft ? Date.now() : previous.lastSoftFailureAt,
+    lastHardFailureAt: soft ? previous.lastHardFailureAt : Date.now(),
+    degradedUntil: Date.now() + ttl,
+    hardDegradedUntil: soft ? previous.hardDegradedUntil : Date.now() + HARD_FAILURE_TTL_MS,
+    errorType,
+    failureKind: soft ? "soft" : "hard",
+  };
   writeJson(HEALTH_KEY, memory);
   rememberList(FAILED_KEY, station);
   queueSignalReview(station, errorType, detail);
@@ -97,12 +123,13 @@ function healthAdjustedScore(station: Station, selected?: Station) {
   let score = station.health_score + Math.min(25, station.votes / 1200) + Math.min(18, station.click_count / 6000) - Math.min(25, station.response_time_ms / 120);
   if (station.last_check_ok) score += 14;
   if (isCuratedStation(station)) score += 12;
+  if (isVerifiedNigerianStation(station)) score += 70;
   if (DIRECT_STREAM_PATTERN.test(`${station.codec} ${station.url_resolved || station.url}`)) score += 10;
   if (record?.lastSuccessAt && Date.now() - record.lastSuccessAt < DAY_MS) score += 28;
-  if (record?.degradedUntil && record.degradedUntil > Date.now()) score -= 70 + record.failures * 18;
+  if (record?.degradedUntil && record.degradedUntil > Date.now()) score -= record.failureKind === "soft" && isVerifiedNigerianStation(station) ? 12 : 70 + record.failures * 18;
   if (!getStationStreamUrl(station)) score -= 500;
   if (station.failure_count > 1) score -= station.failure_count * 15;
-  if (selected && stationKey(station) === stationKey(selected)) score += 200;
+  if (selected && stationKey(station) === stationKey(selected)) score += 1000;
   return score;
 }
 
@@ -117,14 +144,15 @@ export function classifyStationTrust(station: Station): StationTrustClass {
   const verified = station.validation_status === "verified" || station.validation_status === "curated" || tags.includes("manual-playback-verified");
 
   if (recentlySuccessful) return "recently_successful_station";
+  if (isVerifiedNigerianStation(station)) return "verified_nigerian_station";
   if (verified) return "verified_station";
   if (curated) return "curated_station";
   if (station.curation_tier === "radio_browser" || station.curation_source === "radio_browser") return "radio_browser_station";
   return "unknown_station";
 }
 
-export function getAdaptiveBufferPolicy(station: Station): AdaptiveBufferPolicy {
-  return ADAPTIVE_BUFFER_POLICIES[classifyStationTrust(station)];
+export function getAdaptiveBufferPolicy(station: Station, manualSelection = false): AdaptiveBufferPolicy {
+  return ADAPTIVE_BUFFER_POLICIES[manualSelection ? "manual_selection" : classifyStationTrust(station)];
 }
 
 export function buildFastConnectQueue(stations: Station[], selected: Station, minimumBackups = 3) {
