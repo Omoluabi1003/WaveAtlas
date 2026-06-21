@@ -14,6 +14,7 @@ import {
   Languages,
   MapPin,
   Pause,
+  Pin,
   Play,
   Radio,
   Plane,
@@ -2070,6 +2071,112 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, 
   );
 }
 
+
+const ATLAS_GUIDE_PIN_SESSION_KEY = "waveatlas:atlas-guide-pinned";
+
+function uniqueGuideParts(parts: Array<string | undefined>) {
+  const seen = new Set<string>();
+  return parts.map((part) => part?.trim()).filter((part): part is string => {
+    if (!part) return false;
+    const key = part.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function titleCaseTag(tag: string) {
+  return tag.replace(/[\-_]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildAtlasGuideFacts(station: Station) {
+  const place = [station.city || station.state, station.country].filter(Boolean).join(", ") || station.country || "Earth";
+  const languages = uniqueGuideParts((station.language || "").split(/[,/•]+/).map((language) => language.trim())).slice(0, 3);
+  const languageLine = languages.length ? languages.join(" • ") : "Local language signal";
+  const soundTags = station.tags.filter((tag) => !["ariyo-ai-seed", "waveatlas-curated", "curators-picks", "verified"].includes(tag.toLowerCase())).slice(0, 3).map(titleCaseTag);
+  const soundLine = soundTags.length ? soundTags.join(" • ") : getPrimaryGenre(station);
+  const signalLine = station.tags.some((tag) => tag.toLowerCase() === "ariyo-ai-seed") || station.curation_source?.toLowerCase().includes("ariyo")
+    ? "Ariyo AI Seed Atlas"
+    : isCuratedStation(station)
+      ? "Curator's Picks"
+      : station.validation_status === "verified"
+        ? "Verified station metadata"
+        : "Station metadata";
+  return {
+    place,
+    collapsedMeta: uniqueGuideParts([station.city || station.state || station.country, languageLine.split(" • ")[0], soundTags[0] || "Local Radio"]).join(" • "),
+    sections: [
+      ["You’ve landed in", place],
+      ["Language", languageLine],
+      ["Sound", soundLine],
+      ["Signal", signalLine],
+    ] as const,
+  };
+}
+
+function AtlasGuide({ station, mobile = false }: { station: Station; mobile?: boolean }) {
+  const reducedMotion = useReducedMotion();
+  const facts = useMemo(() => buildAtlasGuideFacts(station), [station]);
+  const [pinned, setPinned] = useState(() => typeof window !== "undefined" && window.sessionStorage.getItem(ATLAS_GUIDE_PIN_SESSION_KEY) === "true");
+  const [open, setOpen] = useState(pinned);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (pinned) {
+      window.sessionStorage.setItem(ATLAS_GUIDE_PIN_SESSION_KEY, "true");
+      return;
+    }
+    window.sessionStorage.removeItem(ATLAS_GUIDE_PIN_SESSION_KEY);
+  }, [pinned]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || pinned) return;
+    const showTimer = window.setTimeout(() => setOpen(true), 0);
+    const hideTimer = window.setTimeout(() => setOpen(false), 8000);
+    return () => { window.clearTimeout(showTimer); window.clearTimeout(hideTimer); };
+  }, [pinned, station.station_uuid, station.id]);
+
+  const visibleSections = mobile ? facts.sections.slice(0, 3) : facts.sections;
+
+  return (
+    <motion.section
+      layout
+      initial={false}
+      animate={open ? "open" : "closed"}
+      transition={reducedMotion ? { duration: 0 } : { duration: 0.22, ease: "easeOut" }}
+      className={`${mobile ? "fixed bottom-[168px] left-4 right-4 z-[45] mx-auto max-w-[90vw]" : "fixed bottom-[112px] left-1/2 z-[69] w-[min(320px,calc(100vw-3rem))] -translate-x-1/2"} pointer-events-auto overflow-hidden rounded-full border border-white/[0.08] bg-[rgba(8,17,29,0.84)] text-ivory shadow-[0_18px_52px_rgba(0,0,0,0.34)] backdrop-blur-[18px]`}
+      aria-label="Atlas Guide cultural context"
+    >
+      <button type="button" onClick={() => setOpen((value) => !value)} className="flex min-h-8 w-full items-center gap-2 px-3 py-1.5 text-left" aria-expanded={open}>
+        <Compass className="size-4 shrink-0 text-gold" />
+        <span className="shrink-0 text-xs font-semibold text-white">Atlas Guide</span>
+        <span className="min-w-0 flex-1 truncate text-[11px] text-ivory/68">{facts.collapsedMeta}</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={`${mobile ? "max-h-52 overflow-y-auto" : ""} rounded-[18px] border-t border-white/[0.08] bg-[rgba(8,17,29,0.84)] px-4 pb-4 pt-2`}
+          >
+            <div className="grid gap-2">
+              {visibleSections.map(([title, value]) => <div key={title} className="rounded-2xl border border-white/[0.06] bg-white/[0.045] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold/80">{title}</p>
+                <p className="mt-1 text-sm font-medium leading-5 text-white">{value}</p>
+              </div>)}
+            </div>
+            <button type="button" onClick={() => setPinned((value) => { const next = !value; if (next) setOpen(true); return next; })} className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${pinned ? "border-radio/45 bg-radio/15 text-radio" : "border-white/10 bg-white/[0.04] text-ivory/68 hover:text-white"}`}>
+              <Pin className="size-3" />{pinned ? "Pinned for this session" : "Pin open"}
+            </button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </motion.section>
+  );
+}
+
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
@@ -2166,6 +2273,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
         <AddYourSignalPanel compact onCancel={() => setMode("Atlas")} />
       </div>
     ) : null}
+    <AtlasGuide station={current} mobile />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <NewspaperBrief station={current} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
@@ -2621,6 +2729,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
       </aside> : null}
       <NewspaperBrief station={current} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
+      <AtlasGuide station={current} />
       <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
