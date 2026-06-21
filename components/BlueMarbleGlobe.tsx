@@ -13,6 +13,14 @@ type CountryResult = {
 };
 
 type GlobePoint = { lat: number; lng: number; label: string };
+type LandRing = Array<[number, number]>;
+type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number } };
+type NaturalEarthFeature = {
+  type: "Feature";
+  properties?: Record<string, string | number | null | undefined>;
+  geometry?: { type: "Polygon" | "MultiPolygon"; coordinates: number[][][] | number[][][][] };
+};
+type NaturalEarthCollection = { type: "FeatureCollection"; features: NaturalEarthFeature[] };
 
 type Props = {
   station: Station;
@@ -25,6 +33,55 @@ type Props = {
 const COUNTRY_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
+const LAND_GEOJSON_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
+let landPromise: Promise<LandShape[]> | null = null;
+let landCache: LandShape[] | null = null;
+
+function ringCentroid(rings: LandRing[]) {
+  let lat = 0;
+  let lng = 0;
+  let count = 0;
+  for (const ring of rings) {
+    for (const [x, y] of ring) {
+      lng += x;
+      lat += y;
+      count += 1;
+    }
+  }
+  return count ? { lat: lat / count, lng: lng / count } : { lat: 0, lng: 0 };
+}
+
+function normalizeLandFeature(feature: NaturalEarthFeature): LandShape | null {
+  const geometry = feature.geometry;
+  if (!geometry) return null;
+  const props = feature.properties ?? {};
+  const rings: LandRing[] = geometry.type === "Polygon"
+    ? (geometry.coordinates as number[][][]).map((ring) => ring.map(([lng, lat]) => [lng, lat] as [number, number]))
+    : (geometry.coordinates as number[][][][]).flatMap((polygon) => polygon.map((ring) => ring.map(([lng, lat]) => [lng, lat] as [number, number])));
+  if (!rings.length) return null;
+  return {
+    name: String(props.NAME_EN || props.NAME || props.ADMIN || "Land"),
+    code: typeof props.ISO_A2 === "string" && props.ISO_A2.length === 2 ? props.ISO_A2 : undefined,
+    rings,
+    centroid: ringCentroid(rings),
+  };
+}
+
+function loadLandShapes() {
+  if (landCache) return Promise.resolve(landCache);
+  if (!landPromise) {
+    landPromise = fetch(LAND_GEOJSON_URL, { cache: "force-cache" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Natural Earth boundaries failed: ${response.status}`);
+        return response.json() as Promise<NaturalEarthCollection>;
+      })
+      .then((collection) => {
+        landCache = collection.features.map(normalizeLandFeature).filter((shape): shape is LandShape => Boolean(shape));
+        return landCache;
+      });
+  }
+  return landPromise;
+}
 
 function stationPoint(station?: Station): GlobePoint | null {
   if (!station) return null;
@@ -65,19 +122,28 @@ function lowPowerDevice() {
   return (nav.deviceMemory ?? 8) <= 3 || (nav.hardwareConcurrency ?? 8) <= 4;
 }
 
-export default function BlueMarbleGlobe({ station, previousStation, teleporting = false, onCountrySelect, onFallback }: Props) {
+export default function BlueMarbleGlobe({ station, teleporting = false, onCountrySelect, onFallback }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
+  const [landShapes, setLandShapes] = useState<LandShape[]>([]);
   const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false });
   const currentPoint = useMemo(() => stationPoint(station), [station]);
-  const previousPoint = useMemo(() => stationPoint(previousStation), [previousStation]);
+  const stationLabel = useMemo(() => [station.city || station.state, station.country].filter(Boolean).join(", ") || station.name, [station]);
 
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
     state.current.targetY = -point.lng * DEG;
     state.current.targetX = Math.max(-65 * DEG, Math.min(65 * DEG, point.lat * DEG * 0.62));
     state.current.targetZoom = fast ? 1.22 : 1.08;
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    loadLandShapes()
+      .then((shapes) => { if (mounted) setLandShapes(shapes); })
+      .catch(() => { if (mounted) setLandShapes([]); });
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
@@ -109,6 +175,35 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
       return { x: w / 2 + x * r, y: h / 2 - y * r, z };
     };
 
+    const drawRing = (ring: LandRing, w: number, h: number, r: number) => {
+      let started = false;
+      for (let i = 0; i < ring.length; i += 1) {
+        const [lng, lat] = ring[i];
+        const p = project(lat, lng, w, h, r);
+        const prev = i > 0 ? ring[i - 1] : null;
+        const crossesDateLine = prev ? Math.abs(lng - prev[0]) > 180 : false;
+        if (p.z < -0.04 || crossesDateLine) { started = false; continue; }
+        started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+        started = true;
+      }
+    };
+
+    const drawLabel = (text: string, lat: number, lng: number, w: number, h: number, r: number, active = false) => {
+      const p = project(lat, lng, w, h, r);
+      if (p.z < -0.02) return;
+      ctx.save();
+      ctx.font = `${active ? 700 : 600} ${active ? 12 : 9}px var(--font-sans), Inter, system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const y = p.y - (active ? 26 : 0);
+      ctx.lineWidth = active ? 4 : 3;
+      ctx.strokeStyle = "rgba(2,6,23,0.86)";
+      ctx.strokeText(text, p.x, y);
+      ctx.fillStyle = active ? "rgba(255,255,255,0.96)" : "rgba(226,232,240,0.58)";
+      ctx.fillText(text, p.x, y);
+      ctx.restore();
+    };
+
     const draw = (now: number) => {
       const dt = Math.min(32, now - then);
       then = now;
@@ -137,25 +232,35 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
       const ocean = ctx.createRadialGradient(cx - r * 0.38, cy - r * 0.44, r * 0.12, cx, cy, r * 1.12);
       ocean.addColorStop(0, "#173b55"); ocean.addColorStop(0.48, "#071d33"); ocean.addColorStop(1, "#020817");
       ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-      ctx.strokeStyle = "rgba(147,197,253,0.16)"; ctx.lineWidth = 1;
+      if (landShapes.length) {
+        ctx.fillStyle = "rgba(63,129,102,0.50)";
+        ctx.strokeStyle = "rgba(196,245,222,0.26)";
+        ctx.lineWidth = 0.75;
+        for (const shape of landShapes) {
+          ctx.beginPath();
+          for (const ring of shape.rings) drawRing(ring, w, h, r);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+      ctx.strokeStyle = "rgba(147,197,253,0.07)"; ctx.lineWidth = 0.7;
       for (let lat = -75; lat <= 75; lat += 15) { ctx.beginPath(); for (let lng = -180; lng <= 180; lng += 4) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) continue; lng === -180 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.stroke(); }
       for (let lng = -180; lng < 180; lng += 15) { ctx.beginPath(); let started = false; for (let lat = -85; lat <= 85; lat += 3) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) { started = false; continue; } started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); started = true; } ctx.stroke(); }
-      ctx.fillStyle = "rgba(88,225,132,0.18)";
-      for (const [code, point] of Object.entries(isoCountryCentroids)) { const p = project(point.lat, point.lng, w, h, r); if (p.z > 0.05) { ctx.beginPath(); ctx.arc(p.x, p.y, code === station.country_code ? 2.6 : 1.05, 0, TAU); ctx.fill(); } }
-      if (previousPoint && currentPoint) {
-        const phase = s.disabledMotion ? 0.8 : (now / (teleporting ? 620 : 1400)) % 1;
-        ctx.strokeStyle = teleporting ? "rgba(245,190,85,0.95)" : "rgba(0,214,143,0.78)"; ctx.lineWidth = teleporting ? 2.8 : 1.8; ctx.beginPath();
-        for (let i = 0; i <= 80; i++) { const t = i / 80; const lat = previousPoint.lat + (currentPoint.lat - previousPoint.lat) * t + Math.sin(Math.PI * t) * 16; const lng = previousPoint.lng + (currentPoint.lng - previousPoint.lng) * t; const p = project(lat, lng, w, h, r); if (p.z < -0.15) continue; i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
-        ctx.stroke(); const spark = project(previousPoint.lat + (currentPoint.lat - previousPoint.lat) * phase + Math.sin(Math.PI * phase) * 16, previousPoint.lng + (currentPoint.lng - previousPoint.lng) * phase, w, h, r); if (spark.z > -0.05) { ctx.fillStyle = "#F6C85F"; ctx.beginPath(); ctx.arc(spark.x, spark.y, 4, 0, TAU); ctx.fill(); }
+      if (s.zoom > 1.28) {
+        const visibleLabels = landShapes.filter((shape) => shape.code && isoCountryCentroids[shape.code]).slice(0, 70);
+        for (const shape of visibleLabels) {
+          const centroid = isoCountryCentroids[shape.code as keyof typeof isoCountryCentroids] ?? shape.centroid;
+          drawLabel(shape.name, centroid.lat, centroid.lng, w, h, r);
+        }
       }
-      if (currentPoint) { const p = project(currentPoint.lat, currentPoint.lng, w, h, r); if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / 180) * 0.22; ctx.fillStyle = "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, 18 * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); } }
+      if (currentPoint) { const p = project(currentPoint.lat, currentPoint.lng, w, h, r); if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / 180) * 0.22; ctx.fillStyle = "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, 18 * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); drawLabel(stationLabel, currentPoint.lat, currentPoint.lng, w, h, r, true); } }
       ctx.restore();
       ctx.strokeStyle = "rgba(0,214,143,0.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [currentPoint, focusPoint, onFallback, previousPoint, station.country_code, teleporting]);
+  }, [currentPoint, focusPoint, landShapes, onFallback, stationLabel, teleporting]);
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, teleporting]);
 
