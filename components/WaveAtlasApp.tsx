@@ -485,6 +485,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       clearStartupTimer();
       clearBufferTimer();
       markStationSuccess(current);
+      rememberTeleport(current);
       setStatus("playing");
     };
     const onWaiting = () => {
@@ -861,12 +862,26 @@ function diverseGlobalPool(stations: Station[], current: Station) {
   return interleaveByContinent(stations).filter((station) => station.id !== current.id);
 }
 
-const TELEPORT_HISTORY_KEY = "waveatlas.teleport.history.v1";
+const TELEPORT_HISTORY_KEY = "waveatlas_teleport_history";
+const TELEPORT_HISTORY_ALIAS_KEYS = ["waveatlas.teleport.history.v1"];
+const TELEPORT_HISTORY_SLICE_KEYS = { stationIds: "last25Stations", cities: "last10Cities", countries: "last5Countries", continents: "last3Continents", genres: "last10Genres", languages: "last10Languages" } as const;
 type TeleportHistory = { countries: string[]; continents: string[]; cities: string[]; languages: string[]; genres: string[]; tags: string[]; stationIds: string[] };
 const emptyTeleportHistory = (): TeleportHistory => ({ countries: [], continents: [], cities: [], languages: [], genres: [], tags: [], stationIds: [] });
 function readTeleportHistory(): TeleportHistory {
   if (typeof window === "undefined") return emptyTeleportHistory();
-  try { return { ...emptyTeleportHistory(), ...JSON.parse(window.localStorage.getItem(TELEPORT_HISTORY_KEY) || "{}") }; } catch { return emptyTeleportHistory(); }
+  try {
+    const raw = window.localStorage.getItem(TELEPORT_HISTORY_KEY) || TELEPORT_HISTORY_ALIAS_KEYS.map((key) => window.localStorage.getItem(key)).find(Boolean) || "{}";
+    const parsed = { ...emptyTeleportHistory(), ...JSON.parse(raw) };
+    return {
+      ...parsed,
+      stationIds: parsed.stationIds.length ? parsed.stationIds : JSON.parse(window.localStorage.getItem(TELEPORT_HISTORY_SLICE_KEYS.stationIds) || "[]"),
+      cities: parsed.cities.length ? parsed.cities : JSON.parse(window.localStorage.getItem(TELEPORT_HISTORY_SLICE_KEYS.cities) || "[]"),
+      countries: parsed.countries.length ? parsed.countries : JSON.parse(window.localStorage.getItem(TELEPORT_HISTORY_SLICE_KEYS.countries) || "[]"),
+      continents: parsed.continents.length ? parsed.continents : JSON.parse(window.localStorage.getItem(TELEPORT_HISTORY_SLICE_KEYS.continents) || "[]"),
+      genres: parsed.genres.length ? parsed.genres : JSON.parse(window.localStorage.getItem(TELEPORT_HISTORY_SLICE_KEYS.genres) || "[]"),
+      languages: parsed.languages.length ? parsed.languages : JSON.parse(window.localStorage.getItem(TELEPORT_HISTORY_SLICE_KEYS.languages) || "[]"),
+    };
+  } catch { return emptyTeleportHistory(); }
 }
 function rememberJourneyStop(station: Station) {
   rememberTeleport(station);
@@ -876,7 +891,7 @@ function rememberJourneyStop(station: Station) {
 function rememberTeleport(station: Station) {
   if (typeof window === "undefined") return;
   const history = readTeleportHistory();
-  const keep = <T,>(items: T[]) => items.slice(-100);
+  const keep = <T,>(items: T[], size = 100) => items.slice(-size);
   const next = {
     countries: keep([...history.countries, station.country_code]),
     continents: keep([...history.continents, stationContinent(station)]),
@@ -886,7 +901,15 @@ function rememberTeleport(station: Station) {
     tags: keep([...history.tags, ...station.tags.map((tag) => tag.toLowerCase())]),
     stationIds: keep([...history.stationIds, station.station_uuid || station.id]),
   };
-  try { window.localStorage.setItem(TELEPORT_HISTORY_KEY, JSON.stringify(next)); } catch { /* Teleport history is best-effort. */ }
+  try {
+    window.localStorage.setItem(TELEPORT_HISTORY_KEY, JSON.stringify(next));
+    window.localStorage.setItem(TELEPORT_HISTORY_SLICE_KEYS.stationIds, JSON.stringify(keep(next.stationIds, 25)));
+    window.localStorage.setItem(TELEPORT_HISTORY_SLICE_KEYS.cities, JSON.stringify(keep(next.cities, 10)));
+    window.localStorage.setItem(TELEPORT_HISTORY_SLICE_KEYS.countries, JSON.stringify(keep(next.countries, 5)));
+    window.localStorage.setItem(TELEPORT_HISTORY_SLICE_KEYS.continents, JSON.stringify(keep(next.continents, 3)));
+    window.localStorage.setItem(TELEPORT_HISTORY_SLICE_KEYS.genres, JSON.stringify(keep(next.genres, 10)));
+    window.localStorage.setItem(TELEPORT_HISTORY_SLICE_KEYS.languages, JSON.stringify(keep(next.languages, 10)));
+  } catch { /* Teleport history is best-effort. */ }
 }
 
 
@@ -1361,7 +1384,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
     let next = fallbackCandidates(anchor, wander);
     if (!selectedCountry) {
       try {
-        const params = new URLSearchParams({ global: "true", limit: "18", anchor: JSON.stringify(anchor), recent: JSON.stringify(readTeleportHistory()) });
+        const params = new URLSearchParams({ global: "true", limit: "25", anchor: JSON.stringify(anchor), recent: JSON.stringify(readTeleportHistory()) });
         const res = await fetch(`/api/stations/nearby?${params.toString()}`);
         const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
         next = data.candidates?.length ? data.candidates : next;
@@ -1377,7 +1400,6 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   }, [current, fallbackCandidates, selectedCountry, stations]);
   const tune = () => {
     if (!candidate) return;
-    rememberTeleport(candidate.station);
     usePlayer.getState().setStation(candidate.station);
     onStationResolved?.(candidate.station);
     setState("idle");
@@ -1575,7 +1597,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
-    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => usePlayer.getState().setStation(stations[(stations.findIndex((s) => s.id === current.id) + 1) % stations.length])} />
+    <MobileMapControls onRecenter={() => usePlayer.getState().setStation(current)} onOpenBasemap={() => setBasemapOpen(true)} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenFavorites={() => { setQuery("favorites"); setSearchOverlayOpen(true); }} onTeleport={() => { void resolveGlobalJourneyDestination(stations, current, "Take me somewhere surprising").then((destination) => usePlayer.getState().setStation(destination)); }} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
@@ -1587,7 +1609,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     ) : null}
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
-    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const destination = chooseWonderStation(stations, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); handleTravel("Take me somewhere surprising"); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const intent = "Take me somewhere surprising"; void resolveGlobalJourneyDestination(stations, current, intent).then((destination) => { usePlayer.getState().setStation(destination); handleTravel(intent); }); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
 
@@ -1964,7 +1986,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
         </div>
         <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
-          {[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); const destination = chooseWonderStation(stationPool, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else setDesktopMode(value); }} className={`pointer-events-auto rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
+          {[[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]].map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); const intent = "Take me somewhere surprising"; void resolveGlobalJourneyDestination(stationPool, current, intent).then((destination) => usePlayer.getState().setStation(destination)); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else setDesktopMode(value); }} className={`pointer-events-auto rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
         </nav>
       </div>
     </main>
