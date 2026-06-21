@@ -21,6 +21,7 @@ import {
   Signal,
   Trophy,
   Layers,
+  Settings,
   Newspaper,
   Sparkles,
   Volume2,
@@ -1477,15 +1478,15 @@ function NowPlaying({
   );
 }
 
-function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch }: { viewportOffsetTop?: number; onOpenSearch: () => void }) {
+function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings }: { viewportOffsetTop?: number; onOpenSearch: () => void; onOpenSettings: () => void }) {
   return (
     <div style={{ top: viewportOffsetTop }} className="pointer-events-none fixed inset-x-0 z-40 pt-[calc(env(safe-area-inset-top)+12px)]">
       <div className="mx-4 flex items-center justify-between gap-3">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/45 px-3 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-xl backdrop-blur-2xl">
           WaveAtlas™
         </b>
-        <button type="button" className="pointer-events-auto grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/45 text-xl leading-none text-ivory shadow-xl backdrop-blur-2xl" aria-label="Open menu">
-          ☰
+        <button type="button" onClick={onOpenSettings} className="pointer-events-auto grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/45 text-ivory shadow-xl backdrop-blur-2xl transition hover:border-radio/30 hover:text-radio" aria-label="Open settings">
+          <Settings className="size-4" />
         </button>
       </div>
       <button
@@ -1820,8 +1821,11 @@ function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { st
 }
 
 function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wandererActive }: { mode: string; setMode: (m: string) => void; onTeleport: () => void; onToggleWanderer: () => void; wandererActive: boolean }) {
-  const commands = [[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]] as const;
-  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="pointer-events-auto grid grid-cols-8 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; return <button key={value} type="button" onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto min-h-14 rounded-2xl px-1 py-2 text-[9px] font-medium leading-tight transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : value}</button>; })}</div></nav>;
+  const reducedMotion = useReducedMotion();
+  const status = usePlayer((state) => state.status);
+  const pulseTeleport = !reducedMotion && (status === "idle" || status === "playing") && mode !== "Brief" && mode !== "Add Signal";
+  const commands = [[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const;
+  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] min-h-14 w-full rounded-2xl px-1 py-2 text-[9px] font-medium leading-tight transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : value}</button></div>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -1861,7 +1865,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const visualViewport = useIOSVisualViewport();
   return <section className="fixed inset-0 h-[100dvh] w-full max-w-full overflow-hidden bg-transparent text-white md:hidden">
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
-    {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} /> : null}
+    {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); usePlayer.getState().setStation(station); }, 250); }} />
     <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
@@ -2009,6 +2013,8 @@ function DailyFlightPanel({ stations }: { stations: Station[] }) {
 }
 
 export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
+  const reducedMotion = useReducedMotion();
+  const playerStatus = usePlayer((state) => state.status);
   const [stationPool, setStationPool] = useState(stations);
   const [arrival, setArrival] = useState<ArrivalDestination | undefined>();
   const [arrivalVisible, setArrivalVisible] = useState(false);
@@ -2164,6 +2170,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     return () => { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); };
   }, [runWandererHop, wandererActive]);
 
+  const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
+
   const visible = stationPool
     .slice(0, selectedCountry ? stationPool.length : 9)
     .filter(
@@ -2176,6 +2184,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     );
   return (
     <>
+      <style jsx global>{`@keyframes teleportPulse { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(1.08); opacity: 0; } } @media (prefers-reduced-motion: reduce) { .animate-\[teleportPulse_2\.8s_ease-out_infinite\] { animation: none !important; } }`}</style>
       <AudioEngine stations={stationPool} />
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
@@ -2186,8 +2195,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
           WaveAtlas™
         </b>
-        <button type="button" className="pointer-events-auto mr-24 grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/40 text-xl leading-none text-ivory shadow-2xl backdrop-blur-2xl" aria-label="Open menu">
-          ☰
+        <button type="button" onClick={() => { setBriefOpen(false); setDesktopMode("Settings"); }} className="pointer-events-auto mr-24 grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/40 text-ivory shadow-2xl backdrop-blur-2xl transition hover:border-radio/30 hover:text-radio" aria-label="Open settings">
+          <Settings className="size-4" />
         </button>
       </div>
       <div className="absolute inset-0 z-0">
@@ -2283,8 +2292,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </div>
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
         </div>
-        <nav className="pointer-events-auto grid grid-cols-8 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
-          {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"],[Layers,"Settings"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; return <button key={label as string} type="button" onClick={() => { const value = label as string; if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => commitTeleportStation(station, queue)); } else if (value === "Brief") { setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button>; })}
+        <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
+          {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => commitTeleportStation(station, queue)); } else if (value === "Brief") { setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button></div>; })}
         </nav>
       </div>
     </main>
