@@ -7,13 +7,16 @@ export async function GET(req: NextRequest) {
   const countryCode = (p.get('countryCode') ?? '').toUpperCase();
   const limit = p.get('limit') ?? '50';
   const offset = p.get('offset') ?? '0';
+  const requestUrl = `/api/stations/by-country?${p.toString()}`;
+  if (process.env.NODE_ENV !== 'production') console.info('[WaveAtlas Country Click API] request', { requestUrl, country, countryCode });
   const rawStations = await fetchStationsForCountryIntent(country || countryCode, countryCode, {
     limit,
     offset,
     tag: p.get('tag') ?? undefined,
     language: p.get('language') ?? undefined,
   });
-  const stations = rankStations(rawStations, country).filter((station) => station.country_code === countryCode);
+  const stations = rankStations(rawStations, country).filter((station) => !countryCode || station.country_code === countryCode);
+  if (process.env.NODE_ENV !== 'production') console.info('[WaveAtlas Country Click API] candidates', { requestUrl, country, countryCode, candidateCount: stations.length, selectedStation: stations[0]?.name ?? null });
 
   return NextResponse.json({
     query: country.trim().toLowerCase(),

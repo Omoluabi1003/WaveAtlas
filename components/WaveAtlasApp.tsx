@@ -34,7 +34,7 @@ import { isoCountryCentroids, resolveStationGeo, type ResolvedStationGeo } from 
 import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
-import { flagFor, isCuratedStation, isVerifiedNigerianStation, type Station } from "@/lib/stations";
+import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
 import { BriefPanel } from "@/components/BriefPanel";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
@@ -166,6 +166,11 @@ function debugPlayback(label: string, payload: Record<string, unknown>) {
   if (typeof window === "undefined") return;
   if (process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_PLAYBACK !== "true") return;
   console.debug(`[WaveAtlas Playback] ${label}`, payload);
+}
+
+function debugCountryClick(label: string, payload: Record<string, unknown>) {
+  if (typeof window === "undefined" || process.env.NODE_ENV === "production") return;
+  console.debug(`[WaveAtlas Country Click] ${label}`, payload);
 }
 
 function readHasCompletedArrival() {
@@ -485,7 +490,11 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       return false;
     }
     const failedContinent = stationContinent(failed);
-    const queueFallback = state.teleportQueue.find((station) => !attempted.current.includes(stationKey(station)) && stationContinent(station) !== failedContinent)
+    const scopedCountryFallback = state.stationSelectionSource === "auto"
+      ? state.teleportQueue.find((station) => station.country_code === failed.country_code && !attempted.current.includes(stationKey(station)))
+      : undefined;
+    const queueFallback = scopedCountryFallback
+      ?? state.teleportQueue.find((station) => !attempted.current.includes(stationKey(station)) && stationContinent(station) !== failedContinent)
       ?? state.teleportQueue.find((station) => !attempted.current.includes(stationKey(station)));
     const fallback = queueFallback ?? nextFastConnectCandidate(stations, failed, attempted.current) ?? pickFallbackStation(stations, failed, readArrivalHistory());
     if (fallback) {
@@ -912,6 +921,41 @@ function countryNameForCode(code: string) {
   }
 }
 
+
+const ISO3_TO_A2: Record<string, string> = { USA: "US", GBR: "GB", NGA: "NG", GHA: "GH", JPN: "JP", DEU: "DE", FRA: "FR", ARE: "AE", BRA: "BR", ZAF: "ZA", CAN: "CA", IND: "IN", AUS: "AU", MEX: "MX", ESP: "ES", ITA: "IT", CHN: "CN", KOR: "KR", IDN: "ID", PHL: "PH", THA: "TH", MYS: "MY", SGP: "SG", SAU: "SA", QAT: "QA", ISR: "IL", TUR: "TR", NZL: "NZ", FJI: "FJ", PNG: "PG", KEN: "KE", EGY: "EG", MAR: "MA", TZA: "TZ", UGA: "UG", CMR: "CM", SEN: "SN", NLD: "NL", SWE: "SE", NOR: "NO", IRL: "IE", CHE: "CH", BEL: "BE", PRT: "PT", ARG: "AR", CHL: "CL", COL: "CO", PER: "PE" };
+const COUNTRY_CODE_FIELDS = ["ISO_A2", "iso_a2", "countryCode", "COUNTRY_CODE", "country_code"] as const;
+const COUNTRY_CODE3_FIELDS = ["ISO_A3", "iso_a3", "ADM0_A3", "adm0_a3"] as const;
+const COUNTRY_NAME_FIELDS = ["ADMIN", "admin", "NAME", "name", "COUNTRY", "country"] as const;
+
+function titleCaseCountry(name: string) {
+  return name.trim().replace(/\s+/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function countryResultFromFeatureProperties(properties: Record<string, unknown> | undefined, fallbackLat: number, fallbackLng: number): CountryResult | null {
+  const props = properties ?? {};
+  const read = (fields: readonly string[]) => fields.map((field) => props[field]).find((value): value is string | number => typeof value === "string" || typeof value === "number");
+  const rawA2 = String(read(COUNTRY_CODE_FIELDS) ?? "").trim().toUpperCase();
+  const rawA3 = String(read(COUNTRY_CODE3_FIELDS) ?? "").trim().toUpperCase();
+  const rawName = String(read(COUNTRY_NAME_FIELDS) ?? "").trim();
+  const aliasCode = rawName ? countryAliases[rawName.toLowerCase()] : undefined;
+  const code = (/^[A-Z]{2}$/.test(rawA2) && rawA2 !== "-99" ? rawA2 : undefined) ?? ISO3_TO_A2[rawA3] ?? aliasCode;
+  if (code) return { name: rawName || countryNameForCode(code), code, flag: flagFor(code), centroid: isoCountryCentroids[code] ?? { lat: fallbackLat, lng: fallbackLng }, station_count: 0 };
+  if (rawName) {
+    const nearest = nearestCountryResult(fallbackLat, fallbackLng);
+    return nearest ? { ...nearest, name: titleCaseCountry(rawName) } : null;
+  }
+  return nearestCountryResult(fallbackLat, fallbackLng);
+}
+
+function countryResultFromMapClick(map: Map, event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent): CountryResult | null {
+  const point = event.point;
+  const features = map.queryRenderedFeatures(point).filter((feature) => feature.properties);
+  const feature = features.find((item) => countryResultFromFeatureProperties(item.properties as Record<string, unknown>, event.lngLat.lat, event.lngLat.lng)) ?? features[0];
+  const country = countryResultFromFeatureProperties(feature?.properties as Record<string, unknown> | undefined, event.lngLat.lat, event.lngLat.lng);
+  debugCountryClick("resolved", { featureProperties: feature?.properties ?? null, resolvedCountryName: country?.name, resolvedCountryCode: country?.code, lngLat: event.lngLat });
+  return country;
+}
+
 function nearestCountryResult(lat: number, lng: number): CountryResult | null {
   let best: { code: string; distance: number } | null = null;
   for (const [code, point] of Object.entries(isoCountryCentroids)) {
@@ -975,16 +1019,18 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
     window.addEventListener("orientationchange", resize);
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", resize);
-    const clickCountry = (event: maplibregl.MapMouseEvent) => {
-      const country = nearestCountryResult(event.lngLat.lat, event.lngLat.lng);
+    const clickCountry = (event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+      const country = countryResultFromMapClick(m, event);
       if (country) onCountrySelectRef.current?.(country);
     };
     m.on("click", clickCountry);
+    m.on("touchend", clickCountry);
     return () => {
       window.removeEventListener("orientationchange", resize);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", resize);
       m.off("click", clickCountry);
+      m.off("touchend", clickCountry);
       mk?.remove();
       m.remove();
     };
@@ -1056,7 +1102,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   if (mobile) {
     return (
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
-        <div ref={container} className="absolute inset-0 h-full w-full" />
+        <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
         <MapMarkerController marker={marker} geo={geo} status={status} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_30%,rgba(7,17,31,.28)_64%,rgba(7,17,31,.68)),linear-gradient(180deg,rgba(2,6,23,.28),transparent_32%,rgba(2,6,23,.48))]" />
@@ -1071,7 +1117,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   }
   return (
     <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
-      <div ref={container} className="absolute inset-0 h-full w-full" />
+      <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
       <MapMarkerController marker={marker} geo={geo} status={status} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(7,17,31,.35)),linear-gradient(180deg,rgba(2,6,23,.35),transparent_30%,rgba(2,6,23,.54))]" />
@@ -2085,6 +2131,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [activeTag, setActiveTag] = useState("");
   const [offset, setOffset] = useState(stations.length);
   const [loadingCountry, setLoadingCountry] = useState(false);
+  const [countrySignalMessage, setCountrySignalMessage] = useState("");
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
@@ -2181,17 +2228,38 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
 
   const loadCountryStations = async (country: CountryResult, nextOffset = 0, tag = activeTag) => {
     setLoadingCountry(true);
+    setCountrySignalMessage(nextOffset ? "Finding more live signals…" : `Tuning into ${country.name}…`);
     if (!nextOffset) setStationPool([]);
     const params = new URLSearchParams({ country: country.name, countryCode: country.code, limit: "50", offset: String(nextOffset) });
     if (tag) params.set("tag", tag);
-    const res = await fetch(`/api/stations/by-country?${params}`);
-    if (res.ok) {
+    const requestUrl = `/api/stations/by-country?${params}`;
+    debugCountryClick("request", { apiRequestUrl: requestUrl, resolvedCountryName: country.name, resolvedCountryCode: country.code });
+    try {
+      const res = await fetch(requestUrl);
+      if (!res.ok) throw new Error(`Country station request failed: ${res.status}`);
       const data = (await res.json()) as { stations: Station[] };
-      setStationPool((prev) => nextOffset ? [...prev, ...data.stations] : data.stations);
-      setOffset(nextOffset + data.stations.length);
-      if (!nextOffset && data.stations[0]) usePlayer.getState().setStation(data.stations[0], "auto");
+      const sameCountryStations = data.stations.filter((station) => station.country_code === country.code);
+      debugCountryClick("candidates", { apiRequestUrl: requestUrl, candidateCount: sameCountryStations.length, selectedStation: sameCountryStations[0]?.name ?? null });
+      setStationPool((prev) => nextOffset ? [...prev, ...sameCountryStations] : sameCountryStations);
+      setOffset(nextOffset + sameCountryStations.length);
+      if (!nextOffset && sameCountryStations[0]) {
+        const player = usePlayer.getState();
+        player.setStation(sameCountryStations[0], "auto");
+        player.setTeleportQueue(sameCountryStations.slice(1));
+        setCountrySignalMessage(`Loading ${sameCountryStations[0].name} from ${country.name}…`);
+        debugCountryClick("playback", { selectedStation: sameCountryStations[0], playbackResult: "station-loaded" });
+      } else if (!nextOffset) {
+        setCountrySignalMessage("No live signal found here yet. Try Teleport or Add Your Signal.");
+        usePlayer.getState().setStatus("failed", "No live signal found here yet. Try Teleport or Add Your Signal.");
+        debugCountryClick("playback", { selectedStation: null, playbackResult: "no-candidates" });
+      }
+    } catch (error) {
+      setCountrySignalMessage("No live signal found here yet. Try Teleport or Add Your Signal.");
+      usePlayer.getState().setStatus("failed", "No live signal found here yet. Try Teleport or Add Your Signal.");
+      debugCountryClick("playback", { selectedStation: null, playbackResult: "request-failed", error: error instanceof Error ? error.message : "unknown" });
+    } finally {
+      setLoadingCountry(false);
     }
-    setLoadingCountry(false);
   };
   const centerAppAfterQuery = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -2311,6 +2379,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="font-medium">{selectedCountry.flag} {selectedCountry.name} · {stationPool.length.toLocaleString()} loaded of {selectedCountry.station_count.toLocaleString()} known stations</p>
                 {loadingCountry ? <span className="text-sm text-gold">Acquiring {selectedCountry.name} signals…</span> : null}
+                {countrySignalMessage ? <span className="text-sm text-ivory/70">{countrySignalMessage}</span> : null}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {["", "news", "music", "talk", "gospel", "sports", "local"].map((tag) => (
@@ -2329,7 +2398,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
               <button key={s.id} onClick={() => { usePlayer.getState().setStation(s); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:border-gold/50"><b>{s.name}</b><p className="mt-1 text-sm text-ivory/60">{s.country} · {s.tags.slice(0, 3).join(", ") || "live radio"}</p></button>
             ))}
           </div> : null}
-          {selectedCountry && !visible.length && !loadingCountry ? <p className="mt-5 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No active stations found for {selectedCountry.name} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.</p> : null}
+          {selectedCountry && !visible.length && !loadingCountry ? <p className="mt-5 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No live signal found here yet. Try Teleport or Add Your Signal.</p> : null}
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </aside> : null}
