@@ -14,7 +14,6 @@ import {
   Languages,
   MapPin,
   Pause,
-  Pin,
   Play,
   Radio,
   Plane,
@@ -2072,7 +2071,11 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, 
 }
 
 
-const ATLAS_GUIDE_PIN_SESSION_KEY = "waveatlas:atlas-guide-pinned";
+type AtlasGuideToastKind = "status" | "alert";
+type AtlasGuideToastEventDetail = { title: string; subtitle?: string; kind?: AtlasGuideToastKind; id?: string };
+
+const ATLAS_GUIDE_TOAST_EVENT = "waveatlas:atlas-guide-toast";
+const ATLAS_GUIDE_TOAST_DURATION_MS = 6000;
 
 function uniqueGuideParts(parts: Array<string | undefined>) {
   const seen = new Set<string>();
@@ -2089,91 +2092,111 @@ function titleCaseTag(tag: string) {
   return tag.replace(/[\-_]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function buildAtlasGuideFacts(station: Station) {
-  const place = [station.city || station.state, station.country].filter(Boolean).join(", ") || station.country || "Earth";
-  const languages = uniqueGuideParts((station.language || "").split(/[,/•]+/).map((language) => language.trim())).slice(0, 3);
-  const languageLine = languages.length ? languages.join(" • ") : "Local language signal";
-  const soundTags = station.tags.filter((tag) => !["ariyo-ai-seed", "waveatlas-curated", "curators-picks", "verified"].includes(tag.toLowerCase())).slice(0, 3).map(titleCaseTag);
+function stationPlaceLabel(station: Station) {
+  return [station.city || station.state, station.country].filter(Boolean).join(", ") || station.country || "Earth";
+}
+
+function buildAtlasGuideToast(station: Station, override?: Partial<AtlasGuideToastEventDetail>): AtlasGuideToastEventDetail {
+  const languages = uniqueGuideParts((station.language || "").split(/[,/•]+/).map((language) => language.trim())).slice(0, 2);
+  const languageLine = languages.length ? languages.join(" • ") : undefined;
+  const soundTags = station.tags.filter((tag) => !["ariyo-ai-seed", "waveatlas-curated", "curators-picks", "verified"].includes(tag.toLowerCase())).slice(0, 2).map(titleCaseTag);
   const soundLine = soundTags.length ? soundTags.join(" • ") : getPrimaryGenre(station);
   const signalLine = station.tags.some((tag) => tag.toLowerCase() === "ariyo-ai-seed") || station.curation_source?.toLowerCase().includes("ariyo")
     ? "Ariyo AI Seed Atlas"
     : isCuratedStation(station)
       ? "Curator's Picks"
-      : station.validation_status === "verified"
-        ? "Verified station metadata"
-        : "Station metadata";
+      : undefined;
   return {
-    place,
-    collapsedMeta: uniqueGuideParts([station.city || station.state || station.country, languageLine.split(" • ")[0], soundTags[0] || "Local Radio"]).join(" • "),
-    sections: [
-      ["You’ve landed in", place],
-      ["Language", languageLine],
-      ["Sound", soundLine],
-      ["Signal", signalLine],
-    ] as const,
+    title: `You've landed in ${stationPlaceLabel(station)}.`,
+    subtitle: uniqueGuideParts([languageLine, soundLine, signalLine]).slice(0, 3).join(" • "),
+    kind: "status",
+    id: `station-${stationKey(station)}`,
+    ...override,
   };
+}
+
+function dispatchAtlasGuideToast(detail: AtlasGuideToastEventDetail) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent<AtlasGuideToastEventDetail>(ATLAS_GUIDE_TOAST_EVENT, { detail }));
 }
 
 function AtlasGuide({ station, mobile = false }: { station: Station; mobile?: boolean }) {
   const reducedMotion = useReducedMotion();
-  const facts = useMemo(() => buildAtlasGuideFacts(station), [station]);
-  const [pinned, setPinned] = useState(() => typeof window !== "undefined" && window.sessionStorage.getItem(ATLAS_GUIDE_PIN_SESSION_KEY) === "true");
-  const [open, setOpen] = useState(pinned);
+  const playerStatus = usePlayer((state) => state.status);
+  const playerError = usePlayer((state) => state.error);
+  const source = usePlayer((state) => state.stationSelectionSource);
+  const [toast, setToast] = useState<AtlasGuideToastEventDetail>(() => buildAtlasGuideToast(station));
+  const [visible, setVisible] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const toastKey = toast.id ?? `${toast.title}-${toast.subtitle ?? ""}`;
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (pinned) {
-      window.sessionStorage.setItem(ATLAS_GUIDE_PIN_SESSION_KEY, "true");
-      return;
-    }
-    window.sessionStorage.removeItem(ATLAS_GUIDE_PIN_SESSION_KEY);
-  }, [pinned]);
+    const titlePrefix = source === "fallback" ? "Signal unavailable. Trying another station." : undefined;
+    window.queueMicrotask(() => {
+      setToast(buildAtlasGuideToast(station, titlePrefix ? { title: titlePrefix, kind: "alert", id: `fallback-${stationKey(station)}-${Date.now()}` } : undefined));
+      setVisible(true);
+      setPaused(false);
+    });
+  }, [source, station.station_uuid, station.id, station]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || pinned) return;
-    const showTimer = window.setTimeout(() => setOpen(true), 0);
-    const hideTimer = window.setTimeout(() => setOpen(false), 8000);
-    return () => { window.clearTimeout(showTimer); window.clearTimeout(hideTimer); };
-  }, [pinned, station.station_uuid, station.id]);
+    if (playerStatus !== "failed" || !playerError) return;
+    window.queueMicrotask(() => {
+      setToast({ title: playerError.includes("No live signal") || playerError.includes("Teleport could not") ? "Signal unavailable. Trying another station." : playerError, subtitle: playerError.includes("No live signal") ? "Try Teleport or Add Your Signal." : undefined, kind: "alert", id: `error-${Date.now()}` });
+      setVisible(true);
+      setPaused(false);
+    });
+  }, [playerError, playerStatus]);
 
-  const visibleSections = mobile ? facts.sections.slice(0, 3) : facts.sections;
+  useEffect(() => {
+    const onToast = (event: Event) => {
+      const detail = (event as CustomEvent<AtlasGuideToastEventDetail>).detail;
+      if (!detail?.title) return;
+      setToast({ kind: "status", id: `custom-${Date.now()}`, ...detail });
+      setVisible(true);
+      setPaused(false);
+    };
+    window.addEventListener(ATLAS_GUIDE_TOAST_EVENT, onToast);
+    return () => window.removeEventListener(ATLAS_GUIDE_TOAST_EVENT, onToast);
+  }, []);
+
+  useEffect(() => {
+    if (!visible || paused) return;
+    const timer = window.setTimeout(() => setVisible(false), ATLAS_GUIDE_TOAST_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [paused, toastKey, visible]);
 
   return (
-    <motion.section
-      layout
-      initial={false}
-      animate={open ? "open" : "closed"}
-      transition={reducedMotion ? { duration: 0 } : { duration: 0.22, ease: "easeOut" }}
-      className={`${mobile ? "fixed bottom-[168px] left-4 right-4 z-[45] mx-auto max-w-[90vw]" : "fixed bottom-[112px] left-1/2 z-[69] w-[min(320px,calc(100vw-3rem))] -translate-x-1/2"} pointer-events-auto overflow-hidden rounded-full border border-white/[0.08] bg-[rgba(8,17,29,0.84)] text-ivory shadow-[0_18px_52px_rgba(0,0,0,0.34)] backdrop-blur-[18px]`}
-      aria-label="Atlas Guide cultural context"
-    >
-      <button type="button" onClick={() => setOpen((value) => !value)} className="flex min-h-8 w-full items-center gap-2 px-3 py-1.5 text-left" aria-expanded={open}>
-        <Compass className="size-4 shrink-0 text-gold" />
-        <span className="shrink-0 text-xs font-semibold text-white">Atlas Guide</span>
-        <span className="min-w-0 flex-1 truncate text-[11px] text-ivory/68">{facts.collapsedMeta}</span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.div
-            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`${mobile ? "max-h-52 overflow-y-auto" : ""} rounded-[18px] border-t border-white/[0.08] bg-[rgba(8,17,29,0.84)] px-4 pb-4 pt-2`}
-          >
-            <div className="grid gap-2">
-              {visibleSections.map(([title, value]) => <div key={title} className="rounded-2xl border border-white/[0.06] bg-white/[0.045] px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold/80">{title}</p>
-                <p className="mt-1 text-sm font-medium leading-5 text-white">{value}</p>
-              </div>)}
+    <AnimatePresence mode="wait">
+      {visible ? (
+        <motion.section
+          key={toastKey}
+          role={toast.kind === "alert" ? "alert" : "status"}
+          aria-live={toast.kind === "alert" ? "assertive" : "polite"}
+          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.98 }}
+          transition={reducedMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocus={() => setPaused(true)}
+          onBlur={() => setPaused(false)}
+          className={`${mobile ? "fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+174px)] z-[58] mx-auto w-[calc(100vw-32px)]" : "fixed bottom-28 left-1/2 z-[58] w-[min(380px,calc(100vw-32px))] -translate-x-1/2"} pointer-events-auto max-h-[92px] min-h-[52px] max-w-[380px] overflow-hidden rounded-[18px] border border-white/[0.10] bg-[rgba(8,17,29,0.88)] px-4 py-3 text-[#F8FAFC] shadow-[0_14px_42px_rgba(0,0,0,0.35)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(1.15)]`}
+          aria-label="Atlas Guide notification"
+        >
+          <div className="flex items-start gap-3">
+            <Compass className="mt-0.5 size-4 shrink-0 text-[#D4A64A]" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold leading-5 tracking-[-0.01em] text-[#F8FAFC]">{toast.title}</p>
+              {toast.subtitle ? <p className="mt-0.5 truncate text-[11px] font-medium leading-4 text-white/[0.72]">{toast.subtitle}</p> : null}
             </div>
-            <button type="button" onClick={() => setPinned((value) => { const next = !value; if (next) setOpen(true); return next; })} className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${pinned ? "border-radio/45 bg-radio/15 text-radio" : "border-white/10 bg-white/[0.04] text-ivory/68 hover:text-white"}`}>
-              <Pin className="size-3" />{pinned ? "Pinned for this session" : "Pin open"}
+            <button type="button" onClick={() => setVisible(false)} className="-mr-1 grid size-7 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D4A64A]" aria-label="Dismiss notification">
+              <X className="size-3.5" aria-hidden="true" />
             </button>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </motion.section>
+          </div>
+        </motion.section>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -2203,10 +2226,6 @@ function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { ope
   </motion.section> : null}</AnimatePresence>;
 }
 
-function PresenceToast({ station, intent, visible }: { station: Station; intent: string; visible: boolean }) {
-  const experience = useMemo(() => getWandererExperience(station, intent), [station, intent]);
-  return <AnimatePresence>{visible ? <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ opacity: { duration: 0.28 }, y: { type: "spring", damping: 26, stiffness: 260 } }} className="fixed bottom-[260px] left-4 right-4 z-[55] rounded-3xl border border-gold/20 bg-slate-950/92 p-4 text-sm leading-6 text-ivory shadow-2xl backdrop-blur-xl">{experience.narration}</motion.div> : null}</AnimatePresence>;
-}
 
 function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { station: Station; stations: Station[]; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
   return <motion.section drag="y" dragConstraints={{ top: 0, bottom: 0 }} onDragEnd={(_, info) => setOpen(info.offset.y < -40 ? true : info.offset.y > 40 ? false : open)} initial={{ y: 680 }} animate={{ y: open ? 64 : 680 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-0 bottom-0 z-50 max-h-[92dvh] overflow-y-auto rounded-t-[2rem] border border-white/[0.12] bg-[rgba(8,17,29,0.86)] px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-3 shadow-2xl backdrop-blur-xl">
@@ -2223,7 +2242,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] min-h-14 w-full rounded-2xl px-1 py-2 text-[9px] font-medium leading-tight transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : value}</button></div>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, wandererIntent, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; wandererIntent: string; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
+function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [resetSignal, setResetSignal] = useState(0);
@@ -2232,15 +2251,10 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [mobileTeleporting, setMobileTeleporting] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
-  const [presenceVisible, setPresenceVisible] = useState(false);
   const [mapContext, setMapContext] = useState<MapTeleportContext | null>(null);
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
-  const presenceTimer = useRef<number | null>(null);
   const handleTravel = useCallback((intent: string) => {
     setWandererIntent(intent);
-    setPresenceVisible(true);
-    if (presenceTimer.current) window.clearTimeout(presenceTimer.current);
-    presenceTimer.current = window.setTimeout(() => setPresenceVisible(false), 6000);
   }, [setWandererIntent]);
   const makeWandererHop = useCallback(() => {
     const intent = "Wanderer Mode";
@@ -2263,7 +2277,6 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setCurrentStationAndDestination(station); }, 250); }} />
-    <PresenceToast station={current} intent={wandererIntent} visible={presenceVisible} />
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
@@ -2277,7 +2290,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <NewspaperBrief station={current} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
-    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) { commitTeleportStation(station, queue); handleTravel(intent); } }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Teleport could not find a live signal yet."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) { commitTeleportStation(station, queue); handleTravel(intent); } }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
 
@@ -2338,11 +2351,13 @@ function AddYourSignalPanel({ compact = false, onCancel }: { compact?: boolean; 
     if (!res.ok) {
       setStatus("error");
       setMessage(data.error || "Signal submission failed. Please check the stream URL and try again.");
+      dispatchAtlasGuideToast({ title: data.error || "Signal submission failed. Please check the stream URL and try again.", kind: "alert" });
       return;
     }
     event.currentTarget.reset();
     setStatus("success");
     setMessage(data.message || "Your signal has been received. Once verified, it may join the WaveAtlas™ global map.");
+    dispatchAtlasGuideToast({ title: "Your signal has been received.", subtitle: "Once verified, it may join the WaveAtlas™ global map." });
   }
 
   return <section className={`flex w-full flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,17,31,0.92)] shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-[24px] ${compact ? "max-h-[calc(100dvh_-_48px_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] max-w-[94vw]" : "max-h-[86dvh] max-w-[720px]"}`}>
@@ -2575,12 +2590,12 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         debugCountryClick("playback", { selectedStation: sameCountryStations[0], playbackResult: "station-loaded" });
       } else if (!nextOffset) {
         setCountrySignalMessage("No live signal found here yet. Try Teleport or Add Your Signal.");
-        usePlayer.getState().setStatus("failed", "No live signal found here yet. Try Teleport or Add Your Signal.");
+        usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station.");
         debugCountryClick("playback", { selectedStation: null, playbackResult: "no-candidates" });
       }
     } catch (error) {
       setCountrySignalMessage("No live signal found here yet. Try Teleport or Add Your Signal.");
-      usePlayer.getState().setStatus("failed", "No live signal found here yet. Try Teleport or Add Your Signal.");
+      usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station.");
       debugCountryClick("playback", { selectedStation: null, playbackResult: "request-failed", error: error instanceof Error ? error.message : "unknown" });
     } finally {
       setLoadingCountry(false);
@@ -2648,7 +2663,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
-      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
+      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
       <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
@@ -2750,7 +2765,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
         </div>
         <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
-          {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (value === "Teleport") { if (desktopTeleporting) return; setDesktopTeleporting(true); setDesktopDrawerCollapsed(false); setWandererActive(false); setDesktopMode(value); const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Teleport could not find a live signal yet."); }).finally(() => setDesktopTeleporting(false)); } else if (value === "Brief") { setDesktopDrawerCollapsed(false); setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopDrawerCollapsed(false); setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</button></div>; })}
+          {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (value === "Teleport") { if (desktopTeleporting) return; setDesktopTeleporting(true); setDesktopDrawerCollapsed(false); setWandererActive(false); setDesktopMode(value); const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setDesktopTeleporting(false)); } else if (value === "Brief") { setDesktopDrawerCollapsed(false); setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopDrawerCollapsed(false); setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</button></div>; })}
         </nav>
       </div>
     </main>
