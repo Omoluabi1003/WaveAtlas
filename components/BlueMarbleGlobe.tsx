@@ -12,6 +12,7 @@ type CountryResult = {
   station_count: number;
 };
 
+export type GlobeBasemapKey = "blueMarble" | "night" | "signal";
 type GlobePoint = { lat: number; lng: number; label: string };
 type LandRing = Array<[number, number]>;
 type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number } };
@@ -29,6 +30,7 @@ type Props = {
   onCountrySelect?: (country: CountryResult) => void;
   onFallback?: (reason: string) => void;
   mobile?: boolean;
+  basemap?: GlobeBasemapKey;
 };
 
 const COUNTRY_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
@@ -133,7 +135,24 @@ function debugGlobeDecision(details: Record<string, unknown>) {
   console.info("[WaveAtlas globe]", details);
 }
 
-export default function BlueMarbleGlobe({ station, teleporting = false, onCountrySelect, onFallback, mobile = false }: Props) {
+const CITY_LIGHTS: GlobePoint[] = [
+  { lat: 40.7128, lng: -74.006, label: "New York" }, { lat: 34.0522, lng: -118.2437, label: "Los Angeles" },
+  { lat: 51.5072, lng: -0.1276, label: "London" }, { lat: 48.8566, lng: 2.3522, label: "Paris" },
+  { lat: 35.6762, lng: 139.6503, label: "Tokyo" }, { lat: 28.6139, lng: 77.209, label: "Delhi" },
+  { lat: 19.076, lng: 72.8777, label: "Mumbai" }, { lat: 31.2304, lng: 121.4737, label: "Shanghai" },
+  { lat: -23.5505, lng: -46.6333, label: "São Paulo" }, { lat: 30.0444, lng: 31.2357, label: "Cairo" },
+  { lat: 6.5244, lng: 3.3792, label: "Lagos" }, { lat: -33.8688, lng: 151.2093, label: "Sydney" },
+  { lat: 37.5665, lng: 126.978, label: "Seoul" }, { lat: 41.0082, lng: 28.9784, label: "Istanbul" },
+  { lat: 55.7558, lng: 37.6173, label: "Moscow" }, { lat: -34.6037, lng: -58.3816, label: "Buenos Aires" },
+];
+
+const GLOBE_STYLE_COPY: Record<GlobeBasemapKey, string> = {
+  blueMarble: "Blue Marble Globe",
+  night: "Night Globe",
+  signal: "Signal Globe",
+};
+
+export default function BlueMarbleGlobe({ station, teleporting = false, onCountrySelect, onFallback, mobile = false, basemap = "blueMarble" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -237,15 +256,17 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       const cx = w / 2, cy = h / 2;
 
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
-      bg.addColorStop(0, "rgba(0,214,143,0.18)"); bg.addColorStop(0.64, "rgba(3,12,27,0.10)"); bg.addColorStop(1, "rgba(3,8,20,0)");
+      bg.addColorStop(0, basemap === "night" ? "rgba(125,92,255,0.16)" : basemap === "signal" ? "rgba(0,214,143,0.12)" : "rgba(0,214,143,0.18)"); bg.addColorStop(0.64, "rgba(3,12,27,0.10)"); bg.addColorStop(1, "rgba(3,8,20,0)");
       ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
       ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.clip();
       const ocean = ctx.createRadialGradient(cx - r * 0.38, cy - r * 0.44, r * 0.12, cx, cy, r * 1.12);
-      ocean.addColorStop(0, "#173b55"); ocean.addColorStop(0.48, "#071d33"); ocean.addColorStop(1, "#020817");
+      if (basemap === "night") { ocean.addColorStop(0, "#111827"); ocean.addColorStop(0.55, "#050816"); ocean.addColorStop(1, "#01030a"); }
+      else if (basemap === "signal") { ocean.addColorStop(0, "#08213a"); ocean.addColorStop(0.55, "#031225"); ocean.addColorStop(1, "#010814"); }
+      else { ocean.addColorStop(0, "#1f6f9d"); ocean.addColorStop(0.42, "#0c3b67"); ocean.addColorStop(1, "#031327"); }
       ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
       if (landShapes.length) {
-        ctx.fillStyle = "rgba(63,129,102,0.50)";
-        ctx.strokeStyle = "rgba(196,245,222,0.26)";
+        ctx.fillStyle = basemap === "night" ? "rgba(28,38,52,0.72)" : basemap === "signal" ? "rgba(8,31,51,0.38)" : "rgba(74,142,88,0.68)";
+        ctx.strokeStyle = basemap === "night" ? "rgba(251,191,36,0.22)" : basemap === "signal" ? "rgba(125,211,252,0.35)" : "rgba(226,255,236,0.36)";
         ctx.lineWidth = mobile || profile.lowPower ? 0.5 : 0.75;
         const shapesToDraw = mobile || profile.lowPower ? landShapes.slice(0, 130) : landShapes;
         for (const shape of shapesToDraw) {
@@ -255,7 +276,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
           ctx.stroke();
         }
       }
-      ctx.strokeStyle = "rgba(147,197,253,0.07)"; ctx.lineWidth = mobile || profile.lowPower ? 0.45 : 0.7;
+      ctx.strokeStyle = basemap === "signal" ? "rgba(56,189,248,0.24)" : basemap === "night" ? "rgba(148,163,184,0.055)" : "rgba(147,197,253,0.09)"; ctx.lineWidth = mobile || profile.lowPower ? 0.45 : 0.7;
       const latStep = mobile || profile.lowPower ? 30 : 15;
       const lngStep = mobile || profile.lowPower ? 30 : 15;
       for (let lat = -75; lat <= 75; lat += latStep) { ctx.beginPath(); for (let lng = -180; lng <= 180; lng += 4) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) continue; lng === -180 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.stroke(); }
@@ -266,6 +287,10 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
           const centroid = isoCountryCentroids[shape.code as keyof typeof isoCountryCentroids] ?? shape.centroid;
           drawLabel(shape.name, centroid.lat, centroid.lng, w, h, r);
         }
+      }
+      if (basemap === "night") {
+        const lights = mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;
+        for (const light of lights) { const p = project(light.lat, light.lng, w, h, r); if (p.z < -0.02) continue; const glow = 1 + Math.max(0, p.z) * 1.8; ctx.fillStyle = "rgba(251,191,36,0.24)"; ctx.beginPath(); ctx.arc(p.x, p.y, 5.5 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.88)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.4 * glow, 0, TAU); ctx.fill(); }
       }
       if (currentPoint) { const p = project(currentPoint.lat, currentPoint.lng, w, h, r); if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / (mobile ? 260 : 180)) * (mobile ? 0.12 : 0.22); ctx.fillStyle = "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, 18 * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); drawLabel(stationLabel, currentPoint.lat, currentPoint.lng, w, h, r, true); } }
       ctx.restore();
@@ -279,7 +304,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
     document.addEventListener("visibilitychange", onVisibility);
     raf = requestAnimationFrame(draw);
     return () => { document.removeEventListener("visibilitychange", onVisibility); cancelAnimationFrame(raf); raf = 0; };
-  }, [currentPoint, focusPoint, landShapes, mobile, onFallback, stationLabel, teleporting]);
+  }, [basemap, currentPoint, focusPoint, landShapes, mobile, onFallback, stationLabel, teleporting]);
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, teleporting]);
 
@@ -297,7 +322,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
 
   return <div ref={wrapRef} className={`${mobile ? "fixed inset-0 h-[100dvh] min-h-[100dvh] w-screen pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
     <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
-    <div className={`${mobile ? "left-4 top-[calc(env(safe-area-inset-top)+88px)] text-[9px]" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 shadow-lg backdrop-blur-xl`}>Blue Marble Globe · drag, zoom, tap to tune</div>
+    <div className={`${mobile ? "left-4 top-[calc(env(safe-area-inset-top)+88px)] text-[9px]" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 shadow-lg backdrop-blur-xl`}>{GLOBE_STYLE_COPY[basemap]} · drag, zoom, tap to tune</div>
     <div className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing procedural globe…"}</span></div>
   </div>;
 }
