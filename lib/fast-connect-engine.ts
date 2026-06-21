@@ -1,6 +1,5 @@
-import type { Station } from "@/lib/stations";
+import { isCuratedStation, isStationAvailable, isVerifiedNigerianStation, type Station } from "@/lib/stations";
 import { rotatedStartupStations, startupStations } from "@/lib/startupStations";
-import { isCuratedStation, isStationAvailable } from "@/lib/stations";
 import { stationCity } from "@/lib/discovery/history";
 import { stationContinent } from "@/lib/discovery/station-picker";
 
@@ -63,16 +62,11 @@ function recentSuccessfulKeys() {
   return readJson<StoredStationEvent[]>(SUCCESS_KEY, []).filter((item) => Date.now() - item.at < DAY_MS).map((item) => item.key);
 }
 
-export function isVerifiedNigerianStation(station: Station) {
-  const tags = station.tags.map((tag) => tag.toLowerCase());
-  return station.country_code === "NG" && (isCuratedStation(station) || station.validation_status === "verified" || tags.includes("verified"));
-}
-
 function hasRecentFailure(station: Station) {
   const record = readStationHealthMemory()[stationKey(station)];
   if (!record) return false;
   if (isVerifiedNigerianStation(station) && record.failureKind !== "hard") return false;
-  return Boolean(record.lastHardFailureAt && Date.now() - record.lastHardFailureAt < HARD_FAILURE_TTL_MS);
+  return Boolean(record.degradedUntil && Date.now() < record.degradedUntil);
 }
 
 function eligibleStartupCandidate(station: Station) {

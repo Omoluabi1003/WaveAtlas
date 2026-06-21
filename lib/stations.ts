@@ -51,6 +51,16 @@ async function cached<T>(key:string, ttlMs:number, fn:()=>Promise<T>): Promise<T
 function normalize(s: RadioBrowserStation): Station { const ok = s.lastcheckok !== 0; const bitrate = s.bitrate ?? 0; const votes = s.votes ?? 0; const click_count = s.clickcount ?? 0; const health_score = Math.min(99, Math.max(35, (ok ? 72 : 42) + Math.min(18, bitrate/16) + Math.min(9, votes/1200))); const name = cleanStationName(s.name, s.country); return { id:s.stationuuid ?? crypto.randomUUID(), station_uuid:s.stationuuid ?? '', name, normalized_name: normalizedStationName(name), url:s.url_resolved || s.url || '', url_resolved:s.url_resolved, homepage:s.homepage, favicon:s.favicon, country:s.country ?? 'Global', country_code:(s.countrycode ?? 'UN').toUpperCase(), state:s.state, language:s.language ?? 'Unknown', tags:(s.tags ?? '').split(',').map(t=>t.trim()).filter(Boolean).slice(0,8), codec:s.codec ?? 'Unknown', bitrate, latitude:s.geo_lat, longitude:s.geo_long, votes, click_count, health_score:Math.round(health_score), is_active:ok, last_checked_at:s.lastchecktime_iso8601 ?? new Date().toISOString(), failure_count:ok ? 0 : 1, response_time_ms:180 + Math.round(Math.random()*420), last_check_ok: ok }; }
 export function sortStations(a:Station,b:Station){ return Number(b.is_active)-Number(a.is_active) || b.votes-a.votes || b.click_count-a.click_count || b.bitrate-a.bitrate; }
 export function isCuratedStation(station: Station) { return station.curation_tier === 'curated_atlas' || station.tags.some((tag) => ['ariyo-ai-seed', 'waveatlas-curated', 'curators-picks'].includes(tag.toLowerCase())); }
+export function isVerifiedNigerianStation(station: Station) {
+  const tags = station.tags.map((tag) => tag.toLowerCase());
+  return station.country_code === 'NG' && (
+    isCuratedStation(station) ||
+    station.validation_status === 'verified' ||
+    station.validation_status === 'curated' ||
+    station.curation_tier === 'curated_atlas' ||
+    tags.some((tag) => ['ariyo-ai-seed', 'waveatlas-curated', 'curators-picks', 'verified'].includes(tag))
+  );
+}
 function isAriyoSeed(station: Station) { return station.tags.some((tag) => tag.toLowerCase() === 'ariyo-ai-seed'); }
 function stationUrlKey(station: Station) { return (station.url_resolved || station.url || '').trim().toLowerCase(); }
 function stationNameKey(station: Station) { return normalizedStationName(station.name); }

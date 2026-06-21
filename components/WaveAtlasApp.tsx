@@ -33,7 +33,7 @@ import { isoCountryCentroids, resolveStationGeo, type ResolvedStationGeo } from 
 import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
-import { flagFor, isCuratedStation, type Station } from "@/lib/stations";
+import { flagFor, isCuratedStation, isVerifiedNigerianStation, type Station } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
 import { BriefPanel } from "@/components/BriefPanel";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
@@ -573,6 +573,8 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     let startupTimer: number | undefined;
     let lastReadyState = element.readyState;
     let readyStatePatienceExtended = false;
+    let verifiedNigerianHoldStartedAt: number | undefined;
+    let verifiedNigerianHoldExtensions = 0;
     let waitingEvents = 0;
     let stalledEvents = 0;
     let loadedMetadata = false;
@@ -582,6 +584,9 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     const selectionSource = stationSelectionSource;
     const manualSelection = selectionSource === "manual";
     const policy = getAdaptiveBufferPolicy(current, manualSelection);
+    const verifiedNigerianStation = isVerifiedNigerianStation(current);
+    const maximumVerifiedNigerianHoldMs = 25_000;
+    const maximumVerifiedNigerianHoldExtensions = 2;
     const audioEvents: string[] = [];
     const logAudioEvent = (event: string) => {
       audioEvents.push(event);
@@ -596,9 +601,10 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       clearStartupTimer();
       startupTimer = window.setTimeout(() => fail("startup_timeout", `No playback progress before ${policy.startupTimeoutMs}ms startup timeout.`), policy.startupTimeoutMs);
     };
-    const scheduleBufferTimer = (reason: SignalFailureType = "buffer_timeout") => {
+    const scheduleBufferTimer = (reason: SignalFailureType = "buffer_timeout", timeoutMs = policy.bufferTimeoutMs) => {
       clearBufferTimer();
-      bufferTimer = window.setTimeout(() => fail(reason, `Buffering exceeded ${policy.bufferTimeoutMs}ms without progress.`), policy.bufferTimeoutMs);
+      debugPlayback("timer reset", { station: current.name, stationSelectionSource: selectionSource, reason, timeoutMs, failed, verifiedNigerianHoldExtensions });
+      bufferTimer = window.setTimeout(() => fail(reason, `Buffering exceeded ${timeoutMs}ms without progress.`), timeoutMs);
     };
     const noteProgress = () => {
       const readyStateImproved = element.readyState > lastReadyState;
@@ -617,6 +623,19 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     };
     const fail = (errorType: SignalFailureType, detail?: string) => {
       if (cancelled || failed) return;
+      const holdSignal = verifiedNigerianStation && (errorType === "waiting" || errorType === "stalled" || errorType === "buffer_timeout" || errorType === "startup_timeout");
+      if (holdSignal) {
+        const now = Date.now();
+        verifiedNigerianHoldStartedAt ??= now;
+        const holdDurationMs = now - verifiedNigerianHoldStartedAt;
+        if (holdDurationMs < maximumVerifiedNigerianHoldMs && verifiedNigerianHoldExtensions < maximumVerifiedNigerianHoldExtensions) {
+          verifiedNigerianHoldExtensions += 1;
+          setStatus("buffering", policy.timeoutMessage);
+          debugPlayback("buffer patience extended", { station: current.name, stationSelectionSource: selectionSource, event: errorType, bufferExtensionCount: verifiedNigerianHoldExtensions, failed, holdDurationMs, maximumVerifiedNigerianHoldMs });
+          scheduleBufferTimer(errorType === "stalled" ? "stalled" : "buffer_timeout", Math.min(policy.bufferTimeoutMs, maximumVerifiedNigerianHoldMs - holdDurationMs));
+          return;
+        }
+      }
       if (manualSelection && (errorType === "waiting" || errorType === "stalled" || errorType === "abort")) {
         setStatus("buffering", policy.message);
         scheduleBufferTimer("buffer_timeout");
@@ -626,6 +645,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
         attempt += 1;
         clearStartupTimer();
         clearBufferTimer();
+        debugPlayback("timer reset", { station: current.name, stationSelectionSource: selectionSource, reason: "retry", failed, attempt });
         setStatus("buffering", policy.message);
         void playSelectedStream();
         return;
@@ -633,6 +653,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       failed = true;
       clearStartupTimer();
       clearBufferTimer();
+      debugPlayback("abandoning stream", { station: current.name, stationSelectionSource: selectionSource, errorType, failed, bufferExtensionCount: verifiedNigerianHoldExtensions });
       if (policy.trusted && (errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled")) setStatus("buffering", policy.timeoutMessage);
       if (manualSelection && (errorType === "startup_timeout" || errorType === "buffer_timeout") && hasProgress()) {
         setStatus("buffering", policy.timeoutMessage);
@@ -640,10 +661,11 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       }
       skipToNextCandidate(current, errorType, detail);
     };
-    const onLoadedMetadata = () => { logAudioEvent("loadedmetadata"); loadedMetadata = true; noteProgress(); };
-    const onCanPlay = () => { logAudioEvent("canplay"); sawCanPlay = true; noteProgress(); clearStartupTimer(); scheduleBufferTimer(); };
+    const onLoadedMetadata = () => { logAudioEvent("loadedmetadata"); loadedMetadata = true; debugPlayback("recovery event", { station: current.name, stationSelectionSource: selectionSource, event: "loadedmetadata", failed }); noteProgress(); };
+    const onCanPlay = () => { logAudioEvent("canplay"); sawCanPlay = true; debugPlayback("recovery event", { station: current.name, stationSelectionSource: selectionSource, event: "canplay", failed }); noteProgress(); clearStartupTimer(); scheduleBufferTimer(); };
     const onPlaying = () => {
       logAudioEvent("playing");
+      debugPlayback("playing event", { station: current.name, stationSelectionSource: selectionSource, failed });
       if (cancelled || failed) return;
       clearStartupTimer();
       clearBufferTimer();
