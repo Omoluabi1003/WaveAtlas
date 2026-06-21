@@ -149,3 +149,47 @@ export async function reviewSignalSubmission(input: SignalSubmissionInput): Prom
           : 'Reject or ask submitter for a working direct audio or playlist URL.',
   };
 }
+
+export type StationOperationalStatus = 'healthy' | 'degraded' | 'needs_review' | 'candidate' | 'verified' | 'curated';
+
+export type PlaybackFailureReview = {
+  station_name: string;
+  stream_url: string;
+  country?: string;
+  city?: string;
+  error_type: string;
+  detail?: string;
+  failure_count: number;
+  status: StationOperationalStatus;
+  ranking_adjustment: number;
+  preserve_curated_station: boolean;
+  queued_for_retest: boolean;
+  reviewed_at: string;
+};
+
+export function reviewPlaybackFailure(input: {
+  station_name: string;
+  stream_url: string;
+  country?: string;
+  city?: string;
+  error_type: string;
+  detail?: string;
+  previous_failure_count?: number;
+  curated?: boolean;
+}): PlaybackFailureReview {
+  const failureCount = (input.previous_failure_count ?? 0) + 1;
+  return {
+    station_name: input.station_name,
+    stream_url: input.stream_url,
+    country: input.country,
+    city: input.city,
+    error_type: input.error_type,
+    detail: input.detail,
+    failure_count: failureCount,
+    status: failureCount > 2 ? 'needs_review' : 'degraded',
+    ranking_adjustment: -Math.min(95, 35 + failureCount * 20),
+    preserve_curated_station: Boolean(input.curated),
+    queued_for_retest: true,
+    reviewed_at: new Date().toISOString(),
+  };
+}
