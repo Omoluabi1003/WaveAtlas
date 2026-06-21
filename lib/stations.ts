@@ -1,7 +1,7 @@
 import { culturalAtlasScore } from './cultural-atlas';
 import { ariyoSeedStations } from './stations/ariyoSeedStations';
 
-export type Station = { id:string; station_uuid:string; name:string; normalized_name?:string; url:string; url_resolved?:string; homepage?:string; favicon?:string; country:string; country_code:string; state?:string; city?:string; language:string; tags:string[]; codec:string; bitrate:number; latitude?:number; longitude?:number; votes:number; click_count:number; health_score:number; is_active:boolean; last_check_ok?:boolean; last_checked_at:string; failure_count:number; response_time_ms:number; curation_source?: string; curation_tier?: 'curated_atlas' | 'radio_browser' | 'community_signal'; validation_status?: 'verified' | 'needs_review' | 'failed' | 'unknown'; validation_reason?: string; };
+export type Station = { id:string; station_uuid:string; name:string; normalized_name?:string; url:string; url_resolved?:string; homepage?:string; favicon?:string; country:string; country_code:string; state?:string; city?:string; language:string; tags:string[]; codec:string; bitrate:number; latitude?:number; longitude?:number; votes:number; click_count:number; health_score:number; is_active:boolean; last_check_ok?:boolean; last_checked_at:string; failure_count:number; response_time_ms:number; curation_source?: string; curation_tier?: 'curated_atlas' | 'radio_browser' | 'community_signal'; validation_status?: 'candidate' | 'needs_review' | 'verified' | 'rejected' | 'curated' | 'failed' | 'unknown'; validation_reason?: string; };
 
 export type CountryResult = { name:string; code:string; flag:string; centroid:{ lat:number; lng:number }; station_count:number };
 
