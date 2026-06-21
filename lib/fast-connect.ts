@@ -1,0 +1,15 @@
+export {
+  FAST_CONNECT_BUFFER_TIMEOUT_MS,
+  FAST_CONNECT_COPY,
+  FAST_CONNECT_MAX_ATTEMPTS_BEFORE_GLOBAL_FALLBACK,
+  FAST_CONNECT_STARTUP_TIMEOUT_MS,
+  buildFastConnectQueue,
+  getStationStreamUrl,
+  markStationFailure,
+  markStationSuccess,
+  nextFastConnectCandidate,
+  queueSignalReview,
+  readStationHealthMemory,
+  stationKey,
+  type SignalFailureType,
+} from '@/lib/fast-connect-engine';

@@ -14,8 +14,8 @@ export const FAST_CONNECT_COPY = {
 } as const;
 
 const HEALTH_KEY = "waveatlas_station_health";
-const FAILED_KEY = "last_failed_stations";
-const SUCCESS_KEY = "last_successful_stations";
+const FAILED_KEY = "failed_stations";
+const SUCCESS_KEY = "successful_stations";
 const REVIEW_KEY = "waveatlas_signal_review_queue";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DIRECT_STREAM_PATTERN = /(?:mp3|aac|mpeg|audio)/i;
