@@ -36,6 +36,7 @@ import { createArrivalDestination, type ArrivalDestination } from "@/lib/discove
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
 import { FAST_CONNECT_BUFFER_TIMEOUT_MS, FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, FAST_CONNECT_STARTUP_TIMEOUT_MS, buildFastConnectQueue, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
+import { localTimeForStation, stationTimeCopy, teleportCopy } from "@/lib/smart-time-copy";
 
 type CountryResult = {
   name: string;
@@ -60,6 +61,11 @@ type PlayerState = {
   volume: number;
   error?: string;
   userActivated: boolean;
+  arrivalStation?: Station;
+  startupQueue: Station[];
+  replacementReason?: string;
+  setArrivalStation: (station: Station, queue?: Station[]) => void;
+  replaceStartupStation: (previous: Station, next: Station, reason: string) => void;
   setStation: (s: Station) => void;
   prepareStation: (s: Station) => void;
   toggle: () => void;
@@ -72,6 +78,17 @@ const usePlayer = create<PlayerState>((set) => ({
   status: "idle",
   volume: 1,
   userActivated: false,
+  startupQueue: [],
+  setArrivalStation: (station, queue = [station]) => set({ arrivalStation: station, startupQueue: queue.length ? queue : [station], replacementReason: undefined }),
+  replaceStartupStation: (previous, next, reason) => {
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("waveatlas:startup-station-replaced", { detail: { previousStation: previous, nextStation: next, reason } }));
+    set((state) => ({
+      arrivalStation: next,
+      current: state.current && stationKey(state.current) === stationKey(previous) ? next : state.current,
+      startupQueue: [next, ...state.startupQueue.filter((station) => stationKey(station) !== stationKey(next) && stationKey(station) !== stationKey(previous))],
+      replacementReason: reason,
+    }));
+  },
   setStation: (current) =>
     set({
       current,
@@ -83,6 +100,7 @@ const usePlayer = create<PlayerState>((set) => ({
   prepareStation: (current) =>
     set((state) => ({
       current,
+      startupQueue: state.arrivalStation && stationKey(state.arrivalStation) === stationKey(current) ? [current, ...state.startupQueue.filter((station) => stationKey(station) !== stationKey(current))] : state.startupQueue,
       playing: false,
       status: state.userActivated ? "buffering" : "idle",
       error: undefined,
@@ -399,6 +417,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     const fallback = nextFastConnectCandidate(stations, failed, attempted.current) ?? pickFallbackStation(stations, failed, readArrivalHistory());
     if (fallback) {
       setStatus("buffering", FAST_CONNECT_COPY.retrying);
+      usePlayer.getState().replaceStartupStation(failed, fallback, errorType === "startup_timeout" || errorType === "waiting" || errorType === "stalled" ? "weak_signal" : "fallback");
       usePlayer.getState().setStation(fallback);
       return true;
     }
@@ -1072,7 +1091,7 @@ function getWandererExperience(station: Station, intent = "Take me somewhere sur
     temperature,
     presenceIndex,
     earthMood,
-    narration: `Tonight we’re going to ${city}. It is ${localTime}. The Earth mood is ${earthMood}. We’ll experience ${station.country} through ${station.name}.`,
+    narration: `${stationTimeCopy(station)} It is ${localTime}. The Earth mood is ${earthMood}. We’ll experience ${station.country} through ${station.name}.`,
     memoryLine: `${city} · ${station.country} · ${season} · ${temperature}°F · ${genre}`,
   };
 }
@@ -1355,7 +1374,7 @@ function SignalCandidatePreview({ candidate, state, anchor, onTune, onNext }: { 
   return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="fixed bottom-[166px] left-4 right-4 z-50 rounded-3xl border border-white/10 bg-slate-950/92 p-3 text-white shadow-2xl backdrop-blur-xl md:absolute md:bottom-4 md:left-auto md:right-4 md:w-80">
     <p className="font-display text-xs font-semibold text-gold">{state === "teleporting" ? "Teleporting" : state === "none" ? "No destination" : "Destination found"}</p>
     {anchor && state !== "none" ? <p className="mt-1 text-xs font-semibold text-ivory/80">Locked on {anchor.name}. Maximizing distance, culture, genre, and country diversity.</p> : null}
-    {candidate ? <div className="mt-2 flex items-center justify-between gap-3"><div className="min-w-0"><b className="block truncate text-sm">{candidate.station.name}</b><p className="truncate text-xs text-ivory/65">{candidate.station.city || candidate.station.state || candidate.station.country} · {candidate.signalStrength ?? candidate.station.health_score}% confidence</p></div><div className="flex shrink-0 gap-2"><button onClick={onNext} className="rounded-full border border-white/10 px-3 py-2 text-xs font-medium text-ivory">Next</button><button onClick={onTune} className="rounded-full bg-radio px-3 py-2 text-xs font-medium text-midnight">Lock</button></div></div> : <p className="mt-2 text-sm text-ivory/70">No verified destination matched this map focus. Try another country or long-press for Wander.</p>}
+    {candidate ? <div className="mt-2 flex items-center justify-between gap-3"><div className="min-w-0"><b className="block truncate text-sm">{candidate.station.name}</b><p className="truncate text-xs text-ivory/65">{teleportCopy(candidate.station)} · {candidate.signalStrength ?? candidate.station.health_score}% confidence</p></div><div className="flex shrink-0 gap-2"><button onClick={onNext} className="rounded-full border border-white/10 px-3 py-2 text-xs font-medium text-ivory">Next</button><button onClick={onTune} className="rounded-full bg-radio px-3 py-2 text-xs font-medium text-midnight">Lock</button></div></div> : <p className="mt-2 text-sm text-ivory/70">No verified destination matched this map focus. Try another country or long-press for Wander.</p>}
   </motion.div>;
 }
 
@@ -1522,7 +1541,7 @@ function MobileBasemapSheet({ open, value, onChange, onClose }: { open: boolean;
 function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { open: boolean; stations: Station[]; current: Station; onTravel: (intent: string) => void; onClose: () => void }) {
   const options = ["Surprise Me", "Unvisited Country", "Unvisited Continent", "Somewhere Waking Up", "Somewhere Falling Asleep", "Somewhere Rainy", "Somewhere Spiritual", "Somewhere Busy", "Somewhere Peaceful", "Global Shuffle"];
   const travel = (option: string) => {
-    const intent = option === "Surprise Me" ? "Take me somewhere surprising" : option === "Global Shuffle" ? "Tonight we are going global" : option;
+    const intent = option === "Surprise Me" ? "Take me somewhere surprising" : option === "Global Shuffle" ? "Take me somewhere global" : option;
     fetch(`/api/stations/nearby?global=true&limit=18`).then(async (res) => {
       const data = res.ok ? ((await res.json()) as { candidates?: SignalCandidate[] }) : { candidates: [] };
       usePlayer.getState().setStation(chooseWonderStation([...(data.candidates?.map((item) => item.station) ?? []), ...stations], current, intent));
@@ -1532,7 +1551,7 @@ function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { ope
   };
   return <AnimatePresence>{open ? <motion.section initial={{ y: 360, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 360, opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+96px)] z-50 rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl">
     <button onClick={onClose} className="mx-auto mb-4 block h-1.5 w-14 rounded-full bg-white/30" aria-label="Close Wander" />
-    <p className="mb-1 font-display text-xs font-semibold text-gold">Wander</p><h2 className="mb-3 font-display text-xl font-bold">Tonight we are going somewhere.</h2>
+    <p className="mb-1 font-display text-xs font-semibold text-gold">Wander</p><h2 className="mb-3 font-display text-xl font-bold">Live discovery is ready.</h2>
     <div className="grid grid-cols-2 gap-2">{options.map((option) => <button key={option} onClick={() => travel(option)} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm font-medium text-ivory active:scale-[.98]">{option}</button>)}</div>
   </motion.section> : null}</AnimatePresence>;
 }
@@ -1747,6 +1766,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [stationPool, setStationPool] = useState(stations);
   const [arrival, setArrival] = useState<ArrivalDestination | undefined>();
   const [arrivalVisible, setArrivalVisible] = useState(false);
+  const arrivalStation = usePlayer((s) => s.arrivalStation);
+  const replacementReason = usePlayer((s) => s.replacementReason);
   const [splashVisible, setSplashVisible] = useState(() => typeof window !== "undefined" && window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) !== "true");
   const [splashComplete, setSplashComplete] = useState(() => typeof window === "undefined" || window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) === "true");
   const [startupPreview] = useState(() => stations[Math.floor(Math.random() * Math.max(1, stations.length))]);
@@ -1771,6 +1792,14 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const initialStationPoolRef = useRef(stationPool);
 
   useEffect(() => {
+    if (!arrival || !arrivalStation || stationKey(arrival.station) === stationKey(arrivalStation)) return;
+    window.queueMicrotask(() => {
+      setArrival({ ...arrival, station: arrivalStation, city: arrivalStation.city || arrivalStation.state || arrivalStation.country, country: arrivalStation.country || arrivalStation.country_code, genre: stationGenre(arrivalStation), localTime: localTimeForStation(arrivalStation) });
+      setArrivalVisible(true);
+    });
+  }, [arrival, arrivalStation]);
+
+  useEffect(() => {
     if (!current || typeof window === "undefined") return;
     persistArrival(current, stationContinent(current), window.localStorage);
   }, [current]);
@@ -1779,6 +1808,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     if (!splashComplete || deepLinkUuid || arrival || !stationPool.length) return;
     const destination = createArrivalDestination(stationPool, window.localStorage);
     if (!destination) return;
+    const startupQueue = buildFastConnectQueue(stationPool, destination.station, FAST_CONNECT_PARALLEL_CANDIDATES - 1);
+    usePlayer.getState().setArrivalStation(destination.station, startupQueue);
     usePlayer.getState().prepareStation(destination.station);
     let timer: number | undefined;
     window.queueMicrotask(() => {
@@ -1881,7 +1912,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     <>
       <AudioEngine stations={stationPool} />
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
-      <AnimatePresence>{arrivalVisible ? <ArrivalCard arrival={arrival} onEnter={() => setArrivalVisible(false)} /> : null}</AnimatePresence>
+      <AnimatePresence>{arrivalVisible ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={() => setArrivalVisible(false)} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} wandererIntent={wandererIntent} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
