@@ -464,21 +464,29 @@ function SelectedStationTheater({ station }: { station: Station }) {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-30" aria-live="polite">
-      <SpatialAtmosphere theme={theme} intensity="strong" />
-      <div className="absolute bottom-[10.75rem] left-4 right-4 md:hidden">
-        <div className="pointer-events-auto max-h-[42dvh] overflow-y-auto rounded-[2rem] shadow-2xl">
+      <SpatialAtmosphere theme={theme} intensity="subtle" />
+      <details className="group pointer-events-auto absolute bottom-[9.75rem] left-3 right-3 md:hidden">
+        <summary className="list-none [&::-webkit-details-marker]:hidden">
           <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={fallbackPlace} isPlaying={playing || status === "buffering"} />
-        </div>
-      </div>
-      <div className="absolute bottom-[8.25rem] left-1/2 hidden w-[min(880px,calc(100vw-32rem))] min-w-[520px] -translate-x-1/2 md:block xl:bottom-36">
-        <div className="pointer-events-auto space-y-3">
-          <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={fallbackPlace} isPlaying={playing || status === "buffering"} />
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(280px,0.78fr)] gap-3">
-            <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
+        </summary>
+        <div className="mt-2 max-h-[38dvh] overflow-y-auto rounded-[1.5rem] border border-white/10 bg-slate-950/86 p-3 shadow-2xl backdrop-blur-2xl">
+          <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
+          <div className="mt-3">
             <WorldContextPanel context={visibleWorldContext} />
           </div>
         </div>
-      </div>
+      </details>
+      <details className="group pointer-events-auto absolute bottom-[8.25rem] right-6 hidden w-[min(430px,calc(100vw-32rem))] md:block xl:bottom-36 xl:right-8">
+        <summary className="list-none [&::-webkit-details-marker]:hidden">
+          <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={fallbackPlace} isPlaying={playing || status === "buffering"} />
+        </summary>
+        <div className="mt-3 max-h-[46vh] overflow-y-auto rounded-[1.5rem] border border-white/10 bg-slate-950/82 p-3 shadow-2xl backdrop-blur-2xl">
+          <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
+          <div className="mt-3">
+            <WorldContextPanel context={visibleWorldContext} />
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
