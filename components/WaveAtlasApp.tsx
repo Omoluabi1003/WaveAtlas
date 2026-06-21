@@ -756,7 +756,68 @@ const basemapStyles: Record<BasemapKey, { label: string; name: string; descripti
   blueMarble: { label: "🌊 Blue Marble", name: "Blue Marble", description: "Clean global Earth aesthetic", style: { version: 8, sources: { marble: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / Blue Marble" } }, layers: [{ id: "blue-marble", type: "raster", source: "marble" }] } },
 };
 function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
-function BasemapSwitcher({ value, onChange, compact = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; compact?: boolean }) { return <div className={`${compact ? "grid grid-cols-2 gap-1 rounded-2xl p-1" : "grid grid-cols-3 gap-1 rounded-2xl p-1"} border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-xl`} aria-label="Basemap Cockpit">{(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} aria-label={`Switch basemap to ${basemapStyles[key].name}`} onClick={() => onChange(key)} className={`${compact ? "rounded-xl px-2 py-2 text-[10px]" : "rounded-xl px-3 py-2 text-xs"} font-medium transition ${value === key ? "bg-gold text-midnight" : "text-ivory/70 hover:bg-white/10"}`} title={basemapStyles[key].description}>{basemapStyles[key].label}</button>)}</div>; }
+function BasemapControl({ value, onChange, mobile = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; mobile?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+  return (
+    <div ref={rootRef} className={`${mobile ? "right-4 top-[148px]" : "right-6 top-24 xl:right-8"} pointer-events-auto absolute z-50`}>
+      <button
+        type="button"
+        aria-label="Change map style"
+        aria-expanded={open}
+        onClick={() => setOpen((show) => !show)}
+        className="grid size-11 place-items-center rounded-full border border-white/15 bg-slate-950/55 text-ivory shadow-2xl backdrop-blur-xl transition hover:border-gold/40 hover:bg-slate-900/75 hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+      >
+        <Layers className="size-5" />
+      </button>
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.96 }}
+            className="absolute right-0 mt-2 w-[min(280px,calc(100vw-2rem))] rounded-3xl border border-white/12 bg-slate-950/82 p-2 shadow-2xl backdrop-blur-2xl"
+            role="menu"
+            aria-label="Map style options"
+          >
+            <p className="px-2 pb-2 pt-1 text-[10px] font-black uppercase tracking-[0.2em] text-gold/80">Map Style</p>
+            <div className="grid grid-cols-2 gap-1">
+              {(Object.keys(basemapStyles) as BasemapKey[]).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={value === key}
+                  aria-label={`Switch basemap to ${basemapStyles[key].name}`}
+                  onClick={() => { onChange(key); setOpen(false); }}
+                  className={`rounded-2xl px-3 py-2 text-left text-[11px] font-semibold transition ${value === key ? "bg-gold text-midnight shadow-lg" : "text-ivory/78 hover:bg-white/10 hover:text-white"}`}
+                  title={basemapStyles[key].description}
+                >
+                  {basemapStyles[key].label}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
 function MapStyleController({ map, basemap, onResize }: { map: Map | null; basemap: BasemapKey; onResize?: () => void }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); try { window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); } catch { /* Basemap preference is non-critical. */ } const resize = () => requestAnimationFrame(() => { map.resize(); onResize?.(); }); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap, onResize]); return null; }
 
 function StationPulseMarker({
@@ -968,7 +1029,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
         <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
         <div className="cloud-layer pointer-events-none absolute inset-0 opacity-25" />
         <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
-        <div className="absolute right-4 top-[148px] z-50 opacity-95"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div>
+        <BasemapControl value={basemap} onChange={setBasemap} mobile />
 
       </div>
     );
@@ -980,7 +1041,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(7,17,31,.35)),linear-gradient(180deg,rgba(2,6,23,.35),transparent_30%,rgba(2,6,23,.54))]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />
-      <div className="absolute right-6 top-24 z-50 opacity-95 xl:right-8"><BasemapSwitcher value={basemap} onChange={setBasemap} compact /></div>
+      <BasemapControl value={basemap} onChange={setBasemap} />
       <div className="pointer-events-none absolute left-6 top-20 z-20 rounded-full border border-white/15 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold text-emerald-300 shadow-lg backdrop-blur-xl xl:left-8">
         <Signal className="mr-1.5 inline size-3" />
         GIS · Tap Earth to tune a place
