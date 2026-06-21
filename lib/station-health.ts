@@ -1,4 +1,4 @@
-import type { Station } from '@/lib/stations';
+import { isVerifiedNigerianStation, type Station } from '@/lib/stations';
 
 export const STATION_HEALTH_STORAGE_KEYS = {
   health: 'waveatlas_station_health',
@@ -25,6 +25,7 @@ export type StationHealthRecord = {
   lastFailureAt?: number;
   lastSuccessAt?: number;
   rememberUntil?: number;
+  degradedUntil?: number;
   errorType?: string;
   failureKind?: 'soft' | 'hard';
 };
@@ -77,8 +78,9 @@ export function markStationUnhealthy(station: Station, errorType = 'playback_err
   const key = stationHealthKey(station);
   const previous = memory[key] ?? { failures: 0, successes: 0 };
   const soft = ['startup_timeout', 'buffer_timeout', 'stalled', 'waiting'].includes(errorType);
-  const curatedNigeria = station.country_code === 'NG' && (station.curation_tier === 'curated_atlas' || station.tags.some((tag) => ['ariyo-ai-seed', 'waveatlas-curated', 'verified'].includes(tag.toLowerCase())));
-  memory[key] = { ...previous, failures: previous.failures + 1, lastFailureAt: now, rememberUntil: now + (soft && curatedNigeria ? STATION_SOFT_FAILURE_TTL_MS : STATION_HEALTH_TTL_MS), errorType, failureKind: soft ? 'soft' : 'hard' };
+  const verifiedNigerian = isVerifiedNigerianStation(station);
+  const ttl = soft && verifiedNigerian ? STATION_SOFT_FAILURE_TTL_MS : STATION_HEALTH_TTL_MS;
+  memory[key] = { ...previous, failures: previous.failures + 1, lastFailureAt: now, rememberUntil: now + ttl, degradedUntil: now + ttl, errorType, failureKind: soft ? 'soft' : 'hard' };
   writeJson(STATION_HEALTH_STORAGE_KEYS.health, memory);
   rememberStationEvent(STATION_HEALTH_STORAGE_KEYS.failed, station, now);
   if (station.curation_tier === 'curated_atlas') queueCuratedStationRetest(station, now);
@@ -94,7 +96,8 @@ export function healthMemoryBoost(station: Station, now = Date.now()) {
   const record = readStationHealthMemory(now)[stationHealthKey(station)];
   if (!record) return 0;
   const recentSuccess = record.lastSuccessAt && now - record.lastSuccessAt < STATION_HEALTH_TTL_MS;
-  const recentFailure = record.lastFailureAt && now - record.lastFailureAt < (record.failureKind === 'soft' && station.country_code === 'NG' ? STATION_SOFT_FAILURE_TTL_MS : STATION_HEALTH_TTL_MS);
-  const penalty = record.failureKind === 'soft' && station.country_code === 'NG' ? Math.min(12, 4 + record.failures * 2) : Math.min(85, 35 + record.failures * 15);
+  const verifiedNigerian = isVerifiedNigerianStation(station);
+  const recentFailure = Boolean(record.degradedUntil && now < record.degradedUntil);
+  const penalty = record.failureKind === 'soft' && verifiedNigerian ? Math.min(12, 4 + record.failures * 2) : Math.min(85, 35 + record.failures * 15);
   return (recentSuccess ? Math.min(30, 12 + record.successes * 4) : 0) - (recentFailure ? penalty : 0);
 }
