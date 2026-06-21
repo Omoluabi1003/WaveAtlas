@@ -411,6 +411,11 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
   const genre = getPrimaryGenre(station);
   const geo = useMemo(() => geotruth(station), [station]);
   const [worldContext, setWorldContext] = useState<WorldContext | null>(null);
+  const [worldContextStatus, setWorldContextStatus] = useState<"loading" | "ready" | "empty">("loading");
+  const [worldContextStationKey, setWorldContextStationKey] = useState("");
+  const stationWorldKey = `${stationKey(station)}:${geo.lat ?? ""}:${geo.lng ?? ""}`;
+  const visibleWorldContext = worldContextStationKey === stationWorldKey ? worldContext : null;
+  const visibleWorldContextStatus = worldContextStationKey === stationWorldKey ? worldContextStatus : "loading";
   useEffect(() => {
     const controller = new AbortController();
     const params = new URLSearchParams();
@@ -424,10 +429,26 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
     if (geo.lng !== null) params.set("lng", String(geo.lng));
     fetch(`/api/world-context?${params.toString()}`, { signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
-      .then((payload: WorldContext | null) => { if (payload?.radioDNA) setWorldContext(payload); })
-      .catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) setWorldContext(null); });
+      .then((payload: WorldContext | null) => {
+        if (payload?.radioDNA) {
+          setWorldContext(payload);
+          setWorldContextStatus("ready");
+          setWorldContextStationKey(stationWorldKey);
+        } else {
+          setWorldContext(null);
+          setWorldContextStatus("empty");
+          setWorldContextStationKey(stationWorldKey);
+        }
+      })
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setWorldContext(null);
+          setWorldContextStatus("empty");
+          setWorldContextStationKey(stationWorldKey);
+        }
+      });
     return () => controller.abort();
-  }, [geo.lat, geo.lng, station.city, station.country, station.country_code, station.language, station.name, station.state]);
+  }, [geo.lat, geo.lng, station.city, station.country, station.country_code, station.language, station.name, station.state, stationWorldKey]);
   return (
     <section className="mt-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -437,8 +458,8 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
         </div>
         <StreamHealthBadge station={station} />
       </div>
-      <RadioDNA context={worldContext} />
-      <WorldContextPanel context={worldContext} />
+      <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
+      <WorldContextPanel context={visibleWorldContext} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <MiniCountryMapCard station={station} />
         <GeoTrustCards station={station} />
