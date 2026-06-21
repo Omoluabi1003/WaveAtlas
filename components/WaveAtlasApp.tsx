@@ -1537,10 +1537,11 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileBasemapSheet open={basemapOpen} value={basemap} onChange={setBasemap} onClose={() => setBasemapOpen(false)} />
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
-    {mode === "Add Signal" ? <>
-      <div className="pointer-events-auto fixed inset-0 z-[54] bg-black/40 backdrop-blur-[8px]" aria-hidden="true" />
-      <div className="fixed inset-x-4 bottom-[180px] z-[55] max-h-[90dvh] max-w-[95vw] overflow-y-auto rounded-[28px] shadow-[0_16px_48px_rgba(0,0,0,0.45)]"><AddYourSignalPanel compact /></div>
-    </> : null}
+    {mode === "Add Signal" ? (
+      <div className="pointer-events-auto fixed inset-0 z-[999] flex h-[100dvh] items-start justify-center overflow-y-auto overscroll-contain bg-black/45 px-3 pb-[calc(140px_+_env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))] backdrop-blur-[10px]">
+        <AddYourSignalPanel compact onCancel={() => setMode("Atlas")} />
+      </div>
+    ) : null}
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { setWandererActive(false); const destination = chooseWonderStation(stations, current, "Take me somewhere surprising"); rememberTeleport(destination); usePlayer.getState().setStation(destination); handleTravel("Take me somewhere surprising"); }} setMode={(m) => { setMode(m); if (m === "Settings") setBasemapOpen(true); else if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
@@ -1554,7 +1555,7 @@ type SignalSubmissionResponse = {
   error?: string;
 };
 
-function AddYourSignalPanel({ compact = false }: { compact?: boolean }) {
+function AddYourSignalPanel({ compact = false, onCancel }: { compact?: boolean; onCancel?: () => void }) {
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const fields = [
@@ -1591,24 +1592,36 @@ function AddYourSignalPanel({ compact = false }: { compact?: boolean }) {
     setMessage(data.message || "Your signal has been received. Once verified, it may join the WaveAtlas™ global map.");
   }
 
-  return <section className={`rounded-[28px] border border-white/10 bg-[rgba(7,17,31,0.88)] shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-[24px] ${compact ? "max-h-[90dvh] max-w-[95vw] overflow-y-auto p-4" : "max-w-[640px] bg-[rgba(7,17,31,0.90)] p-5"}`}>
-    <p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Add Your Signal</p>
-    <h2 className={`${compact ? "mt-2 text-2xl" : "mt-3 text-[32px]"} font-display font-bold leading-tight text-white`}>Help us map the sound of Earth.</h2>
-    <p className="mt-2 text-sm leading-6 text-ivory/80">Have a favorite radio station anywhere in the world? Send us the working stream URL and help WaveAtlas™ grow.</p>
-    <p className="mt-2 text-xs font-semibold text-gold">If it is broadcasting on Earth, it belongs here.</p>
-    <form onSubmit={submit} className="mt-4 grid gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {fields.map(([name, label, placeholder, required]) => <label key={name} className="rounded-2xl border border-white/[0.08] bg-[rgba(12,26,42,0.92)] p-3 text-xs font-medium text-ivory/80">
-          {label}{required ? <span className="text-radio"> *</span> : null}
-          <input name={name} required={required} placeholder={placeholder} className="mt-1 w-full rounded-2xl border border-white/10 bg-[rgba(5,10,20,0.85)] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/[0.55] focus:border-[#00D68F] focus:ring-2 focus:ring-[#00D68F]/20" />
-        </label>)}
+  return <section className={`flex w-full flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(7,17,31,0.92)] shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-[24px] ${compact ? "max-h-[calc(100dvh_-_48px_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] max-w-[94vw]" : "max-h-[86dvh] max-w-[720px]"}`}>
+    <div className="sticky top-0 z-[2] shrink-0 border-b border-white/[0.08] bg-[rgba(7,17,31,0.96)] p-4 backdrop-blur-[16px] sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Add Your Signal</p>
+          <h2 className={`${compact ? "mt-2 text-2xl" : "mt-3 text-[32px]"} font-display font-bold leading-tight text-white`}>Help us map the sound of Earth.</h2>
+        </div>
+        {onCancel ? <button type="button" onClick={onCancel} className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-lg leading-none text-ivory transition hover:bg-white/10" aria-label="Close Add Signal">×</button> : null}
       </div>
-      <label className="rounded-2xl border border-white/[0.08] bg-[rgba(12,26,42,0.92)] p-3 text-xs font-medium text-ivory/80">Notes (optional)
-        <textarea name="notes_optional" rows={3} placeholder="Tell the review agent anything useful about this stream." className="mt-1 w-full rounded-2xl border border-white/10 bg-[rgba(5,10,20,0.85)] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/[0.55] focus:border-[#00D68F] focus:ring-2 focus:ring-[#00D68F]/20" />
-      </label>
-      <button disabled={status === "submitting"} className="rounded-full bg-gradient-to-r from-[#00D68F] via-radio to-emerald-300 px-5 py-3 text-sm font-semibold text-midnight shadow-[0_14px_34px_rgba(0,214,143,0.24)] transition hover:shadow-[0_18px_42px_rgba(0,214,143,0.34)] disabled:cursor-wait disabled:opacity-70"><Signal className="mr-2 inline size-4" />{status === "submitting" ? "Reviewing signal…" : "Submit Signal for Review"}</button>
-      {message ? <p className={`rounded-2xl border px-3 py-2 text-sm ${status === "error" ? "border-red-400/30 bg-red-500/10 text-red-100" : "border-radio/30 bg-radio/10 text-radio"}`}>{message}</p> : null}
-      <p className="text-[11px] leading-5 text-ivory/60">Signal Review Agent validates, enriches, deduplicates, and creates an admin review record. It never auto-publishes to production.</p>
+      <p className="mt-2 text-sm leading-6 text-ivory/80">Have a favorite radio station anywhere in the world? Send us the working stream URL and help WaveAtlas™ grow.</p>
+      <p className="mt-2 text-xs font-semibold text-gold">If it is broadcasting on Earth, it belongs here.</p>
+    </div>
+    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-6 sm:p-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {fields.map(([name, label, placeholder, required]) => <label key={name} className="rounded-2xl border border-white/[0.08] bg-[rgba(12,26,42,0.92)] p-3 text-xs font-medium text-ivory/80">
+            {label}{required ? <span className="text-radio"> *</span> : null}
+            <input name={name} required={required} placeholder={placeholder} className="mt-1 w-full rounded-2xl border border-white/10 bg-[rgba(5,10,20,0.85)] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/[0.55] focus:border-[#00D68F] focus:ring-2 focus:ring-[#00D68F]/20" />
+          </label>)}
+        </div>
+        <label className="mt-3 block rounded-2xl border border-white/[0.08] bg-[rgba(12,26,42,0.92)] p-3 text-xs font-medium text-ivory/80">Notes (optional)
+          <textarea name="notes_optional" rows={3} placeholder="Tell the review agent anything useful about this stream." className="mt-1 w-full rounded-2xl border border-white/10 bg-[rgba(5,10,20,0.85)] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/[0.55] focus:border-[#00D68F] focus:ring-2 focus:ring-[#00D68F]/20" />
+        </label>
+        {message ? <p className={`mt-3 rounded-2xl border px-3 py-2 text-sm ${status === "error" ? "border-red-400/30 bg-red-500/10 text-red-100" : "border-radio/30 bg-radio/10 text-radio"}`}>{message}</p> : null}
+        <p className="mt-3 text-[11px] leading-5 text-ivory/60">Signal Review Agent validates, enriches, deduplicates, and creates an admin review record. It never auto-publishes to production.</p>
+      </div>
+      <div className="sticky bottom-0 z-[2] flex shrink-0 flex-col gap-2 border-t border-white/[0.08] bg-[rgba(7,17,31,0.96)] p-4 pb-[max(16px,env(safe-area-inset-bottom))] backdrop-blur-[16px] sm:flex-row sm:items-center sm:justify-end sm:p-5">
+        {onCancel ? <button type="button" onClick={onCancel} className="rounded-full border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-semibold text-ivory transition hover:bg-white/10">Cancel</button> : null}
+        <button disabled={status === "submitting"} className="rounded-full bg-gradient-to-r from-[#00D68F] via-radio to-emerald-300 px-5 py-3 text-sm font-semibold text-midnight shadow-[0_14px_34px_rgba(0,214,143,0.24)] transition hover:shadow-[0_18px_42px_rgba(0,214,143,0.34)] disabled:cursor-wait disabled:opacity-70"><Signal className="mr-2 inline size-4" />{status === "submitting" ? "Reviewing signal…" : "Submit Signal for Review"}</button>
+      </div>
     </form>
   </section>;
 }
