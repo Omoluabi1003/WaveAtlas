@@ -35,7 +35,7 @@ import { ArrivalCard } from "@/components/arrival-card";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
-import { FAST_CONNECT_BUFFER_TIMEOUT_MS, FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, FAST_CONNECT_STARTUP_TIMEOUT_MS, buildFastConnectQueue, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
+import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQueue, getAdaptiveBufferPolicy, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
 import { localTimeForStation, stationTimeCopy, teleportCopy } from "@/lib/smart-time-copy";
 
 type CountryResult = {
@@ -473,7 +473,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     if (!current) return;
     const queue = buildFastConnectQueue(stations, current, FAST_CONNECT_PARALLEL_CANDIDATES - 1);
     attempted.current = [stationKey(current)];
-    if (queue.length > 1) setStatus("buffering", FAST_CONNECT_COPY.connecting);
+    if (queue.length > 1) setStatus("buffering", getAdaptiveBufferPolicy(current).message);
   }, [currentKey, current, setStatus, stations]);
 
   useEffect(() => {
@@ -531,18 +531,55 @@ function AudioEngine({ stations }: { stations: Station[] }) {
 
     let failed = false;
     let cancelled = false;
+    let attempt = 1;
     let bufferTimer: number | undefined;
     let startupTimer: number | undefined;
+    let lastReadyState = element.readyState;
+    let loadedMetadata = false;
+    let sawCanPlay = false;
+    let sawProgress = false;
+    let lastCurrentTime = element.currentTime || 0;
+    const policy = getAdaptiveBufferPolicy(current);
     const clearBufferTimer = () => { if (bufferTimer) window.clearTimeout(bufferTimer); bufferTimer = undefined; };
     const clearStartupTimer = () => { if (startupTimer) window.clearTimeout(startupTimer); startupTimer = undefined; };
+    const hasProgress = () => loadedMetadata || sawCanPlay || sawProgress || element.readyState > 0 || element.currentTime > lastCurrentTime;
+    const scheduleStartupTimer = () => {
+      clearStartupTimer();
+      startupTimer = window.setTimeout(() => fail("startup_timeout", `No playback progress before ${policy.startupTimeoutMs}ms startup timeout.`), policy.startupTimeoutMs);
+    };
+    const scheduleBufferTimer = (reason: SignalFailureType = "buffer_timeout") => {
+      clearBufferTimer();
+      bufferTimer = window.setTimeout(() => fail(reason, `Buffering exceeded ${policy.bufferTimeoutMs}ms without progress.`), policy.bufferTimeoutMs);
+    };
+    const noteProgress = () => {
+      const readyStateImproved = element.readyState > lastReadyState;
+      const timeAdvanced = element.currentTime > lastCurrentTime;
+      sawProgress = true;
+      if (readyStateImproved) lastReadyState = element.readyState;
+      if (timeAdvanced) lastCurrentTime = element.currentTime;
+      if (readyStateImproved || timeAdvanced) {
+        scheduleStartupTimer();
+        scheduleBufferTimer();
+      }
+    };
     const fail = (errorType: SignalFailureType, detail?: string) => {
       if (cancelled || failed) return;
+      if ((errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled") && hasProgress() && attempt < policy.maxAttempts) {
+        attempt += 1;
+        clearStartupTimer();
+        clearBufferTimer();
+        setStatus("buffering", policy.message);
+        void playSelectedStream();
+        return;
+      }
       failed = true;
       clearStartupTimer();
       clearBufferTimer();
+      if (policy.trusted && (errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled")) setStatus("buffering", policy.timeoutMessage);
       skipToNextCandidate(current, errorType, detail);
     };
-    const onCanPlay = () => { clearStartupTimer(); clearBufferTimer(); };
+    const onLoadedMetadata = () => { loadedMetadata = true; noteProgress(); };
+    const onCanPlay = () => { sawCanPlay = true; noteProgress(); clearStartupTimer(); clearBufferTimer(); };
     const onPlaying = () => {
       if (cancelled || failed) return;
       clearStartupTimer();
@@ -555,23 +592,23 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       debugTeleport("final station playing", { station: current.name, country: current.country_code, continent: stationContinent(current) });
       setStatus("playing");
     };
-    const onWaiting = () => {
-      clearBufferTimer();
-      bufferTimer = window.setTimeout(() => fail("waiting", "Audio waiting event exceeded buffer timeout."), FAST_CONNECT_BUFFER_TIMEOUT_MS);
-    };
-    const onStalled = () => fail("stalled", "Audio stalled before playback.");
+    const onWaiting = () => scheduleBufferTimer("waiting");
+    const onStalled = () => scheduleBufferTimer("stalled");
     const onAbort = () => fail("abort", "Audio request was aborted.");
-    startupTimer = window.setTimeout(() => fail("startup_timeout", "No canplay or playing event before startup timeout."), FAST_CONNECT_STARTUP_TIMEOUT_MS);
+    scheduleStartupTimer();
 
+    element.addEventListener("loadedmetadata", onLoadedMetadata);
     element.addEventListener("canplay", onCanPlay);
     element.addEventListener("playing", onPlaying);
+    element.addEventListener("timeupdate", noteProgress);
+    element.addEventListener("progress", noteProgress);
     element.addEventListener("waiting", onWaiting);
     element.addEventListener("stalled", onStalled);
     element.addEventListener("abort", onAbort);
 
     const playSelectedStream = async () => {
       try {
-        setStatus("buffering", FAST_CONNECT_COPY.connecting);
+        setStatus("buffering", policy.message);
         element.pause();
         element.src = streamUrl;
         element.preload = "auto";
@@ -597,8 +634,11 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       cancelled = true;
       clearStartupTimer();
       clearBufferTimer();
+      element.removeEventListener("loadedmetadata", onLoadedMetadata);
       element.removeEventListener("canplay", onCanPlay);
       element.removeEventListener("playing", onPlaying);
+      element.removeEventListener("timeupdate", noteProgress);
+      element.removeEventListener("progress", noteProgress);
       element.removeEventListener("waiting", onWaiting);
       element.removeEventListener("stalled", onStalled);
       element.removeEventListener("abort", onAbort);
