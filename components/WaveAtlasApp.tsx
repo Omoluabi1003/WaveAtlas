@@ -1188,7 +1188,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
         <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
         <MapMarkerController marker={marker} geo={geo} status={status} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_30%,rgba(7,17,31,.28)_64%,rgba(7,17,31,.68)),linear-gradient(180deg,rgba(2,6,23,.28),transparent_32%,rgba(2,6,23,.48))]" />
+        <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
         <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
         <div className="cloud-layer pointer-events-none absolute inset-0 opacity-25" />
@@ -1203,7 +1203,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
       <MapMarkerController marker={marker} geo={geo} status={status} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_48%,rgba(7,17,31,.35)),linear-gradient(180deg,rgba(2,6,23,.35),transparent_30%,rgba(2,6,23,.54))]" />
+      <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />
       <BasemapControl value={basemap} onChange={setBasemap} />
       <div className="pointer-events-none absolute left-6 top-20 z-20 rounded-full border border-white/15 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold text-emerald-300 shadow-lg backdrop-blur-xl xl:left-8">
