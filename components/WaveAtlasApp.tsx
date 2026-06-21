@@ -965,6 +965,7 @@ function SignalMeter({ score }: { score: number }) {
   );
 }
 type BasemapKey = "atlas" | "satellite" | "terrain" | "streets" | "night" | "blueMarble";
+type GlobeBasemapKey = "blueMarble" | "night" | "signal";
 type DefaultMapView = { center: [number, number]; zoom: number; bearing: number; pitch: number; duration: number };
 const DEFAULT_MAP_VIEW: Record<"desktop" | "mobile", DefaultMapView> = {
   desktop: { center: [0, 20], zoom: 1.6, bearing: 0, pitch: 0, duration: 2500 },
@@ -972,6 +973,7 @@ const DEFAULT_MAP_VIEW: Record<"desktop" | "mobile", DefaultMapView> = {
 };
 const DEFAULT_BASEMAP: BasemapKey = "streets";
 const BASEMAP_STORAGE_KEY = "waveatlas:basemap";
+const GLOBE_BASEMAP_STORAGE_KEY = "waveatlas:globe-basemap";
 const ATLAS_VIEW_STORAGE_KEY = "waveatlas:atlas-view";
 type AtlasViewMode = "globe" | "map";
 const basemapStyles: Record<BasemapKey, { label: string; name: string; description: string; style: string | maplibregl.StyleSpecification }> = {
@@ -983,6 +985,12 @@ const basemapStyles: Record<BasemapKey, { label: string; name: string; descripti
   blueMarble: { label: "🌊 Blue Marble", name: "Blue Marble", description: "Clean global Earth aesthetic", style: { version: 8, sources: { marble: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / Blue Marble" } }, layers: [{ id: "blue-marble", type: "raster", source: "marble" }] } },
 };
 function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
+const globeBasemapStyles: Record<GlobeBasemapKey, { label: string; name: string; description: string }> = {
+  blueMarble: { label: "🌊 Blue Marble Globe", name: "Blue Marble Globe", description: "Procedural oceans, landmasses, borders, labels, and live beacon." },
+  night: { label: "🌃 Night Globe", name: "Night Globe", description: "Dark Earth with country outlines, city-light style points, and live beacon." },
+  signal: { label: "📡 Signal Globe", name: "Signal Globe", description: "Minimal navy globe with grid, country outlines, and live beacon." },
+};
+function getInitialGlobeBasemap(): GlobeBasemapKey { if (typeof window === "undefined") return "blueMarble"; const saved = window.localStorage.getItem(GLOBE_BASEMAP_STORAGE_KEY) as GlobeBasemapKey | null; return saved && saved in globeBasemapStyles ? saved : "blueMarble"; }
 function getInitialAtlasView(): AtlasViewMode {
   if (typeof window === "undefined") return "globe";
   const saved = window.localStorage.getItem(ATLAS_VIEW_STORAGE_KEY);
@@ -1058,6 +1066,25 @@ function BasemapControl({ value, onChange, mobile = false }: { value: BasemapKey
       </AnimatePresence>
     </div>
   );
+}
+function GlobeBasemapControl({ value, onChange, mobile = false }: { value: GlobeBasemapKey; onChange: (value: GlobeBasemapKey) => void; mobile?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => { if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false); };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", onPointerDown); document.addEventListener("keydown", onKeyDown);
+    return () => { document.removeEventListener("pointerdown", onPointerDown); document.removeEventListener("keydown", onKeyDown); };
+  }, [open]);
+  const choose = (key: GlobeBasemapKey) => { onChange(key); try { window.localStorage.setItem(GLOBE_BASEMAP_STORAGE_KEY, key); } catch { /* Non-critical preference. */ } setOpen(false); };
+  return <div ref={rootRef} className={`${mobile ? "left-4 top-[calc(env(safe-area-inset-top)+136px)]" : "right-6 top-24 xl:right-8"} pointer-events-auto absolute z-50`}>
+    <button type="button" aria-label="Change globe style" aria-expanded={open} onClick={() => setOpen((show) => !show)} className="grid size-11 place-items-center rounded-full border border-white/15 bg-slate-950/55 text-ivory shadow-2xl backdrop-blur-xl transition hover:border-radio/40 hover:bg-slate-900/75 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"><Globe2 className="size-5" /></button>
+    <AnimatePresence>{open ? <motion.div initial={{ opacity: 0, y: -8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.96 }} className="absolute left-0 mt-2 w-[min(300px,calc(100vw-2rem))] rounded-3xl border border-white/12 bg-slate-950/82 p-2 shadow-2xl backdrop-blur-2xl md:left-auto md:right-0" role="menu" aria-label="Globe style options">
+      <p className="px-2 pb-2 pt-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Globe Style</p>
+      <div className="grid gap-1">{(Object.keys(globeBasemapStyles) as GlobeBasemapKey[]).map((key) => <button key={key} type="button" role="menuitemradio" aria-checked={value === key} aria-label={`Switch globe basemap to ${globeBasemapStyles[key].name}`} onClick={() => choose(key)} className={`rounded-2xl px-3 py-2 text-left text-[11px] font-semibold transition ${value === key ? "bg-radio text-midnight shadow-lg" : "text-ivory/78 hover:bg-white/10 hover:text-white"}`} title={globeBasemapStyles[key].description}>{globeBasemapStyles[key].label}</button>)}</div>
+    </motion.div> : null}</AnimatePresence>
+  </div>;
 }
 function MapStyleController({ map, basemap, onResize }: { map: Map | null; basemap: BasemapKey; onResize?: () => void }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); try { window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); } catch { /* Basemap preference is non-critical. */ } const resize = () => requestAnimationFrame(() => { map.resize(); onResize?.(); }); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap, onResize]); return null; }
 
@@ -2275,6 +2302,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [atlasView, setAtlasView] = useState<AtlasViewMode>(getInitialAtlasView);
   const [resetSignal, setResetSignal] = useState(0);
   const [basemap, setBasemap] = useState<BasemapKey>(() => getInitialBasemap(true));
+  const [globeBasemap, setGlobeBasemap] = useState<GlobeBasemapKey>(getInitialGlobeBasemap);
   const [mobileGlobeFallbackReason, setMobileGlobeFallbackReason] = useState("");
   const [wanderOpen, setWanderOpen] = useState(false);
   const [mobileTeleporting, setMobileTeleporting] = useState(false);
@@ -2315,8 +2343,9 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     {selectedView === "map" ? (
       <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     ) : (
-      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile onCountrySelect={onCountrySelect} onFallback={(reason) => { setMobileGlobeFallbackReason(reason || "Globe unavailable; map is ready."); setAtlasView("map"); }} />
+      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={(reason) => { setMobileGlobeFallbackReason(reason || "Globe unavailable; map is ready."); setAtlasView("map"); }} />
     )}
+    {selectedView === "globe" ? <GlobeBasemapControl value={globeBasemap} onChange={setGlobeBasemap} mobile /> : null}
     <div className="pointer-events-auto fixed right-4 top-[calc(env(safe-area-inset-top)+92px)] z-[58] flex rounded-full border border-white/10 bg-slate-950/75 p-1 text-[11px] font-semibold shadow-xl backdrop-blur-xl">
       <button type="button" onClick={() => chooseAtlasView("globe")} className={`rounded-full px-3 py-1.5 ${selectedView === "globe" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Globe</button>
       <button type="button" onClick={() => chooseAtlasView("map")} className={`rounded-full px-3 py-1.5 ${selectedView === "map" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Map</button>
@@ -2522,6 +2551,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const wandererTimer = useRef<number | null>(null);
   const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
   const [desktopTeleporting, setDesktopTeleporting] = useState(false);
+  const [desktopGlobeBasemap, setDesktopGlobeBasemap] = useState<GlobeBasemapKey>(getInitialGlobeBasemap);
   const [globeFallbackReason, setGlobeFallbackReason] = useState("");
   const [previousDesktopStation, setPreviousDesktopStation] = useState<Station | undefined>();
   const lastDesktopStationRef = useRef<Station | undefined>(undefined);
@@ -2737,9 +2767,10 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           {globeFallbackReason ? (
             <WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
           ) : (
-            <BlueMarbleGlobe station={current} previousStation={previousDesktopStation} teleporting={desktopTeleporting} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} />
+            <BlueMarbleGlobe station={current} previousStation={previousDesktopStation} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} />
           )}
         </div>
+        {!globeFallbackReason ? <GlobeBasemapControl value={desktopGlobeBasemap} onChange={setDesktopGlobeBasemap} /> : null}
         {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
         <SelectedStationTheater station={current} />
       </div>
