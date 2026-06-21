@@ -35,6 +35,8 @@ export type WorldContext = {
     culturalSummary?: string;
     nearbyLandmarks: string[];
     geoConfidence: number;
+    placeLabel?: string;
+    placeDescriptor?: string;
   };
   place: Record<string, unknown>;
   culture: Record<string, unknown>;
