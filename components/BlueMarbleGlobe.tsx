@@ -117,10 +117,20 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function lowPowerDevice() {
-  if (typeof navigator === "undefined") return false;
-  const nav = navigator as Navigator & { deviceMemory?: number; hardwareConcurrency?: number };
-  return (nav.deviceMemory ?? 8) <= 3 || (nav.hardwareConcurrency ?? 8) <= 4;
+function getDeviceProfile() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return { lowPower: false, mobile: false, webgl: false, reason: "server" };
+  const nav = navigator as Navigator & { deviceMemory?: number; hardwareConcurrency?: number; userAgentData?: { mobile?: boolean } };
+  const ua = navigator.userAgent || "";
+  const mobile = Boolean(nav.userAgentData?.mobile) || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  const lowPower = (nav.deviceMemory ?? 8) <= 3 || (nav.hardwareConcurrency ?? 8) <= 4;
+  const probe = document.createElement("canvas");
+  const webgl = Boolean(probe.getContext("webgl2") || probe.getContext("webgl") || probe.getContext("experimental-webgl"));
+  return { lowPower, mobile, webgl, reason: lowPower ? "reduced mobile effects" : "full effects" };
+}
+
+function debugGlobeDecision(details: Record<string, unknown>) {
+  if (process.env.NODE_ENV !== "development") return;
+  console.info("[WaveAtlas globe]", details);
 }
 
 export default function BlueMarbleGlobe({ station, teleporting = false, onCountrySelect, onFallback, mobile = false }: Props) {
@@ -151,10 +161,8 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (lowPowerDevice()) {
-      onFallback?.("Low-power device keeps the 2D atlas active.");
-      return;
-    }
+    const profile = getDeviceProfile();
+    debugGlobeDecision({ selectedView: "globe", viewport: `${window.innerWidth}x${window.innerHeight}`, device: profile.mobile ? "mobile" : "desktop", lowPower: profile.lowPower, webglSupport: profile.webgl, fallbackReason: null });
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
@@ -211,7 +219,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       const dt = Math.min(32, now - then);
       then = now;
       const rect = wrap.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const dpr = Math.min(mobile || profile.lowPower ? 1.5 : 2, window.devicePixelRatio || 1);
       const w = Math.max(1, Math.floor(rect.width));
       const h = Math.max(1, Math.floor(rect.height));
       if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
@@ -238,17 +246,20 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       if (landShapes.length) {
         ctx.fillStyle = "rgba(63,129,102,0.50)";
         ctx.strokeStyle = "rgba(196,245,222,0.26)";
-        ctx.lineWidth = 0.75;
-        for (const shape of landShapes) {
+        ctx.lineWidth = mobile || profile.lowPower ? 0.5 : 0.75;
+        const shapesToDraw = mobile || profile.lowPower ? landShapes.slice(0, 130) : landShapes;
+        for (const shape of shapesToDraw) {
           ctx.beginPath();
           for (const ring of shape.rings) drawRing(ring, w, h, r);
           ctx.fill();
           ctx.stroke();
         }
       }
-      ctx.strokeStyle = "rgba(147,197,253,0.07)"; ctx.lineWidth = 0.7;
-      for (let lat = -75; lat <= 75; lat += 15) { ctx.beginPath(); for (let lng = -180; lng <= 180; lng += 4) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) continue; lng === -180 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.stroke(); }
-      for (let lng = -180; lng < 180; lng += 15) { ctx.beginPath(); let started = false; for (let lat = -85; lat <= 85; lat += 3) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) { started = false; continue; } started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); started = true; } ctx.stroke(); }
+      ctx.strokeStyle = "rgba(147,197,253,0.07)"; ctx.lineWidth = mobile || profile.lowPower ? 0.45 : 0.7;
+      const latStep = mobile || profile.lowPower ? 30 : 15;
+      const lngStep = mobile || profile.lowPower ? 30 : 15;
+      for (let lat = -75; lat <= 75; lat += latStep) { ctx.beginPath(); for (let lng = -180; lng <= 180; lng += 4) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) continue; lng === -180 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.stroke(); }
+      for (let lng = -180; lng < 180; lng += lngStep) { ctx.beginPath(); let started = false; for (let lat = -85; lat <= 85; lat += 3) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) { started = false; continue; } started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); started = true; } ctx.stroke(); }
       if (!mobile && s.zoom > 1.28) {
         const visibleLabels = landShapes.filter((shape) => shape.code && isoCountryCentroids[shape.code]).slice(0, 70);
         for (const shape of visibleLabels) {
@@ -259,12 +270,15 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       if (currentPoint) { const p = project(currentPoint.lat, currentPoint.lng, w, h, r); if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / (mobile ? 260 : 180)) * (mobile ? 0.12 : 0.22); ctx.fillStyle = "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, 18 * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); drawLabel(stationLabel, currentPoint.lat, currentPoint.lng, w, h, r, true); } }
       ctx.restore();
       ctx.strokeStyle = "rgba(0,214,143,0.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
-      raf = requestAnimationFrame(draw);
+      if (s.hidden) return;
+      const delay = mobile || profile.lowPower ? 34 : 0;
+      if (delay) window.setTimeout(() => { if (!state.current.hidden) raf = requestAnimationFrame(draw); }, delay);
+      else raf = requestAnimationFrame(draw);
     };
-    const onVisibility = () => { state.current.hidden = document.hidden; };
+    const onVisibility = () => { state.current.hidden = document.hidden; if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else if (!raf) raf = requestAnimationFrame(draw); };
     document.addEventListener("visibilitychange", onVisibility);
     raf = requestAnimationFrame(draw);
-    return () => { document.removeEventListener("visibilitychange", onVisibility); cancelAnimationFrame(raf); };
+    return () => { document.removeEventListener("visibilitychange", onVisibility); cancelAnimationFrame(raf); raf = 0; };
   }, [currentPoint, focusPoint, landShapes, mobile, onFallback, stationLabel, teleporting]);
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, teleporting]);
@@ -281,7 +295,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.65, s.targetZoom - event.deltaY * 0.001)); };
 
-  return <div ref={wrapRef} className={`${mobile ? "fixed inset-0 h-[100dvh] min-h-[100dvh]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
+  return <div ref={wrapRef} className={`${mobile ? "fixed inset-0 h-[100dvh] min-h-[100dvh] w-screen pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
     <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
     <div className={`${mobile ? "left-4 top-[calc(env(safe-area-inset-top)+88px)] text-[9px]" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 shadow-lg backdrop-blur-xl`}>Blue Marble Globe · drag, zoom, tap to tune</div>
     <div className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing procedural globe…"}</span></div>

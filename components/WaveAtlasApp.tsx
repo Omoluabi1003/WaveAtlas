@@ -972,6 +972,8 @@ const DEFAULT_MAP_VIEW: Record<"desktop" | "mobile", DefaultMapView> = {
 };
 const DEFAULT_BASEMAP: BasemapKey = "streets";
 const BASEMAP_STORAGE_KEY = "waveatlas:basemap";
+const ATLAS_VIEW_STORAGE_KEY = "waveatlas:atlas-view";
+type AtlasViewMode = "globe" | "map";
 const basemapStyles: Record<BasemapKey, { label: string; name: string; description: string; style: string | maplibregl.StyleSpecification }> = {
   atlas: { label: "🌎 Atlas", name: "Atlas", description: "Premium dark vector map", style: { version: 8, sources: { carto: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" } }, layers: [{ id: "carto-dark-matter", type: "raster", source: "carto" }] } },
   satellite: { label: "🛰 Satellite", name: "Satellite", description: "Realistic Earth imagery", style: { version: 8, sources: { esri: { type: "raster", tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "esri-world-imagery", type: "raster", source: "esri" }] } },
@@ -981,6 +983,20 @@ const basemapStyles: Record<BasemapKey, { label: string; name: string; descripti
   blueMarble: { label: "🌊 Blue Marble", name: "Blue Marble", description: "Clean global Earth aesthetic", style: { version: 8, sources: { marble: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / Blue Marble" } }, layers: [{ id: "blue-marble", type: "raster", source: "marble" }] } },
 };
 function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
+function getInitialAtlasView(): AtlasViewMode {
+  if (typeof window === "undefined") return "globe";
+  const saved = window.localStorage.getItem(ATLAS_VIEW_STORAGE_KEY);
+  if (saved === "map" || saved === "globe") return saved;
+  if (saved) window.localStorage.removeItem(ATLAS_VIEW_STORAGE_KEY);
+  return "globe";
+}
+function persistAtlasView(view: AtlasViewMode) {
+  try { window.localStorage.setItem(ATLAS_VIEW_STORAGE_KEY, view); } catch { /* Atlas view is safe to reset when storage is unavailable. */ }
+}
+function debugAtlasDecision(details: Record<string, unknown>) {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") return;
+  console.info("[WaveAtlas atlas-view]", { viewport: `${window.innerWidth}x${window.innerHeight}`, userAgent: navigator.userAgent, ...details });
+}
 function BasemapControl({ value, onChange, mobile = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; mobile?: boolean }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -2256,6 +2272,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
+  const [atlasView, setAtlasView] = useState<AtlasViewMode>(getInitialAtlasView);
   const [resetSignal, setResetSignal] = useState(0);
   const [basemap, setBasemap] = useState<BasemapKey>(() => getInitialBasemap(true));
   const [mobileGlobeFallbackReason, setMobileGlobeFallbackReason] = useState("");
@@ -2285,12 +2302,25 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     return () => { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); };
   }, [makeWandererHop, wandererActive]);
   const visualViewport = useIOSVisualViewport();
-  return <section className="fixed inset-0 h-[100dvh] w-full max-w-full overflow-hidden bg-transparent text-white md:hidden">
-    {mobileGlobeFallbackReason ? (
+  const selectedView: AtlasViewMode = mobileGlobeFallbackReason ? "map" : atlasView;
+  useEffect(() => {
+    debugAtlasDecision({ device: "mobile", selectedView, webglSupport: "probed-in-globe", fallbackReason: mobileGlobeFallbackReason || null });
+  }, [mobileGlobeFallbackReason, selectedView]);
+  const chooseAtlasView = (view: AtlasViewMode) => {
+    setMobileGlobeFallbackReason("");
+    setAtlasView(view);
+    persistAtlasView(view);
+  };
+  return <section className="fixed inset-0 h-[100dvh] w-screen max-w-full overflow-hidden bg-transparent text-white md:hidden">
+    {selectedView === "map" ? (
       <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     ) : (
-      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile onCountrySelect={onCountrySelect} onFallback={setMobileGlobeFallbackReason} />
+      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile onCountrySelect={onCountrySelect} onFallback={(reason) => { setMobileGlobeFallbackReason(reason || "Globe unavailable; map is ready."); setAtlasView("map"); }} />
     )}
+    <div className="pointer-events-auto fixed right-4 top-[calc(env(safe-area-inset-top)+92px)] z-[58] flex rounded-full border border-white/10 bg-slate-950/75 p-1 text-[11px] font-semibold shadow-xl backdrop-blur-xl">
+      <button type="button" onClick={() => chooseAtlasView("globe")} className={`rounded-full px-3 py-1.5 ${selectedView === "globe" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Globe</button>
+      <button type="button" onClick={() => chooseAtlasView("map")} className={`rounded-full px-3 py-1.5 ${selectedView === "map" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Map</button>
+    </div>
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setCurrentStationAndDestination(station); }, 250); }} />
