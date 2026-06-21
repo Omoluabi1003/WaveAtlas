@@ -35,6 +35,7 @@ import { ArrivalCard } from "@/components/arrival-card";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
+import { FAST_CONNECT_BUFFER_TIMEOUT_MS, FAST_CONNECT_COPY, FAST_CONNECT_STARTUP_TIMEOUT_MS, buildFastConnectQueue, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
 
 type CountryResult = {
   name: string;
@@ -116,9 +117,6 @@ const countryFallbacks: Record<string, { lat: number; lng: number; tone: GeoPoin
   Object.entries(isoCountryCentroids).map(([code, point]) => [code, { ...point, tone: stationTone(code) }]),
 );
 
-function getStationStreamUrl(station?: Station) {
-  return station?.url_resolved?.trim() || station?.url?.trim() || "";
-}
 
 const neighboringCountries: Record<string, string[]> = {
   NG: ["Ghana", "Benin", "Cameroon", "Niger", "Togo"],
@@ -392,22 +390,38 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
 function AudioEngine({ stations }: { stations: Station[] }) {
   const { current, status, volume, userActivated, setStatus } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
+  const attempted = useRef<string[]>([]);
+  const currentKey = current ? stationKey(current) : "";
+
+  const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
+    markStationFailure(failed, errorType, detail);
+    attempted.current = [...new Set([...attempted.current, stationKey(failed)])];
+    const fallback = nextFastConnectCandidate(stations, failed, attempted.current) ?? pickFallbackStation(stations, failed, readArrivalHistory());
+    if (fallback) {
+      setStatus("buffering", FAST_CONNECT_COPY.retrying);
+      usePlayer.getState().setStation(fallback);
+      return true;
+    }
+    setStatus("failed", FAST_CONNECT_COPY.failed);
+    return false;
+  }, [setStatus, stations]);
+
+  useEffect(() => {
+    if (!current) return;
+    const queue = buildFastConnectQueue(stations, current, 3);
+    attempted.current = [stationKey(current)];
+    if (queue.length > 1) setStatus("buffering", FAST_CONNECT_COPY.connecting);
+  }, [currentKey, current, setStatus, stations]);
 
   useEffect(() => {
     const element = new Audio();
-    element.preload = "metadata";
+    element.preload = "auto";
     element.volume = 1;
     element.muted = false;
     audio.current = element;
     const onError = () => {
-      const code = element.error?.code;
       const failed = usePlayer.getState().current;
-      const fallback = failed ? pickFallbackStation(stations, failed, readArrivalHistory()) : undefined;
-      if (fallback) {
-        usePlayer.getState().setStation(fallback);
-        return;
-      }
-      setStatus("failed", `Stream failed${code ? ` (audio error ${code})` : ""}. No alternate live destination was available.`);
+      if (failed) skipToNextCandidate(failed, element.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ? "unsupported_media" : "audio_error", element.error?.message);
     };
     element.addEventListener("error", onError);
 
@@ -418,7 +432,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       element.load();
       audio.current = null;
     };
-  }, [setStatus, stations]);
+  }, [skipToNextCandidate]);
 
   useEffect(() => {
     const element = audio.current;
@@ -433,56 +447,79 @@ function AudioEngine({ stations }: { stations: Station[] }) {
 
     const streamUrl = getStationStreamUrl(current);
     if (!streamUrl) {
-      element.pause();
-      setStatus("failed", "This station did not provide a stream URL.");
+      skipToNextCandidate(current, "missing_url", "Station did not provide a stream URL.");
       return;
     }
 
     if (!/^https?:\/\//i.test(streamUrl)) {
-      element.pause();
-      setStatus("failed", `Unsupported stream URL: ${streamUrl}`);
+      skipToNextCandidate(current, "unsupported_media", `Unsupported stream URL: ${streamUrl}`);
       return;
     }
 
     if (!userActivated) {
       element.src = streamUrl;
-      element.preload = "metadata";
+      element.preload = "auto";
       element.load();
-      setStatus(
-        "blocked",
-        "Tap to Play: browsers require a click before live audio can start.",
-      );
+      setStatus("blocked", "Tap to Play: browsers require a click before live audio can start.");
       return;
     }
 
     if (status !== "buffering") return;
 
+    let failed = false;
     let cancelled = false;
+    let bufferTimer: number | undefined;
+    let startupTimer: number | undefined;
+    const clearBufferTimer = () => { if (bufferTimer) window.clearTimeout(bufferTimer); bufferTimer = undefined; };
+    const clearStartupTimer = () => { if (startupTimer) window.clearTimeout(startupTimer); startupTimer = undefined; };
+    const fail = (errorType: SignalFailureType, detail?: string) => {
+      if (cancelled || failed) return;
+      failed = true;
+      clearStartupTimer();
+      clearBufferTimer();
+      skipToNextCandidate(current, errorType, detail);
+    };
+    const onCanPlay = () => { clearStartupTimer(); clearBufferTimer(); };
+    const onPlaying = () => {
+      if (cancelled || failed) return;
+      clearStartupTimer();
+      clearBufferTimer();
+      markStationSuccess(current);
+      setStatus("playing");
+    };
+    const onWaiting = () => {
+      clearBufferTimer();
+      bufferTimer = window.setTimeout(() => fail("waiting", "Audio waiting event exceeded buffer timeout."), FAST_CONNECT_BUFFER_TIMEOUT_MS);
+    };
+    const onStalled = () => {
+      clearBufferTimer();
+      bufferTimer = window.setTimeout(() => fail("stalled", "Audio stalled event exceeded buffer timeout."), FAST_CONNECT_BUFFER_TIMEOUT_MS);
+    };
+    startupTimer = window.setTimeout(() => fail("startup_timeout", "No canplay or playing event before startup timeout."), FAST_CONNECT_STARTUP_TIMEOUT_MS);
+
+    element.addEventListener("canplay", onCanPlay);
+    element.addEventListener("playing", onPlaying);
+    element.addEventListener("waiting", onWaiting);
+    element.addEventListener("stalled", onStalled);
+
     const playSelectedStream = async () => {
       try {
-        setStatus("buffering");
+        setStatus("buffering", FAST_CONNECT_COPY.connecting);
         element.pause();
         element.src = streamUrl;
-        element.preload = "metadata";
+        element.preload = "auto";
         element.volume = volume;
         element.muted = false;
         element.load();
         await element.play();
-        if (!cancelled) {
-          setStatus("playing");
-        }
       } catch (error) {
-        if (!cancelled) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Playback was blocked or the stream failed.";
-          const fallback = current ? pickFallbackStation(stations, current, readArrivalHistory()) : undefined;
-          if (fallback && !message.toLowerCase().includes("user") && !message.toLowerCase().includes("gesture") && !message.toLowerCase().includes("allowed")) {
-            usePlayer.getState().setStation(fallback);
-          } else {
-            setStatus(message.toLowerCase().includes("user") || message.toLowerCase().includes("gesture") || message.toLowerCase().includes("allowed") ? "blocked" : "failed", message);
-          }
+        const message = error instanceof Error ? error.message : "Playback was blocked or the stream failed.";
+        const isAutoplay = /user|gesture|allowed|interact/i.test(message);
+        if (isAutoplay) {
+          markStationFailure(current, "autoplay_blocked", message);
+          setStatus("blocked", "Tap to Play: browsers require a click before live audio can start.");
+        } else {
+          fail(/network/i.test(message) ? "network_error" : "playback_error", message);
         }
       }
     };
@@ -491,8 +528,14 @@ function AudioEngine({ stations }: { stations: Station[] }) {
 
     return () => {
       cancelled = true;
+      clearStartupTimer();
+      clearBufferTimer();
+      element.removeEventListener("canplay", onCanPlay);
+      element.removeEventListener("playing", onPlaying);
+      element.removeEventListener("waiting", onWaiting);
+      element.removeEventListener("stalled", onStalled);
     };
-  }, [current, status, userActivated, setStatus, volume, stations]);
+  }, [current, currentKey, status, userActivated, setStatus, volume, stations, skipToNextCandidate]);
 
   useEffect(() => {
     const element = audio.current;
@@ -1137,7 +1180,7 @@ function NowPlaying({
         />
       </div>
       {error ? (
-        <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-950/40 p-3 text-sm text-red-100">
+        <p className={`mt-4 rounded-2xl border p-3 text-sm ${status === "buffering" ? "border-sky/30 bg-sky/10 text-sky" : status === "blocked" ? "border-gold/30 bg-gold/10 text-gold" : "border-red-400/30 bg-red-950/40 text-red-100"}`}>
           {error}
         </p>
       ) : null}
