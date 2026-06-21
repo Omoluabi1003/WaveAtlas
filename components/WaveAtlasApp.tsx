@@ -37,6 +37,9 @@ import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
 import { BriefPanel } from "@/components/BriefPanel";
+import { RadioDNA } from "@/components/RadioDNA";
+import { WorldContextPanel } from "@/components/WorldContextPanel";
+import type { WorldContext } from "@/lib/world-engine/types";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
@@ -406,6 +409,25 @@ function ListCard({ title, items }: { title: string; items: { key: string; label
 
 function StationIntelligencePanel({ station, stations, setQuery }: { station: Station; stations: Station[]; setQuery: (q: string) => void }) {
   const genre = getPrimaryGenre(station);
+  const geo = useMemo(() => geotruth(station), [station]);
+  const [worldContext, setWorldContext] = useState<WorldContext | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams();
+    params.set("stationName", station.name);
+    if (station.city) params.set("city", station.city);
+    if (station.state) params.set("state", station.state);
+    if (station.country) params.set("country", station.country);
+    if (station.country_code) params.set("countryCode", station.country_code);
+    if (station.language) params.set("language", station.language);
+    if (geo.lat !== null) params.set("lat", String(geo.lat));
+    if (geo.lng !== null) params.set("lng", String(geo.lng));
+    fetch(`/api/world-context?${params.toString()}`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: WorldContext | null) => { if (payload?.radioDNA) setWorldContext(payload); })
+      .catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) setWorldContext(null); });
+    return () => controller.abort();
+  }, [geo.lat, geo.lng, station.city, station.country, station.country_code, station.language, station.name, station.state]);
   return (
     <section className="mt-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -415,6 +437,8 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
         </div>
         <StreamHealthBadge station={station} />
       </div>
+      <RadioDNA context={worldContext} />
+      <WorldContextPanel context={worldContext} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <MiniCountryMapCard station={station} />
         <GeoTrustCards station={station} />
