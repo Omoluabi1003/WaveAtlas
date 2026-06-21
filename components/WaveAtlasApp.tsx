@@ -26,6 +26,7 @@ import {
   Newspaper,
   Sparkles,
   Volume2,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
@@ -1581,7 +1582,7 @@ function SearchResultStationCard({ station, onSelect }: { station: Station; onSe
   const location = [station.state || station.city, station.country].filter(Boolean).join(" · ");
   return <button onClick={() => onSelect(station)} className="mb-3 w-full rounded-2xl border border-white/10 bg-slate-900 p-4 text-left shadow-lg transition active:scale-[0.99] hover:border-gold/50 hover:bg-slate-800"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><b className="block truncate text-base font-medium text-white">{station.name}</b><p className="mt-1 text-xs font-medium text-slate-300">{location || "Global"} · {station.language || "Unknown language"}</p></div><span className="shrink-0 rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-medium text-emerald-300"><span className={`mr-1 inline-block size-2 rounded-full ${health.dot}`} />{health.label}</span></div><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-slate-100">{station.codec || "Unknown codec"}</span><span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-slate-100">{station.bitrate ? `${station.bitrate} kbps` : "Live stream"}</span><span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-slate-100">{station.country_code}</span>{station.tags.slice(0, 2).map((tag) => <span key={tag} className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-slate-100">{tag}</span>)}</div></button>;
 }
-function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelect, setQuery }: { query: string; stations: Station[]; onStationSelect: (station: Station) => void; onCountrySelect: (country: CountryResult) => void; setQuery: (q: string) => void }) {
+function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelect, setQuery, compact = false }: { query: string; stations: Station[]; onStationSelect: (station: Station) => void; onCountrySelect: (country: CountryResult) => void; setQuery: (q: string) => void; compact?: boolean }) {
   const [remoteStations, setRemoteStations] = useState<Station[]>([]);
   const [countries, setCountries] = useState<CountryResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1632,7 +1633,7 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
   const genres = Array.from(new Set(stations.flatMap((s) => s.tags).filter((tag) => tag.toLowerCase().includes(q)))).slice(0, 8);
   const languages = Array.from(new Set(stations.map((s) => s.language).filter((language) => language && language.toLowerCase().includes(q)))).slice(0, 8);
   if (query.trim().length < 2) return null;
-  return <div className="rounded-3xl border border-white/15 bg-slate-950/98 p-3 shadow-2xl backdrop-blur-2xl"><div className="mb-3 flex items-center justify-between px-1"><p className="font-display text-xs font-semibold text-gold">{countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Destination results"}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className="grid gap-3 lg:grid-cols-[1.25fr_.75fr]"><div>{stationResults.length ? stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={onStationSelect} />) : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No active station found. Try country or genre search."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
+  return <div className="rounded-3xl border border-white/15 bg-slate-950/98 p-3 shadow-2xl backdrop-blur-2xl"><div className="mb-3 flex items-center justify-between px-1"><p className="font-display text-xs font-semibold text-gold">{countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Destination results"}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className={`grid gap-3 ${compact ? "" : "lg:grid-cols-[1.25fr_.75fr]"}`}><div>{stationResults.length ? stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={onStationSelect} />) : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No active station found. Try country or genre search."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
 }
 function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
   return <div className="rounded-3xl border border-white/10 bg-slate-900 p-4 shadow-lg"><p className="font-display text-xs font-semibold text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/5 bg-slate-800 px-3 py-2 text-left text-slate-100 hover:border-sky/40"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-slate-300">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
@@ -2088,6 +2089,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [desktopMode, setDesktopMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "add-signal" ? "Add Signal" : "Teleport");
+  const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
@@ -2193,11 +2195,12 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   };
   const centerAppAfterQuery = useCallback(() => {
     window.requestAnimationFrame(() => {
-      document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, genre, or language"]')?.blur();
+      document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, destination..."]')?.blur();
     });
   }, []);
 
   const selectCountry = (country: CountryResult) => {
+    setDesktopDrawerCollapsed(false);
     setSelectedCountry(country);
     setQuery("");
     setActiveTag("");
@@ -2226,6 +2229,15 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
+  const desktopDrawerActive = query.trim().length > 0 || Boolean(selectedCountry) || desktopMode !== "Atlas";
+  const desktopDrawerOpen = desktopDrawerActive && !desktopDrawerCollapsed;
+  const closeDesktopDrawer = useCallback(() => {
+    setQuery("");
+    setSelectedCountry(null);
+    setDesktopMode("Atlas");
+    setDesktopDrawerCollapsed(false);
+  }, []);
+
   const visible = stationPool
     .slice(0, selectedCountry ? stationPool.length : 9)
     .filter(
@@ -2249,34 +2261,51 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
           WaveAtlas™
         </b>
-        <button type="button" onClick={() => { setBriefOpen(false); setDesktopMode("Settings"); }} className="pointer-events-auto mr-24 grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/40 text-ivory shadow-2xl backdrop-blur-2xl transition hover:border-radio/30 hover:text-radio" aria-label="Open settings">
+        <button type="button" onClick={() => { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode("Settings"); }} className="pointer-events-auto mr-24 grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/40 text-ivory shadow-2xl backdrop-blur-2xl transition hover:border-radio/30 hover:text-radio" aria-label="Open settings">
           <Settings className="size-4" />
         </button>
       </div>
       <div className="absolute inset-0 z-0">
         <div className="hidden"><DailyFlightPanel stations={stationPool} /></div>
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-40 rounded-[2rem] border border-radio/30 bg-slate-950/75 p-4 text-left font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
-        <div id="atlas-map" className="h-full w-full scroll-mt-0">
+        <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
           <WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
         </div>
       </div>
-      <section className="pointer-events-none fixed left-1/2 top-6 z-30 w-[min(700px,90vw)] -translate-x-1/2">
+      <section className="pointer-events-none fixed left-1/2 top-6 z-50 w-[min(560px,calc(100vw-3rem))] -translate-x-1/2">
         <div className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/40 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl">
           <div className="flex gap-3">
             <Search className="shrink-0 text-sky" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setDesktopDrawerCollapsed(false); setQuery(e.target.value); }}
+              onFocus={() => { if (desktopDrawerActive) setDesktopDrawerCollapsed(false); }}
               placeholder="Search country, city, destination..."
               className="w-full bg-transparent outline-none placeholder:text-ivory/45"
             />
           </div>
         </div>
-        {(query.trim() || selectedCountry || desktopMode !== "Atlas") ? <div className="pointer-events-auto mt-3 max-h-[calc(100vh-15rem)] overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-2xl">
+      </section>
+      {desktopDrawerActive ? <aside className={`${desktopDrawerOpen ? "translate-x-0 opacity-100" : "-translate-x-[calc(100%-3.5rem)] opacity-95"} pointer-events-auto fixed bottom-28 left-6 top-28 z-40 flex w-[min(420px,calc(100vw-3rem))] flex-col rounded-[2rem] border border-white/10 bg-slate-950/72 p-4 text-ivory shadow-2xl shadow-black/35 backdrop-blur-2xl transition duration-300 xl:left-8`} aria-label="Search and discovery drawer">
+        <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+          <div className="min-w-0">
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold">Atlas drawer</p>
+            <p className="truncate text-sm text-ivory/60">Search, destinations, and discovery stay off the map center.</p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={() => setDesktopDrawerCollapsed((collapsed) => !collapsed)} className="grid size-10 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-ivory/80 transition hover:border-radio/40 hover:text-radio" aria-label={desktopDrawerOpen ? "Collapse search drawer" : "Expand search drawer"}>
+              <Search className="size-4" />
+            </button>
+            <button type="button" onClick={closeDesktopDrawer} className="grid size-10 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-ivory/80 transition hover:border-gold/40 hover:text-gold" aria-label="Close search drawer">
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+        <div className={`${desktopDrawerOpen ? "block" : "hidden"} min-h-0 flex-1 overflow-y-auto pr-1`}>
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
           {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
-          {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} /> : null}
+          {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { usePlayer.getState().setStation(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} compact /> : null}
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2291,42 +2320,19 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
             </div>
           ) : null}
           {desktopMode !== "Atlas" || query.trim() ? <div className="mt-5 flex flex-wrap gap-2">
-            {[
-              "Nigeria",
-              "Dubai",
-              "France",
-              "Afrobeat",
-              "Amapiano",
-              "Jazz",
-            ].map((chip) => (
-              <button
-                key={chip}
-                onClick={() => setQuery(chip)}
-                className="rounded-full border border-white/10 px-4 py-2 text-sm text-ivory/70 hover:border-gold/60"
-              >
-                <Sparkles className="mr-1 inline size-3" />
-                {chip}
-              </button>
+            {["Nigeria", "Dubai", "France", "Afrobeat", "Amapiano", "Jazz"].map((chip) => (
+              <button key={chip} onClick={() => { setDesktopDrawerCollapsed(false); setQuery(chip); }} className="rounded-full border border-white/10 px-4 py-2 text-sm text-ivory/70 hover:border-gold/60"><Sparkles className="mr-1 inline size-3" />{chip}</button>
             ))}
           </div> : null}
-          {desktopMode !== "Atlas" || query.trim() || selectedCountry ? <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {desktopMode !== "Atlas" || query.trim() || selectedCountry ? <div className="mt-5 grid gap-3">
             {visible.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => { usePlayer.getState().setStation(s); setQuery(""); centerAppAfterQuery(); }}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:border-gold/50"
-              >
-                <b>{s.name}</b>
-                <p className="mt-1 text-sm text-ivory/60">
-                  {s.country} · {s.tags.slice(0, 3).join(", ") || "live radio"}
-                </p>
-              </button>
+              <button key={s.id} onClick={() => { usePlayer.getState().setStation(s); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:border-gold/50"><b>{s.name}</b><p className="mt-1 text-sm text-ivory/60">{s.country} · {s.tags.slice(0, 3).join(", ") || "live radio"}</p></button>
             ))}
           </div> : null}
           {selectedCountry && !visible.length && !loadingCountry ? <p className="mt-5 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No active stations found for {selectedCountry.name} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.</p> : null}
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
-        </div> : null}
-      </section>
+        </div>
+      </aside> : null}
       <BriefPanel station={current} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
       <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
@@ -2348,7 +2354,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
         </div>
         <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
-          {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (value === "Teleport") { setWandererActive(false); setDesktopMode(value); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => commitTeleportStation(station, queue)); } else if (value === "Brief") { setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button></div>; })}
+          {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (value === "Teleport") { setDesktopDrawerCollapsed(false); setWandererActive(false); setDesktopMode(value); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => commitTeleportStation(station, queue)); } else if (value === "Brief") { setDesktopDrawerCollapsed(false); setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopDrawerCollapsed(false); setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{label as string}</button></div>; })}
         </nav>
       </div>
     </main>
