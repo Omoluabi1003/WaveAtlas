@@ -1,6 +1,7 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import NextLink from "next/link";
 import maplibregl, { type Map, type Marker } from "maplibre-gl";
@@ -42,6 +43,16 @@ import { NewspaperBrief } from "@/components/NewspaperBrief";
 import { RadioDNA } from "@/components/RadioDNA";
 import { WorldContextPanel } from "@/components/WorldContextPanel";
 import type { WorldContext } from "@/lib/world-engine/types";
+
+const BlueMarbleGlobe = dynamic(() => import("@/components/BlueMarbleGlobe"), {
+  ssr: false,
+  loading: () => (
+    <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.14),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl">
+      <div className="absolute left-1/2 top-1/2 size-[min(58vw,58vh)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/20 bg-slate-950/60 shadow-[0_0_90px_rgba(0,214,143,.18)]" />
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-slate-950/65 px-5 py-3 text-sm font-medium text-ivory shadow-2xl backdrop-blur-xl">Preparing Audio Tourism globe…</div>
+    </div>
+  ),
+});
 import { getAmbientTheme } from "@/lib/world-engine/ambient-theme";
 import { buildAtmosphereLine, buildPlaceDescriptor, buildPlaceLabel } from "@/lib/world-engine/place-labels";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
@@ -2460,6 +2471,9 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const wandererTimer = useRef<number | null>(null);
   const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
   const [desktopTeleporting, setDesktopTeleporting] = useState(false);
+  const [globeFallbackReason, setGlobeFallbackReason] = useState("");
+  const [previousDesktopStation, setPreviousDesktopStation] = useState<Station | undefined>();
+  const lastDesktopStationRef = useRef<Station | undefined>(undefined);
   const [deepLinkUuid] = useState(() => {
     if (typeof window === "undefined") return "";
     const value = new URLSearchParams(window.location.search).get("station")?.trim() || "";
@@ -2620,6 +2634,13 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     return () => { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); };
   }, [runWandererHop, wandererActive]);
 
+  useEffect(() => {
+    if (!current) return;
+    const last = lastDesktopStationRef.current;
+    if (last && stationKey(last) !== stationKey(current)) setPreviousDesktopStation(last);
+    lastDesktopStationRef.current = current;
+  }, [current]);
+
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
   const desktopDrawerActive = query.trim().length > 0 || Boolean(selectedCountry) || desktopMode !== "Atlas";
@@ -2662,8 +2683,13 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         <div className="hidden"><DailyFlightPanel stations={stationPool} /></div>
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-40 rounded-[2rem] border border-radio/30 bg-slate-950/75 p-4 text-left font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
-          <WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
+          {globeFallbackReason ? (
+            <WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
+          ) : (
+            <BlueMarbleGlobe station={current} previousStation={previousDesktopStation} teleporting={desktopTeleporting} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} />
+          )}
         </div>
+        {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
         <SelectedStationTheater station={current} />
       </div>
       <section className="pointer-events-none fixed left-1/2 top-6 z-50 w-[min(560px,calc(100vw-3rem))] -translate-x-1/2">
