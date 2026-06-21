@@ -4,8 +4,19 @@ import { isCuratedStation, isStationAvailable } from "@/lib/stations";
 import { stationCity } from "@/lib/discovery/history";
 import { stationContinent } from "@/lib/discovery/station-picker";
 
-export const FAST_CONNECT_STARTUP_TIMEOUT_MS = 4000;
-export const FAST_CONNECT_BUFFER_TIMEOUT_MS = 6000;
+export type StationTrustClass = "unknown_station" | "radio_browser_station" | "curated_station" | "verified_station" | "recently_successful_station";
+export type AdaptiveBufferPolicy = { startupTimeoutMs: number; bufferTimeoutMs: number; maxAttempts: number; trusted: boolean; message: string; timeoutMessage: string };
+
+export const ADAPTIVE_BUFFER_POLICIES: Record<StationTrustClass, AdaptiveBufferPolicy> = {
+  unknown_station: { startupTimeoutMs: 4000, bufferTimeoutMs: 6000, maxAttempts: 1, trusted: false, message: "Finding a stronger signal…", timeoutMessage: "Finding a stronger signal…" },
+  radio_browser_station: { startupTimeoutMs: 5000, bufferTimeoutMs: 7000, maxAttempts: 1, trusted: false, message: "Finding a stronger signal…", timeoutMessage: "Finding a stronger signal…" },
+  curated_station: { startupTimeoutMs: 8000, bufferTimeoutMs: 12000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "This signal is taking too long. Trying another live station…" },
+  verified_station: { startupTimeoutMs: 10000, bufferTimeoutMs: 15000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "This signal is taking too long. Trying another live station…" },
+  recently_successful_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 18000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "This signal is taking too long. Trying another live station…" },
+};
+
+export const FAST_CONNECT_STARTUP_TIMEOUT_MS = ADAPTIVE_BUFFER_POLICIES.unknown_station.startupTimeoutMs;
+export const FAST_CONNECT_BUFFER_TIMEOUT_MS = ADAPTIVE_BUFFER_POLICIES.unknown_station.bufferTimeoutMs;
 export const FAST_CONNECT_PARALLEL_CANDIDATES = 5;
 export const FAST_CONNECT_MAX_ATTEMPTS_BEFORE_GLOBAL_FALLBACK = 3;
 export const FAST_CONNECT_COPY = {
@@ -96,6 +107,25 @@ function healthAdjustedScore(station: Station, selected?: Station) {
 }
 
 export function getStationStreamUrl(station?: Station) { return station?.url_resolved?.trim() || station?.url?.trim() || ""; }
+
+export function classifyStationTrust(station: Station): StationTrustClass {
+  const record = readStationHealthMemory()[stationKey(station)];
+  const tags = station.tags.map((tag) => tag.toLowerCase());
+  const inStartupAtlas = startupStations.some((atlasStation) => stationKey(atlasStation) === stationKey(station) || atlasStation.name.toLowerCase() === station.name.toLowerCase());
+  const recentlySuccessful = Boolean(record?.lastSuccessAt && Date.now() - record.lastSuccessAt < DAY_MS);
+  const curated = isCuratedStation(station) || tags.some((tag) => ["ariyo-ai-seed", "waveatlas-curated", "curators-picks", "global-startup-atlas"].includes(tag)) || inStartupAtlas;
+  const verified = station.validation_status === "verified" || station.validation_status === "curated" || tags.includes("manual-playback-verified");
+
+  if (recentlySuccessful) return "recently_successful_station";
+  if (verified) return "verified_station";
+  if (curated) return "curated_station";
+  if (station.curation_tier === "radio_browser" || station.curation_source === "radio_browser") return "radio_browser_station";
+  return "unknown_station";
+}
+
+export function getAdaptiveBufferPolicy(station: Station): AdaptiveBufferPolicy {
+  return ADAPTIVE_BUFFER_POLICIES[classifyStationTrust(station)];
+}
 
 export function buildFastConnectQueue(stations: Station[], selected: Station, minimumBackups = 3) {
   const seen = new Set<string>();
