@@ -7,6 +7,7 @@ export const STATION_HEALTH_STORAGE_KEYS = {
 } as const;
 
 export const STATION_HEALTH_TTL_MS = 24 * 60 * 60 * 1000;
+export const STATION_SOFT_FAILURE_TTL_MS = 6 * 60 * 60 * 1000;
 
 export const CURATED_STATION_HEALTH_POLICY = {
   rememberHours: 24,
@@ -25,6 +26,7 @@ export type StationHealthRecord = {
   lastSuccessAt?: number;
   rememberUntil?: number;
   errorType?: string;
+  failureKind?: 'soft' | 'hard';
 };
 
 export type StationHealthMemory = Record<string, StationHealthRecord>;
@@ -65,7 +67,7 @@ export function markStationHealthy(station: Station, now = Date.now()) {
   const memory = readStationHealthMemory(now);
   const key = stationHealthKey(station);
   const previous = memory[key] ?? { failures: 0, successes: 0 };
-  memory[key] = { ...previous, successes: previous.successes + 1, lastSuccessAt: now, rememberUntil: now + STATION_HEALTH_TTL_MS, errorType: undefined };
+  memory[key] = { ...previous, successes: previous.successes + 1, lastSuccessAt: now, rememberUntil: now + STATION_HEALTH_TTL_MS, errorType: undefined, failureKind: undefined };
   writeJson(STATION_HEALTH_STORAGE_KEYS.health, memory);
   rememberStationEvent(STATION_HEALTH_STORAGE_KEYS.successful, station, now);
 }
@@ -74,7 +76,9 @@ export function markStationUnhealthy(station: Station, errorType = 'playback_err
   const memory = readStationHealthMemory(now);
   const key = stationHealthKey(station);
   const previous = memory[key] ?? { failures: 0, successes: 0 };
-  memory[key] = { ...previous, failures: previous.failures + 1, lastFailureAt: now, rememberUntil: now + STATION_HEALTH_TTL_MS, errorType };
+  const soft = ['startup_timeout', 'buffer_timeout', 'stalled', 'waiting'].includes(errorType);
+  const curatedNigeria = station.country_code === 'NG' && (station.curation_tier === 'curated_atlas' || station.tags.some((tag) => ['ariyo-ai-seed', 'waveatlas-curated', 'verified'].includes(tag.toLowerCase())));
+  memory[key] = { ...previous, failures: previous.failures + 1, lastFailureAt: now, rememberUntil: now + (soft && curatedNigeria ? STATION_SOFT_FAILURE_TTL_MS : STATION_HEALTH_TTL_MS), errorType, failureKind: soft ? 'soft' : 'hard' };
   writeJson(STATION_HEALTH_STORAGE_KEYS.health, memory);
   rememberStationEvent(STATION_HEALTH_STORAGE_KEYS.failed, station, now);
   if (station.curation_tier === 'curated_atlas') queueCuratedStationRetest(station, now);
@@ -90,6 +94,7 @@ export function healthMemoryBoost(station: Station, now = Date.now()) {
   const record = readStationHealthMemory(now)[stationHealthKey(station)];
   if (!record) return 0;
   const recentSuccess = record.lastSuccessAt && now - record.lastSuccessAt < STATION_HEALTH_TTL_MS;
-  const recentFailure = record.lastFailureAt && now - record.lastFailureAt < STATION_HEALTH_TTL_MS;
-  return (recentSuccess ? Math.min(30, 12 + record.successes * 4) : 0) - (recentFailure ? Math.min(85, 35 + record.failures * 15) : 0);
+  const recentFailure = record.lastFailureAt && now - record.lastFailureAt < (record.failureKind === 'soft' && station.country_code === 'NG' ? STATION_SOFT_FAILURE_TTL_MS : STATION_HEALTH_TTL_MS);
+  const penalty = record.failureKind === 'soft' && station.country_code === 'NG' ? Math.min(12, 4 + record.failures * 2) : Math.min(85, 35 + record.failures * 15);
+  return (recentSuccess ? Math.min(30, 12 + record.successes * 4) : 0) - (recentFailure ? penalty : 0);
 }

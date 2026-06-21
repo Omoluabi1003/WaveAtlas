@@ -163,6 +163,7 @@ function debugTeleport(label: string, payload: Record<string, unknown>) {
 
 function debugPlayback(label: string, payload: Record<string, unknown>) {
   if (typeof window === "undefined") return;
+  if (process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_PLAYBACK !== "true") return;
   console.debug(`[WaveAtlas Playback] ${label}`, payload);
 }
 
@@ -472,10 +473,14 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     if (!(state.stationSelectionSource === "manual" && isCuratedStation(failed))) markStationFailure(failed, errorType, detail);
     attempted.current = [...new Set([...attempted.current, stationKey(failed)])];
     const manualSelection = state.stationSelectionSource === "manual";
-    debugPlayback("fallback check", { stationSelectionSource: state.stationSelectionSource, failed: failed.name, errorType, detail });
+    debugPlayback("fallback check", { station: failed.name, country: failed.country, source: failed.curation_source || failed.curation_tier || "radio_browser", stationSelectionSource: state.stationSelectionSource, failed: failed.name, errorType, detail, healthPenaltyApplied: !(state.stationSelectionSource === "manual" && isCuratedStation(failed)) });
     debugTeleport("playback fallback check", { stationSelectionSource: state.stationSelectionSource, failed: failed.name, errorType, detail });
-    if (manualSelection && !hardFailure && errorType !== "startup_timeout" && errorType !== "buffer_timeout") {
+    if (manualSelection && !hardFailure) {
       setStatus("buffering", "Holding the selected signal…");
+      return false;
+    }
+    if (isCuratedStation(failed) && failed.country_code === "NG" && (errorType === "waiting" || errorType === "stalled")) {
+      setStatus("buffering", "Holding the Nigerian signal…");
       return false;
     }
     const failedContinent = stationContinent(failed);
@@ -484,6 +489,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     const fallback = queueFallback ?? nextFastConnectCandidate(stations, failed, attempted.current) ?? pickFallbackStation(stations, failed, readArrivalHistory());
     if (fallback) {
       const reason = errorType === "startup_timeout" || errorType === "waiting" || errorType === "stalled" ? "weak_signal" : "fallback";
+      debugPlayback("fallback selected", { station: failed.name, country: failed.country, source: failed.curation_source || failed.curation_tier || "radio_browser", stationSelectionSource: state.stationSelectionSource, skipReason: errorType, fallbackStation: fallback.name });
       debugTeleport("fast-connect fallback", { failed: failed.name, failedContinent, replacement: fallback.name, replacementContinent: stationContinent(fallback), reason, usedTeleportQueue: Boolean(queueFallback), ignoredArrivalContext: Boolean(state.arrivalStation) });
       setStatus("buffering", FAST_CONNECT_COPY.retrying);
       if (queueFallback) {
@@ -575,11 +581,13 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     let lastCurrentTime = element.currentTime || 0;
     const selectionSource = stationSelectionSource;
     const manualSelection = selectionSource === "manual";
-    const basePolicy = getAdaptiveBufferPolicy(current);
-    const policy = manualSelection
-      ? { ...basePolicy, startupTimeoutMs: 15000, bufferTimeoutMs: 22000, maxAttempts: Math.max(2, basePolicy.maxAttempts), trusted: true, message: "Holding the selected signal…", timeoutMessage: "Still trying the station you selected…" }
-      : basePolicy;
-    debugPlayback("attempt", { station: current.name, stationSelectionSource: selectionSource, startupTimeoutMs: policy.startupTimeoutMs, bufferTimeoutMs: policy.bufferTimeoutMs, maxAttempts: policy.maxAttempts });
+    const policy = getAdaptiveBufferPolicy(current, manualSelection);
+    const audioEvents: string[] = [];
+    const logAudioEvent = (event: string) => {
+      audioEvents.push(event);
+      debugPlayback("audio event", { station: current.name, country: current.country, source: current.curation_source || current.curation_tier || "radio_browser", stationSelectionSource: selectionSource, timeoutPolicy: policy, audioEvents: [...audioEvents], event, readyState: element.readyState });
+    };
+    debugPlayback("attempt", { station: current.name, country: current.country, source: current.curation_source || current.curation_tier || "radio_browser", stationSelectionSource: selectionSource, timeoutPolicy: policy, startupTimeoutMs: policy.startupTimeoutMs, bufferTimeoutMs: policy.bufferTimeoutMs, maxAttempts: policy.maxAttempts, healthPenaltyApplied: false });
     debugTeleport("playback attempt", { station: current.name, stationSelectionSource: selectionSource, startupTimeoutMs: policy.startupTimeoutMs, bufferTimeoutMs: policy.bufferTimeoutMs, maxAttempts: policy.maxAttempts });
     const clearBufferTimer = () => { if (bufferTimer) window.clearTimeout(bufferTimer); bufferTimer = undefined; };
     const clearStartupTimer = () => { if (startupTimer) window.clearTimeout(startupTimer); startupTimer = undefined; };
@@ -600,6 +608,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       if (timeAdvanced) lastCurrentTime = element.currentTime;
       if ((readyStateImproved || timeAdvanced) && !readyStatePatienceExtended) {
         readyStatePatienceExtended = true;
+        debugPlayback("patience extended", { station: current.name, country: current.country, source: current.curation_source || current.curation_tier || "radio_browser", stationSelectionSource: selectionSource, timeoutPolicy: policy, audioEvents: [...audioEvents], readyState: element.readyState });
         scheduleStartupTimer();
         scheduleBufferTimer();
       } else if (readyStateImproved || timeAdvanced) {
@@ -631,10 +640,10 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       }
       skipToNextCandidate(current, errorType, detail);
     };
-    const onLoadedMetadata = () => { debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "loadedmetadata", readyState: element.readyState }); loadedMetadata = true; noteProgress(); };
-    const onCanPlay = () => { debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "canplay", readyState: element.readyState }); sawCanPlay = true; noteProgress(); clearStartupTimer(); scheduleBufferTimer(); };
+    const onLoadedMetadata = () => { logAudioEvent("loadedmetadata"); loadedMetadata = true; noteProgress(); };
+    const onCanPlay = () => { logAudioEvent("canplay"); sawCanPlay = true; noteProgress(); clearStartupTimer(); scheduleBufferTimer(); };
     const onPlaying = () => {
-      debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "playing", readyState: element.readyState });
+      logAudioEvent("playing");
       if (cancelled || failed) return;
       clearStartupTimer();
       clearBufferTimer();
@@ -647,18 +656,19 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       setStatus("playing");
     };
     const onWaiting = () => {
-      debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "waiting", readyState: element.readyState });
+      logAudioEvent("waiting");
       waitingEvents += 1;
-      const readyStateAtEvent = element.readyState;
-      scheduleBufferTimer(waitingEvents > 1 && readyStateAtEvent <= lastReadyState ? "waiting" : "buffer_timeout");
+      noteProgress();
+      scheduleBufferTimer("buffer_timeout");
     };
     const onStalled = () => {
-      debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "stalled", readyState: element.readyState });
+      logAudioEvent("stalled");
       stalledEvents += 1;
+      noteProgress();
       const readyStateAtEvent = element.readyState;
-      scheduleBufferTimer(stalledEvents > 1 && readyStateAtEvent <= lastReadyState ? "stalled" : "buffer_timeout");
+      scheduleBufferTimer(readyStateAtEvent <= lastReadyState && stalledEvents > 2 ? "stalled" : "buffer_timeout");
     };
-    const onAbort = () => { debugPlayback("audio event", { station: current.name, stationSelectionSource: selectionSource, event: "abort", readyState: element.readyState }); fail("abort", "Audio request was aborted."); };
+    const onAbort = () => { logAudioEvent("abort"); fail("abort", "Audio request was aborted."); };
     scheduleStartupTimer();
 
     element.addEventListener("loadedmetadata", onLoadedMetadata);
