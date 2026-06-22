@@ -29,16 +29,20 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 export function prefersReducedMotion() { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; }
 function prefersIOSCameraPath() { return typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent); }
 function isMobileViewport() { return typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches; }
+const ZOOM_POLICY = { stationDefault: 8.5, stationMax: 9.5, cityDefault: 7.5, cityMax: 8.5, regionMax: 5.5, mobileMax: 8.25 } as const;
 export function stationDuration(distanceKm: number) {
   if (prefersReducedMotion()) return 0;
   const base = distanceKm > 2400 ? 2200 : distanceKm < 350 ? 900 : 1500;
   return isMobileViewport() ? Math.round(base * 0.72) : base;
 }
-function stationZoom(stationGeo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
-  const base = stationGeo.precision === "station" ? 13.5 : stationGeo.precision === "city" ? 11.5 : 5.4;
-  if (distanceKm < 80) return Math.max(Math.min(currentZoom, 15), Math.min(base, 12.5));
-  if (distanceKm > 2400) return Math.min(base, 6.2);
-  return base;
+export function stationZoom(stationGeo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
+  const mobileMax = isMobileViewport() ? ZOOM_POLICY.mobileMax : Number.POSITIVE_INFINITY;
+  const maxForPrecision = stationGeo.precision === "station" ? ZOOM_POLICY.stationMax : stationGeo.precision === "city" ? ZOOM_POLICY.cityMax : ZOOM_POLICY.regionMax;
+  const defaultForPrecision = stationGeo.precision === "station" ? ZOOM_POLICY.stationDefault : stationGeo.precision === "city" ? ZOOM_POLICY.cityDefault : ZOOM_POLICY.regionMax;
+  const policyMax = Math.min(maxForPrecision, mobileMax);
+  const contextZoom = distanceKm > 2400 ? Math.min(defaultForPrecision, ZOOM_POLICY.regionMax) : defaultForPrecision;
+  const nearTargetZoom = distanceKm < 80 ? Math.max(Math.min(currentZoom, policyMax), Math.min(contextZoom, policyMax)) : contextZoom;
+  return Math.min(nearTargetZoom, policyMax);
 }
 
 export function captureCameraState(map: Map): MapCameraState {
