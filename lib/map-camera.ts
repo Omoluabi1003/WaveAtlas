@@ -54,6 +54,18 @@ export function applyVisualCenterCamera(map: Map, center: [number, number], zoom
 
 export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: PaddingOptions = EMPTY_PADDING) {
   if (stationGeo.lat === null || stationGeo.lng === null) return;
+  if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true") {
+    console.debug("[WaveAtlas map camera] flyToStation", {
+      center: [stationGeo.lng, stationGeo.lat],
+      zoom: stationGeo.precision === "station" ? 13.5 : stationGeo.precision === "city" ? 11.5 : 5.4,
+      speed: 0.72,
+      curve: 1.35,
+      easing: "MapLibre flyTo default",
+      duration: "MapLibre computed from speed/curve",
+      padding,
+      timestamp: new Date().toISOString(),
+    });
+  }
   applyVisualCenterCamera(
     map,
     [stationGeo.lng, stationGeo.lat],
