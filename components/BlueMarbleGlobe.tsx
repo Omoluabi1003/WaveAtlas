@@ -144,7 +144,7 @@ function iosGlobeDebugEnabled() {
 }
 
 function globeDebugEnabled() {
-  return (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true") || iosGlobeDebugEnabled();
+  return (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true") || iosGlobeDebugEnabled() || process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_TRANSITIONS === "true";
 }
 
 function debugGlobeFocus(label: string, details: Record<string, unknown>) {
@@ -416,8 +416,18 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
-    const ctx = canvas.getContext("2d", { alpha: true });
+    let ctx: CanvasRenderingContext2D | null = null;
+    try {
+      ctx = canvas.getContext("2d", { alpha: true });
+      if (ctx) debugGlobeDecision({ selectedView: "globe", canvasContext: "2d", initialization: "success", viewport: `${window.innerWidth}x${window.innerHeight}` });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Canvas globe initialization failed.";
+      console.warn("[WaveAtlas globe] canvas initialization failed", { reason, timestamp: Date.now() });
+      fallbackRef.current?.(reason);
+      return;
+    }
     if (!ctx) {
+      console.warn("[WaveAtlas globe] canvas initialization failed", { reason: "Canvas globe context unavailable.", timestamp: Date.now() });
       fallbackRef.current?.("Canvas globe context unavailable.");
       return;
     }
@@ -454,7 +464,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       ctx.restore();
     };
 
-    const draw = (now: number) => {
+    const drawFrame = (now: number) => {
       const frameMs = mobile || profile.lowPower ? MOBILE_FRAME_MS : DESKTOP_FRAME_MS;
       if (now - lastFrame < frameMs - 1) { raf = requestAnimationFrame(draw); return; }
       lastFrame = now;
@@ -685,6 +695,17 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       }
       if (s.hidden) return;
       raf = requestAnimationFrame(draw);
+    };
+    const draw = (now: number) => {
+      try {
+        drawFrame(now);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "Globe render loop failed.";
+        if (process.env.NODE_ENV !== "production") console.error("[WaveAtlas globe] render error", error);
+        fallbackRef.current?.(reason);
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
     };
     const syncCanvasSize = () => {
       const rect = wrap.getBoundingClientRect();
