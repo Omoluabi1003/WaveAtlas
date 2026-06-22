@@ -77,7 +77,7 @@ type PlaybackStatus =
   | "paused"
   | "blocked"
   | "failed";
-type StationSelectionSource = "manual" | "startup" | "teleport" | "fallback" | "wanderer" | "deeplink" | "auto";
+type StationSelectionSource = "manual" | "startup" | "teleport" | "fallback" | "wanderer" | "deeplink" | "auto" | "atlas-drive";
 
 type PlayerState = {
   current?: Station;
@@ -295,6 +295,9 @@ type AtlasLocationState = {
   error?: string;
 };
 
+type AtlasDestination = { label: string; city?: string; country?: string; lat: number; lng: number };
+type AtlasRouteSummary = { distanceKm: number; durationMin: number; provider: string };
+
 const initialAtlasLocationState: AtlasLocationState = {
   status: "idle",
   placeLabel: "Location off",
@@ -369,7 +372,33 @@ function useAtlasLocation() {
     );
     return () => controller.abort();
   }, []);
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("permissions" in navigator)) return;
+    let cancelled = false;
+    navigator.permissions.query({ name: "geolocation" as PermissionName }).then((permission) => {
+      if (!cancelled && permission.state === "granted") requestLocation();
+      permission.onchange = () => { if (permission.state === "granted") requestLocation(); };
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [requestLocation]);
   return { location, requestLocation };
+}
+
+async function searchAtlasDestinations(query: string, signal?: AbortSignal): Promise<AtlasDestination[]> {
+  const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({ format: "jsonv2", q: query, limit: "5", addressdetails: "1" })}`;
+  const response = await fetch(url, { signal, headers: { Accept: "application/json" } });
+  if (!response.ok) return [];
+  const rows = await response.json() as Array<{ display_name: string; lat: string; lon: string; address?: Record<string, string> }>;
+  return rows.map((row) => ({ label: row.display_name, city: row.address?.city || row.address?.town || row.address?.village || row.address?.county, country: row.address?.country, lat: Number(row.lat), lng: Number(row.lon) })).filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lng));
+}
+
+async function routeAtlasDrive(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }, signal?: AbortSignal): Promise<AtlasRouteSummary | null> {
+  const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false&alternatives=false&steps=false`;
+  const response = await fetch(url, { signal });
+  if (!response.ok) return null;
+  const data = await response.json() as { routes?: Array<{ distance: number; duration: number }> };
+  const route = data.routes?.[0];
+  return route ? { distanceKm: Math.round(route.distance / 100) / 10, durationMin: Math.max(1, Math.round(route.duration / 60)), provider: "OSRM / OpenStreetMap" } : null;
 }
 
 function nearbyStationsForLocation(stations: Station[], coords?: { lat: number; lng: number }, countryCode?: string) {
@@ -388,35 +417,52 @@ function nearbyStationsForLocation(stations: Station[], coords?: { lat: number; 
 
 function AtlasLocationPill({ stations, current, mobile = false }: { stations: Station[]; current: Station; mobile?: boolean }) {
   const { location, requestLocation } = useAtlasLocation();
+  const [collapsed, setCollapsed] = useState(false);
+  const [destinationQuery, setDestinationQuery] = useState("");
+  const [destinationResults, setDestinationResults] = useState<AtlasDestination[]>([]);
+  const [destination, setDestination] = useState<AtlasDestination | null>(null);
+  const [route, setRoute] = useState<AtlasRouteSummary | null>(null);
+  const [routeStatus, setRouteStatus] = useState<"idle" | "searching" | "routing" | "fallback">("idle");
   const nearby = useMemo(() => nearbyStationsForLocation(stations, location.coords, location.countryCode), [location.coords, location.countryCode, stations]);
+  const destinationStations = useMemo(() => nearbyStationsForLocation(stations, destination ? { lat: destination.lat, lng: destination.lng } : undefined, undefined), [destination, stations]);
   const isReady = location.status === "ready";
   const canCollapse = isReady || location.status === "denied" || location.status === "error";
-  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => { if (!canCollapse) return; const timeout = window.setTimeout(() => setCollapsed(true), 1800); return () => window.clearTimeout(timeout); }, [canCollapse, location.placeLabel]);
   useEffect(() => {
-    if (!canCollapse) return;
-    const timeout = window.setTimeout(() => setCollapsed(true), 1800);
-    return () => window.clearTimeout(timeout);
-  }, [canCollapse, location.placeLabel]);
-  const statusCopy = isReady ? [location.weather, location.localTime ? `Local time ${location.localTime}` : null].filter(Boolean).join(" · ") : "Take me there. Let me hear it when I arrive.";
+    if (destinationQuery.trim().length < 3) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => { setRouteStatus("searching"); void searchAtlasDestinations(destinationQuery, controller.signal).then(setDestinationResults).finally(() => setRouteStatus("idle")); }, 350);
+    return () => { window.clearTimeout(timeout); controller.abort(); };
+  }, [destinationQuery]);
+  useEffect(() => {
+    if (!location.coords || !destination) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      setRouteStatus("routing");
+      void routeAtlasDrive(location.coords!, destination, controller.signal).then((summary) => { setRoute(summary); setRouteStatus(summary ? "idle" : "fallback"); }).catch(() => setRouteStatus("fallback"));
+    }, 0);
+    return () => { window.clearTimeout(timeout); controller.abort(); };
+  }, [destination, location.coords]);
+  const originLabel = isReady ? `My Location · ${location.placeLabel}` : location.status === "denied" ? "Manual origin · location blocked" : "My Location";
+  const chipLabel = isReady ? `Atlas Drive · ${location.city || location.placeLabel}` : "Atlas Drive · Use my location";
+  const tuneDestination = () => { const station = destinationStations[0]?.station; if (station) setCurrentStationAndDestination(station, "atlas-drive"); };
   return (
-    <div className={`pointer-events-auto border border-white/10 bg-slate-950/72 text-ivory shadow-2xl backdrop-blur-2xl transition-all ${mobile ? "fixed bottom-[calc(env(safe-area-inset-bottom)+104px)] left-4 right-auto z-[57] max-w-[min(21rem,calc(100vw-2rem))] rounded-[1.35rem] p-2.5" : "w-[min(340px,calc(100vw-3rem))] rounded-[1.5rem] p-3"}`}>
+    <div className={`pointer-events-auto border border-white/10 bg-slate-950/72 text-ivory shadow-2xl backdrop-blur-2xl transition-all ${mobile ? "fixed bottom-[calc(env(safe-area-inset-bottom)+104px)] left-3 z-[57] w-[min(23rem,calc(100vw-1.5rem))] rounded-[1.35rem] p-2.5" : "w-[min(380px,calc(100vw-3rem))] rounded-[1.5rem] p-3"}`}>
       <div className="flex items-center justify-between gap-2">
-        <button type="button" onClick={() => canCollapse ? setCollapsed((value) => !value) : requestLocation()} className="min-w-0 flex-1 text-left" aria-expanded={!collapsed} aria-label={collapsed ? "Expand Atlas Drive location context" : "Collapse Atlas Drive location context"}>
+        <button type="button" onClick={() => canCollapse ? setCollapsed((value) => !value) : requestLocation()} className="min-w-0 flex-1 text-left" aria-expanded={!collapsed}>
           <p className="font-display text-[9px] font-semibold uppercase tracking-[0.2em] text-radio/85">Atlas Drive</p>
-          <h2 className="mt-0.5 truncate text-xs font-semibold text-white">{location.placeLabel}</h2>
-          {!collapsed ? <p className="mt-1 truncate text-[11px] text-ivory/55">{statusCopy}</p> : null}
+          <h2 className="mt-0.5 truncate text-xs font-semibold text-white">{collapsed ? chipLabel : originLabel}</h2>
+          {!collapsed ? <p className="mt-1 truncate text-[11px] text-ivory/55">{location.weather || "Free OSM destination search and station routing."}</p> : null}
         </button>
-        <button type="button" onClick={requestLocation} className="grid size-8 shrink-0 place-items-center rounded-full border border-radio/25 bg-radio/10 text-radio transition hover:bg-radio hover:text-midnight" aria-label="Use current location">
-          <Navigation className={`size-3.5 ${location.status === "requesting" ? "animate-pulse" : ""}`} />
-        </button>
+        <button type="button" onClick={requestLocation} className="grid size-8 shrink-0 place-items-center rounded-full border border-radio/25 bg-radio/10 text-radio transition hover:bg-radio hover:text-midnight" aria-label="Use current location"><Navigation className={`size-3.5 ${location.status === "requesting" ? "animate-pulse" : ""}`} /></button>
       </div>
-      {location.error && !collapsed ? <p className="mt-2 text-xs text-gold/85">{location.error}</p> : null}
-      {!collapsed ? (nearby.length ? <div className="mt-2 grid gap-1.5">
-        {nearby.map(({ station, distance }) => <button key={station.id} type="button" onClick={() => setCurrentStationAndDestination(station, "auto")} className="flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.05] px-2.5 py-1.5 text-left transition hover:border-radio/35 hover:bg-radio/10">
-          <span className="min-w-0"><b className="block truncate text-[11px] text-white">{station.name}</b><span className="block truncate text-[10px] text-ivory/55">{[station.city || station.state, station.country].filter(Boolean).join(" · ") || station.country} {distance !== null ? `· ${distance.toLocaleString()} km` : "· in your country"}</span></span>
-          <Radio className="size-3.5 shrink-0 text-gold" />
-        </button>)}
-      </div> : <p className="mt-2 text-[11px] text-ivory/50">{isReady ? `Nearest stations will appear as the atlas compares ${current.country} against your position.` : "Enable location to reveal nearby signals, city context, weather, and local time."}</p>) : null}
+      {location.error && !collapsed ? <p className="mt-2 text-xs text-gold/85">{location.error} {location.status === "denied" ? "Enable location in browser settings or search a destination manually." : null}</p> : null}
+      {!collapsed ? <div className="mt-2 grid gap-2">
+        <label className="rounded-2xl border border-white/8 bg-white/[0.05] px-3 py-2 text-left"><span className="block text-[9px] uppercase tracking-[0.18em] text-ivory/45">Destination</span><input value={destinationQuery} onChange={(event) => { setDestinationQuery(event.target.value); setDestination(null); setRoute(null); if (event.target.value.trim().length < 3) setDestinationResults([]); }} onFocus={() => setCollapsed(false)} placeholder="Where are you going?" className="mt-1 w-full bg-transparent text-sm font-semibold text-white outline-none placeholder:text-ivory/35" /></label>
+        {destinationResults.length && !destination ? <div className="grid max-h-36 gap-1 overflow-y-auto">{destinationResults.map((result) => <button key={`${result.lat}-${result.lng}`} type="button" onClick={() => { setDestination(result); setDestinationQuery(result.city || result.label); setDestinationResults([]); }} className="rounded-xl bg-white/[0.06] px-3 py-2 text-left text-[11px] text-ivory/75 hover:bg-radio/10"><b className="block truncate text-white">{result.city || result.country || "Destination"}</b><span className="line-clamp-1">{result.label}</span></button>)}</div> : null}
+        {destination ? <div className="rounded-2xl border border-radio/15 bg-radio/10 p-3 text-[11px]"><b className="block text-white">{destination.city || destination.country || "Destination selected"}</b><span className="text-ivory/65">{route ? `${route.distanceKm.toLocaleString()} km · ${route.durationMin} min · ${route.provider}` : routeStatus === "routing" ? "Calculating free route…" : "Route unavailable; tuning destination signals."}</span><div className="mt-2 flex gap-2"><button type="button" onClick={tuneDestination} disabled={!destinationStations.length} className="rounded-full bg-radio px-3 py-1.5 font-semibold text-midnight disabled:opacity-45">Tune destination</button><button type="button" className="rounded-full border border-white/10 px-3 py-1.5 text-ivory/75">Preview route</button></div></div> : null}
+        {(destination ? destinationStations : nearby).map(({ station, distance }) => <button key={station.id} type="button" onClick={() => setCurrentStationAndDestination(station, destination ? "atlas-drive" : "auto")} className="flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.05] px-2.5 py-1.5 text-left transition hover:border-radio/35 hover:bg-radio/10"><span className="min-w-0"><b className="block truncate text-[11px] text-white">{station.name}</b><span className="block truncate text-[10px] text-ivory/55">{[station.city || station.state, station.country].filter(Boolean).join(" · ")} {distance !== null ? `· ${distance.toLocaleString()} km` : "· regional signal"}</span></span><Radio className="size-3.5 shrink-0 text-gold" /></button>)}
+      </div> : null}
     </div>
   );
 }
@@ -2545,7 +2591,6 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
       <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} onStreetZoomRequest={enterMobileStreets} />
     )}
     {selectedView === "globe" ? <GlobeBasemapControl value={globeBasemap} onChange={setGlobeBasemap} mobile /> : null}
-    {selectedView === "globe" ? <OpenStreetViewButton station={current} mobile /> : null}
     <div className="pointer-events-auto fixed right-4 top-[calc(env(safe-area-inset-top)+92px)] z-[58] flex rounded-full border border-white/10 bg-slate-950/75 p-1 text-[11px] font-semibold shadow-xl backdrop-blur-xl">
       <button type="button" onClick={() => chooseAtlasView("globe")} className={`rounded-full px-3 py-1.5 ${selectedView === "globe" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Globe</button>
       <button type="button" onClick={() => chooseAtlasView("map")} className={`rounded-full px-3 py-1.5 ${selectedView === "map" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Map</button>

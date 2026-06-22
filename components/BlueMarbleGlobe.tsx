@@ -184,7 +184,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
   const [landShapes, setLandShapes] = useState<LandShape[]>([]);
-  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false });
+  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, focusStartedAt: 0, focusDuration: 1100, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchDistance = useRef<number | null>(null);
   const currentPoint = useMemo(() => stationPoint(station), [station]);
@@ -201,10 +201,14 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
     const rotation = focusRotationForPoint(point);
-    state.current.targetY = rotation.rotY;
-    state.current.targetX = rotation.rotX;
-    state.current.targetZoom = fast ? 1.22 : 1.08;
-  }, []);
+    const upwardOffset = mobile ? -7 * DEG : -3 * DEG;
+    const shortestDeltaY = Math.atan2(Math.sin(rotation.rotY - state.current.rotY), Math.cos(rotation.rotY - state.current.rotY));
+    state.current.targetY = state.current.rotY + shortestDeltaY;
+    state.current.targetX = Math.max(-70 * DEG, Math.min(70 * DEG, rotation.rotX + upwardOffset));
+    state.current.targetZoom = mobile ? (fast ? 1.18 : 1.12) : (fast ? 1.2 : 1.08);
+    state.current.focusStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+    state.current.focusDuration = state.current.disabledMotion ? 0 : mobile ? (fast ? 650 : 820) : (fast ? 900 : 1200);
+  }, [mobile]);
 
   useEffect(() => { fallbackRef.current = onFallback; }, [onFallback]);
   useEffect(() => { streetZoomRequestRef.current = onStreetZoomRequest; }, [onStreetZoomRequest]);
@@ -283,12 +287,14 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       const s = state.current;
-      const ease = s.disabledMotion ? 1 : 0.045 * (dt / 16);
+      const focusElapsed = s.focusStartedAt ? now - s.focusStartedAt : s.focusDuration;
+      const focusProgress = s.focusDuration <= 0 ? 1 : Math.min(1, focusElapsed / s.focusDuration);
+      const ease = s.disabledMotion || focusProgress >= 1 ? 1 : Math.max(0.055, 0.12 * (dt / 16));
       s.rotX += (s.targetX - s.rotX) * ease;
       s.rotY += (s.targetY - s.rotY) * ease;
       s.zoom += (s.targetZoom - s.zoom) * ease;
-      if (!s.dragging && !s.disabledMotion && !s.hidden) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
-      const r = Math.min(w, h) * (mobile ? 0.39 : 0.34) * s.zoom;
+      if (!s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
+      const r = Math.min(w, h) * (mobile ? 0.46 : 0.34) * s.zoom;
       const cx = w / 2, cy = h / 2;
 
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
@@ -387,7 +393,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
     pinchDistance.current = null;
     const s = state.current; s.dragging = pointers.current.size > 0;
     if (Math.hypot(event.clientX - s.downX, event.clientY - s.downY) > 8) return;
-    const rect = event.currentTarget.getBoundingClientRect(); const r = Math.min(rect.width, rect.height) * (mobile ? 0.39 : 0.34) * s.zoom; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r }); if (!point) return;
+    const rect = event.currentTarget.getBoundingClientRect(); const r = Math.min(rect.width, rect.height) * (mobile ? 0.46 : 0.34) * s.zoom; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r }); if (!point) return;
     const country = nearestCountry(point.lat, point.lng); if (country) onCountrySelect?.(country);
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) streetZoomRequestRef.current?.(); };
