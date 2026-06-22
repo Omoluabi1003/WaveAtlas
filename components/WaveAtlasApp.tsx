@@ -2489,6 +2489,7 @@ function dispatchAtlasToast(detail: AtlasToastEventDetail) {
 
 function AtlasToast({ station, mobile = false }: { station: Station; mobile?: boolean }) {
   const reducedMotion = useReducedMotion();
+  const [globeTravelActive, setGlobeTravelActive] = useState(false);
   const playerStatus = usePlayer((state) => state.status);
   const playerError = usePlayer((state) => state.error);
   const source = usePlayer((state) => state.stationSelectionSource);
@@ -2498,13 +2499,21 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
   const toastKey = toast.id ?? `${toast.title}-${toast.subtitle ?? ""}`;
 
   useEffect(() => {
+    const onTravel = (event: Event) => setGlobeTravelActive(Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active));
+    window.addEventListener("waveatlas:globe-travel", onTravel);
+    return () => window.removeEventListener("waveatlas:globe-travel", onTravel);
+  }, []);
+
+  useEffect(() => {
     const titlePrefix = source === "fallback" ? "Signal unavailable. Trying another station." : undefined;
-    window.queueMicrotask(() => {
+    const updateToast = () => {
       setToast(buildAtlasToast(station, titlePrefix ? { title: titlePrefix, kind: "alert", id: `fallback-${stationKey(station)}-${Date.now()}` } : undefined));
       setVisible(true);
       setPaused(false);
-    });
-  }, [source, station.station_uuid, station.id, station]);
+    };
+    if (globeTravelActive && mobile) window.setTimeout(updateToast, 120);
+    else window.queueMicrotask(updateToast);
+  }, [globeTravelActive, mobile, source, station.station_uuid, station.id, station]);
 
   useEffect(() => {
     if (playerStatus !== "failed" || !playerError) return;
@@ -2570,7 +2579,7 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
-  return <div onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/10 bg-slate-950/88 p-2.5 shadow-2xl backdrop-blur-xl">
+  return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/10 bg-slate-950/88 p-2.5 shadow-2xl backdrop-blur-xl">
     <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><p className="truncate font-display text-xs font-bold">{station.city || station.state || station.country} · {station.country}</p><p className="truncate text-[11px] text-ivory/60">{getPrimaryGenre(station)} · {station.name} · {status}</p></div><Volume2 className="size-4 text-ivory/60" /></div>
   </div>;
 }
