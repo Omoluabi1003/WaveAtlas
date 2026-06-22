@@ -53,6 +53,10 @@ const DESKTOP_PRIMARY_FOCUS_DURATION_MS = 3600;
 const MOBILE_FAST_FOCUS_DURATION_MS = 2200;
 const DESKTOP_FAST_FOCUS_DURATION_MS = 2400;
 const POST_FOCUS_CORRECTION_DURATION_MS = 1600;
+const IOS_PRIMARY_FOCUS_DURATION_MS = 3800;
+const IOS_MINIMUM_FOCUS_DURATION_MS = 3000;
+const IOS_POST_FOCUS_CORRECTION_DURATION_MS = 1200;
+const IOS_FRAME_DELTA_CLAMP_MS = 32;
 const MINIMUM_FOCUS_DURATION_MS = 2400;
 const LONG_DISTANCE_FOCUS_DURATION_MS = 4200;
 const REDUCED_MOTION_FOCUS_DURATION_MS = 280;
@@ -133,8 +137,12 @@ function loadLandShapes() {
   return landPromise;
 }
 
+function iosGlobeDebugEnabled() {
+  return process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_IOS_GLOBE === "true";
+}
+
 function globeDebugEnabled() {
-  return process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true";
+  return (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true") || iosGlobeDebugEnabled();
 }
 
 function debugGlobeFocus(label: string, details: Record<string, unknown>) {
@@ -147,8 +155,28 @@ function warnGlobeFocus(label: string, details: Record<string, unknown>) {
   console.warn(`[WaveAtlas globe focus] ${label}`, { ...details, timestamp: new Date().toISOString() });
 }
 
-function resolveFocusDuration({ disabledMotion, fast, mobile, angularDistance }: { disabledMotion: boolean; fast: boolean; mobile: boolean; angularDistance: number }) {
+function isIOSWebKit() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const platform = navigator.platform || "";
+  const touchMac = platform === "MacIntel" && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1;
+  return /iP(hone|ad|od)/i.test(ua) || touchMac;
+}
+
+function describeBrowser() {
+  if (typeof navigator === "undefined") return "server";
+  const ua = navigator.userAgent || "";
+  if (/CriOS/i.test(ua)) return "Chrome iOS (WebKit)";
+  if (/EdgiOS/i.test(ua)) return "Edge iOS (WebKit)";
+  if (/FxiOS/i.test(ua)) return "Firefox iOS (WebKit)";
+  if (/Safari/i.test(ua) && /Version/i.test(ua)) return "Mobile Safari/WebKit";
+  if (/Android/i.test(ua)) return "Android browser";
+  return "Desktop/other";
+}
+
+function resolveFocusDuration({ disabledMotion, fast, mobile, angularDistance, iosWebKit }: { disabledMotion: boolean; fast: boolean; mobile: boolean; angularDistance: number; iosWebKit: boolean }) {
   if (disabledMotion) return REDUCED_MOTION_FOCUS_DURATION_MS;
+  if (iosWebKit) return IOS_PRIMARY_FOCUS_DURATION_MS;
   const distanceRatio = Math.min(1, Math.max(0, angularDistance / Math.PI));
   if (fast) return Math.max(MOBILE_FAST_FOCUS_DURATION_MS, DESKTOP_FAST_FOCUS_DURATION_MS);
   const baseDuration = mobile ? MOBILE_PRIMARY_FOCUS_DURATION_MS : DESKTOP_PRIMARY_FOCUS_DURATION_MS;
@@ -308,8 +336,9 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
     const stationAngularDistance = angularDistanceBetweenPoints(previousPoint, point);
     const angularDistance = stationAngularDistance ?? rotationAngularDistance;
     const targetZoom = mobile ? (fast ? 1.18 : 1.12) : (fast ? 1.2 : 1.08);
-    const focusDuration = resolveFocusDuration({ disabledMotion: s.disabledMotion, fast, mobile, angularDistance });
-    if (!s.disabledMotion && focusDuration < MINIMUM_FOCUS_DURATION_MS) warnGlobeFocus("focusDuration below minimum", { selectionVersion, label: point.label, focusDuration, minimumFocusDuration: MINIMUM_FOCUS_DURATION_MS, reducedMotion: s.disabledMotion, fast, fastFlagSource: "BlueMarbleGlobe.teleporting prop", mobile });
+    const iosWebKit = isIOSWebKit();
+    const focusDuration = resolveFocusDuration({ disabledMotion: s.disabledMotion, fast, mobile, angularDistance, iosWebKit });
+    if (!s.disabledMotion && focusDuration < (iosWebKit ? IOS_MINIMUM_FOCUS_DURATION_MS : MINIMUM_FOCUS_DURATION_MS)) warnGlobeFocus("focusDuration below minimum", { selectionVersion, label: point.label, focusDuration, minimumFocusDuration: iosWebKit ? IOS_MINIMUM_FOCUS_DURATION_MS : MINIMUM_FOCUS_DURATION_MS, reducedMotion: s.disabledMotion, fast, fastFlagSource: "BlueMarbleGlobe.teleporting prop", mobile, iosWebKit });
     debugGlobeFocus("focusRotationForPoint", { selectionVersion, label: point.label, latitude: point.lat, longitude: point.lng, rotX: rotation.rotX / DEG, rotY: rotation.rotY / DEG });
     s.focusToken += 1;
     s.activeFocusToken = s.focusToken;
@@ -323,7 +352,9 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
     s.travelActive = !s.disabledMotion;
     s.progressMilestones = new Set<number>();
     s.landingPulseStartedAt = 0;
-    debugGlobeFocus("focusPoint", { selectionVersion, fastFlagSource: "BlueMarbleGlobe.teleporting prop", minimumFocusDuration: MINIMUM_FOCUS_DURATION_MS, primaryEasing: "easeInOutCubic", arrivalEasing: "easeOutQuart", previousStation: previousFocusRef.current?.name ?? previousStation?.name ?? null, previousLat: previousPoint?.lat ?? null, previousLng: previousPoint?.lng ?? null, previousRotX: s.rotX / DEG, previousRotY: s.rotY / DEG, previousZoom: s.zoom, nextStation: station.name, nextLat: point.lat, nextLng: point.lng, startRotation: { rotX: s.travelStartX / DEG, rotY: s.travelStartY / DEG }, targetRotation: { rotX: targetRotX / DEG, rotY: targetRotY / DEG }, computedTargetRotX: targetRotX / DEG, computedTargetRotY: targetRotY / DEG, targetZoom, shortestDeltaY: shortestDeltaY / DEG, angularDistance: angularDistance / DEG, stationAngularDistance: stationAngularDistance === null ? null : stationAngularDistance / DEG, rotationAngularDistance: rotationAngularDistance / DEG, focusDuration, durationNearZero: focusDuration <= 16, mobile, reducedMotion: s.disabledMotion, fast, correctionPass: false, geoSource: point.geoSource, geoPrecision: point.geoPrecision, stages: ["zoom-out", "shortest-path-rotation", "final-centered-approach", "landing-pulse"] });
+    wrapRef.current?.setAttribute("data-globe-travel-active", String(!s.disabledMotion));
+    window.dispatchEvent(new CustomEvent("waveatlas:globe-travel", { detail: { active: !s.disabledMotion, iosWebKit, startedAt: Date.now(), selectionVersion } }));
+    debugGlobeFocus("focusPoint", { selectionVersion, fastFlagSource: "BlueMarbleGlobe.teleporting prop", minimumFocusDuration: MINIMUM_FOCUS_DURATION_MS, primaryEasing: "easeInOutCubic", arrivalEasing: "easeOutQuart", previousStation: previousFocusRef.current?.name ?? previousStation?.name ?? null, previousLat: previousPoint?.lat ?? null, previousLng: previousPoint?.lng ?? null, previousRotX: s.rotX / DEG, previousRotY: s.rotY / DEG, previousZoom: s.zoom, nextStation: station.name, nextLat: point.lat, nextLng: point.lng, startRotation: { rotX: s.travelStartX / DEG, rotY: s.travelStartY / DEG }, targetRotation: { rotX: targetRotX / DEG, rotY: targetRotY / DEG }, computedTargetRotX: targetRotX / DEG, computedTargetRotY: targetRotY / DEG, targetZoom, shortestDeltaY: shortestDeltaY / DEG, angularDistance: angularDistance / DEG, stationAngularDistance: stationAngularDistance === null ? null : stationAngularDistance / DEG, rotationAngularDistance: rotationAngularDistance / DEG, iosWebKit, browser: describeBrowser(), focusDuration, durationNearZero: focusDuration <= 16, mobile, reducedMotion: s.disabledMotion, fast, correctionPass: false, geoSource: point.geoSource, geoPrecision: point.geoPrecision, stages: ["zoom-out", "shortest-path-rotation", "final-centered-approach", "landing-pulse"] });
     s.targetY = targetRotY;
     s.targetX = targetRotX;
     s.targetZoom = targetZoom;
@@ -351,7 +382,8 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const profile = getDeviceProfile();
-    debugGlobeDecision({ selectedView: "globe", viewport: `${window.innerWidth}x${window.innerHeight}`, device: profile.mobile ? "mobile" : "desktop", lowPower: profile.lowPower, webglSupport: profile.webgl, fallbackReason: null });
+    const iosWebKit = isIOSWebKit();
+    debugGlobeDecision({ selectedView: "globe", viewport: `${window.innerWidth}x${window.innerHeight}`, visualViewport: window.visualViewport ? { width: window.visualViewport.width, height: window.visualViewport.height, offsetTop: window.visualViewport.offsetTop, offsetLeft: window.visualViewport.offsetLeft, scale: window.visualViewport.scale } : null, device: profile.mobile ? "mobile" : "desktop", browser: describeBrowser(), iosWebKit, userAgent: navigator.userAgent, lowPower: profile.lowPower, webglSupport: profile.webgl, reducedMotion: prefersReducedMotion(), fallbackReason: null });
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
@@ -368,6 +400,7 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
     let lastFrame = 0;
     let then = performance.now();
     let painted = false;
+    const transitionStats = { active: false, startedAt: 0, frameCount: 0, droppedFrames: 0, maxFrameGap: 0, totalFrameGap: 0, startSize: null as CanvasSize | null, canvasSizeChanged: false, resizeEvents: [] as string[] };
     const fallbackTimer = mobile ? window.setTimeout(() => { if (!painted) fallbackRef.current?.("Globe view is optimized for this device using map mode."); }, MOBILE_FALLBACK_MS) : 0;
 
     const project = (lat: number, lng: number, projection: D3GeoProjection): GlobeProjection => {
@@ -396,16 +429,22 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
       const frameMs = mobile || profile.lowPower ? MOBILE_FRAME_MS : DESKTOP_FRAME_MS;
       if (now - lastFrame < frameMs - 1) { raf = requestAnimationFrame(draw); return; }
       lastFrame = now;
-      const dt = Math.min(50, now - then);
+      const rawDt = now - then;
+      const dt = iosWebKit && state.current.travelActive ? Math.min(IOS_FRAME_DELTA_CLAMP_MS, rawDt) : Math.min(50, rawDt);
       then = now;
+      if (state.current.travelActive) {
+        if (!transitionStats.active) { transitionStats.active = true; transitionStats.startedAt = now; transitionStats.frameCount = 0; transitionStats.droppedFrames = 0; transitionStats.maxFrameGap = 0; transitionStats.totalFrameGap = 0; transitionStats.startSize = stableSizeRef.current; transitionStats.canvasSizeChanged = false; transitionStats.resizeEvents = []; }
+        transitionStats.frameCount += 1; transitionStats.maxFrameGap = Math.max(transitionStats.maxFrameGap, rawDt); transitionStats.totalFrameGap += rawDt; if (rawDt > 34) transitionStats.droppedFrames += Math.max(1, Math.floor(rawDt / 16.7) - 1);
+      }
       const size = stableSizeRef.current;
       const dpr = size?.dpr ?? Math.min(mobile || profile.lowPower ? 1.25 : 2, window.devicePixelRatio || 1);
       const w = Math.max(1, size?.cssWidth ?? Math.floor(wrap.clientWidth));
       const h = Math.max(1, size?.cssHeight ?? Math.floor(wrap.clientHeight));
       const pixelWidth = size?.pixelWidth ?? Math.floor(w * dpr);
       const pixelHeight = size?.pixelHeight ?? Math.floor(h * dpr);
+      if (transitionStats.active && transitionStats.startSize && (transitionStats.startSize.cssWidth !== w || transitionStats.startSize.cssHeight !== h || transitionStats.startSize.pixelWidth !== pixelWidth || transitionStats.startSize.pixelHeight !== pixelHeight)) transitionStats.canvasSizeChanged = true;
       if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-        canvas.width = pixelWidth; canvas.height = pixelHeight; canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
+        if (!(iosWebKit && state.current.travelActive && stableSizeRef.current)) { canvas.width = pixelWidth; canvas.height = pixelHeight; canvas.style.width = `${w}px`; canvas.style.height = `${h}px`; }
       }
       const runtime = runtimeRef.current;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -418,7 +457,7 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
       } else if (s.travelActive && focusProgress < 1) {
         const zoomOutEnd = 0.24;
         const approachStart = 0.72;
-        const rotateProgress = focusProgress < zoomOutEnd ? easeInOutCubic(focusProgress / zoomOutEnd) * 0.08 : focusProgress < approachStart ? 0.08 + easeInOutCubic((focusProgress - zoomOutEnd) / (approachStart - zoomOutEnd)) * 0.76 : 0.84 + easeOutQuart((focusProgress - approachStart) / (1 - approachStart)) * 0.16;
+        const rotateProgress = iosWebKit ? easeInOutCubic(focusProgress) : focusProgress < zoomOutEnd ? easeInOutCubic(focusProgress / zoomOutEnd) * 0.08 : focusProgress < approachStart ? 0.08 + easeInOutCubic((focusProgress - zoomOutEnd) / (approachStart - zoomOutEnd)) * 0.76 : 0.84 + easeOutQuart((focusProgress - approachStart) / (1 - approachStart)) * 0.16;
         const zoomOut = Math.max(0.86, s.travelStartZoom - (mobile ? 0.1 : 0.14));
         const stagedZoom = focusProgress < approachStart ? lerp(s.travelStartZoom, zoomOut, easeOutQuart(Math.min(1, focusProgress / approachStart))) : lerp(zoomOut, s.targetZoom, easeOutQuart((focusProgress - approachStart) / (1 - approachStart)));
         s.rotX = lerp(s.travelStartX, s.targetX, rotateProgress);
@@ -514,7 +553,7 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
             s.travelStartY = s.rotY;
             s.travelStartZoom = s.zoom;
             s.travelActive = !s.disabledMotion;
-            s.focusDuration = s.disabledMotion ? 0 : POST_FOCUS_CORRECTION_DURATION_MS;
+            s.focusDuration = s.disabledMotion ? 0 : (iosWebKit ? IOS_POST_FOCUS_CORRECTION_DURATION_MS : POST_FOCUS_CORRECTION_DURATION_MS);
             s.correctiveFocusRan = true;
             debugGlobeFocus("post-focus corrective pass", { snapDirectly: s.disabledMotion, correctionMode: s.disabledMotion ? "instant" : "animated", correctionDuration: s.focusDuration, correctionPass: true, station: runtime.stationName, city: runtime.stationCity, country: runtime.stationCountry, selectionVersion: runtime.selectionVersion, stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, derivedGlobePoint: activeBeacon, targetRotation: { rotX: s.targetX / DEG, rotY: s.targetY / DEG }, actualProjectedX: p.x, actualProjectedY: p.y, targetX: targetScreenX, targetY: targetScreenY, deltaX, deltaY, frontFacing, correctiveFocusRan: true, usableBounds });
           } else {
@@ -551,7 +590,7 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
           ctx.beginPath(); ctx.arc(p.x, p.y, mobile ? 5 : 6, 0, TAU); ctx.fill();
           ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
           ctx.restore();
-          if (approachVisibility > 0.72) for (const label of runtime.labels) drawLabel(label.label, label.lat, label.lng, projection, Boolean(label.active));
+          if (approachVisibility > 0.72 && !(iosWebKit && s.travelActive)) for (const label of runtime.labels) drawLabel(label.label, label.lat, label.lng, projection, Boolean(label.active));
         }
       }
       ctx.restore();
@@ -574,6 +613,14 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
       }
       ctx.strokeStyle = "rgba(0,214,143,0.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
       painted = true;
+      if (transitionStats.active && !s.travelActive) {
+        const avgGap = transitionStats.frameCount ? transitionStats.totalFrameGap / transitionStats.frameCount : 0;
+        const projected = activeBeacon ? projectGlobePoint(activeBeacon, { rotX: s.rotX, rotY: s.rotY }, { width: w, height: h, radius: r, centerX: cx, centerY: cy }) : null;
+        debugGlobeFocus("transition ended", { selectionVersion: runtime.selectionVersion, iosWebKit, endedAt: Date.now(), durationMs: now - transitionStats.startedAt, frameCount: transitionStats.frameCount, averageFps: avgGap ? 1000 / avgGap : null, maxFrameGap: transitionStats.maxFrameGap, droppedFrames: transitionStats.droppedFrames, canvasSizeChanged: transitionStats.canvasSizeChanged, resizeEvents: transitionStats.resizeEvents, finalBeaconDelta: projected ? { x: projected.x - targetScreenX, y: projected.y - targetScreenY } : null });
+        wrap.setAttribute("data-globe-travel-active", "false");
+        window.dispatchEvent(new CustomEvent("waveatlas:globe-travel", { detail: { active: false, iosWebKit, endedAt: Date.now(), selectionVersion: runtime.selectionVersion } }));
+        transitionStats.active = false;
+      }
       if (s.hidden) return;
       raf = requestAnimationFrame(draw);
     };
@@ -584,16 +631,22 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
       const cssHeight = Math.max(1, Math.floor(rect.height));
       stableSizeRef.current = { cssWidth, cssHeight, pixelWidth: Math.floor(cssWidth * dpr), pixelHeight: Math.floor(cssHeight * dpr), dpr };
     };
-    const debouncedSyncCanvasSize = () => { window.clearTimeout(throttleTimer); throttleTimer = window.setTimeout(syncCanvasSize, mobile ? 160 : 80); };
+    const debouncedSyncCanvasSize = (eventName = "resize") => { if (state.current.travelActive) { transitionStats.resizeEvents.push(eventName); warnGlobeFocus("viewport/layout event during transition", { eventName, iosWebKit, visualViewport: window.visualViewport ? { width: window.visualViewport.width, height: window.visualViewport.height, offsetTop: window.visualViewport.offsetTop, offsetLeft: window.visualViewport.offsetLeft, scale: window.visualViewport.scale } : null, canvasSize: stableSizeRef.current }); if (iosWebKit) return; } window.clearTimeout(throttleTimer); throttleTimer = window.setTimeout(syncCanvasSize, mobile ? 160 : 80); };
     syncCanvasSize();
-    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(debouncedSyncCanvasSize) : null;
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => debouncedSyncCanvasSize("ResizeObserver")) : null;
     resizeObserver?.observe(wrap);
-    window.addEventListener("orientationchange", debouncedSyncCanvasSize, { passive: true });
-    window.addEventListener("resize", debouncedSyncCanvasSize, { passive: true });
+    const onOrientationChange = () => debouncedSyncCanvasSize("orientationchange");
+    const onWindowResize = () => debouncedSyncCanvasSize("window.resize");
+    const onVisualViewportResize = () => debouncedSyncCanvasSize("visualViewport.resize");
+    const onVisualViewportScroll = () => debouncedSyncCanvasSize("visualViewport.scroll");
+    window.addEventListener("orientationchange", onOrientationChange, { passive: true });
+    window.addEventListener("resize", onWindowResize, { passive: true });
+    window.visualViewport?.addEventListener("resize", onVisualViewportResize, { passive: true });
+    window.visualViewport?.addEventListener("scroll", onVisualViewportScroll, { passive: true });
     const onVisibility = () => { state.current.hidden = document.hidden; if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else if (!raf) raf = requestAnimationFrame(draw); };
     document.addEventListener("visibilitychange", onVisibility);
     raf = requestAnimationFrame(draw);
-    return () => { document.removeEventListener("visibilitychange", onVisibility); resizeObserver?.disconnect(); window.removeEventListener("orientationchange", debouncedSyncCanvasSize); window.removeEventListener("resize", debouncedSyncCanvasSize); window.clearTimeout(throttleTimer); if (fallbackTimer) window.clearTimeout(fallbackTimer); cancelAnimationFrame(raf); raf = 0; };
+    return () => { document.removeEventListener("visibilitychange", onVisibility); resizeObserver?.disconnect(); window.removeEventListener("orientationchange", onOrientationChange); window.removeEventListener("resize", onWindowResize); window.visualViewport?.removeEventListener("resize", onVisualViewportResize); window.visualViewport?.removeEventListener("scroll", onVisualViewportScroll); window.clearTimeout(throttleTimer); if (fallbackTimer) window.clearTimeout(fallbackTimer); cancelAnimationFrame(raf); raf = 0; };
   }, [focusPoint, mobile]);
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, teleporting]);
@@ -611,7 +664,7 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) streetZoomRequestRef.current?.(); };
 
-  return <div ref={wrapRef} className={`${mobile ? "waveatlas-globe-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
+  return <div ref={wrapRef} data-globe-travel-active="false" className={`${mobile ? "waveatlas-globe-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
     <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
     <div className={`${mobile ? "hidden" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 ${mobile ? "shadow-none backdrop-blur-sm" : "shadow-lg backdrop-blur-xl"}`}>{GLOBE_STYLE_COPY[basemap]} · zoom in for Atlas Streets · tap to tune</div>
     <div className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing procedural globe…"}</span></div>
