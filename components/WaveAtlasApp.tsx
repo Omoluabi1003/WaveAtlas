@@ -35,7 +35,7 @@ import { create } from "zustand";
 import { isoCountryCentroids, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
-import { easeOutCubic, normalizeLongitudeDelta, stationDuration } from "@/lib/map-camera";
+import { easeOutCubic, normalizeLongitudeDelta, stationDuration, stationZoom } from "@/lib/map-camera";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
@@ -1385,10 +1385,11 @@ function useAtlasTransitionController({ initialView, activeStation, onViewChange
   }, [canTransition, completeTransition, debug, failTransition, lockTransition, onPersistView, onViewChange, preserveContext, state.currentView]);
   const retryGlobe = useCallback((reason: string, context?: AtlasTransitionContext | null) => {
     debug("retry globe", { reason, context, fallbackReason: state.fallbackReason ?? null });
-    clearFallback(); clearTimeouts(); lockRef.current = false; ++transitionIdRef.current;
+    clearTimeouts(); lockRef.current = false; ++transitionIdRef.current;
     lastFireRef.current["map-to-globe"] = 0;
     const readiness = checkCanvasReadiness();
     if (!readiness.ready) { failTransition(readiness.reason || "Globe view is unavailable on this device right now."); return false; }
+    clearFallback();
     return requestMapToGlobe(reason, context ?? state.context);
   }, [clearFallback, clearTimeouts, debug, failTransition, requestMapToGlobe, state.context, state.fallbackReason]);
   return { state, requestGlobeToMap, requestMapToGlobe, canTransition, lockTransition, completeTransition, failTransition, preserveContext, resetFallback: clearFallback, clearFallback, retryGlobe, transitionLocked: state.transitioning };
@@ -1596,10 +1597,7 @@ const ACTIVE_BEACON_LAYER_IDS = ["waveatlas-active-beacon-halo", "waveatlas-acti
 const DEBUG_MAP_BEACON = process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_MAP_BEACON === "true";
 function beaconMoveDuration(distanceKm: number) { return stationDuration(distanceKm); }
 function beaconTargetZoom(geo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
-  const base = geo.precision === "station" ? 13.5 : geo.precision === "city" ? 11.5 : 5.4;
-  if (distanceKm < 80) return Math.max(Math.min(currentZoom, 15), Math.min(base, 12.5));
-  if (distanceKm > 2400) return Math.min(base, 6.2);
-  return base;
+  return stationZoom(geo, currentZoom, distanceKm);
 }
 function debugMapBeacon(label: string, detail: Record<string, unknown>) {
   if (typeof window === "undefined" || !DEBUG_MAP_BEACON) return;
@@ -3195,8 +3193,8 @@ function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atla
     <div className="flex items-start justify-between gap-4">
       <div>
         <p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Settings</p>
-        <h2 className="mt-2 font-display text-2xl font-bold text-white">Globe controls, quietly tucked away.</h2>
-        <p className="mt-2 text-sm leading-6 text-ivory/65">Switch views, tune map detail, open Street portals, and launch Atlas Drive without keeping panels over Earth.</p>
+        <h2 className="mt-2 font-display text-2xl font-bold text-white">Atlas controls, quietly tucked away.</h2>
+        <p className="mt-2 text-sm leading-6 text-ivory/65">Switch views and tune the atlas without crowding the journey.</p>
       </div>
       {onClose ? <button type="button" onClick={onClose} className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-ivory/70 transition hover:bg-white/10 hover:text-white" aria-label="Close settings"><X className="size-4" /></button> : null}
     </div>
@@ -3206,26 +3204,27 @@ function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atla
       <div className="mt-2 grid grid-cols-2 gap-2">
         {(["globe", "map"] as AtlasViewMode[]).map((view) => {
           const disabled = atlasViewTransitioning;
-          const label = disabled ? "Transitioning..." : view === "globe" && globeFallbackReason ? "Retry Globe" : view;
-          return <button key={view} type="button" disabled={disabled} onClick={() => onChooseAtlasView(view)} className={`rounded-2xl px-3 py-3 text-sm font-semibold capitalize transition disabled:cursor-wait disabled:opacity-60 ${atlasView === view && !globeFallbackReason ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{label}</button>;
+          const needsRecovery = view === "globe" && Boolean(globeFallbackReason);
+          const label = disabled ? "Transitioning..." : needsRecovery ? "Retry Globe" : view;
+          return <button key={view} type="button" disabled={disabled} onClick={() => onChooseAtlasView(view)} className={`rounded-2xl px-3 py-3 text-sm font-semibold capitalize transition disabled:cursor-wait disabled:opacity-60 ${atlasView === view && !globeFallbackReason ? "bg-radio text-midnight" : needsRecovery ? "border border-gold/30 bg-gold/10 text-gold hover:bg-gold/15" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{label}</button>;
         })}
       </div>
       {globeFallbackReason ? <p className="mt-2 px-1 text-[11px] leading-5 text-gold/80">Globe fallback is recoverable. Use Retry Globe to run a fresh canvas/WebGL check.</p> : null}
     </div> : null}
 
-    {onGlobeBasemapChange && globeBasemap ? <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
-      <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Globe style</p>
+    {onGlobeBasemapChange && globeBasemap ? <details className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
+      <summary className="cursor-pointer px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Globe style · {globeBasemapStyles[globeBasemap].name}</summary>
       <div className="mt-2 grid gap-2">
         {(Object.keys(globeBasemapStyles) as GlobeBasemapKey[]).map((key) => <button key={key} type="button" onClick={() => onGlobeBasemapChange(key)} className={`rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${globeBasemap === key ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{globeBasemapStyles[key].label}</button>)}
       </div>
-    </div> : null}
+    </details> : null}
 
-    {onBasemapChange && basemap ? <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
-      <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-gold/80">Map basemap</p>
+    {onBasemapChange && basemap ? <details className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
+      <summary className="cursor-pointer px-1 text-[10px] font-black uppercase tracking-[0.2em] text-gold/80">Map basemap · {basemapStyles[basemap].name}</summary>
       <div className="mt-2 grid grid-cols-2 gap-2">
         {(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} type="button" onClick={() => onBasemapChange(key)} className={`rounded-2xl px-3 py-2 text-left text-[11px] font-semibold transition ${basemap === key ? "bg-gold text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{basemapStyles[key].label}</button>)}
       </div>
-    </div> : null}
+    </details> : null}
 
     {streetLinks.length ? <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
       <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Street portals</p>
@@ -3674,7 +3673,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
         <div className={`${desktopDrawerOpen ? "block" : "hidden"} atlas-drawer-scroll min-h-0 flex-1 overflow-y-auto pr-1`}>
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
-          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel /></div> : null}
+          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={(view) => { if (view === desktopAtlasView && !globeFallbackReason) return; if (view === "map") desktopTransition.requestGlobeToMap("manual atlas view selection", desktopTransitionContext); else if (globeFallbackReason) desktopTransition.retryGlobe("manual retry globe selection", desktopTransitionContext); else desktopTransition.requestMapToGlobe("manual atlas view selection", desktopTransitionContext); }} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={setDesktopGlobeBasemap} streetLinks={stationStreetViewLinks(current)} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { setCurrentStationAndDestination(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} compact /> : null}
           {selectedCountry ? (
