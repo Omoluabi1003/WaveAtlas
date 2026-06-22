@@ -10,6 +10,7 @@ type StationGeoOverride = Point & { precision: Exclude<GeoPrecision, 'unknown'>;
 
 export const stationGeoOverrides: Record<string, StationGeoOverride> = {
   'bbc-world-service': { lat: 51.5072, lng: -0.1276, precision: 'station', source: 'manual_override', confidence: 100, notes: 'Curated London broadcast identity.' },
+  'ariyo-ai-agidigbo-887-fm-ibadan': { lat: 7.3775, lng: 3.9470, precision: 'station', source: 'manual_override', confidence: 100, notes: 'Curated Ibadan station.' },
   'cool-fm-lagos': { lat: 6.5244, lng: 3.3792, precision: 'station', source: 'manual_override', confidence: 100, notes: 'Curated Lagos station.' },
   'wazobia-fm-lagos': { lat: 6.5244, lng: 3.3792, precision: 'station', source: 'manual_override', confidence: 100, notes: 'Curated Lagos station.' },
   'arise-news-radio': { lat: 6.5244, lng: 3.3792, precision: 'station', source: 'manual_override', confidence: 100, notes: 'Curated Lagos station.' },
@@ -25,13 +26,14 @@ export const countryBounds: Record<string, Bounds> = {
 };
 
 const cityGazetteer: Record<string, Point & { countryCode: string }> = {
-  'NG:lagos': { lat: 6.5244, lng: 3.3792, countryCode: 'NG' }, 'NG:abuja': { lat: 9.0765, lng: 7.3986, countryCode: 'NG' },
+  'NG:lagos': { lat: 6.5244, lng: 3.3792, countryCode: 'NG' }, 'NG:abuja': { lat: 9.0765, lng: 7.3986, countryCode: 'NG' }, 'NG:ibadan': { lat: 7.3775, lng: 3.9470, countryCode: 'NG' }, 'NG:oyo': { lat: 7.3775, lng: 3.9470, countryCode: 'NG' },
   'GB:london': { lat: 51.5072, lng: -0.1276, countryCode: 'GB' }, 'JP:tokyo': { lat: 35.6762, lng: 139.6503, countryCode: 'JP' }, 'JP:osaka': { lat: 34.6937, lng: 135.5023, countryCode: 'JP' },
   'US:new york': { lat: 40.7128, lng: -74.006, countryCode: 'US' }, 'US:washington': { lat: 38.9072, lng: -77.0369, countryCode: 'US' },
   'FR:paris': { lat: 48.8566, lng: 2.3522, countryCode: 'FR' }, 'AE:dubai': { lat: 25.2048, lng: 55.2708, countryCode: 'AE' }
 };
 
 function finitePoint(lat: unknown, lng: unknown): Point | null { return typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 ? { lat, lng } : null; }
+function finiteSwappedPoint(lat: unknown, lng: unknown): Point | null { return typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng) && lng >= -90 && lng <= 90 && lat >= -180 && lat <= 180 ? { lat: lng, lng: lat } : null; }
 function inBounds(point: Point, bounds: Bounds, padding = 0.75) { return point.lat >= bounds.minLat - padding && point.lat <= bounds.maxLat + padding && point.lng >= bounds.minLng - padding && point.lng <= bounds.maxLng + padding; }
 function normalizedCode(code?: string) { return (code ?? '').trim().toUpperCase(); }
 function stationKeys(station: Station) { return [station.station_uuid, station.id].filter(Boolean); }
@@ -50,13 +52,19 @@ export function resolveStationGeo(station: Station): ResolvedStationGeo {
     const override = stationGeoOverrides[key];
     if (override) return { lat: override.lat, lng: override.lng, precision: override.precision, confidence: override.confidence, source: override.source, warning: null };
   }
-  const city = cityGazetteer[cityKey(station)];
-  if (city) return { lat: city.lat, lng: city.lng, precision: 'city', confidence: 90, source: 'city_gazetteer', warning: null };
   const reportedPoint = finitePoint(station.latitude, station.longitude);
   if (reportedPoint) {
-    if (coordinateMatchesStationCountry(reportedPoint.lat, reportedPoint.lng, code)) return { lat: reportedPoint.lat, lng: reportedPoint.lng, precision: 'station', confidence: 75, source: 'verified_api_geo', warning: null };
+    if (coordinateMatchesStationCountry(reportedPoint.lat, reportedPoint.lng, code)) return { lat: reportedPoint.lat, lng: reportedPoint.lng, precision: 'station', confidence: 95, source: 'verified_api_geo', warning: null };
+    const swappedPoint = finiteSwappedPoint(station.latitude, station.longitude);
+    if (swappedPoint && coordinateMatchesStationCountry(swappedPoint.lat, swappedPoint.lng, code)) {
+      return { lat: null, lng: null, precision: 'unknown', confidence: 0, source: 'unknown', warning: `Station coordinates for ${station.name} look swapped (lat=${station.latitude}, lng=${station.longitude}); refusing to reverse them automatically.` };
+    }
+  }
+  const city = cityGazetteer[cityKey(station)];
+  if (city) return { lat: city.lat, lng: city.lng, precision: 'city', confidence: 90, source: 'city_gazetteer', warning: null };
+  if (reportedPoint) {
     const centroid = isoCountryCentroids[code];
-    if (centroid) return { lat: centroid.lat, lng: centroid.lng, precision: 'country', confidence: 60, source: 'country_centroid', warning: `Rejected mismatched coordinates for ${code}; using verified country centroid.` };
+    if (centroid) return { lat: centroid.lat, lng: centroid.lng, precision: 'country', confidence: 60, source: 'country_centroid', warning: `Rejected mismatched coordinates for ${code}; using verified country centroid as last resort.` };
     return { lat: null, lng: null, precision: 'unknown', confidence: 0, source: 'unknown', warning: `Rejected mismatched coordinates and no verified centroid exists for ${code || 'unknown country'}.` };
   }
   const centroid = isoCountryCentroids[code];
