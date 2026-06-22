@@ -37,7 +37,7 @@ type Props = {
   teleporting?: boolean;
   onCountrySelect?: (country: CountryResult) => void;
   onFallback?: (reason: string) => void;
-  onStreetZoomRequest?: () => void;
+  onStreetZoomRequest?: (context?: { lat: number; lng: number; zoom: number; stationId?: string; reason: string }) => void;
   mobile?: boolean;
   basemap?: GlobeBasemapKey;
   selectionVersion?: number;
@@ -328,6 +328,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const stableSizeRef = useRef<CanvasSize | null>(null);
   const fallbackRef = useRef(onFallback);
   const streetZoomRequestRef = useRef(onStreetZoomRequest);
+  const streetZoomTriggeredRef = useRef(false);
   const [debugOverlay, setDebugOverlay] = useState<GlobeDebugOverlay | null>(null);
   const debugOverlayTickRef = useRef(0);
   const settledFocusLogRef = useRef("");
@@ -383,7 +384,15 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   }, [mobile, previousStation, selectionVersion, station.name]);
 
   useEffect(() => { fallbackRef.current = onFallback; }, [onFallback]);
-  useEffect(() => { streetZoomRequestRef.current = onStreetZoomRequest; }, [onStreetZoomRequest]);
+  useEffect(() => { streetZoomRequestRef.current = onStreetZoomRequest; streetZoomTriggeredRef.current = false; }, [onStreetZoomRequest, station.id]);
+  const requestStreetZoom = useCallback((zoom: number, reason: string) => {
+    if (streetZoomTriggeredRef.current) return;
+    const point = runtimeRef.current.currentPoint;
+    if (!point) return;
+    streetZoomTriggeredRef.current = true;
+    if (process.env.NODE_ENV !== "production") console.info("[WaveAtlas] atlas view transition", { fromView: "globe", toView: "map", activeStation: station.name, coordinates: { lat: point.lat, lng: point.lng }, zoomLevel: zoom, transitionReason: reason, preservedContext: true });
+    streetZoomRequestRef.current?.({ lat: point.lat, lng: point.lng, zoom, stationId: station.station_uuid || station.id, reason });
+  }, [station.id, station.name, station.station_uuid]);
 
   useEffect(() => {
     runtimeRef.current = { currentPoint, selectionVersion, stationName: station.name, stationCity: station.city || station.state, stationCountry: station.country, stationLabel, basemap, teleporting, labels: globeLabels, landShapes, signalFeatures: signalConstellation.visibleSignals, signalClusters: signalConstellation.clusters };
@@ -560,6 +569,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         const nextSignals = buildSignalFeatures({ stations, currentStation: station, globeVisibleHemisphere: liveCenter, globeScale: s.zoom, favoriteIds: readGlobeFavoriteSet(), maxSignals });
         runtime.signalFeatures = nextSignals.visibleSignals;
         runtime.signalClusters = nextSignals.clusters;
+        if (process.env.NODE_ENV !== "production") console.debug("[WaveAtlas] beacon rendering source", { view: "globe", source: "buildSignalFeatures", activeStation: station.name, zoomLevel: s.zoom, renderedSignals: nextSignals.visibleSignals.length, renderedClusters: nextSignals.clusters.length });
       }
       if (runtime.signalClusters.length && s.zoom >= 1.16 && s.zoom < 1.9) {
         for (const cluster of runtime.signalClusters.slice(0, mobile ? 42 : 80)) {
@@ -702,7 +712,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, teleporting]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; debugGlobeFocus("user drag cancelled transition", { selectionVersion, station: station.name, travelActive: s.travelActive, focusDuration: s.focusDuration }); s.travelActive = false; s.focusDuration = 0; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); };
-  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; event.preventDefault(); pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) { s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom + (distance - pinchDistance.current) * 0.003)); if (s.targetZoom >= 1.68) streetZoomRequestRef.current?.(); } pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; const rotation = rotateFromDrag({ rotX: s.targetX, rotY: s.targetY }, dx, dy, mobile); s.targetX = rotation.rotX; s.targetY = rotation.rotY; s.lastX = event.clientX; s.lastY = event.clientY; };
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; event.preventDefault(); pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) { s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom + (distance - pinchDistance.current) * 0.003)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "pinch street/city threshold"); } pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; const rotation = rotateFromDrag({ rotX: s.targetX, rotY: s.targetY }, dx, dy, mobile); s.targetX = rotation.rotX; s.targetY = rotation.rotY; s.lastX = event.clientX; s.lastY = event.clientY; };
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
     event.preventDefault();
     pointers.current.delete(event.pointerId);
@@ -712,7 +722,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     const rect = event.currentTarget.getBoundingClientRect(); const r = Math.min(rect.width, rect.height) * (mobile ? 0.46 : 0.34) * s.zoom; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY: mobile ? rect.height * 0.42 : rect.height / 2 }); if (!point) return;
     const country = nearestCountry(point.lat, point.lng); if (country) onCountrySelect?.(country);
   };
-  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) streetZoomRequestRef.current?.(); };
+  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "wheel street/city threshold"); };
 
   return <div ref={wrapRef} data-globe-travel-active="false" className={`${mobile ? "waveatlas-globe-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
     <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
