@@ -1461,6 +1461,7 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
         favoriteIds,
         maxSignals,
       });
+      if (process.env.NODE_ENV !== "production") console.debug("[WaveAtlas] beacon rendering source", { view: "map", source: "buildSignalFeatures", activeStation: currentRef.current.name, zoomLevel: zoom, renderedSignals: visibleSignals.length });
       (map.getSource(SIGNAL_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: visibleSignals as SignalFeature[] });
     };
     const schedule = () => { if (frame) return; frame = window.requestAnimationFrame(updateSignals); };
@@ -1473,6 +1474,11 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
 }
 
 type MapTeleportContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
+type AtlasTransitionContext = MapTeleportContext & { stationId?: string; reason?: string };
+const MAP_TO_GLOBE_ZOOM_THRESHOLD = 3.0;
+function debugAtlasTransition(detail: { fromView: AtlasViewMode; toView: AtlasViewMode; activeStation?: string; coordinates: { lat: number; lng: number }; zoomLevel: number; transitionReason: string; preservedContext: boolean }) {
+  if (process.env.NODE_ENV !== "production") console.info("[WaveAtlas] atlas view transition", detail);
+}
 
 function stationStreetViewLinks(station: Station) {
   const geo = resolveStationGeo(station);
@@ -1565,7 +1571,7 @@ function nearestCountryResult(lat: number, lng: number): CountryResult | null {
 
 
 
-function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onCountrySelect, searchActive = false, keyboardOpen = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
+function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onWorldZoomRequest, initialContext, onCountrySelect, searchActive = false, keyboardOpen = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onWorldZoomRequest?: (context: AtlasTransitionContext) => void; initialContext?: AtlasTransitionContext | null; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -1574,6 +1580,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   const basemap = controlledBasemap ?? internalBasemap;
   const setBasemap = onBasemapChange ?? setInternalBasemap;
   const initialBasemap = useRef(basemap);
+  const initialTransitionContext = useRef(initialContext);
   const viewMode = useRef<"desktop" | "mobile">(mobile ? "mobile" : "desktop");
   const geo = useMemo(() => geotruth(station), [station]);
   const { visibleWorldContext } = useStationWorldContext(station);
@@ -1592,8 +1599,8 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     const m = new maplibregl.Map({
       container: container.current,
       style: basemapStyles[initialBasemap.current].style,
-      center: DEFAULT_MAP_VIEW[viewMode.current].center,
-      zoom: DEFAULT_MAP_VIEW[viewMode.current].zoom,
+      center: initialTransitionContext.current ? [initialTransitionContext.current.lng, initialTransitionContext.current.lat] : DEFAULT_MAP_VIEW[viewMode.current].center,
+      zoom: initialTransitionContext.current ? Math.max(DEFAULT_MAP_VIEW[viewMode.current].zoom, initialTransitionContext.current.zoom) : DEFAULT_MAP_VIEW[viewMode.current].zoom,
       bearing: DEFAULT_MAP_VIEW[viewMode.current].bearing,
       pitch: DEFAULT_MAP_VIEW[viewMode.current].pitch,
       attributionControl: false,
@@ -1649,6 +1656,26 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
       map.off("zoomend", publishContext);
     };
   }, [map, onMapContextChange]);
+
+
+
+  useEffect(() => {
+    if (!map || !onWorldZoomRequest) return;
+    let armed = false;
+    const arm = () => { armed = true; };
+    const inspectZoom = () => {
+      const zoom = map.getZoom();
+      if (!armed || zoom > MAP_TO_GLOBE_ZOOM_THRESHOLD) return;
+      const center = map.getCenter();
+      const context = { lat: center.lat, lng: center.lng, zoom, stationId: station.station_uuid || station.id, reason: "map world/country zoom threshold" };
+      debugAtlasTransition({ fromView: "map", toView: "globe", activeStation: station.name, coordinates: { lat: center.lat, lng: center.lng }, zoomLevel: zoom, transitionReason: context.reason, preservedContext: true });
+      armed = false;
+      onWorldZoomRequest(context);
+    };
+    map.once("zoomstart", arm);
+    map.on("zoomend", inspectZoom);
+    return () => { map.off("zoomend", inspectZoom); };
+  }, [map, onWorldZoomRequest, station.id, station.name, station.station_uuid]);
 
   useEffect(() => {
     if (!map || !resetSignal) return;
@@ -2685,6 +2712,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
   const [mapContext, setMapContext] = useState<MapTeleportContext | null>(null);
+  const [transitionContext, setTransitionContext] = useState<AtlasTransitionContext | null>(null);
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
   const selectionVersion = usePlayer((state) => state.selectionVersion);
   const handleTravel = useCallback((intent: string) => {
@@ -2728,15 +2756,21 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     setAtlasView(view);
     persistAtlasView(view);
   };
-  const enterMobileStreets = useCallback(() => {
+  const enterMobileStreets = useCallback((context?: AtlasTransitionContext) => {
     setMobileGlobeFallbackReason("");
+    setTransitionContext(context ?? null);
     setBasemap("atlasStreets");
     setAtlasView("map");
     persistAtlasView("map");
   }, [setBasemap]);
+  const returnMobileToGlobe = useCallback((context: AtlasTransitionContext) => {
+    setTransitionContext(context);
+    setAtlasView("globe");
+    persistAtlasView("globe");
+  }, []);
   return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
-      <WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
+      <WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={transitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     ) : (
       <BlueMarbleGlobe station={current} stations={stations} selectionVersion={selectionVersion} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} onStreetZoomRequest={enterMobileStreets} />
     )}
@@ -2988,6 +3022,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
   const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
+  const [desktopTransitionContext, setDesktopTransitionContext] = useState<AtlasTransitionContext | null>(null);
   const [desktopTeleporting, setDesktopTeleporting] = useState(false);
   const [desktopGlobeBasemap, setDesktopGlobeBasemap] = useState<GlobeBasemapKey>(getInitialGlobeBasemap);
   const [desktopAtlasView, setDesktopAtlasView] = useState<AtlasViewMode>("globe");
@@ -3162,11 +3197,15 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     lastDesktopStationRef.current = current;
   }, [current]);
 
-  const enterDesktopStreets = useCallback(() => {
+  const enterDesktopStreets = useCallback((context?: AtlasTransitionContext) => {
     setGlobeFallbackReason("");
+    setDesktopTransitionContext(context ?? null);
     setDesktopBasemap("atlasStreets");
     setDesktopAtlasView("map");
-    setDesktopResetSignal((signal) => signal + 1);
+  }, []);
+  const returnDesktopToGlobe = useCallback((context: AtlasTransitionContext) => {
+    setDesktopTransitionContext(context);
+    setDesktopAtlasView("globe");
   }, []);
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
@@ -3215,14 +3254,13 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
           {globeFallbackReason || desktopAtlasView === "map" ? (
-            <WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
+            <WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={desktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
           ) : (
             <BlueMarbleGlobe station={current} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} onStreetZoomRequest={enterDesktopStreets} />
           )}
         </div>
         {!globeFallbackReason && desktopAtlasView === "globe" ? <GlobeBasemapControl value={desktopGlobeBasemap} onChange={setDesktopGlobeBasemap} /> : null}
         {!globeFallbackReason && desktopAtlasView === "globe" ? <OpenStreetViewButton station={current} /> : null}
-        {desktopAtlasView === "map" ? <button type="button" onClick={() => setDesktopAtlasView("globe")} className="pointer-events-auto absolute right-6 top-24 z-50 rounded-full border border-white/15 bg-slate-950/60 px-4 py-3 text-xs font-bold text-ivory shadow-2xl backdrop-blur-xl transition hover:border-radio/40 hover:text-radio xl:right-8">Return to Globe</button> : null}
         {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
         <SelectedStationTheater station={current} />
       </div>
