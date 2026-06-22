@@ -57,7 +57,7 @@ export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: 
   applyVisualCenterCamera(
     map,
     [stationGeo.lng, stationGeo.lat],
-    stationGeo.precision === "station" ? 7 : stationGeo.precision === "city" ? 6 : 4.4,
+    stationGeo.precision === "station" ? 13.5 : stationGeo.precision === "city" ? 11.5 : 5.4,
     padding,
   );
 }
