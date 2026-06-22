@@ -4,11 +4,31 @@ import { isCuratedStation, type Station } from "@/lib/stations";
 
 export type SignalStatus = "healthy" | "unverified" | "community";
 export type SignalFeature = GeoJSON.Feature<GeoJSON.Point, { id: string; status: SignalStatus; favorite: boolean; priority: number; name: string }>;
+export type ActiveBeaconFeature = GeoJSON.Feature<GeoJSON.Point, { id: string; name: string; label: string; city?: string; country?: string; source: string; precision: string; color: "#FF3B30"; pulseMs: 1600; halo: "rgba(255,59,48,0.58)" }>;
 export type SignalCluster = { id: string; lat: number; lng: number; count: number; favorite: boolean; priority: number; status: SignalStatus };
 export type SignalViewport = { west: number; south: number; east: number; north: number } | { contains: (lng: number, lat: number) => boolean } | null | undefined;
 export type GlobeHemisphere = { centerLat: number; centerLng: number } | ((lat: number, lng: number) => boolean) | null | undefined;
 
 type Args = { stations: Station[]; currentStation?: Station | null; viewportBounds?: SignalViewport; globeVisibleHemisphere?: GlobeHemisphere; zoomLevel?: number; globeScale?: number; favoriteIds?: Iterable<string>; maxSignals: number; debug?: boolean };
+
+export const DEBUG_SIGNALS = process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_SIGNALS === "true";
+
+function beaconLabel(station: Station) {
+  return [station.city || station.state, station.country].filter(Boolean).join(", ") || station.name;
+}
+
+export function getActiveBeaconFeature(currentStation?: Station | null): ActiveBeaconFeature | null {
+  if (!currentStation) return null;
+  const geo = resolveStationGeoTruth(currentStation);
+  if (geo.lat === null || geo.lng === null) return null;
+  if (DEBUG_SIGNALS && geo.precision !== "station") console.debug("[WaveAtlas signals] active beacon fallback", { station: currentStation.name, fallbackLevel: geo.precision, source: geo.source, warning: geo.warning });
+  const id = key(currentStation);
+  return {
+    type: "Feature",
+    geometry: { type: "Point", coordinates: [geo.lng, geo.lat] },
+    properties: { id, name: currentStation.name, label: beaconLabel(currentStation), city: currentStation.city || currentStation.state, country: currentStation.country, source: geo.source, precision: geo.precision, color: "#FF3B30", pulseMs: 1600, halo: "rgba(255,59,48,0.58)" },
+  };
+}
 
 function key(station?: Station | null) { return station ? station.station_uuid || station.id : ""; }
 export function isStationRenderableSignal(station: Station, { debug = false }: { debug?: boolean } = {}) {
@@ -64,6 +84,9 @@ export function buildSignalFeatures({ stations, currentStation, viewportBounds, 
     const favorite = favorites.has(id) || favorites.has(station.id);
     candidates.push({ type: "Feature", geometry: { type: "Point", coordinates: [geo.lng, geo.lat] }, properties: { id, name: station.name, status: stationSignalStatus(station), favorite, priority: stationSignalPriority(station, favorite) } });
   }
-  const visibleSignals = candidates.sort((a, b) => b.properties.priority - a.properties.priority).slice(0, Math.max(0, maxSignals));
-  return { visibleSignals, clusters: clusterSignals(visibleSignals, zoomLevel ?? globeScale ?? 1), stats: { candidates: candidates.length, rendered: visibleSignals.length, maxSignals } };
+  const sortedCandidates = candidates.sort((a, b) => b.properties.priority - a.properties.priority);
+  const visibleSignals = sortedCandidates.slice(0, Math.max(0, maxSignals));
+  const stats = { candidates: candidates.length, rendered: visibleSignals.length, filtered: stations.length - candidates.length, topK: visibleSignals.length, maxSignals };
+  if (debug || DEBUG_SIGNALS) console.debug("[WaveAtlas signals] constellation", stats);
+  return { visibleSignals, clusters: clusterSignals(visibleSignals, zoomLevel ?? globeScale ?? 1), stats };
 }
