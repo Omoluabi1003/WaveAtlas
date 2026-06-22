@@ -25,7 +25,8 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 function prefersReducedMotion() { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; }
-function stationDuration(distanceKm: number) { return prefersReducedMotion() ? 220 : distanceKm > 2400 ? 2600 : distanceKm < 350 ? 1200 : 1800; }
+function prefersIOSCameraPath() { return typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent); }
+function stationDuration(distanceKm: number) { return prefersReducedMotion() ? 0 : distanceKm > 2400 ? 2600 : distanceKm < 350 ? 1200 : 1800; }
 function stationZoom(stationGeo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
   const base = stationGeo.precision === "station" ? 13.5 : stationGeo.precision === "city" ? 11.5 : 5.4;
   if (distanceKm < 80) return Math.max(Math.min(currentZoom, 15), Math.min(base, 12.5));
@@ -59,15 +60,19 @@ export function restoreCameraState(map: Map, camera: MapCameraState, options: Pa
 
 export function applyVisualCenterCamera(map: Map, center: [number, number], zoom: number, padding: PaddingOptions = EMPTY_PADDING, options: Partial<FlyToOptions> = {}) {
   map.stop();
-  map.flyTo({
+  const reducedMotion = prefersReducedMotion();
+  const cameraOptions = {
     center,
     zoom,
     speed: 0.72,
     curve: 1.35,
     padding,
-    essential: true,
+    essential: !reducedMotion,
     ...options,
-  });
+    duration: reducedMotion ? 0 : options.duration,
+  };
+  if (prefersIOSCameraPath()) map.easeTo(cameraOptions);
+  else map.flyTo(cameraOptions);
 }
 
 export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: PaddingOptions = EMPTY_PADDING) {
