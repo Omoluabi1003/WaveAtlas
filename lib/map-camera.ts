@@ -29,20 +29,26 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 export function prefersReducedMotion() { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; }
 function prefersIOSCameraPath() { return typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent); }
 function isMobileViewport() { return typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches; }
-const ZOOM_POLICY = { stationDefault: 8.5, stationMax: 9.5, cityDefault: 7.5, cityMax: 8.5, regionMax: 5.5, mobileMax: 8.25 } as const;
+const ZOOM_POLICY = { worldDefault: 3.2, continentDefault: 4.2, countryDefault: 5.2, stationDefault: 5.8, stationMax: 6.8, cityMax: 7.2, mobileMax: 6.2 } as const;
 export function stationDuration(distanceKm: number) {
   if (prefersReducedMotion()) return 0;
   const base = distanceKm > 2400 ? 2200 : distanceKm < 350 ? 900 : 1500;
   return isMobileViewport() ? Math.round(base * 0.72) : base;
 }
 export function stationZoom(stationGeo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
-  const mobileMax = isMobileViewport() ? ZOOM_POLICY.mobileMax : Number.POSITIVE_INFINITY;
-  const maxForPrecision = stationGeo.precision === "station" ? ZOOM_POLICY.stationMax : stationGeo.precision === "city" ? ZOOM_POLICY.cityMax : ZOOM_POLICY.regionMax;
-  const defaultForPrecision = stationGeo.precision === "station" ? ZOOM_POLICY.stationDefault : stationGeo.precision === "city" ? ZOOM_POLICY.cityDefault : ZOOM_POLICY.regionMax;
-  const policyMax = Math.min(maxForPrecision, mobileMax);
-  const contextZoom = distanceKm > 2400 ? Math.min(defaultForPrecision, ZOOM_POLICY.regionMax) : defaultForPrecision;
-  const nearTargetZoom = distanceKm < 80 ? Math.max(Math.min(currentZoom, policyMax), Math.min(contextZoom, policyMax)) : contextZoom;
-  return Math.min(nearTargetZoom, policyMax);
+  const viewportMax = isMobileViewport() ? ZOOM_POLICY.mobileMax : Number.POSITIVE_INFINITY;
+  const precisionMax = stationGeo.precision === "station" ? ZOOM_POLICY.stationMax : stationGeo.precision === "city" ? ZOOM_POLICY.cityMax : ZOOM_POLICY.countryDefault;
+  const policyMax = Math.min(precisionMax, viewportMax, ZOOM_POLICY.cityMax);
+  const contextualDefault = distanceKm > 5200
+    ? ZOOM_POLICY.worldDefault
+    : distanceKm > 2200
+      ? ZOOM_POLICY.continentDefault
+      : stationGeo.precision === "country" || stationGeo.precision === "unknown"
+        ? ZOOM_POLICY.countryDefault
+        : ZOOM_POLICY.stationDefault;
+  const clampedCurrent = Math.min(currentZoom, policyMax);
+  const targetZoom = distanceKm < 80 ? Math.max(clampedCurrent, Math.min(contextualDefault, policyMax)) : contextualDefault;
+  return Math.min(targetZoom, policyMax);
 }
 
 export function captureCameraState(map: Map): MapCameraState {
@@ -91,7 +97,11 @@ export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: 
   const center = map.getCenter();
   const targetLng = center.lng + normalizeLongitudeDelta(stationGeo.lng - center.lng);
   const distanceKm = haversineKm({ lat: center.lat, lng: center.lng }, { lat: stationGeo.lat, lng: targetLng });
-  const zoom = stationZoom(stationGeo, map.getZoom(), distanceKm);
+  const currentZoom = map.getZoom();
+  const bounds = map.getBounds();
+  const isVisible = bounds.contains([targetLng, stationGeo.lat]);
+  const computedZoom = stationZoom(stationGeo, currentZoom, distanceKm);
+  const zoom = isVisible ? Math.min(currentZoom, Math.max(computedZoom, currentZoom - 0.35)) : computedZoom;
   const duration = stationDuration(distanceKm);
   if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true") {
     console.debug("[WaveAtlas map camera] flyToStation", {
