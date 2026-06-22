@@ -1,5 +1,6 @@
 import { culturalAtlasScore } from './cultural-atlas';
 import { ariyoSeedStations } from './stations/ariyoSeedStations';
+import { campusAtlasDiagnostics, campusAtlasStations } from './stations/campusAtlasStations';
 
 export type Station = { id:string; station_uuid:string; name:string; normalized_name?:string; url:string; url_resolved?:string; homepage?:string; favicon?:string; country:string; country_code:string; state?:string; city?:string; language:string; tags:string[]; codec:string; bitrate:number; latitude?:number; longitude?:number; votes:number; click_count:number; health_score:number; is_active:boolean; last_check_ok?:boolean; last_checked_at:string; failure_count:number; response_time_ms:number; curation_source?: string; curation_tier?: 'curated_atlas' | 'radio_browser' | 'community_signal'; validation_status?: 'candidate' | 'needs_review' | 'verified' | 'rejected' | 'curated' | 'failed' | 'unknown'; validation_reason?: string; };
 
@@ -18,6 +19,7 @@ const API_BASE = process.env.RADIO_BROWSER_API_BASE ?? 'https://de1.api.radio-br
 const UA = 'WaveAtlas/1.0 (global-radio-discovery)';
 const cache = new Map<string, { expires:number; value: unknown }>();
 function discoveryDiagnostics(label: string, diagnostics: StationDiscoveryDiagnostics) { if (process.env.NODE_ENV !== 'production') console.info(`[WaveAtlas station discovery] ${label}`, diagnostics); }
+function campusAtlasDiscoveryDiagnostics() { if (process.env.NODE_ENV !== 'production') console.info('[WaveAtlas station discovery] campus-atlas import', campusAtlasDiagnostics); }
 function incrementReason(reasons: Record<string, number>, reason: string) { reasons[reason] = (reasons[reason] ?? 0) + 1; }
 
 const countryCentroids: Record<string, { lat:number; lng:number }> = {
@@ -58,7 +60,7 @@ export function flagFor(code = '') { return code.length === 2 ? String.fromCodeP
 async function cached<T>(key:string, ttlMs:number, fn:()=>Promise<T>): Promise<T> { const hit=cache.get(key); if(hit && hit.expires>Date.now()) return hit.value as T; const value=await fn(); cache.set(key,{value,expires:Date.now()+ttlMs}); return value; }
 function normalize(s: RadioBrowserStation): Station { const ok = s.lastcheckok !== 0; const bitrate = s.bitrate ?? 0; const votes = s.votes ?? 0; const click_count = s.clickcount ?? 0; const health_score = Math.min(99, Math.max(35, (ok ? 72 : 42) + Math.min(18, bitrate/16) + Math.min(9, votes/1200))); const name = cleanStationName(s.name, s.country); return { id:s.stationuuid ?? crypto.randomUUID(), station_uuid:s.stationuuid ?? '', name, normalized_name: normalizedStationName(name), url:s.url_resolved || s.url || '', url_resolved:s.url_resolved, homepage:s.homepage, favicon:s.favicon, country:s.country ?? 'Global', country_code:(s.countrycode ?? 'UN').toUpperCase(), state:s.state, language:s.language ?? 'Unknown', tags:(s.tags ?? '').split(',').map(t=>t.trim()).filter(Boolean).slice(0,8), codec:s.codec ?? 'Unknown', bitrate, latitude:s.geo_lat, longitude:s.geo_long, votes, click_count, health_score:Math.round(health_score), is_active:ok, last_checked_at:s.lastchecktime_iso8601 ?? new Date().toISOString(), failure_count:ok ? 0 : 1, response_time_ms:180 + Math.round(Math.random()*420), last_check_ok: ok }; }
 export function sortStations(a:Station,b:Station){ return Number(b.is_active)-Number(a.is_active) || b.votes-a.votes || b.click_count-a.click_count || b.bitrate-a.bitrate; }
-export function isCuratedStation(station: Station) { return station.curation_tier === 'curated_atlas' || station.tags.some((tag) => ['ariyo-ai-seed', 'waveatlas-curated', 'curators-picks'].includes(tag.toLowerCase())); }
+export function isCuratedStation(station: Station) { return station.curation_tier === 'curated_atlas' || station.tags.some((tag) => ['ariyo-ai-seed', 'waveatlas-curated', 'curators-picks', 'campus atlas'].includes(tag.toLowerCase())); }
 export function isVerifiedNigerianStation(station: Station) {
   const tags = station.tags.map((tag) => tag.toLowerCase());
   return station.country_code === 'NG' && (
@@ -70,13 +72,15 @@ export function isVerifiedNigerianStation(station: Station) {
   );
 }
 function isAriyoSeed(station: Station) { return station.tags.some((tag) => tag.toLowerCase() === 'ariyo-ai-seed'); }
+function isCampusAtlas(station: Station) { return station.curation_source === 'campus-atlas' || station.tags.some((tag) => tag.toLowerCase() === 'campus atlas'); }
 function stationUrlKey(station: Station) { return (station.url_resolved || station.url || '').trim().toLowerCase(); }
 function stationNameKey(station: Station) { return normalizedStationName(station.name); }
 export function isStationAvailable(station: Station) { return Boolean(station.url && (/^https?:\/\//i.test(station.url) || isCuratedStation(station))); }
 export function logCuratedStationDiagnostic(station: Station, reason: string, context = 'curated-atlas') { if (isCuratedStation(station) && process.env.NODE_ENV !== 'production') console.info(`[WaveAtlas curated diagnostic] ${context}: ${station.name} (${station.url || 'missing-url'}) [${station.curation_source ?? 'curated'}] -> ${reason}`); }
+function matchesCampusAtlasIntent(station: Station, rawQuery = '') { const haystack = `${station.name} ${station.country} ${station.country_code} ${station.city ?? ''} ${station.state ?? ''} ${station.language} ${station.tags.join(' ')}`.toLowerCase(); const q = rawQuery.trim().toLowerCase(); if (!isCampusAtlas(station) || !q) return false; return ['college','university','campus','student radio','public radio','jazz','indie','freeform','alternative','npr','california','new york','massachusetts','georgia','indiana','texas','missouri','oregon','minnesota','wisconsin','pennsylvania','ohio','vermont','louisiana'].some((term) => q.includes(term) || haystack.includes(q) && haystack.includes(term)); }
 function matchesAriyoPriorityIntent(station: Station, rawQuery = '') { const haystack = `${station.name} ${station.country} ${station.country_code} ${station.city ?? ''} ${station.state ?? ''} ${station.language} ${station.tags.join(' ')}`.toLowerCase(); const q = rawQuery.trim().toLowerCase(); if (!isAriyoSeed(station)) return false; if (!q) return false; return ['nigeria','nigerian','nigerian radio','lagos','ibadan','jos','oyo','plateau','yoruba','africa','african','afrobeats','pidgin','gospel','talk','news','agidigbo','jay'].some((term) => q.includes(term) || haystack.includes(q) && haystack.includes(term)); }
-export function mergeSeedStations(stations: Station[], seeds: Station[] = ariyoSeedStations) { const merged: Station[] = []; const seenUrls = new Set<string>(); const seenNames = new Set<string>(); for (const station of [...seeds, ...stations]) { const urlKey = stationUrlKey(station); const nameKey = stationNameKey(station); if (!urlKey) { logCuratedStationDiagnostic(station, 'excluded: missing stream URL', 'mergeSeedStations'); continue; } if (seenUrls.has(urlKey) || (!isCuratedStation(station) && seenNames.has(nameKey))) { logCuratedStationDiagnostic(station, 'excluded: duplicate suppressed; curated metadata wins when duplicate is Radio Browser', 'mergeSeedStations'); continue; } seenUrls.add(urlKey); if (nameKey) seenNames.add(nameKey); merged.push(isCuratedStation(station) ? { ...station, is_active: true, failure_count: 0, last_check_ok: station.last_check_ok ?? true, validation_status: station.validation_status === 'failed' ? 'needs_review' : station.validation_status } : station); } return merged; }
-function rankStation(station: Station, rawQuery = '') { const q = rawQuery.trim().toLowerCase(); const name = station.name.toLowerCase(); let score = 0; if (q) { const tokens = q.split(/\s+/).filter((token) => token.length > 2); if (name === q) score += 10000; else if (name.startsWith(q)) score += 7000; else if (name.includes(q)) score += 4500; score += tokens.filter((token) => name.includes(token)).length * 2200; if (tokens[0] && name.includes(tokens[0])) score += 5000; if (`${station.country} ${station.country_code} ${station.language} ${station.tags.join(' ')}`.toLowerCase().includes(q)) score += 900; score += culturalAtlasScore(station, rawQuery); } score += station.is_active ? 1800 : -2000; score += Math.min(1400, station.votes * 1.5); score += Math.min(1200, station.click_count / 4); score += station.bitrate > 0 ? Math.min(800, station.bitrate * 2) : 0; score += station.codec && station.codec !== 'Unknown' ? 350 : 0; score += station.url ? 250 : 0; if (isCuratedStation(station)) score += 1800; if (station.country_code === 'NG' && isCuratedStation(station)) score += 2600; if (matchesAriyoPriorityIntent(station, rawQuery)) score += 9000; return score; }
+export function mergeSeedStations(stations: Station[], seeds: Station[] = [...ariyoSeedStations, ...campusAtlasStations]) { const merged: Station[] = []; const seenUrls = new Set<string>(); const seenNames = new Set<string>(); for (const station of [...seeds, ...stations]) { const urlKey = stationUrlKey(station); const nameKey = stationNameKey(station); if (!urlKey) { logCuratedStationDiagnostic(station, 'excluded: missing stream URL', 'mergeSeedStations'); continue; } if (seenUrls.has(urlKey) || (!isCuratedStation(station) && seenNames.has(nameKey))) { logCuratedStationDiagnostic(station, 'excluded: duplicate suppressed; curated metadata wins when duplicate is Radio Browser', 'mergeSeedStations'); continue; } seenUrls.add(urlKey); if (nameKey) seenNames.add(nameKey); merged.push(isCuratedStation(station) ? { ...station, is_active: station.validation_status === 'needs_review' ? station.is_active : true, failure_count: station.validation_status === 'needs_review' ? station.failure_count : 0, last_check_ok: station.validation_status === 'needs_review' ? station.last_check_ok : (station.last_check_ok ?? true), validation_status: station.validation_status === 'failed' ? 'needs_review' : station.validation_status } : station); } return merged; }
+function rankStation(station: Station, rawQuery = '') { const q = rawQuery.trim().toLowerCase(); const name = station.name.toLowerCase(); let score = 0; if (q) { const tokens = q.split(/\s+/).filter((token) => token.length > 2); if (name === q) score += 10000; else if (name.startsWith(q)) score += 7000; else if (name.includes(q)) score += 4500; score += tokens.filter((token) => name.includes(token)).length * 2200; if (tokens[0] && name.includes(tokens[0])) score += 5000; if (`${station.country} ${station.country_code} ${station.language} ${station.tags.join(' ')}`.toLowerCase().includes(q)) score += 900; score += culturalAtlasScore(station, rawQuery); } score += station.is_active ? 1800 : -2000; score += Math.min(1400, station.votes * 1.5); score += Math.min(1200, station.click_count / 4); score += station.bitrate > 0 ? Math.min(800, station.bitrate * 2) : 0; score += station.codec && station.codec !== 'Unknown' ? 350 : 0; score += station.url ? 250 : 0; if (isCuratedStation(station)) score += 1800; if (station.country_code === 'NG' && isCuratedStation(station)) score += 2600; if (matchesAriyoPriorityIntent(station, rawQuery)) score += 9000; if (isCampusAtlas(station) && matchesCampusAtlasIntent(station, rawQuery)) score += 7200; return score; }
 export function rankStations(stations: Station[], q = '') { return [...stations].sort((a,b)=>rankStation(b,q)-rankStation(a,q) || sortStations(a,b)); }
 
 const candidateContinentSeeds = [
@@ -92,7 +96,7 @@ export async function fetchGlobalCandidateStations(minimum = 1500): Promise<Stat
   return cached(`global-candidates:${minimum}`, STATION_CACHE_TTL_MS, async () => {
     const broad = await fetchStations({ limit: String(RADIO_BROWSER_PAGE_SIZE * GLOBAL_CACHED_PAGES), pageSize: String(RADIO_BROWSER_PAGE_SIZE), pages: String(GLOBAL_CACHED_PAGES), order: 'clicktrend', allowFallback: 'true', includeDiagnostics: 'true' });
     const countryPages = (await Promise.all(candidateContinentSeeds.flatMap((group) => group.codes).map((countryCode) => fetchStationsByCountry({ countryCode, limit: String(Math.ceil(minimum / 6)), pageSize: '150' }).catch(() => [])))).flat();
-    const ranked = rankStations(mergeSeedStations([...broad, ...countryPages, ...fallbackStations], ariyoSeedStations), 'global diverse radio');
+    const ranked = rankStations(mergeSeedStations([...broad, ...countryPages, ...fallbackStations]), 'global diverse radio');
     if (ranked.length < minimum && process.env.NODE_ENV !== 'production') console.warn('[WaveAtlas station discovery] global candidate pool below expected size', { expectedMinimum: minimum, actual: ranked.length });
     return ranked;
   });
@@ -108,7 +112,8 @@ export async function fetchStations(params: Record<string,string|undefined> = {}
   const cacheKey = `stations:${JSON.stringify({ ...params, requestedLimit, pageSize, pages, startOffset })}`;
   return cached(cacheKey, STATION_CACHE_TTL_MS, async()=>{
     const reasons: Record<string, number> = {};
-    const seeded = ariyoSeedStations.filter((station) => seedMatchesParams(station, params));
+    campusAtlasDiscoveryDiagnostics();
+    const seeded = [...ariyoSeedStations, ...campusAtlasStations].filter((station) => seedMatchesParams(station, params));
     try {
       const batches = await Promise.all(Array.from({ length: pages }, async (_, page) => {
         const query = new URLSearchParams({ hidebroken:'false', limit:String(pageSize), offset:String(startOffset + page * pageSize), order: params.order ?? 'votes', reverse:'true' });
@@ -138,7 +143,8 @@ export async function fetchStationsByCountry(params: Record<string,string|undefi
   const base = code ? `/stations/bycountrycodeexact/${encodeURIComponent(code)}` : `/stations/bycountry/${encodeURIComponent(params.country ?? '')}`;
   return cached(`country:${base}:${JSON.stringify({ ...params, requestedLimit, pageSize, pages, startOffset })}`, STATION_CACHE_TTL_MS, async()=>{
     const reasons: Record<string, number> = {};
-    const seeded = ariyoSeedStations.filter((station) => seedMatchesParams(station, { ...params, countryCode: code }));
+    campusAtlasDiscoveryDiagnostics();
+    const seeded = [...ariyoSeedStations, ...campusAtlasStations].filter((station) => seedMatchesParams(station, { ...params, countryCode: code }));
     try {
       const batches = await Promise.all(Array.from({ length: pages }, async (_, page) => {
         const query = new URLSearchParams({ hidebroken:'false', limit:String(pageSize), offset:String(startOffset + page * pageSize), order:'votes', reverse:'true' });
@@ -182,7 +188,7 @@ export async function fetchStationsForCountryIntent(countryName: string, country
   const code = (countryCode || aliasCode || '').toUpperCase();
   const primary = await fetchStationsByCountry({ ...params, country: countryName, countryCode: code, limit, offset });
   const scopedFallbacks = code ? fallbackStations.filter((station) => station.country_code === code) : [];
-  const scopedSeeds = code ? ariyoSeedStations.filter((station) => station.country_code === code) : [];
+  const scopedSeeds = code ? [...ariyoSeedStations, ...campusAtlasStations].filter((station) => station.country_code === code) : [...ariyoSeedStations, ...campusAtlasStations];
   const scoped = mergeSeedStations([...primary, ...scopedFallbacks], scopedSeeds).filter((station) => !code || station.country_code === code);
   return rankStations(scoped, params.name || params.q || params.tag || params.language || countryName || code);
 }
