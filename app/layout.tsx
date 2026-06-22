@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import {
   BRAND,
   WAVEATLAS_APPLE_ICON_PATH,
@@ -11,6 +11,12 @@ import {
 import { BackgroundRotationProvider } from "@/components/background-rotation-provider";
 import { fontBody, fontDisplay, fontMono } from "@/app/fonts";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(WAVEATLAS_SITE_URL),

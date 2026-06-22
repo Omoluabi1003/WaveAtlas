@@ -79,6 +79,68 @@ type PlaybackStatus =
   | "failed";
 type StationSelectionSource = "manual" | "startup" | "teleport" | "fallback" | "wanderer" | "deeplink" | "auto" | "atlas-drive";
 
+function useWaveAtlasLayoutDebug(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled || typeof window === "undefined") return;
+    const root = document.documentElement;
+    root.dataset.waveatlasDebugLayout = "true";
+    let frame = 0;
+    const describeViewport = () => ({
+      visualViewport: window.visualViewport
+        ? {
+            width: window.visualViewport.width,
+            height: window.visualViewport.height,
+            offsetLeft: window.visualViewport.offsetLeft,
+            offsetTop: window.visualViewport.offsetTop,
+            scale: window.visualViewport.scale,
+          }
+        : null,
+      layoutViewport: { width: window.innerWidth, height: window.innerHeight },
+      documentElement: { clientWidth: root.clientWidth, scrollWidth: root.scrollWidth },
+      body: document.body ? { clientWidth: document.body.clientWidth, scrollWidth: document.body.scrollWidth } : null,
+      devicePixelRatio: window.devicePixelRatio,
+      orientation: screen.orientation?.type ?? window.orientation ?? "unknown",
+    });
+    const selectorFor = (element: Element) => {
+      const tag = element.tagName.toLowerCase();
+      const id = element.id ? `#${element.id}` : "";
+      const className = typeof element.className === "string" && element.className.trim() ? `.${element.className.trim().split(/\s+/).slice(0, 4).join(".")}` : "";
+      return `${tag}${id}${className}`;
+    };
+    const scan = () => {
+      frame = 0;
+      const viewportWidth = root.clientWidth || window.innerWidth;
+      const offenders = Array.from(document.body.querySelectorAll<HTMLElement>("*"))
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          const style = window.getComputedStyle(element);
+          const overflows = element.scrollWidth > element.clientWidth + 1 || rect.left < -1 || rect.right > viewportWidth + 1;
+          return overflows ? { selector: selectorFor(element), width: element.clientWidth, scrollWidth: element.scrollWidth, rect: { left: rect.left, right: rect.right, width: rect.width, top: rect.top, bottom: rect.bottom }, position: style.position, transform: style.transform } : null;
+        })
+        .filter(Boolean);
+      console.info("[WaveAtlas layout viewport]", describeViewport());
+      if (offenders.length) console.warn("[WaveAtlas layout overflow]", offenders);
+    };
+    const scheduleScan = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(scan);
+    };
+    scheduleScan();
+    window.addEventListener("resize", scheduleScan, { passive: true });
+    window.addEventListener("orientationchange", scheduleScan, { passive: true });
+    window.visualViewport?.addEventListener("resize", scheduleScan, { passive: true });
+    window.visualViewport?.addEventListener("scroll", scheduleScan, { passive: true });
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      delete root.dataset.waveatlasDebugLayout;
+      window.removeEventListener("resize", scheduleScan);
+      window.removeEventListener("orientationchange", scheduleScan);
+      window.visualViewport?.removeEventListener("resize", scheduleScan);
+      window.visualViewport?.removeEventListener("scroll", scheduleScan);
+    };
+  }, [enabled]);
+}
+
 type PlayerState = {
   current?: Station;
   stationSelectionSource: StationSelectionSource;
@@ -2485,7 +2547,7 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
           onMouseLeave={() => setPaused(false)}
           onFocus={() => setPaused(true)}
           onBlur={() => setPaused(false)}
-          className={`${mobile ? "fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+174px)] z-[58] mx-auto w-[calc(100vw-32px)]" : "fixed bottom-28 left-1/2 z-[58] w-[min(380px,calc(100vw-32px))] -translate-x-1/2"} pointer-events-auto max-h-[92px] min-h-[52px] max-w-[380px] overflow-hidden rounded-[18px] border border-white/[0.10] bg-[rgba(8,17,29,0.88)] px-4 py-3 text-[#F8FAFC] shadow-[0_14px_42px_rgba(0,0,0,0.35)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(1.15)]`}
+          className={`${mobile ? "fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+174px)] z-[58] mx-auto w-auto max-w-[calc(100vw-32px)]" : "fixed bottom-28 left-1/2 z-[58] w-[min(380px,calc(100vw-32px))] -translate-x-1/2"} pointer-events-auto max-h-[92px] min-h-[52px] max-w-[380px] overflow-hidden rounded-[18px] border border-white/[0.10] bg-[rgba(8,17,29,0.88)] px-4 py-3 text-[#F8FAFC] shadow-[0_14px_42px_rgba(0,0,0,0.35)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(1.15)]`}
           aria-label="Station notification"
         >
           <div className="flex items-start gap-3">
@@ -2581,6 +2643,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     return () => { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); };
   }, [makeWandererHop, wandererActive]);
   const visualViewport = useIOSVisualViewport();
+  useWaveAtlasLayoutDebug(process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_LAYOUT === "true");
   const selectedView: AtlasViewMode = mobileGlobeFallbackReason ? "map" : atlasView;
   useEffect(() => {
     debugAtlasDecision({ device: "mobile", selectedView, webglSupport: "probed-in-globe", fallbackReason: mobileGlobeFallbackReason || null });
@@ -2607,7 +2670,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     setAtlasView("map");
     persistAtlasView("map");
   }, [setBasemap]);
-  return <section className="fixed inset-0 h-[100dvh] w-screen max-w-full overflow-hidden bg-transparent text-white md:hidden">
+  return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
       <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     ) : (
