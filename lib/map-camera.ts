@@ -14,6 +14,24 @@ export type CountryGeo = {
 };
 
 const EMPTY_PADDING: PaddingOptions = { top: 0, right: 0, bottom: 0, left: 0 };
+const MAP_BEACON_EASING = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function prefersReducedMotion() { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; }
+function stationDuration(distanceKm: number) { return prefersReducedMotion() ? 220 : distanceKm > 2400 ? 2600 : distanceKm < 350 ? 1200 : 1800; }
+function stationZoom(stationGeo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
+  const base = stationGeo.precision === "station" ? 13.5 : stationGeo.precision === "city" ? 11.5 : 5.4;
+  if (distanceKm < 80) return Math.max(Math.min(currentZoom, 15), Math.min(base, 12.5));
+  if (distanceKm > 2400) return Math.min(base, 6.2);
+  return base;
+}
 
 export function captureCameraState(map: Map): MapCameraState {
   const center = map.getCenter();
@@ -54,14 +72,18 @@ export function applyVisualCenterCamera(map: Map, center: [number, number], zoom
 
 export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: PaddingOptions = EMPTY_PADDING) {
   if (stationGeo.lat === null || stationGeo.lng === null) return;
+  const center = map.getCenter();
+  const distanceKm = haversineKm({ lat: center.lat, lng: center.lng }, { lat: stationGeo.lat, lng: stationGeo.lng });
+  const zoom = stationZoom(stationGeo, map.getZoom(), distanceKm);
+  const duration = stationDuration(distanceKm);
   if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true") {
     console.debug("[WaveAtlas map camera] flyToStation", {
       center: [stationGeo.lng, stationGeo.lat],
-      zoom: stationGeo.precision === "station" ? 13.5 : stationGeo.precision === "city" ? 11.5 : 5.4,
+      zoom,
       speed: 0.72,
       curve: 1.35,
-      easing: "MapLibre flyTo default",
-      duration: "MapLibre computed from speed/curve",
+      easing: "easeInOutCubic",
+      duration,
       padding,
       timestamp: new Date().toISOString(),
     });
@@ -69,8 +91,9 @@ export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: 
   applyVisualCenterCamera(
     map,
     [stationGeo.lng, stationGeo.lat],
-    stationGeo.precision === "station" ? 13.5 : stationGeo.precision === "city" ? 11.5 : 5.4,
+    zoom,
     padding,
+    { duration, easing: MAP_BEACON_EASING },
   );
 }
 

@@ -56,7 +56,7 @@ const BlueMarbleGlobe = dynamic(() => import("@/components/BlueMarbleGlobe"), {
 import { getAmbientTheme } from "@/lib/world-engine/ambient-theme";
 import { buildAtmosphereLine, buildPlaceDescriptor, buildPlaceLabel } from "@/lib/world-engine/place-labels";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
-import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalFeature } from "@/lib/signal-constellations";
+import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type ActiveBeaconFeature, type SignalFeature } from "@/lib/signal-constellations";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
 import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQueue, getAdaptiveBufferPolicy, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
@@ -1569,6 +1569,20 @@ function MapMarkerController({
 
 const SIGNAL_SOURCE_ID = "waveatlas-signal-constellations";
 const SIGNAL_LAYER_IDS = ["waveatlas-signal-cluster-halo", "waveatlas-signal-clusters", "waveatlas-signal-cluster-count", "waveatlas-signal-favorite-halo", "waveatlas-signals"] as const;
+const ACTIVE_BEACON_SOURCE_ID = "waveatlas-active-beacon";
+const ACTIVE_BEACON_LAYER_IDS = ["waveatlas-active-beacon-halo", "waveatlas-active-beacon-core"] as const;
+const DEBUG_MAP_BEACON = process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_MAP_BEACON === "true";
+function beaconMoveDuration(distanceKm: number) { return distanceKm > 2400 ? 2600 : distanceKm < 350 ? 1200 : 1800; }
+function beaconTargetZoom(geo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
+  const base = geo.precision === "station" ? 13.5 : geo.precision === "city" ? 11.5 : 5.4;
+  if (distanceKm < 80) return Math.max(Math.min(currentZoom, 15), Math.min(base, 12.5));
+  if (distanceKm > 2400) return Math.min(base, 6.2);
+  return base;
+}
+function debugMapBeacon(label: string, detail: Record<string, unknown>) {
+  if (typeof window === "undefined" || !DEBUG_MAP_BEACON) return;
+  console.debug(`[WaveAtlas map beacon] ${label}`, { ...detail, timestamp: new Date().toISOString() });
+}
 
 
 function mapDebugState(map: Map | null) {
@@ -1638,6 +1652,54 @@ function safeRemoveSource(map: Map | null, id: string) {
 function readFavoriteSet() {
   if (typeof window === "undefined") return new Set<string>();
   return new Set(readFavoriteStationIds());
+}
+
+function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { map: Map | null; station: Station; selectionSource: StationSelectionSource; onCameraMove: (geo: ResolvedStationGeo, source: StationSelectionSource) => void }) {
+  const pendingFeatureRef = useRef<ActiveBeaconFeature | null>(null);
+  const lastStationRef = useRef<Station | null>(null);
+  const ensureActiveBeaconSource = useCallback(() => {
+    if (!isMapStyleReady(map)) return false;
+    if (!safeHasSource(map, ACTIVE_BEACON_SOURCE_ID)) map.addSource(ACTIVE_BEACON_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    if (!safeHasLayer(map, "waveatlas-active-beacon-halo")) map.addLayer({ id: "waveatlas-active-beacon-halo", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": ["get", "halo"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 10, 8, 22, 13, 34], "circle-blur": 0.65, "circle-opacity": 0.82 } });
+    if (!safeHasLayer(map, "waveatlas-active-beacon-core")) map.addLayer({ id: "waveatlas-active-beacon-core", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": ["get", "color"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 3.5, 8, 7, 13, 10], "circle-stroke-color": "rgba(255,255,255,0.92)", "circle-stroke-width": 1.4, "circle-opacity": 0.96 } });
+    return true;
+  }, [map]);
+  const updateActiveBeaconOnMap = useCallback((nextStation: Station, source: StationSelectionSource) => {
+    if (!map) return;
+    const previousStation = lastStationRef.current;
+    const previousGeo = previousStation ? resolveStationGeo(previousStation) : null;
+    const resolved = resolveStationGeo(nextStation);
+    const feature = getActiveBeaconFeature(nextStation);
+    const center = map.getCenter();
+    const distanceKm = resolved.lat !== null && resolved.lng !== null ? haversineKm({ lat: center.lat, lng: center.lng }, { lat: resolved.lat, lng: resolved.lng }) : 0;
+    let sourceSetData = false;
+    if (!feature || resolved.lat === null || resolved.lng === null) {
+      debugMapBeacon("station has no renderable coordinates", { previousStation: previousStation?.name, nextStation: nextStation.name, selectionSource: source, resolved });
+      return;
+    }
+    if (!ensureActiveBeaconSource()) {
+      pendingFeatureRef.current = feature;
+      debugMapBeacon("queued until style ready", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, map: mapDebugState(map) });
+      return;
+    }
+    try { (map.getSource(ACTIVE_BEACON_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [feature] }); sourceSetData = true; pendingFeatureRef.current = null; } catch (error) { warnMapCleanup("active beacon source update failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) }); }
+    let moveendFired = false;
+    const onMoveEnd = () => { moveendFired = true; debugMapBeacon("moveend", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: true, mapCurrentCenter: { lat: map.getCenter().lat, lng: map.getCenter().lng }, mapCurrentZoom: map.getZoom() }); };
+    map.once("moveend", onMoveEnd);
+    window.setTimeout(() => { if (!moveendFired) { try { map.off("moveend", onMoveEnd); } catch {} debugMapBeacon("moveend pending", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: false }); } }, beaconMoveDuration(distanceKm) + 400);
+    debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: true, flyToDuration: beaconMoveDuration(distanceKm), flyToEasing: "easeInOutCubic", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false });
+    map.resize();
+    onCameraMove(resolved, source);
+    lastStationRef.current = nextStation;
+  }, [ensureActiveBeaconSource, map, onCameraMove]);
+  useEffect(() => { updateActiveBeaconOnMap(station, selectionSource); }, [selectionSource, station, updateActiveBeaconOnMap]);
+  useEffect(() => {
+    if (!map) return;
+    const applyPending = () => { if (!pendingFeatureRef.current || !ensureActiveBeaconSource()) return; try { (map.getSource(ACTIVE_BEACON_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [pendingFeatureRef.current] }); pendingFeatureRef.current = null; debugMapBeacon("applied queued update", { map: mapDebugState(map) }); } catch (error) { warnMapCleanup("queued active beacon update failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) }); } };
+    map.on("styledata", applyPending); map.on("load", applyPending); applyPending();
+    return () => { try { map.off("styledata", applyPending); map.off("load", applyPending); } catch {} for (const id of ACTIVE_BEACON_LAYER_IDS) safeRemoveLayer(map, id); safeRemoveSource(map, ACTIVE_BEACON_SOURCE_ID); };
+  }, [ensureActiveBeaconSource, map]);
+  return null;
 }
 
 function SignalConstellationLayer({ map, stations, currentStation }: { map: Map | null; stations: Station[]; currentStation: Station }) {
@@ -1816,6 +1878,7 @@ function nearestCountryResult(lat: number, lng: number): CountryResult | null {
 
 function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onWorldZoomRequest, initialContext, onCountrySelect, searchActive = false, keyboardOpen = false, transitionLocked = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onWorldZoomRequest?: (context: AtlasTransitionContext) => void; initialContext?: AtlasTransitionContext | null; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean; transitionLocked?: boolean }) {
   const status = usePlayer((s) => s.status);
+  const selectionSource = usePlayer((s) => s.stationSelectionSource);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
   const [marker, setMarker] = useState<Marker | null>(null);
@@ -1840,7 +1903,6 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   const cameraPadding = useMemo(() => mobile ? { top: 112, right: 24, bottom: 304, left: 24 } : { top: 28, right: 28, bottom: 28, left: 28 }, [mobile]);
   const camera = useMapCameraController(map, cameraPadding);
   const lastStationId = useRef(station.id);
-  const pendingStationGeo = useRef<GeoPoint | null>(null);
   useEffect(() => {
     if (!container.current) return;
     const start = initialGeo.current;
@@ -1952,32 +2014,10 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     if (!map) return;
     if (lastStationId.current !== station.id) {
       lastStationId.current = station.id;
-      if (mobile && keyboardOpen) {
-        pendingStationGeo.current = geo;
-        return;
-      }
-      const settleDelay = mobile ? 250 : 0;
-      window.setTimeout(() => {
-        map.resize();
-        camera.selectStation(geo);
-        window.setTimeout(() => map.resize(), 1000);
-      }, settleDelay);
       return;
     }
     camera.remember();
-  }, [camera, geo, keyboardOpen, map, mobile, station.id]);
-
-  useEffect(() => {
-    if (!map || !mobile || keyboardOpen || !pendingStationGeo.current) return;
-    const nextGeo = pendingStationGeo.current;
-    pendingStationGeo.current = null;
-    const timer = window.setTimeout(() => {
-      map.resize();
-      camera.selectStation(nextGeo);
-      window.setTimeout(() => map.resize(), 1000);
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [camera, keyboardOpen, map, mobile]);
+  }, [camera, map, station.id]);
 
   useEffect(() => {
     if (!map) return;
@@ -1992,6 +2032,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     return (
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
+        <ActiveBeaconLayer map={map} station={station} selectionSource={selectionSource} onCameraMove={camera.selectStation} />
         <SignalConstellationLayer map={map} stations={stations} currentStation={station} />
         <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
@@ -2006,6 +2047,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   return (
     <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
+      <ActiveBeaconLayer map={map} station={station} selectionSource={selectionSource} onCameraMove={camera.selectStation} />
       <SignalConstellationLayer map={map} stations={stations} currentStation={station} />
       <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
