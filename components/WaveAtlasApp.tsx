@@ -1286,18 +1286,21 @@ function checkCanvasReadiness() {
   };
   if (typeof document === "undefined") return unavailable("Canvas readiness cannot be checked on the server.");
   try {
-    const canvas = document.createElement("canvas");
-    canvas.width = 8; canvas.height = 8;
-    const ctx2d = canvas.getContext("2d");
+    const canvas2d = document.createElement("canvas");
+    canvas2d.width = 8; canvas2d.height = 8;
+    const ctx2d = canvas2d.getContext("2d");
     const canvasReady = Boolean(ctx2d);
+
+    const webglCanvas = document.createElement("canvas");
+    webglCanvas.width = 8; webglCanvas.height = 8;
     let webgl: WebGLRenderingContext | null = null;
     let webgl2: WebGL2RenderingContext | null = null;
     let webglError: string | null = null;
-    try { webgl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl") as WebGLRenderingContext | null; } catch (error) { webglError = error instanceof Error ? error.message : "WebGL context creation threw."; }
-    try { webgl2 = canvas.getContext("webgl2"); } catch (error) { webglError = webglError ?? (error instanceof Error ? error.message : "WebGL2 context creation threw."); }
+    try { webgl2 = webglCanvas.getContext("webgl2"); } catch (error) { webglError = error instanceof Error ? error.message : "WebGL2 context creation threw."; }
+    try { webgl = webglCanvas.getContext("webgl") || webglCanvas.getContext("experimental-webgl") as WebGLRenderingContext | null; } catch (error) { webglError = webglError ?? (error instanceof Error ? error.message : "WebGL context creation threw."); }
     const webglReady = Boolean(webgl || webgl2);
     const result = { ready: canvasReady && webglReady, canvasReady, webglReady, webgl2Ready: Boolean(webgl2), reason: canvasReady && webglReady ? undefined : !canvasReady ? "2D canvas context unavailable." : webglError || "WebGL unavailable; staying in the 2D atlas." };
-    if (DEBUG_TRANSITIONS) console.info("[WaveAtlas transition] WebGL readiness result", { ...result, webgl1Ready: Boolean(webgl), viewport: readViewportSnapshot(), timestamp: Date.now() });
+    if (DEBUG_TRANSITIONS) console.info("[WaveAtlas transition] WebGL readiness result", { ...result, webgl1Ready: Boolean(webgl), separateWebglProbe: true, viewport: readViewportSnapshot(), timestamp: Date.now() });
     return result;
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Canvas readiness check failed.";
