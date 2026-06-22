@@ -61,6 +61,7 @@ import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } fr
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
 import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQueue, getAdaptiveBufferPolicy, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
 import { localTimeForStation, stationTimeCopy, teleportCopy } from "@/lib/smart-time-copy";
+import { useNavigationEngine, type NavigationSelectionSource } from "@/lib/navigation-engine";
 
 type CountryResult = {
   name: string;
@@ -78,7 +79,7 @@ type PlaybackStatus =
   | "paused"
   | "blocked"
   | "failed";
-type StationSelectionSource = "manual" | "startup" | "teleport" | "fallback" | "wanderer" | "deeplink" | "auto" | "atlas-drive";
+type StationSelectionSource = NavigationSelectionSource;
 
 function useWaveAtlasLayoutDebug(enabled: boolean) {
   useEffect(() => {
@@ -198,7 +199,8 @@ const usePlayer = create<PlayerState>((set) => ({
       userActivated: true,
       teleportQueue: [],
     }),
-  prepareStation: (current, stationSelectionSource = "startup") =>
+  prepareStation: (current, stationSelectionSource = "startup") => {
+    useNavigationEngine.getState().setActiveStation(current, stationSelectionSource);
     set((state) => ({
       current,
       stationSelectionSource,
@@ -206,7 +208,8 @@ const usePlayer = create<PlayerState>((set) => ({
       playing: false,
       status: state.userActivated ? "buffering" : "idle",
       error: undefined,
-    })),
+    }));
+  },
   toggle: () =>
     set((s) => {
       if (!s.current) return s;
@@ -309,6 +312,7 @@ function setCurrentStationAndDestination(station: Station, source: StationSelect
   debugGlobeStationSelection(station, source, version);
   warnIfStationGeoConflicts(station, geotruth(station));
   const player = usePlayer.getState();
+  useNavigationEngine.getState().setActiveStation(station, source, version);
   player.setStation(station, source, version);
   if (queue.length) player.setTeleportQueue(queue.filter((candidate) => stationKey(candidate) !== stationKey(station)));
   return version;
@@ -1553,9 +1557,24 @@ function MapMarkerController({
   status: PlaybackStatus;
   label?: { place: string; mood: string; station: string };
 }) {
+  const animationRef = useRef<number | null>(null);
   useEffect(() => {
-    if (geo.lat === null || geo.lng === null) return;
-    marker?.setLngLat([geo.lng, geo.lat]);
+    if (geo.lat === null || geo.lng === null || !marker) return;
+    if (animationRef.current !== null) window.cancelAnimationFrame(animationRef.current);
+    const start = marker.getLngLat();
+    const target = { lng: geo.lng, lat: geo.lat };
+    const distanceKm = haversineKm({ lat: start.lat, lng: start.lng }, target);
+    const duration = beaconMoveDuration(distanceKm);
+    if (!duration) { marker.setLngLat([target.lng, target.lat]); return; }
+    const startedAt = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startedAt) / duration);
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      marker.setLngLat([start.lng + (target.lng - start.lng) * eased, start.lat + (target.lat - start.lat) * eased]);
+      if (t < 1) animationRef.current = window.requestAnimationFrame(tick);
+    };
+    animationRef.current = window.requestAnimationFrame(tick);
+    return () => { if (animationRef.current !== null) window.cancelAnimationFrame(animationRef.current); };
   }, [geo, marker]);
   useEffect(() => {
     const element = marker?.getElement();
@@ -1572,7 +1591,7 @@ const SIGNAL_LAYER_IDS = ["waveatlas-signal-cluster-halo", "waveatlas-signal-clu
 const ACTIVE_BEACON_SOURCE_ID = "waveatlas-active-beacon";
 const ACTIVE_BEACON_LAYER_IDS = ["waveatlas-active-beacon-halo", "waveatlas-active-beacon-core"] as const;
 const DEBUG_MAP_BEACON = process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_MAP_BEACON === "true";
-function beaconMoveDuration(distanceKm: number) { return distanceKm > 2400 ? 2600 : distanceKm < 350 ? 1200 : 1800; }
+function beaconMoveDuration(distanceKm: number) { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : distanceKm > 2400 ? 2600 : distanceKm < 350 ? 1200 : 1800; }
 function beaconTargetZoom(geo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
   const base = geo.precision === "station" ? 13.5 : geo.precision === "city" ? 11.5 : 5.4;
   if (distanceKm < 80) return Math.max(Math.min(currentZoom, 15), Math.min(base, 12.5));
@@ -1879,6 +1898,7 @@ function nearestCountryResult(lat: number, lng: number): CountryResult | null {
 function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onWorldZoomRequest, initialContext, onCountrySelect, searchActive = false, keyboardOpen = false, transitionLocked = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onWorldZoomRequest?: (context: AtlasTransitionContext) => void; initialContext?: AtlasTransitionContext | null; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean; transitionLocked?: boolean }) {
   const status = usePlayer((s) => s.status);
   const selectionSource = usePlayer((s) => s.stationSelectionSource);
+  const cameraIntent = useNavigationEngine((s) => s.cameraIntent);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
   const [marker, setMarker] = useState<Marker | null>(null);
@@ -2032,7 +2052,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     return (
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
-        <ActiveBeaconLayer map={map} station={station} selectionSource={selectionSource} onCameraMove={camera.selectStation} />
+        <ActiveBeaconLayer map={map} station={cameraIntent?.station ?? station} selectionSource={cameraIntent?.source ?? selectionSource} onCameraMove={camera.selectStation} />
         <SignalConstellationLayer map={map} stations={stations} currentStation={station} />
         <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
@@ -2047,7 +2067,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   return (
     <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
-      <ActiveBeaconLayer map={map} station={station} selectionSource={selectionSource} onCameraMove={camera.selectStation} />
+      <ActiveBeaconLayer map={map} station={cameraIntent?.station ?? station} selectionSource={cameraIntent?.source ?? selectionSource} onCameraMove={camera.selectStation} />
       <SignalConstellationLayer map={map} stations={stations} currentStation={station} />
       <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
@@ -3075,7 +3095,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   }, [atlasTransition]);
   return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
-      <AtlasViewErrorBoundary key={`mobile-map-${current.station_uuid || current.id}-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={transitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
+      <AtlasViewErrorBoundary key={`mobile-map-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={transitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
     ) : (
       <AtlasViewErrorBoundary key={`mobile-globe-${current.station_uuid || current.id}-${atlasTransition.state.transitionVersion}`} name="mobile globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => atlasTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stations} selectionVersion={selectionVersion} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={(reason) => atlasTransition.failTransition(reason)} onStreetZoomRequest={enterMobileStreets} /></AtlasViewErrorBoundary>
     )}
@@ -3570,7 +3590,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
           {globeFallbackReason || desktopAtlasView === "map" ? (
-            <AtlasViewErrorBoundary key={`desktop-map-${current.station_uuid || current.id}-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={desktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
+            <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={desktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
           ) : (
             <AtlasViewErrorBoundary key={`desktop-globe-${current.station_uuid || current.id}-${desktopTransition.state.transitionVersion}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
           )}
