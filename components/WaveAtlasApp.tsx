@@ -1443,7 +1443,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   const onCountrySelectRef = useRef(onCountrySelect);
   useEffect(() => { onCountrySelectRef.current = onCountrySelect; }, [onCountrySelect]);
 
-  const cameraPadding = useMemo(() => mobile ? { top: 160, right: 24, bottom: 180, left: 24 } : { top: 28, right: 28, bottom: 28, left: 28 }, [mobile]);
+  const cameraPadding = useMemo(() => mobile ? { top: 112, right: 24, bottom: 304, left: 24 } : { top: 28, right: 28, bottom: 28, left: 28 }, [mobile]);
   const camera = useMapCameraController(map, cameraPadding);
   const lastStationId = useRef(station.id);
   const pendingStationGeo = useRef<GeoPoint | null>(null);
@@ -1568,9 +1568,6 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
         <div className="day-night-terminator pointer-events-none absolute inset-y-0 w-1/2 opacity-55" />
         <div className="cloud-layer pointer-events-none absolute inset-0 opacity-25" />
         <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
-        <BasemapControl value={basemap} onChange={setBasemap} mobile />
-        <OpenStreetViewButton station={station} mobile />
-
       </div>
     );
   }
@@ -2057,11 +2054,11 @@ function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings 
       <button
         type="button"
         onClick={onOpenSearch}
-        className="pointer-events-auto mx-auto mt-3 flex h-14 w-[min(700px,90vw)] items-center gap-3 rounded-full border border-white/15 bg-slate-950/45 px-5 text-left shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl"
+        className="pointer-events-auto mx-auto mt-2 flex h-11 w-[min(520px,72vw)] items-center gap-2 rounded-full border border-white/15 bg-slate-950/45 px-4 text-left shadow-[0_14px_42px_rgba(0,0,0,.28)] backdrop-blur-2xl"
         aria-label="Open station search"
       >
         <Search className="size-4 shrink-0 text-sky" />
-        <span className="min-w-0 flex-1 truncate text-sm text-ivory/60">Search country, city, destination...</span>
+        <span className="min-w-0 flex-1 truncate text-xs text-ivory/60">Search the atlas...</span>
       </button>
     </div>
   );
@@ -2485,8 +2482,8 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
-  return <div onClick={onOpen} className="fixed bottom-[86px] left-4 right-4 z-40 min-h-[76px] rounded-3xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl backdrop-blur-xl">
-    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-11 shrink-0 place-items-center rounded-full bg-radio text-midnight">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><p className="truncate font-display text-sm font-bold">{station.city || station.state || station.country} · {station.country}</p><p className="truncate text-xs text-ivory/60">{getPrimaryGenre(station)} · {station.name} · {status}</p></div><Volume2 className="size-4 text-ivory/60" /></div>
+  return <div onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/10 bg-slate-950/88 p-2.5 shadow-2xl backdrop-blur-xl">
+    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><p className="truncate font-display text-xs font-bold">{station.city || station.state || station.country} · {station.country}</p><p className="truncate text-[11px] text-ivory/60">{getPrimaryGenre(station)} · {station.name} · {status}</p></div><Volume2 className="size-4 text-ivory/60" /></div>
   </div>;
 }
 
@@ -2521,7 +2518,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   const status = usePlayer((state) => state.status);
   const pulseTeleport = !reducedMotion && (status === "idle" || status === "playing") && mode !== "Brief" && mode !== "Add Signal";
   const commands = [[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const;
-  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.75rem] border border-white/10 bg-slate-950/92 p-1.5 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] min-h-14 w-full rounded-2xl px-1 py-2 text-[9px] font-medium leading-tight transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value}><I className="mx-auto mb-1 size-4" />{isTeleport ? "✈ Teleport" : value}</button></div>; })}</div></nav>;
+  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" title={accessibleLabel} onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></button></div>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -2590,19 +2587,13 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     ) : (
       <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} onStreetZoomRequest={enterMobileStreets} />
     )}
-    {selectedView === "globe" ? <GlobeBasemapControl value={globeBasemap} onChange={setGlobeBasemap} mobile /> : null}
-    <div className="pointer-events-auto fixed right-4 top-[calc(env(safe-area-inset-top)+92px)] z-[58] flex rounded-full border border-white/10 bg-slate-950/75 p-1 text-[11px] font-semibold shadow-xl backdrop-blur-xl">
-      <button type="button" onClick={() => chooseAtlasView("globe")} className={`rounded-full px-3 py-1.5 ${selectedView === "globe" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Globe</button>
-      <button type="button" onClick={() => chooseAtlasView("map")} className={`rounded-full px-3 py-1.5 ${selectedView === "map" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Map</button>
-    </div>
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
-    <AtlasLocationPill stations={stations} current={current} mobile />
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setCurrentStationAndDestination(station); }, 250); }} />
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
-    {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact /></div> : null}
+    {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact atlasView={selectedView} onChooseAtlasView={chooseAtlasView} basemap={basemap} onBasemapChange={setBasemap} globeBasemap={globeBasemap} onGlobeBasemapChange={setGlobeBasemap} streetLinks={stationStreetViewLinks(current)} atlasDrive={<AtlasLocationPill stations={stations} current={current} />} onClose={() => setMode("Atlas")} /></div> : null}
     {mode === "Add Signal" ? (
       <div className="pointer-events-auto fixed inset-0 z-[999] flex h-[100dvh] items-start justify-center overflow-y-auto overscroll-contain bg-black/45 px-3 pb-[calc(140px_+_env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))] backdrop-blur-[10px]">
         <AddYourSignalPanel compact onCancel={() => setMode("Atlas")} />
@@ -2623,7 +2614,20 @@ type SignalSubmissionResponse = {
   error?: string;
 };
 
-function UtilityLinksPanel({ compact = false }: { compact?: boolean }) {
+type UtilityLinksPanelProps = {
+  compact?: boolean;
+  atlasView?: AtlasViewMode;
+  onChooseAtlasView?: (view: AtlasViewMode) => void;
+  basemap?: BasemapKey;
+  onBasemapChange?: (value: BasemapKey) => void;
+  globeBasemap?: GlobeBasemapKey;
+  onGlobeBasemapChange?: (value: GlobeBasemapKey) => void;
+  streetLinks?: { name: string; href: string }[];
+  atlasDrive?: React.ReactNode;
+  onClose?: () => void;
+};
+
+function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, basemap, onBasemapChange, globeBasemap, onGlobeBasemapChange, streetLinks = [], atlasDrive, onClose }: UtilityLinksPanelProps) {
   const links = [
     ["Demo", "/demo", "Learn the product in minutes."],
     ["About", "/about", "Mission, indexing, and ownership."],
@@ -2631,9 +2635,43 @@ function UtilityLinksPanel({ compact = false }: { compact?: boolean }) {
     ["Press", "/press", "Tagline, mission, and brand colors."],
   ] as const;
   return <section className={`rounded-[2rem] border border-white/10 bg-slate-950/85 p-5 shadow-2xl backdrop-blur-2xl ${compact ? "mx-4 mt-24" : ""}`}>
-    <p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Settings</p>
-    <h2 className="mt-2 font-display text-2xl font-bold text-white">Trust & launch center</h2>
-    <p className="mt-2 text-sm leading-6 text-ivory/65">Quick links for onboarding, company context, legal policies, and press-ready brand language.</p>
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Settings</p>
+        <h2 className="mt-2 font-display text-2xl font-bold text-white">Globe controls, quietly tucked away.</h2>
+        <p className="mt-2 text-sm leading-6 text-ivory/65">Switch views, tune map detail, open Street portals, and launch Atlas Drive without keeping panels over Earth.</p>
+      </div>
+      {onClose ? <button type="button" onClick={onClose} className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-ivory/70 transition hover:bg-white/10 hover:text-white" aria-label="Close settings"><X className="size-4" /></button> : null}
+    </div>
+
+    {onChooseAtlasView ? <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
+      <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Atlas view</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {(["globe", "map"] as AtlasViewMode[]).map((view) => <button key={view} type="button" onClick={() => onChooseAtlasView(view)} className={`rounded-2xl px-3 py-3 text-sm font-semibold capitalize transition ${atlasView === view ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{view}</button>)}
+      </div>
+    </div> : null}
+
+    {onGlobeBasemapChange && globeBasemap ? <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
+      <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Globe style</p>
+      <div className="mt-2 grid gap-2">
+        {(Object.keys(globeBasemapStyles) as GlobeBasemapKey[]).map((key) => <button key={key} type="button" onClick={() => onGlobeBasemapChange(key)} className={`rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${globeBasemap === key ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{globeBasemapStyles[key].label}</button>)}
+      </div>
+    </div> : null}
+
+    {onBasemapChange && basemap ? <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
+      <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-gold/80">Map basemap</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {(Object.keys(basemapStyles) as BasemapKey[]).map((key) => <button key={key} type="button" onClick={() => onBasemapChange(key)} className={`rounded-2xl px-3 py-2 text-left text-[11px] font-semibold transition ${basemap === key ? "bg-gold text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{basemapStyles[key].label}</button>)}
+      </div>
+    </div> : null}
+
+    {streetLinks.length ? <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
+      <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Street portals</p>
+      <div className="mt-2 grid gap-2">{streetLinks.map((item) => <a key={item.name} href={item.href} target="_blank" rel="noreferrer" className="rounded-2xl bg-white/[0.05] px-3 py-2 text-xs font-semibold text-ivory/80 hover:bg-white/10">{item.name}</a>)}</div>
+    </div> : null}
+
+    {atlasDrive ? <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3"><p className="px-1 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Atlas Drive</p><div className="relative min-h-16">{atlasDrive}</div></div> : null}
+
     <div className="mt-4 grid gap-2 sm:grid-cols-2">
       {links.map(([label, href, description]) => <NextLink key={href} href={href} className="rounded-2xl border border-white/10 bg-white/[0.05] p-3 transition hover:border-radio/30 hover:bg-radio/10">
         <b className="block text-sm text-white">{label}</b>
@@ -3113,7 +3151,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           </button>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-ivory">{current.city || current.state || current.country} · {current.country}</p>
-            <p className="truncate text-xs text-ivory/60">{getPrimaryGenre(current)} · {current.name}</p>
+            <p className="truncate text-[11px] text-ivory/60">{getPrimaryGenre(current)} · {current.name}</p>
           </div>
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
         </div>
