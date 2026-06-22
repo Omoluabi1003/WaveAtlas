@@ -1279,25 +1279,30 @@ function readViewportSnapshot() {
 }
 
 function checkCanvasReadiness() {
-  if (typeof document === "undefined") return { ready: false, canvasReady: false, webglReady: false, webgl2Ready: false, reason: "Canvas readiness cannot be checked on the server." };
-  let gl: WebGLRenderingContext | WebGL2RenderingContext | null = null;
+  const unavailable = (reason: string, detail: Record<string, unknown> = {}) => {
+    const result = { ready: false, canvasReady: false, webglReady: false, webgl2Ready: false, reason };
+    if (DEBUG_TRANSITIONS) console.info("[WaveAtlas transition] WebGL readiness result", { ...result, ...detail, viewport: readViewportSnapshot(), timestamp: Date.now() });
+    return result;
+  };
+  if (typeof document === "undefined") return unavailable("Canvas readiness cannot be checked on the server.");
   try {
     const canvas = document.createElement("canvas");
     canvas.width = 8; canvas.height = 8;
     const ctx2d = canvas.getContext("2d");
-    if (!ctx2d) return { ready: false, canvasReady: false, webglReady: false, webgl2Ready: false, reason: "2D canvas context unavailable." };
+    const canvasReady = Boolean(ctx2d);
+    let webgl: WebGLRenderingContext | null = null;
     let webgl2: WebGL2RenderingContext | null = null;
-    try { webgl2 = canvas.getContext("webgl2"); gl = webgl2 || canvas.getContext("webgl") || canvas.getContext("experimental-webgl") as WebGLRenderingContext | null; } catch { gl = null; }
-    const webglReady = Boolean(gl);
-    const result = { ready: webglReady, canvasReady: true, webglReady, webgl2Ready: Boolean(webgl2), reason: webglReady ? undefined : "WebGL unavailable; staying in the 2D atlas." };
-    if (DEBUG_TRANSITIONS) console.info("[WaveAtlas transition] WebGL readiness result", { ...result, viewport: readViewportSnapshot(), timestamp: Date.now() });
+    let webglError: string | null = null;
+    try { webgl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl") as WebGLRenderingContext | null; } catch (error) { webglError = error instanceof Error ? error.message : "WebGL context creation threw."; }
+    try { webgl2 = canvas.getContext("webgl2"); } catch (error) { webglError = webglError ?? (error instanceof Error ? error.message : "WebGL2 context creation threw."); }
+    const webglReady = Boolean(webgl || webgl2);
+    const result = { ready: canvasReady && webglReady, canvasReady, webglReady, webgl2Ready: Boolean(webgl2), reason: canvasReady && webglReady ? undefined : !canvasReady ? "2D canvas context unavailable." : webglError || "WebGL unavailable; staying in the 2D atlas." };
+    if (DEBUG_TRANSITIONS) console.info("[WaveAtlas transition] WebGL readiness result", { ...result, webgl1Ready: Boolean(webgl), viewport: readViewportSnapshot(), timestamp: Date.now() });
     return result;
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Canvas readiness check failed.";
     console.warn("[WaveAtlas transition] canvas readiness failed", { reason, viewport: readViewportSnapshot(), timestamp: Date.now() });
     return { ready: false, canvasReady: false, webglReady: false, webgl2Ready: false, reason };
-  } finally {
-    try { gl?.getExtension("WEBGL_lose_context")?.loseContext(); } catch { /* Explicitly release probe context on iOS Safari. */ }
   }
 }
 
@@ -1360,11 +1365,13 @@ function useAtlasTransitionController({ initialView, activeStation, onViewChange
     lockRef.current = false; clearTimeouts(); setState((prev) => ({ ...prev, transitioning: false, transitionDirection: null }));
   }, [clearTimeouts, debug]);
   const clearFallback = useCallback(() => setState((prev) => ({ ...prev, fallbackReason: undefined })), []);
-  const failTransition = useCallback((reason: string) => {
+  const failTransition = useCallback((reason: string, options: { webglUnavailable?: boolean } = {}) => {
     clearTimeouts(); ++transitionIdRef.current; lockRef.current = false;
-    setState((prev) => ({ ...prev, transitioning: false, transitionDirection: null, fallbackReason: reason, currentView: "map", activeStationId: prev.activeStationId || stationRef.current.station_uuid || stationRef.current.id }));
-    onViewChange("map"); onPersistView?.("map"); onFallback?.(reason);
-  }, [clearTimeouts, onFallback, onPersistView, onViewChange]);
+    debug("transition failed", { reason, webglUnavailable: Boolean(options.webglUnavailable) });
+    setState((prev) => ({ ...prev, transitioning: false, transitionDirection: null, fallbackReason: options.webglUnavailable ? reason : prev.fallbackReason, currentView: "map", activeStationId: prev.activeStationId || stationRef.current.station_uuid || stationRef.current.id }));
+    onViewChange("map"); onPersistView?.("map");
+    if (options.webglUnavailable) onFallback?.(reason);
+  }, [clearTimeouts, debug, onFallback, onPersistView, onViewChange]);
   const requestGlobeToMap = useCallback((reason: string, context?: AtlasTransitionContext | null) => {
     debug("transition request", { direction: "globe-to-map", reason, context, viewBefore: state.currentView });
     if (!canTransition("globe-to-map")) return false;
@@ -1375,15 +1382,16 @@ function useAtlasTransitionController({ initialView, activeStation, onViewChange
     debug("transition request", { direction: "map-to-globe", reason, context, viewBefore: state.currentView });
     if (!canTransition("map-to-globe")) return false;
     const readiness = checkCanvasReadiness();
-    debug("globe readiness result", { reason, ready: readiness.ready, readinessReason: readiness.reason ?? null, fallbackReason: state.fallbackReason ?? null });
-    if (!readiness.ready) { failTransition(readiness.reason || "Globe view is unavailable on this device right now."); return false; }
+    debug("globe readiness result", { reason, ready: readiness.ready, canvasReady: readiness.canvasReady, webglReady: readiness.webglReady, webgl2Ready: readiness.webgl2Ready, readinessReason: readiness.reason ?? null, fallbackReason: state.fallbackReason ?? null });
+    if (!readiness.ready) { failTransition(readiness.reason || "Globe view is unavailable on this device right now.", { webglUnavailable: !readiness.webglReady }); return false; }
+    clearFallback();
     const transitionId = lockTransition("map-to-globe", context); preserveContext(context);
     viewChangeTimeoutRef.current = window.setTimeout(() => {
       if (transitionId !== transitionIdRef.current) { debug("old transition callback executes after a newer transition", { callback: "map-to-globe view change", callbackTransitionId: transitionId, activeTransitionId: transitionIdRef.current }); return; }
       onViewChange("globe"); onPersistView?.("globe"); setState((prev) => ({ ...prev, currentView: "globe", fallbackReason: undefined, transitioning: false, transitionDirection: null })); debug("view after transition", { direction: "map-to-globe", reason, viewAfter: "globe", context, fallbackReason: null }); transitionTimeoutRef.current = window.setTimeout(() => completeTransition(transitionId), TRANSITION_DEBOUNCE_MS);
     }, 120);
     return true;
-  }, [canTransition, completeTransition, debug, failTransition, lockTransition, onPersistView, onViewChange, preserveContext, state.currentView, state.fallbackReason]);
+  }, [canTransition, clearFallback, completeTransition, debug, failTransition, lockTransition, onPersistView, onViewChange, preserveContext, state.currentView, state.fallbackReason]);
   const retryGlobe = useCallback((reason: string, context?: AtlasTransitionContext | null) => {
     debug("retry globe", { reason, context, fallbackReason: state.fallbackReason ?? null });
     clearTimeouts(); lockRef.current = false; ++transitionIdRef.current;
