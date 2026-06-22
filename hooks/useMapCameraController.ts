@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Map, PaddingOptions } from "maplibre-gl";
 import { captureCameraState, flyToCountry, flyToStation, resizeThenRestore, restoreCameraState, type CountryGeo, type MapCameraState } from "@/lib/map-camera";
 import type { ResolvedStationGeo } from "@/lib/geotruth-resolver";
@@ -11,6 +11,12 @@ export function useMapCameraController(map: Map | null, padding: PaddingOptions 
   const modeRef = useRef<MapCameraMode>("idle");
   const intendedCameraRef = useRef<MapCameraState | null>(null);
   const preSearchCameraRef = useRef<MapCameraState | null>(null);
+  const settleTimerRef = useRef<number | null>(null);
+  const clearSettleTimer = useCallback(() => {
+    if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = null;
+  }, []);
+  useEffect(() => clearSettleTimer, [clearSettleTimer]);
 
   const remember = useCallback(() => {
     if (!map) return null;
@@ -43,17 +49,19 @@ export function useMapCameraController(map: Map | null, padding: PaddingOptions 
     if (!map) return;
     modeRef.current = "station_selected";
     preSearchCameraRef.current = null;
+    clearSettleTimer();
     flyToStation(map, stationGeo, padding);
-    window.setTimeout(() => { intendedCameraRef.current = captureCameraState(map); }, 950);
-  }, [map, padding]);
+    settleTimerRef.current = window.setTimeout(() => { intendedCameraRef.current = captureCameraState(map); settleTimerRef.current = null; }, 950);
+  }, [clearSettleTimer, map, padding]);
 
   const selectCountry = useCallback((countryGeo: CountryGeo) => {
     if (!map) return;
     modeRef.current = "station_selected";
     preSearchCameraRef.current = null;
+    clearSettleTimer();
     flyToCountry(map, countryGeo, padding);
-    window.setTimeout(() => { intendedCameraRef.current = captureCameraState(map); }, 950);
-  }, [map, padding]);
+    settleTimerRef.current = window.setTimeout(() => { intendedCameraRef.current = captureCameraState(map); settleTimerRef.current = null; }, 950);
+  }, [clearSettleTimer, map, padding]);
 
   const resizeThenReapplyIntended = useCallback(() => {
     if (!map) return;
@@ -66,8 +74,9 @@ export function useMapCameraController(map: Map | null, padding: PaddingOptions 
     modeRef.current = "reset";
     preSearchCameraRef.current = null;
     intendedCameraRef.current = camera;
+    clearSettleTimer();
     restoreCameraState(map, camera, { duration: 900 });
-  }, [map]);
+  }, [clearSettleTimer, map]);
 
   return useMemo(() => ({ modeRef, intendedCameraRef, preSearchCameraRef, remember, beginSearch, openResults, closeSearchWithoutSelection, selectStation, selectCountry, resizeThenReapplyIntended, reset }), [beginSearch, closeSearchWithoutSelection, openResults, remember, reset, resizeThenReapplyIntended, selectCountry, selectStation]);
 }

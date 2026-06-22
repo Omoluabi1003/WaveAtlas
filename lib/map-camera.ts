@@ -14,7 +14,9 @@ export type CountryGeo = {
 };
 
 const EMPTY_PADDING: PaddingOptions = { top: 0, right: 0, bottom: 0, left: 0 };
-const MAP_BEACON_EASING = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+export const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+export function normalizeLongitudeDelta(delta: number) { return ((((delta + 180) % 360) + 360) % 360) - 180; }
+const MAP_BEACON_EASING = easeOutCubic;
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
@@ -24,9 +26,14 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-function prefersReducedMotion() { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; }
+export function prefersReducedMotion() { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; }
 function prefersIOSCameraPath() { return typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent); }
-function stationDuration(distanceKm: number) { return prefersReducedMotion() ? 0 : distanceKm > 2400 ? 2600 : distanceKm < 350 ? 1200 : 1800; }
+function isMobileViewport() { return typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches; }
+export function stationDuration(distanceKm: number) {
+  if (prefersReducedMotion()) return 0;
+  const base = distanceKm > 2400 ? 2200 : distanceKm < 350 ? 900 : 1500;
+  return isMobileViewport() ? Math.round(base * 0.72) : base;
+}
 function stationZoom(stationGeo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
   const base = stationGeo.precision === "station" ? 13.5 : stationGeo.precision === "city" ? 11.5 : 5.4;
   if (distanceKm < 80) return Math.max(Math.min(currentZoom, 15), Math.min(base, 12.5));
@@ -78,16 +85,17 @@ export function applyVisualCenterCamera(map: Map, center: [number, number], zoom
 export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: PaddingOptions = EMPTY_PADDING) {
   if (stationGeo.lat === null || stationGeo.lng === null) return;
   const center = map.getCenter();
-  const distanceKm = haversineKm({ lat: center.lat, lng: center.lng }, { lat: stationGeo.lat, lng: stationGeo.lng });
+  const targetLng = center.lng + normalizeLongitudeDelta(stationGeo.lng - center.lng);
+  const distanceKm = haversineKm({ lat: center.lat, lng: center.lng }, { lat: stationGeo.lat, lng: targetLng });
   const zoom = stationZoom(stationGeo, map.getZoom(), distanceKm);
   const duration = stationDuration(distanceKm);
   if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true") {
     console.debug("[WaveAtlas map camera] flyToStation", {
-      center: [stationGeo.lng, stationGeo.lat],
+      center: [targetLng, stationGeo.lat],
       zoom,
       speed: 0.72,
       curve: 1.35,
-      easing: "easeInOutCubic",
+      easing: "easeOutCubic",
       duration,
       padding,
       timestamp: new Date().toISOString(),
@@ -95,7 +103,7 @@ export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: 
   }
   applyVisualCenterCamera(
     map,
-    [stationGeo.lng, stationGeo.lat],
+    [targetLng, stationGeo.lat],
     zoom,
     padding,
     { duration, easing: MAP_BEACON_EASING },

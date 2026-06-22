@@ -35,6 +35,7 @@ import { create } from "zustand";
 import { isoCountryCentroids, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
+import { easeOutCubic, normalizeLongitudeDelta, stationDuration } from "@/lib/map-camera";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
@@ -1294,7 +1295,7 @@ function checkCanvasReadiness() {
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Canvas readiness check failed.";
     console.warn("[WaveAtlas transition] canvas readiness failed", { reason, viewport: readViewportSnapshot(), timestamp: Date.now() });
-    return { ready: false, reason };
+    return { ready: false, canvasReady: false, webglReady: false, webgl2Ready: false, reason };
   } finally {
     try { gl?.getExtension("WEBGL_lose_context")?.loseContext(); } catch { /* Explicitly release probe context on iOS Safari. */ }
   }
@@ -1385,10 +1386,11 @@ function useAtlasTransitionController({ initialView, activeStation, onViewChange
   const retryGlobe = useCallback((reason: string, context?: AtlasTransitionContext | null) => {
     debug("retry globe", { reason, context, fallbackReason: state.fallbackReason ?? null });
     clearFallback(); clearTimeouts(); lockRef.current = false; ++transitionIdRef.current;
+    lastFireRef.current["map-to-globe"] = 0;
     const readiness = checkCanvasReadiness();
-    if (!readiness.ready) { onFallback?.(readiness.reason || "Globe view is unavailable on this device right now."); return false; }
+    if (!readiness.ready) { failTransition(readiness.reason || "Globe view is unavailable on this device right now."); return false; }
     return requestMapToGlobe(reason, context ?? state.context);
-  }, [clearFallback, clearTimeouts, debug, onFallback, requestMapToGlobe, state.context, state.fallbackReason]);
+  }, [clearFallback, clearTimeouts, debug, failTransition, requestMapToGlobe, state.context, state.fallbackReason]);
   return { state, requestGlobeToMap, requestMapToGlobe, canTransition, lockTransition, completeTransition, failTransition, preserveContext, resetFallback: clearFallback, clearFallback, retryGlobe, transitionLocked: state.transitioning };
 }
 
@@ -1569,8 +1571,9 @@ function MapMarkerController({
     const startedAt = performance.now();
     const tick = (now: number) => {
       const t = Math.min(1, (now - startedAt) / duration);
-      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      marker.setLngLat([start.lng + (target.lng - start.lng) * eased, start.lat + (target.lat - start.lat) * eased]);
+      const eased = easeOutCubic(t);
+      const shortestLng = start.lng + normalizeLongitudeDelta(target.lng - start.lng) * eased;
+      marker.setLngLat([shortestLng, start.lat + (target.lat - start.lat) * eased]);
       if (t < 1) animationRef.current = window.requestAnimationFrame(tick);
     };
     animationRef.current = window.requestAnimationFrame(tick);
@@ -1591,7 +1594,7 @@ const SIGNAL_LAYER_IDS = ["waveatlas-signal-cluster-halo", "waveatlas-signal-clu
 const ACTIVE_BEACON_SOURCE_ID = "waveatlas-active-beacon";
 const ACTIVE_BEACON_LAYER_IDS = ["waveatlas-active-beacon-halo", "waveatlas-active-beacon-core"] as const;
 const DEBUG_MAP_BEACON = process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_MAP_BEACON === "true";
-function beaconMoveDuration(distanceKm: number) { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : distanceKm > 2400 ? 2600 : distanceKm < 350 ? 1200 : 1800; }
+function beaconMoveDuration(distanceKm: number) { return stationDuration(distanceKm); }
 function beaconTargetZoom(geo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
   const base = geo.precision === "station" ? 13.5 : geo.precision === "city" ? 11.5 : 5.4;
   if (distanceKm < 80) return Math.max(Math.min(currentZoom, 15), Math.min(base, 12.5));
@@ -1676,6 +1679,17 @@ function readFavoriteSet() {
 function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { map: Map | null; station: Station; selectionSource: StationSelectionSource; onCameraMove: (geo: ResolvedStationGeo, source: StationSelectionSource) => void }) {
   const pendingFeatureRef = useRef<ActiveBeaconFeature | null>(null);
   const lastStationRef = useRef<Station | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const moveendCleanupRef = useRef<(() => void) | null>(null);
+  const moveendTimeoutRef = useRef<number | null>(null);
+  const cancelPendingWork = useCallback(() => {
+    if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = null;
+    if (moveendTimeoutRef.current !== null) window.clearTimeout(moveendTimeoutRef.current);
+    moveendTimeoutRef.current = null;
+    moveendCleanupRef.current?.();
+    moveendCleanupRef.current = null;
+  }, []);
   const ensureActiveBeaconSource = useCallback(() => {
     if (!isMapStyleReady(map)) return false;
     if (!safeHasSource(map, ACTIVE_BEACON_SOURCE_ID)) map.addSource(ACTIVE_BEACON_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
@@ -1688,9 +1702,14 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
     const previousStation = lastStationRef.current;
     const previousGeo = previousStation ? resolveStationGeo(previousStation) : null;
     const resolved = resolveStationGeo(nextStation);
+    const nextStationId = nextStation.station_uuid || nextStation.id;
+    const previousStationId = previousStation?.station_uuid || previousStation?.id;
+    if (previousStationId === nextStationId) return;
+    cancelPendingWork();
     const feature = getActiveBeaconFeature(nextStation);
     const center = map.getCenter();
-    const distanceKm = resolved.lat !== null && resolved.lng !== null ? haversineKm({ lat: center.lat, lng: center.lng }, { lat: resolved.lat, lng: resolved.lng }) : 0;
+    const targetLng = resolved.lng !== null ? center.lng + normalizeLongitudeDelta(resolved.lng - center.lng) : null;
+    const distanceKm = resolved.lat !== null && targetLng !== null ? haversineKm({ lat: center.lat, lng: center.lng }, { lat: resolved.lat, lng: targetLng }) : 0;
     let sourceSetData = false;
     if (!feature || resolved.lat === null || resolved.lng === null) {
       debugMapBeacon("station has no renderable coordinates", { previousStation: previousStation?.name, nextStation: nextStation.name, selectionSource: source, resolved });
@@ -1701,23 +1720,47 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
       debugMapBeacon("queued until style ready", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, map: mapDebugState(map) });
       return;
     }
-    try { (map.getSource(ACTIVE_BEACON_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [feature] }); sourceSetData = true; pendingFeatureRef.current = null; } catch (error) { warnMapCleanup("active beacon source update failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) }); }
+    const sourceRef = map.getSource(ACTIVE_BEACON_SOURCE_ID) as GeoJSONSource | undefined;
+    const previousCoordinates = previousGeo?.lat !== null && previousGeo?.lng !== null && previousGeo?.lat !== undefined && previousGeo?.lng !== undefined ? { lat: previousGeo.lat, lng: previousGeo.lng } : null;
+    const duration = beaconMoveDuration(distanceKm);
+    const writeFeature = (lng: number, lat: number) => {
+      try {
+        sourceRef?.setData({ type: "FeatureCollection", features: [{ ...feature, geometry: { ...feature.geometry, coordinates: [lng, lat] } }] });
+        sourceSetData = true;
+        pendingFeatureRef.current = null;
+      } catch (error) { warnMapCleanup("active beacon source update failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) }); }
+    };
+    if (!previousCoordinates || !duration) writeFeature(resolved.lng, resolved.lat);
+    else {
+      const startLng = previousCoordinates.lng;
+      const lngDelta = normalizeLongitudeDelta(resolved.lng - startLng);
+      const latDelta = resolved.lat - previousCoordinates.lat;
+      const startedAt = performance.now();
+      const animate = (now: number) => {
+        const t = Math.min(1, (now - startedAt) / duration);
+        const eased = easeOutCubic(t);
+        writeFeature(startLng + lngDelta * eased, previousCoordinates.lat + latDelta * eased);
+        if (t < 1) animationFrameRef.current = window.requestAnimationFrame(animate);
+      };
+      animationFrameRef.current = window.requestAnimationFrame(animate);
+    }
     let moveendFired = false;
     const onMoveEnd = () => { moveendFired = true; debugMapBeacon("moveend", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: true, mapCurrentCenter: { lat: map.getCenter().lat, lng: map.getCenter().lng }, mapCurrentZoom: map.getZoom() }); };
     map.once("moveend", onMoveEnd);
-    window.setTimeout(() => { if (!moveendFired) { try { map.off("moveend", onMoveEnd); } catch {} debugMapBeacon("moveend pending", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: false }); } }, beaconMoveDuration(distanceKm) + 400);
-    debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: true, flyToDuration: beaconMoveDuration(distanceKm), flyToEasing: "easeInOutCubic", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false });
+    moveendCleanupRef.current = () => { try { map.off("moveend", onMoveEnd); } catch {} };
+    moveendTimeoutRef.current = window.setTimeout(() => { if (!moveendFired) { moveendCleanupRef.current?.(); moveendCleanupRef.current = null; debugMapBeacon("moveend pending", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: false }); } }, duration + 400);
+    debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: true, flyToDuration: duration, flyToEasing: "easeOutCubic", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false });
     map.resize();
     onCameraMove(resolved, source);
     lastStationRef.current = nextStation;
-  }, [ensureActiveBeaconSource, map, onCameraMove]);
+  }, [cancelPendingWork, ensureActiveBeaconSource, map, onCameraMove]);
   useEffect(() => { updateActiveBeaconOnMap(station, selectionSource); }, [selectionSource, station, updateActiveBeaconOnMap]);
   useEffect(() => {
     if (!map) return;
     const applyPending = () => { if (!pendingFeatureRef.current || !ensureActiveBeaconSource()) return; try { (map.getSource(ACTIVE_BEACON_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [pendingFeatureRef.current] }); pendingFeatureRef.current = null; debugMapBeacon("applied queued update", { map: mapDebugState(map) }); } catch (error) { warnMapCleanup("queued active beacon update failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) }); } };
     map.on("styledata", applyPending); map.on("load", applyPending); applyPending();
-    return () => { try { map.off("styledata", applyPending); map.off("load", applyPending); } catch {} for (const id of ACTIVE_BEACON_LAYER_IDS) safeRemoveLayer(map, id); safeRemoveSource(map, ACTIVE_BEACON_SOURCE_ID); };
-  }, [ensureActiveBeaconSource, map]);
+    return () => { cancelPendingWork(); try { map.off("styledata", applyPending); map.off("load", applyPending); } catch {} for (const id of ACTIVE_BEACON_LAYER_IDS) safeRemoveLayer(map, id); safeRemoveSource(map, ACTIVE_BEACON_SOURCE_ID); };
+  }, [cancelPendingWork, ensureActiveBeaconSource, map]);
   return null;
 }
 
@@ -1898,7 +1941,7 @@ function nearestCountryResult(lat: number, lng: number): CountryResult | null {
 function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onWorldZoomRequest, initialContext, onCountrySelect, searchActive = false, keyboardOpen = false, transitionLocked = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onWorldZoomRequest?: (context: AtlasTransitionContext) => void; initialContext?: AtlasTransitionContext | null; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean; transitionLocked?: boolean }) {
   const status = usePlayer((s) => s.status);
   const selectionSource = usePlayer((s) => s.stationSelectionSource);
-  const cameraIntent = useNavigationEngine((s) => s.cameraIntent);
+  const activeStation = useNavigationEngine((s) => s.activeStation) ?? station;
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
   const [marker, setMarker] = useState<Marker | null>(null);
@@ -1908,9 +1951,9 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   const initialBasemap = useRef(basemap);
   const initialTransitionContext = useRef(initialContext);
   const viewMode = useRef<"desktop" | "mobile">(mobile ? "mobile" : "desktop");
-  const geo = useMemo(() => geotruth(station), [station]);
-  const { visibleWorldContext } = useStationWorldContext(station);
-  const livingLabel = useMemo(() => ({ place: visibleWorldContext ? buildPlaceLabel(visibleWorldContext) : [station.city || station.state, station.country].filter(Boolean).join(", ") || geo.label, mood: climateOrMood(visibleWorldContext), station: station.name }), [geo.label, station.city, station.country, station.name, station.state, visibleWorldContext]);
+  const geo = useMemo(() => geotruth(activeStation), [activeStation]);
+  const { visibleWorldContext } = useStationWorldContext(activeStation);
+  const livingLabel = useMemo(() => ({ place: visibleWorldContext ? buildPlaceLabel(visibleWorldContext) : [activeStation.city || activeStation.state, activeStation.country].filter(Boolean).join(", ") || geo.label, mood: climateOrMood(visibleWorldContext), station: activeStation.name }), [activeStation.city, activeStation.country, activeStation.name, activeStation.state, geo.label, visibleWorldContext]);
   const initialGeo = useRef(geo);
   const onCountrySelectRef = useRef(onCountrySelect);
   const worldZoomRequestRef = useRef(onWorldZoomRequest);
@@ -2052,8 +2095,8 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     return (
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
-        <ActiveBeaconLayer map={map} station={cameraIntent?.station ?? station} selectionSource={cameraIntent?.source ?? selectionSource} onCameraMove={camera.selectStation} />
-        <SignalConstellationLayer map={map} stations={stations} currentStation={station} />
+        <ActiveBeaconLayer map={map} station={activeStation} selectionSource={selectionSource} onCameraMove={camera.selectStation} />
+        <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
         <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
         <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
@@ -2067,8 +2110,8 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   return (
     <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
-      <ActiveBeaconLayer map={map} station={cameraIntent?.station ?? station} selectionSource={cameraIntent?.source ?? selectionSource} onCameraMove={camera.selectStation} />
-      <SignalConstellationLayer map={map} stations={stations} currentStation={station} />
+      <ActiveBeaconLayer map={map} station={activeStation} selectionSource={selectionSource} onCameraMove={camera.selectStation} />
+      <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
       <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
