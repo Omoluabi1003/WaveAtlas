@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import NextLink from "next/link";
-import maplibregl, { type Map, type Marker } from "maplibre-gl";
+import maplibregl, { type GeoJSONSource, type Map, type Marker } from "maplibre-gl";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Check,
@@ -1369,7 +1369,7 @@ function escapeMarkerText(value: string) {
 
 function markerHtml(geo: GeoPoint, status: PlaybackStatus, label?: { place: string; mood: string; station: string }) {
   const labelHtml = label ? `<span class="station-living-label"><b>${escapeMarkerText(label.place)}</b><span>${escapeMarkerText(label.mood)}</span><em>${escapeMarkerText(label.station)}</em></span>` : "";
-  return `<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-pin" aria-hidden="true"><svg viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 40C16 40 29 25.6 29 14.8C29 7.73 23.18 2 16 2C8.82 2 3 7.73 3 14.8C3 25.6 16 40 16 40Z" fill="currentColor" stroke="rgba(255,255,255,.9)" stroke-width="2.2" /></svg></span><span class="station-pulse-dot"></span>${labelHtml}`;
+  return `<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-beacon-core" aria-hidden="true"></span><span class="station-pulse-dot"></span>${labelHtml}`;
 }
 
 function StationPulseMarker({
@@ -1386,11 +1386,7 @@ function StationPulseMarker({
     >
       <span className="station-pulse-ring" />
       <span className="station-pulse-ring two" />
-      <span className="station-pin" aria-hidden="true">
-        <svg viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16 40C16 40 29 25.6 29 14.8C29 7.73 23.18 2 16 2C8.82 2 3 7.73 3 14.8C3 25.6 16 40 16 40Z" fill="currentColor" stroke="rgba(255,255,255,.9)" strokeWidth="2.2" />
-        </svg>
-      </span>
+      <span className="station-beacon-core" aria-hidden="true" />
       <span className="station-pulse-dot" />
     </div>
   );
@@ -1419,6 +1415,71 @@ function MapMarkerController({
   return null;
 }
 
+
+const SIGNAL_SOURCE_ID = "waveatlas-signal-constellations";
+const SIGNAL_LAYER_IDS = ["waveatlas-signal-cluster-halo", "waveatlas-signal-clusters", "waveatlas-signal-cluster-count", "waveatlas-signal-favorite-halo", "waveatlas-signals"] as const;
+
+type SignalFeature = GeoJSON.Feature<GeoJSON.Point, { id: string; status: "healthy" | "unverified" | "community"; favorite: boolean; priority: number }>;
+
+function stationSignalStatus(station: Station): SignalFeature["properties"]["status"] {
+  if (isCuratedStation(station)) return "community";
+  if (station.validation_status === "needs_review" || station.validation_status === "candidate" || station.health_score < 55 || !station.last_check_ok) return "unverified";
+  return "healthy";
+}
+
+function readFavoriteSet() {
+  if (typeof window === "undefined") return new Set<string>();
+  return new Set(readFavoriteStationIds());
+}
+
+function SignalConstellationLayer({ map, stations, currentStation }: { map: Map | null; stations: Station[]; currentStation: Station }) {
+  const stationsRef = useRef(stations);
+  const currentRef = useRef(currentStation);
+  useEffect(() => { stationsRef.current = stations; currentRef.current = currentStation; }, [currentStation, stations]);
+
+  useEffect(() => {
+    if (!map) return;
+    let frame = 0;
+    const ensureLayers = () => {
+      if (!map.isStyleLoaded()) return false;
+      if (!map.getSource(SIGNAL_SOURCE_ID)) {
+        map.addSource(SIGNAL_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: true, clusterRadius: 72, clusterMaxZoom: 7 });
+      }
+      if (!map.getLayer("waveatlas-signal-cluster-halo")) map.addLayer({ id: "waveatlas-signal-cluster-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.35, paint: { "circle-color": "rgba(0,214,143,0.18)", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 16, 50, 26, 250, 38], "circle-blur": 0.65, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.35, 0, 3.1, 0.9] } });
+      if (!map.getLayer("waveatlas-signal-clusters")) map.addLayer({ id: "waveatlas-signal-clusters", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.35, paint: { "circle-color": "#00D68F", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 5, 50, 9, 250, 14], "circle-stroke-color": "rgba(255,255,255,0.72)", "circle-stroke-width": 0.7, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.35, 0, 3.1, 0.78, 7.4, 0.28] } });
+      if (!map.getLayer("waveatlas-signal-cluster-count")) map.addLayer({ id: "waveatlas-signal-cluster-count", type: "symbol", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 3.15, layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 11], "text-allow-overlap": false }, paint: { "text-color": "rgba(248,250,252,0.88)", "text-halo-color": "rgba(2,6,23,0.9)", "text-halo-width": 1.2, "text-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.15, 4.2, 1, 7.5, 0.35] } });
+      if (!map.getLayer("waveatlas-signal-favorite-halo")) map.addLayer({ id: "waveatlas-signal-favorite-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "favorite"], true]], minzoom: 6.2, paint: { "circle-color": "rgba(255,215,0,0)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 6.2, 5, 12, 10], "circle-stroke-color": "#FFD700", "circle-stroke-width": 1.6, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6.2, 0, 7.1, 0.88] } });
+      if (!map.getLayer("waveatlas-signals")) map.addLayer({ id: "waveatlas-signals", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["!", ["has", "point_count"]], minzoom: 5.4, paint: { "circle-color": ["match", ["get", "status"], "community", "#48C7FF", "unverified", "#D4A64A", "#00D68F"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5.4, 1.2, 8, 2.8, 12, 4.5], "circle-blur": 0.18, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5.4, 0, 6.8, 0.68, 12, 0.86], "circle-stroke-color": "rgba(255,255,255,0.42)", "circle-stroke-width": 0.35 } });
+      return true;
+    };
+    const updateSignals = () => {
+      frame = 0;
+      if (!ensureLayers()) return;
+      const bounds = map.getBounds();
+      const zoom = map.getZoom();
+      const favoriteIds = readFavoriteSet();
+      const currentKey = stationKey(currentRef.current);
+      const maxSignals = zoom < 3.2 ? 120 : zoom < 5.4 ? 260 : zoom < 7 ? 520 : 900;
+      const features: SignalFeature[] = [];
+      for (const station of stationsRef.current) {
+        if (features.length >= maxSignals) break;
+        if (!station.url || !station.is_active || station.failure_count > 2 || station.health_score < 35) continue;
+        if (stationKey(station) === currentKey) continue;
+        const geo = resolveStationGeo(station);
+        if (geo.lat === null || geo.lng === null || !bounds.contains([geo.lng, geo.lat])) continue;
+        const id = station.station_uuid || station.id;
+        features.push({ type: "Feature", geometry: { type: "Point", coordinates: [geo.lng, geo.lat] }, properties: { id, status: stationSignalStatus(station), favorite: favoriteIds.has(id) || favoriteIds.has(station.id), priority: station.health_score + Math.min(30, station.votes / 1000) } });
+      }
+      features.sort((a, b) => b.properties.priority - a.properties.priority);
+      (map.getSource(SIGNAL_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features });
+    };
+    const schedule = () => { if (frame) return; frame = window.requestAnimationFrame(updateSignals); };
+    map.on("styledata", schedule); map.on("moveend", schedule); map.on("zoomend", schedule);
+    schedule();
+    return () => { if (frame) window.cancelAnimationFrame(frame); map.off("styledata", schedule); map.off("moveend", schedule); map.off("zoomend", schedule); for (const id of SIGNAL_LAYER_IDS) if (map.getLayer(id)) map.removeLayer(id); if (map.getSource(SIGNAL_SOURCE_ID)) map.removeSource(SIGNAL_SOURCE_ID); };
+  }, [map]);
+  return null;
+}
 
 type MapTeleportContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
 
@@ -1513,7 +1574,7 @@ function nearestCountryResult(lat: number, lng: number): CountryResult | null {
 
 
 
-function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onCountrySelect, searchActive = false, keyboardOpen = false }: { station: Station; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
+function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onCountrySelect, searchActive = false, keyboardOpen = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean }) {
   const status = usePlayer((s) => s.status);
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
@@ -1648,6 +1709,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
     return (
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
+        <SignalConstellationLayer map={map} stations={stations} currentStation={station} />
         <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
         <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
@@ -1661,6 +1723,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
   return (
     <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
+      <SignalConstellationLayer map={map} stations={stations} currentStation={station} />
       <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
@@ -2682,7 +2745,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   }, [setBasemap]);
   return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
-      <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
+      <WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     ) : (
       <BlueMarbleGlobe station={current} selectionVersion={selectionVersion} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} onStreetZoomRequest={enterMobileStreets} />
     )}
@@ -3161,7 +3224,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </div>
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
           {globeFallbackReason || desktopAtlasView === "map" ? (
-            <WaveAtlasMap station={current} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
+            <WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
           ) : (
             <BlueMarbleGlobe station={current} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} onStreetZoomRequest={enterDesktopStreets} />
           )}
