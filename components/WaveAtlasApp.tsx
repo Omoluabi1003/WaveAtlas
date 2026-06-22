@@ -390,25 +390,33 @@ function AtlasLocationPill({ stations, current, mobile = false }: { stations: St
   const { location, requestLocation } = useAtlasLocation();
   const nearby = useMemo(() => nearbyStationsForLocation(stations, location.coords, location.countryCode), [location.coords, location.countryCode, stations]);
   const isReady = location.status === "ready";
+  const canCollapse = isReady || location.status === "denied" || location.status === "error";
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    if (!canCollapse) return;
+    const timeout = window.setTimeout(() => setCollapsed(true), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [canCollapse, location.placeLabel]);
+  const statusCopy = isReady ? [location.weather, location.localTime ? `Local time ${location.localTime}` : null].filter(Boolean).join(" · ") : "Take me there. Let me hear it when I arrive.";
   return (
-    <div className={`pointer-events-auto rounded-[1.75rem] border border-white/10 bg-slate-950/70 text-ivory shadow-2xl backdrop-blur-2xl ${mobile ? "fixed left-4 right-4 top-[calc(env(safe-area-inset-top)+148px)] z-[57] p-3" : "w-[min(420px,calc(100vw-3rem))] p-4"}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-radio">Atlas Drive · Location awareness</p>
-          <h2 className="mt-1 truncate text-sm font-semibold text-white">{location.placeLabel}</h2>
-          <p className="mt-1 truncate text-xs text-ivory/55">{isReady ? [location.weather, location.localTime ? `Local time ${location.localTime}` : null].filter(Boolean).join(" · ") : "Take me there. Let me hear it when I arrive."}</p>
-        </div>
-        <button type="button" onClick={requestLocation} className="grid size-10 shrink-0 place-items-center rounded-full border border-radio/25 bg-radio/10 text-radio transition hover:bg-radio hover:text-midnight" aria-label="Use current location">
-          <Navigation className={`size-4 ${location.status === "requesting" ? "animate-pulse" : ""}`} />
+    <div className={`pointer-events-auto border border-white/10 bg-slate-950/72 text-ivory shadow-2xl backdrop-blur-2xl transition-all ${mobile ? "fixed bottom-[calc(env(safe-area-inset-bottom)+104px)] left-4 right-auto z-[57] max-w-[min(21rem,calc(100vw-2rem))] rounded-[1.35rem] p-2.5" : "w-[min(340px,calc(100vw-3rem))] rounded-[1.5rem] p-3"}`}>
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" onClick={() => canCollapse ? setCollapsed((value) => !value) : requestLocation()} className="min-w-0 flex-1 text-left" aria-expanded={!collapsed} aria-label={collapsed ? "Expand Atlas Drive location context" : "Collapse Atlas Drive location context"}>
+          <p className="font-display text-[9px] font-semibold uppercase tracking-[0.2em] text-radio/85">Atlas Drive</p>
+          <h2 className="mt-0.5 truncate text-xs font-semibold text-white">{location.placeLabel}</h2>
+          {!collapsed ? <p className="mt-1 truncate text-[11px] text-ivory/55">{statusCopy}</p> : null}
+        </button>
+        <button type="button" onClick={requestLocation} className="grid size-8 shrink-0 place-items-center rounded-full border border-radio/25 bg-radio/10 text-radio transition hover:bg-radio hover:text-midnight" aria-label="Use current location">
+          <Navigation className={`size-3.5 ${location.status === "requesting" ? "animate-pulse" : ""}`} />
         </button>
       </div>
-      {location.error ? <p className="mt-2 text-xs text-gold/85">{location.error}</p> : null}
-      {nearby.length ? <div className="mt-3 grid gap-2">
-        {nearby.map(({ station, distance }) => <button key={station.id} type="button" onClick={() => setCurrentStationAndDestination(station, "auto")} className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/[0.05] px-3 py-2 text-left transition hover:border-radio/35 hover:bg-radio/10">
-          <span className="min-w-0"><b className="block truncate text-xs text-white">{station.name}</b><span className="block truncate text-[11px] text-ivory/55">{[station.city || station.state, station.country].filter(Boolean).join(" · ") || station.country} {distance !== null ? `· ${distance.toLocaleString()} km` : "· in your country"}</span></span>
-          <Radio className="size-4 shrink-0 text-gold" />
+      {location.error && !collapsed ? <p className="mt-2 text-xs text-gold/85">{location.error}</p> : null}
+      {!collapsed ? (nearby.length ? <div className="mt-2 grid gap-1.5">
+        {nearby.map(({ station, distance }) => <button key={station.id} type="button" onClick={() => setCurrentStationAndDestination(station, "auto")} className="flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.05] px-2.5 py-1.5 text-left transition hover:border-radio/35 hover:bg-radio/10">
+          <span className="min-w-0"><b className="block truncate text-[11px] text-white">{station.name}</b><span className="block truncate text-[10px] text-ivory/55">{[station.city || station.state, station.country].filter(Boolean).join(" · ") || station.country} {distance !== null ? `· ${distance.toLocaleString()} km` : "· in your country"}</span></span>
+          <Radio className="size-3.5 shrink-0 text-gold" />
         </button>)}
-      </div> : <p className="mt-3 text-xs text-ivory/50">{isReady ? `Nearest stations will appear as the atlas compares ${current.country} against your position.` : "Enable location to reveal nearby signals, city context, weather, and local time."}</p>}
+      </div> : <p className="mt-2 text-[11px] text-ivory/50">{isReady ? `Nearest stations will appear as the atlas compares ${current.country} against your position.` : "Enable location to reveal nearby signals, city context, weather, and local time."}</p>) : null}
     </div>
   );
 }
