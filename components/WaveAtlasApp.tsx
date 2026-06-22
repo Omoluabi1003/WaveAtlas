@@ -1435,7 +1435,8 @@ function readFavoriteSet() {
 function SignalConstellationLayer({ map, stations, currentStation }: { map: Map | null; stations: Station[]; currentStation: Station }) {
   const stationsRef = useRef(stations);
   const currentRef = useRef(currentStation);
-  useEffect(() => { stationsRef.current = stations; currentRef.current = currentStation; }, [currentStation, stations]);
+  const scheduleRef = useRef<(() => void) | null>(null);
+  useEffect(() => { stationsRef.current = stations; currentRef.current = currentStation; scheduleRef.current?.(); }, [currentStation, stations]);
 
   useEffect(() => {
     if (!map) return;
@@ -1462,7 +1463,6 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
       const maxSignals = zoom < 3.2 ? 120 : zoom < 5.4 ? 260 : zoom < 7 ? 520 : 900;
       const features: SignalFeature[] = [];
       for (const station of stationsRef.current) {
-        if (features.length >= maxSignals) break;
         if (!station.url || !station.is_active || station.failure_count > 2 || station.health_score < 35) continue;
         if (stationKey(station) === currentKey) continue;
         const geo = resolveStationGeo(station);
@@ -1470,13 +1470,14 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
         const id = station.station_uuid || station.id;
         features.push({ type: "Feature", geometry: { type: "Point", coordinates: [geo.lng, geo.lat] }, properties: { id, status: stationSignalStatus(station), favorite: favoriteIds.has(id) || favoriteIds.has(station.id), priority: station.health_score + Math.min(30, station.votes / 1000) } });
       }
-      features.sort((a, b) => b.properties.priority - a.properties.priority);
-      (map.getSource(SIGNAL_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features });
+      const priorityFeatures = features.sort((a, b) => b.properties.priority - a.properties.priority).slice(0, maxSignals);
+      (map.getSource(SIGNAL_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: priorityFeatures });
     };
     const schedule = () => { if (frame) return; frame = window.requestAnimationFrame(updateSignals); };
+    scheduleRef.current = schedule;
     map.on("styledata", schedule); map.on("moveend", schedule); map.on("zoomend", schedule);
     schedule();
-    return () => { if (frame) window.cancelAnimationFrame(frame); map.off("styledata", schedule); map.off("moveend", schedule); map.off("zoomend", schedule); for (const id of SIGNAL_LAYER_IDS) if (map.getLayer(id)) map.removeLayer(id); if (map.getSource(SIGNAL_SOURCE_ID)) map.removeSource(SIGNAL_SOURCE_ID); };
+    return () => { if (frame) window.cancelAnimationFrame(frame); if (scheduleRef.current === schedule) scheduleRef.current = null; map.off("styledata", schedule); map.off("moveend", schedule); map.off("zoomend", schedule); for (const id of SIGNAL_LAYER_IDS) if (map.getLayer(id)) map.removeLayer(id); if (map.getSource(SIGNAL_SOURCE_ID)) map.removeSource(SIGNAL_SOURCE_ID); };
   }, [map]);
   return null;
 }
