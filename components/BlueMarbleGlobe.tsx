@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { geoPath, type GeoPermissibleObjects, type GeoProjection as D3GeoProjection } from "d3-geo";
-import { isoCountryCentroids, resolveStationGeo } from "@/lib/geotruth-resolver";
+import { isoCountryCentroids } from "@/lib/geotruth-resolver";
 import { flagFor, type Station } from "@/lib/stations";
-import { buildSignalFeatures, type SignalCluster, type SignalFeature } from "@/lib/signal-constellations";
+import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalCluster, type SignalFeature } from "@/lib/signal-constellations";
 import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, invertGlobePoint, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
 
 type CountryResult = {
@@ -198,10 +198,12 @@ function angularDistanceBetweenPoints(a: GlobePoint | null, b: GlobePoint | null
 
 function stationPoint(station?: Station): GlobePoint | null {
   if (!station) return null;
+  const beacon = getActiveBeaconFeature(station);
   const geo = resolveStationGeo(station);
-  if (geo.lat === null || geo.lng === null) return null;
+  if (!beacon || geo.lat === null || geo.lng === null) return null;
   const usedFallbackCentroid = geo.source === "country_centroid";
-  const point = { lat: geo.lat, lng: geo.lng, label: station.city || station.state || station.country || station.name, geoSource: geo.source, geoPrecision: geo.precision, usedFallbackCentroid };
+  const point = { lat: beacon.geometry.coordinates[1], lng: beacon.geometry.coordinates[0], label: beacon.properties.label, geoSource: beacon.properties.source, geoPrecision: beacon.properties.precision, usedFallbackCentroid };
+  if (DEBUG_SIGNALS) console.debug("[WaveAtlas signals] active beacon coordinates", { view: "globe", station: station.name, lat: point.lat, lng: point.lng, source: point.geoSource, precision: point.geoPrecision });
   debugGlobeFocus("stationPoint", { station: station.name, city: station.city, country: station.country, latitude: point.lat, longitude: point.lng, derivedLat: point.lat, derivedLng: point.lng, geoSource: geo.source, geoPrecision: geo.precision, coordinatesFrom: usedFallbackCentroid ? "fallback_country_centroid" : "station_or_resolved_geo", warning: geo.warning });
   return point;
 }
@@ -565,19 +567,19 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       const liveSignalKey = `${stations.length}:${station.station_uuid || station.id}:${liveSignalBucket}:${Math.round(liveCenter.centerLat / 10)}:${Math.round(liveCenter.centerLng / 10)}`;
       if (!s.travelActive && signalRefreshKeyRef.current !== liveSignalKey) {
         signalRefreshKeyRef.current = liveSignalKey;
-        const maxSignals = liveSignalBucket === "world" ? 0 : mobile ? (liveSignalBucket === "city" ? 220 : 90) : (liveSignalBucket === "city" ? 520 : 180);
-        const nextSignals = buildSignalFeatures({ stations, currentStation: station, globeVisibleHemisphere: liveCenter, globeScale: s.zoom, favoriteIds: readGlobeFavoriteSet(), maxSignals });
+        const maxSignals = liveSignalBucket === "world" ? 0 : mobile ? (liveSignalBucket === "city" ? 250 : 110) : (liveSignalBucket === "city" ? 640 : 220);
+        const nextSignals = buildSignalFeatures({ stations, currentStation: station, globeVisibleHemisphere: liveCenter, globeScale: s.zoom, favoriteIds: readGlobeFavoriteSet(), maxSignals, debug: DEBUG_SIGNALS });
         runtime.signalFeatures = nextSignals.visibleSignals;
         runtime.signalClusters = nextSignals.clusters;
-        if (process.env.NODE_ENV !== "production") console.debug("[WaveAtlas] beacon rendering source", { view: "globe", source: "buildSignalFeatures", activeStation: station.name, zoomLevel: s.zoom, renderedSignals: nextSignals.visibleSignals.length, renderedClusters: nextSignals.clusters.length });
+        if (DEBUG_SIGNALS || process.env.NODE_ENV !== "production") console.debug("[WaveAtlas signals] refresh", { view: "globe", activeStation: station.name, zoomLevel: s.zoom, bucket: liveSignalBucket, renderedSignals: nextSignals.visibleSignals.length, renderedClusters: nextSignals.clusters.length, stats: nextSignals.stats });
       }
       if (runtime.signalClusters.length && s.zoom >= 1.16 && s.zoom < 1.9) {
         for (const cluster of runtime.signalClusters.slice(0, mobile ? 42 : 80)) {
           const p = project(cluster.lat, cluster.lng, projection);
           if (p.z < 0.02) continue;
-          const radius = Math.min(mobile ? 12 : 16, 4 + Math.sqrt(cluster.count) * (mobile ? 1.2 : 1.7));
-          ctx.fillStyle = "rgba(0,214,143,0.18)"; ctx.beginPath(); ctx.arc(p.x, p.y, radius * 1.9, 0, TAU); ctx.fill();
-          ctx.fillStyle = "rgba(0,214,143,0.78)"; ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, TAU); ctx.fill();
+          const radius = Math.min(mobile ? 15 : 20, 5 + Math.sqrt(cluster.count) * (mobile ? 1.45 : 2.05));
+          ctx.fillStyle = "rgba(0,214,143,0.23)"; ctx.beginPath(); ctx.arc(p.x, p.y, radius * 2.15, 0, TAU); ctx.fill();
+          ctx.fillStyle = "rgba(0,214,143,0.84)"; ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, TAU); ctx.fill();
           ctx.strokeStyle = "rgba(255,255,255,0.64)"; ctx.lineWidth = 0.7; ctx.stroke();
         }
       }
@@ -588,9 +590,9 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
           const p = project(lat, lng, projection);
           if (p.z < 0.04) continue;
           const favorite = feature.properties.favorite;
-          if (favorite) { ctx.strokeStyle = "rgba(255,215,0,0.9)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(p.x, p.y, mobile ? 4.6 : 6.2, 0, TAU); ctx.stroke(); }
+          if (favorite) { ctx.strokeStyle = "rgba(255,215,0,0.9)"; ctx.lineWidth = 1.7; ctx.beginPath(); ctx.arc(p.x, p.y, mobile ? 5.8 : 7.8, 0, TAU); ctx.stroke(); }
           ctx.fillStyle = feature.properties.status === "community" ? "#48C7FF" : feature.properties.status === "unverified" ? "#D4A64A" : "#00D68F";
-          ctx.globalAlpha = majorOnly ? 0.72 : 0.84; ctx.beginPath(); ctx.arc(p.x, p.y, majorOnly ? (mobile ? 1.8 : 2.4) : (mobile ? 1.5 : 2.2), 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+          ctx.globalAlpha = majorOnly ? 0.8 : 0.9; ctx.beginPath(); ctx.arc(p.x, p.y, majorOnly ? (mobile ? 2.3 : 3.1) : (mobile ? 1.95 : 2.8), 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
         }
       }
       const activeBeacon = runtime.currentPoint;

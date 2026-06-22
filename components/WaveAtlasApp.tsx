@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
-import { isoCountryCentroids, resolveStationGeo, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
+import { isoCountryCentroids, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
@@ -56,7 +56,7 @@ const BlueMarbleGlobe = dynamic(() => import("@/components/BlueMarbleGlobe"), {
 import { getAmbientTheme } from "@/lib/world-engine/ambient-theme";
 import { buildAtmosphereLine, buildPlaceDescriptor, buildPlaceLabel } from "@/lib/world-engine/place-labels";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
-import { buildSignalFeatures, type SignalFeature } from "@/lib/signal-constellations";
+import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalFeature } from "@/lib/signal-constellations";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
 import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQueue, getAdaptiveBufferPolicy, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
@@ -229,8 +229,10 @@ function stationTone(countryCode?: string): GeoPoint["tone"] {
 }
 
 function geotruth(station: Station): GeoPoint {
+  const beacon = getActiveBeaconFeature(station);
   const resolved = resolveStationGeo(station);
-  return { ...resolved, label: station.state || station.city || station.country || "Unknown location", tone: stationTone(station.country_code) };
+  if (DEBUG_SIGNALS && beacon) console.debug("[WaveAtlas signals] active beacon coordinates", { view: "map", station: station.name, lat: beacon.geometry.coordinates[1], lng: beacon.geometry.coordinates[0], source: beacon.properties.source, precision: beacon.properties.precision });
+  return { ...resolved, label: beacon?.properties.label || station.state || station.city || station.country || "Unknown location", tone: stationTone(station.country_code) };
 }
 
 const countryFallbacks: Record<string, { lat: number; lng: number; tone: GeoPoint["tone"] }> = Object.fromEntries(
@@ -1437,13 +1439,13 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
     const ensureLayers = () => {
       if (!map.isStyleLoaded()) return false;
       if (!map.getSource(SIGNAL_SOURCE_ID)) {
-        map.addSource(SIGNAL_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: true, clusterRadius: 72, clusterMaxZoom: 7 });
+        map.addSource(SIGNAL_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: true, clusterRadius: 88, clusterMaxZoom: 7 });
       }
-      if (!map.getLayer("waveatlas-signal-cluster-halo")) map.addLayer({ id: "waveatlas-signal-cluster-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.35, paint: { "circle-color": "rgba(0,214,143,0.18)", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 16, 50, 26, 250, 38], "circle-blur": 0.65, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.35, 0, 3.1, 0.9] } });
-      if (!map.getLayer("waveatlas-signal-clusters")) map.addLayer({ id: "waveatlas-signal-clusters", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.35, paint: { "circle-color": "#00D68F", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 5, 50, 9, 250, 14], "circle-stroke-color": "rgba(255,255,255,0.72)", "circle-stroke-width": 0.7, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.35, 0, 3.1, 0.78, 7.4, 0.28] } });
-      if (!map.getLayer("waveatlas-signal-cluster-count")) map.addLayer({ id: "waveatlas-signal-cluster-count", type: "symbol", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 3.15, layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 11], "text-allow-overlap": false }, paint: { "text-color": "rgba(248,250,252,0.88)", "text-halo-color": "rgba(2,6,23,0.9)", "text-halo-width": 1.2, "text-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.15, 4.2, 1, 7.5, 0.35] } });
-      if (!map.getLayer("waveatlas-signal-favorite-halo")) map.addLayer({ id: "waveatlas-signal-favorite-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "favorite"], true]], minzoom: 6.2, paint: { "circle-color": "rgba(255,215,0,0)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 6.2, 5, 12, 10], "circle-stroke-color": "#FFD700", "circle-stroke-width": 1.6, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6.2, 0, 7.1, 0.88] } });
-      if (!map.getLayer("waveatlas-signals")) map.addLayer({ id: "waveatlas-signals", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["!", ["has", "point_count"]], minzoom: 5.4, paint: { "circle-color": ["match", ["get", "status"], "community", "#48C7FF", "unverified", "#D4A64A", "#00D68F"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5.4, 1.2, 8, 2.8, 12, 4.5], "circle-blur": 0.18, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5.4, 0, 6.8, 0.68, 12, 0.86], "circle-stroke-color": "rgba(255,255,255,0.42)", "circle-stroke-width": 0.35 } });
+      if (!map.getLayer("waveatlas-signal-cluster-halo")) map.addLayer({ id: "waveatlas-signal-cluster-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.05, paint: { "circle-color": "rgba(0,214,143,0.22)", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 20, 50, 32, 250, 47], "circle-blur": 0.65, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.05, 0, 2.85, 0.9] } });
+      if (!map.getLayer("waveatlas-signal-clusters")) map.addLayer({ id: "waveatlas-signal-clusters", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.05, paint: { "circle-color": "#00D68F", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 6, 50, 11, 250, 17], "circle-stroke-color": "rgba(255,255,255,0.72)", "circle-stroke-width": 0.7, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.35, 0, 3.1, 0.78, 7.4, 0.28] } });
+      if (!map.getLayer("waveatlas-signal-cluster-count")) map.addLayer({ id: "waveatlas-signal-cluster-count", type: "symbol", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.85, layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 11], "text-allow-overlap": false }, paint: { "text-color": "rgba(248,250,252,0.88)", "text-halo-color": "rgba(2,6,23,0.9)", "text-halo-width": 1.2, "text-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.15, 4.2, 1, 7.5, 0.35] } });
+      if (!map.getLayer("waveatlas-signal-favorite-halo")) map.addLayer({ id: "waveatlas-signal-favorite-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "favorite"], true]], minzoom: 5.8, paint: { "circle-color": "rgba(255,215,0,0)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 5.8, 7, 12, 13], "circle-stroke-color": "#FFD700", "circle-stroke-width": 1.6, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6.2, 0, 7.1, 0.88] } });
+      if (!map.getLayer("waveatlas-signals")) map.addLayer({ id: "waveatlas-signals", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["!", ["has", "point_count"]], minzoom: 5.0, paint: { "circle-color": ["match", ["get", "status"], "community", "#48C7FF", "unverified", "#D4A64A", "#00D68F"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5.0, 1.6, 8, 3.5, 12, 5.6], "circle-blur": 0.14, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5.0, 0, 6.4, 0.78, 12, 0.9], "circle-stroke-color": "rgba(255,255,255,0.42)", "circle-stroke-width": 0.35 } });
       return true;
     };
     const updateSignals = () => {
@@ -1461,14 +1463,17 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
         favoriteIds,
         maxSignals,
       });
-      if (process.env.NODE_ENV !== "production") console.debug("[WaveAtlas] beacon rendering source", { view: "map", source: "buildSignalFeatures", activeStation: currentRef.current.name, zoomLevel: zoom, renderedSignals: visibleSignals.length });
+      if (DEBUG_SIGNALS || process.env.NODE_ENV !== "production") {
+        const beacon = getActiveBeaconFeature(currentRef.current);
+        console.debug("[WaveAtlas signals] refresh", { view: "map", activeStation: currentRef.current.name, beaconCoordinates: beacon?.geometry.coordinates ?? null, zoomLevel: zoom, renderedSignals: visibleSignals.length });
+      }
       (map.getSource(SIGNAL_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: visibleSignals as SignalFeature[] });
     };
     const schedule = () => { if (frame) return; frame = window.requestAnimationFrame(updateSignals); };
     scheduleRef.current = schedule;
-    map.on("styledata", schedule); map.on("moveend", schedule); map.on("zoomend", schedule);
+    map.on("styledata", schedule); map.on("moveend", schedule); map.on("zoomend", schedule); map.on("zoomstart", schedule);
     schedule();
-    return () => { if (frame) window.cancelAnimationFrame(frame); if (scheduleRef.current === schedule) scheduleRef.current = null; map.off("styledata", schedule); map.off("moveend", schedule); map.off("zoomend", schedule); for (const id of SIGNAL_LAYER_IDS) if (map.getLayer(id)) map.removeLayer(id); if (map.getSource(SIGNAL_SOURCE_ID)) map.removeSource(SIGNAL_SOURCE_ID); };
+    return () => { if (frame) window.cancelAnimationFrame(frame); if (scheduleRef.current === schedule) scheduleRef.current = null; map.off("styledata", schedule); map.off("moveend", schedule); map.off("zoomend", schedule); map.off("zoomstart", schedule); for (const id of SIGNAL_LAYER_IDS) if (map.getLayer(id)) map.removeLayer(id); if (map.getSource(SIGNAL_SOURCE_ID)) map.removeSource(SIGNAL_SOURCE_ID); };
   }, [map]);
   return null;
 }
@@ -1672,9 +1677,9 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
       armed = false;
       onWorldZoomRequest(context);
     };
-    map.once("zoomstart", arm);
+    map.on("zoomstart", arm);
     map.on("zoomend", inspectZoom);
-    return () => { map.off("zoomend", inspectZoom); };
+    return () => { map.off("zoomstart", arm); map.off("zoomend", inspectZoom); };
   }, [map, onWorldZoomRequest, station.id, station.name, station.station_uuid]);
 
   useEffect(() => {
