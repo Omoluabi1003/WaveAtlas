@@ -14,6 +14,7 @@ import {
   Heart,
   Languages,
   MapPin,
+  Navigation,
   Pause,
   Play,
   Radio,
@@ -279,6 +280,137 @@ function getTrendingRank(station: Station, stations: Station[]) {
   );
   const rank = ranked.findIndex((s) => s.id === station.id);
   return rank >= 0 && rank < 100 ? `#${rank + 1} trending` : "Not ranked";
+}
+
+
+type AtlasLocationState = {
+  status: "idle" | "requesting" | "ready" | "denied" | "error";
+  coords?: { lat: number; lng: number; accuracy: number };
+  placeLabel: string;
+  country?: string;
+  countryCode?: string;
+  city?: string;
+  weather?: string;
+  localTime?: string;
+  error?: string;
+};
+
+const initialAtlasLocationState: AtlasLocationState = {
+  status: "idle",
+  placeLabel: "Location off",
+};
+
+function formatOpenMeteoWeather(code?: number) {
+  if (code === undefined) return "Live weather pending";
+  if (code === 0) return "Clear sky";
+  if ([1, 2, 3].includes(code)) return "Partly cloudy";
+  if ([45, 48].includes(code)) return "Fog nearby";
+  if ([51, 53, 55, 56, 57].includes(code)) return "Drizzle";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "Rain";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "Snow";
+  if ([95, 96, 99].includes(code)) return "Thunderstorm";
+  return "Changing skies";
+}
+
+function formatBrowserLocalTime(timeZone?: string) {
+  try {
+    return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone }).format(new Date());
+  } catch {
+    return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date());
+  }
+}
+
+async function enrichAtlasLocation(lat: number, lng: number, signal?: AbortSignal): Promise<Partial<AtlasLocationState>> {
+  const reverseUrl = `https://nominatim.openstreetmap.org/reverse?${new URLSearchParams({ format: "jsonv2", lat: String(lat), lon: String(lng), zoom: "10", addressdetails: "1" })}`;
+  const weatherUrl = `https://api.open-meteo.com/v1/forecast?${new URLSearchParams({ latitude: String(lat), longitude: String(lng), current: "temperature_2m,weather_code", timezone: "auto" })}`;
+  const [reverseSettled, weatherSettled] = await Promise.allSettled([
+    fetch(reverseUrl, { signal, headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : null),
+    fetch(weatherUrl, { signal }).then((response) => response.ok ? response.json() : null),
+  ]);
+  const reverse = reverseSettled.status === "fulfilled" ? reverseSettled.value as { address?: Record<string, string> } | null : null;
+  const weather = weatherSettled.status === "fulfilled" ? weatherSettled.value as { current?: { temperature_2m?: number; weather_code?: number }; timezone?: string } | null : null;
+  const address = reverse?.address ?? {};
+  const city = address.city || address.town || address.village || address.hamlet || address.county;
+  const country = address.country;
+  const countryCode = address.country_code?.toUpperCase();
+  const temperature = typeof weather?.current?.temperature_2m === "number" ? `${Math.round(weather.current.temperature_2m)}°C` : null;
+  return {
+    city,
+    country,
+    countryCode,
+    placeLabel: [city, country].filter(Boolean).join(", ") || "Current location",
+    weather: [temperature, formatOpenMeteoWeather(weather?.current?.weather_code)].filter(Boolean).join(" · "),
+    localTime: formatBrowserLocalTime(weather?.timezone),
+  };
+}
+
+function useAtlasLocation() {
+  const [location, setLocation] = useState<AtlasLocationState>(initialAtlasLocationState);
+  const requestLocation = useCallback(() => {
+    if (!("geolocation" in navigator)) {
+      setLocation({ status: "error", placeLabel: "Location unavailable", error: "This browser does not support location." });
+      return;
+    }
+    setLocation((current) => ({ ...current, status: "requesting", error: undefined, placeLabel: current.placeLabel === "Location off" ? "Locating…" : current.placeLabel }));
+    const controller = new AbortController();
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy };
+        setLocation((current) => ({ ...current, status: "ready", coords, placeLabel: "Current location", localTime: formatBrowserLocalTime() }));
+        void enrichAtlasLocation(coords.lat, coords.lng, controller.signal)
+          .then((enrichment) => setLocation((current) => current.coords?.lat === coords.lat && current.coords?.lng === coords.lng ? { ...current, ...enrichment, status: "ready", coords } : current))
+          .catch((error) => {
+            if (error instanceof DOMException && error.name === "AbortError") return;
+            setLocation((current) => ({ ...current, status: "ready", coords, error: "Open location context is temporarily unavailable." }));
+          });
+      },
+      (error) => setLocation({ status: error.code === error.PERMISSION_DENIED ? "denied" : "error", placeLabel: error.code === error.PERMISSION_DENIED ? "Location blocked" : "Location unavailable", error: error.message || "Unable to read browser location." }),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 120000 },
+    );
+    return () => controller.abort();
+  }, []);
+  return { location, requestLocation };
+}
+
+function nearbyStationsForLocation(stations: Station[], coords?: { lat: number; lng: number }, countryCode?: string) {
+  if (!coords) return [];
+  return stations
+    .map((station) => {
+      const geo = geotruth(station);
+      const distance = geo.lat === null || geo.lng === null ? null : haversineKm(coords, { lat: geo.lat, lng: geo.lng });
+      const countryBoost = countryCode && station.country_code === countryCode ? -250 : 0;
+      return { station, distance, score: (distance ?? 25000) + countryBoost - station.health_score };
+    })
+    .filter((item) => item.distance !== null || (countryCode && item.station.country_code === countryCode))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 3);
+}
+
+function AtlasLocationPill({ stations, current, mobile = false }: { stations: Station[]; current: Station; mobile?: boolean }) {
+  const { location, requestLocation } = useAtlasLocation();
+  const nearby = useMemo(() => nearbyStationsForLocation(stations, location.coords, location.countryCode), [location.coords, location.countryCode, stations]);
+  const isReady = location.status === "ready";
+  return (
+    <div className={`pointer-events-auto rounded-[1.75rem] border border-white/10 bg-slate-950/70 text-ivory shadow-2xl backdrop-blur-2xl ${mobile ? "fixed left-4 right-4 top-[calc(env(safe-area-inset-top)+148px)] z-[57] p-3" : "w-[min(420px,calc(100vw-3rem))] p-4"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-radio">Atlas Drive · Location awareness</p>
+          <h2 className="mt-1 truncate text-sm font-semibold text-white">{location.placeLabel}</h2>
+          <p className="mt-1 truncate text-xs text-ivory/55">{isReady ? [location.weather, location.localTime ? `Local time ${location.localTime}` : null].filter(Boolean).join(" · ") : "Take me there. Let me hear it when I arrive."}</p>
+        </div>
+        <button type="button" onClick={requestLocation} className="grid size-10 shrink-0 place-items-center rounded-full border border-radio/25 bg-radio/10 text-radio transition hover:bg-radio hover:text-midnight" aria-label="Use current location">
+          <Navigation className={`size-4 ${location.status === "requesting" ? "animate-pulse" : ""}`} />
+        </button>
+      </div>
+      {location.error ? <p className="mt-2 text-xs text-gold/85">{location.error}</p> : null}
+      {nearby.length ? <div className="mt-3 grid gap-2">
+        {nearby.map(({ station, distance }) => <button key={station.id} type="button" onClick={() => setCurrentStationAndDestination(station, "auto")} className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/[0.05] px-3 py-2 text-left transition hover:border-radio/35 hover:bg-radio/10">
+          <span className="min-w-0"><b className="block truncate text-xs text-white">{station.name}</b><span className="block truncate text-[11px] text-ivory/55">{[station.city || station.state, station.country].filter(Boolean).join(" · ") || station.country} {distance !== null ? `· ${distance.toLocaleString()} km` : "· in your country"}</span></span>
+          <Radio className="size-4 shrink-0 text-gold" />
+        </button>)}
+      </div> : <p className="mt-3 text-xs text-ivory/50">{isReady ? `Nearest stations will appear as the atlas compares ${current.country} against your position.` : "Enable location to reveal nearby signals, city context, weather, and local time."}</p>}
+    </div>
+  );
 }
 
 function StationMetricCard({
@@ -2411,6 +2543,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
       <button type="button" onClick={() => chooseAtlasView("map")} className={`rounded-full px-3 py-1.5 ${selectedView === "map" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Map</button>
     </div>
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
+    <AtlasLocationPill stations={stations} current={current} mobile />
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
     <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setCurrentStationAndDestination(station); }, 250); }} />
     <SelectedStationTheater station={current} />
@@ -2832,6 +2965,9 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       <div className="absolute inset-0 z-0">
         <div className="hidden"><DailyFlightPanel stations={stationPool} /></div>
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-40 rounded-[2rem] border border-radio/30 bg-slate-950/75 p-4 text-left font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
+        <div className={`absolute left-6 z-40 xl:left-8 ${wandererActive ? "top-48" : "top-28"}`}>
+          <AtlasLocationPill stations={stationPool} current={current} />
+        </div>
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
           {globeFallbackReason || desktopAtlasView === "map" ? (
             <WaveAtlasMap station={current} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
