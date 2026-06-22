@@ -2334,6 +2334,17 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   useEffect(() => {
     debugAtlasDecision({ device: "mobile", selectedView, webglSupport: "probed-in-globe", fallbackReason: mobileGlobeFallbackReason || null });
   }, [mobileGlobeFallbackReason, selectedView]);
+  const handleMobileGlobeFallback = useCallback((reason?: string) => {
+    const fallbackReason = reason || "Globe unavailable; map is ready.";
+    setMobileGlobeFallbackReason(fallbackReason);
+    setAtlasView("map");
+    dispatchAtlasToast({
+      title: "Globe view is optimized for this device using map mode.",
+      subtitle: fallbackReason,
+      kind: "alert",
+      id: `mobile-globe-fallback-${Date.now()}`,
+    });
+  }, []);
   const chooseAtlasView = (view: AtlasViewMode) => {
     setMobileGlobeFallbackReason("");
     setAtlasView(view);
@@ -2343,7 +2354,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     {selectedView === "map" ? (
       <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     ) : (
-      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={(reason) => { setMobileGlobeFallbackReason(reason || "Globe unavailable; map is ready."); setAtlasView("map"); }} />
+      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} />
     )}
     {selectedView === "globe" ? <GlobeBasemapControl value={globeBasemap} onChange={setGlobeBasemap} mobile /> : null}
     <div className="pointer-events-auto fixed right-4 top-[calc(env(safe-area-inset-top)+92px)] z-[58] flex rounded-full border border-white/10 bg-slate-950/75 p-1 text-[11px] font-semibold shadow-xl backdrop-blur-xl">
