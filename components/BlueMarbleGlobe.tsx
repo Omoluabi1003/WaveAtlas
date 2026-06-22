@@ -48,6 +48,12 @@ const LAND_CACHE_NAME = "waveatlas-boundaries-v1";
 const MOBILE_FRAME_MS = 1000 / 30;
 const DESKTOP_FRAME_MS = 1000 / 60;
 const MOBILE_FALLBACK_MS = 2000;
+const MOBILE_PRIMARY_FOCUS_DURATION_MS = 2400;
+const DESKTOP_PRIMARY_FOCUS_DURATION_MS = 3000;
+const MOBILE_FAST_FOCUS_DURATION_MS = 1800;
+const DESKTOP_FAST_FOCUS_DURATION_MS = 2200;
+const POST_FOCUS_CORRECTION_DURATION_MS = 900;
+const MINIMUM_FOCUS_DURATION_MS = 1600;
 let landPromise: Promise<LandShape[]> | null = null;
 let landCache: LandShape[] | null = null;
 
@@ -132,6 +138,20 @@ function globeDebugEnabled() {
 function debugGlobeFocus(label: string, details: Record<string, unknown>) {
   if (!globeDebugEnabled()) return;
   console.debug(`[WaveAtlas globe focus] ${label}`, { ...details, timestamp: new Date().toISOString() });
+}
+
+function warnGlobeFocus(label: string, details: Record<string, unknown>) {
+  if (!globeDebugEnabled()) return;
+  console.warn(`[WaveAtlas globe focus] ${label}`, { ...details, timestamp: new Date().toISOString() });
+}
+
+function resolveFocusDuration({ disabledMotion, fast, mobile, angularDistance }: { disabledMotion: boolean; fast: boolean; mobile: boolean; angularDistance: number }) {
+  if (disabledMotion) return 0;
+  const baseDuration = fast
+    ? (mobile ? MOBILE_FAST_FOCUS_DURATION_MS : DESKTOP_FAST_FOCUS_DURATION_MS)
+    : (mobile ? MOBILE_PRIMARY_FOCUS_DURATION_MS : DESKTOP_PRIMARY_FOCUS_DURATION_MS);
+  const distanceBonus = Math.round((mobile ? 280 : 420) * Math.min(1, angularDistance / Math.PI));
+  return Math.max(MINIMUM_FOCUS_DURATION_MS, baseDuration + distanceBonus);
 }
 
 function stationPoint(station?: Station): GlobePoint | null {
@@ -271,7 +291,8 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
     const shortestDeltaY = Math.atan2(Math.sin(rotation.rotY - s.rotY), Math.cos(rotation.rotY - s.rotY));
     const angularDistance = Math.min(Math.PI, Math.abs(shortestDeltaY) + Math.abs(rotation.rotX - s.rotX) * 0.7);
     const targetZoom = mobile ? (fast ? 1.18 : 1.12) : (fast ? 1.2 : 1.08);
-    const focusDuration = state.current.disabledMotion ? 0 : mobile ? Math.round(1400 + (2200 - 1400) * Math.min(1, angularDistance / Math.PI)) : Math.round(1800 + (2800 - 1800) * Math.min(1, angularDistance / Math.PI));
+    const focusDuration = resolveFocusDuration({ disabledMotion: s.disabledMotion, fast, mobile, angularDistance });
+    if (!s.disabledMotion && focusDuration < MINIMUM_FOCUS_DURATION_MS) warnGlobeFocus("focusDuration below minimum", { selectionVersion, label: point.label, focusDuration, minimumFocusDuration: MINIMUM_FOCUS_DURATION_MS, reducedMotion: s.disabledMotion, fast, fastFlagSource: "BlueMarbleGlobe.teleporting prop", mobile });
     debugGlobeFocus("focusRotationForPoint", { selectionVersion, label: point.label, latitude: point.lat, longitude: point.lng, rotX: rotation.rotX / DEG, rotY: rotation.rotY / DEG });
     s.focusToken += 1;
     s.activeFocusToken = s.focusToken;
@@ -285,7 +306,7 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
     s.travelActive = !s.disabledMotion;
     s.progressMilestones = new Set<number>();
     s.landingPulseStartedAt = 0;
-    debugGlobeFocus("focusPoint", { selectionVersion, previousStation: previousFocusRef.current?.name ?? previousStation?.name ?? null, previousLat: previousFocusRef.current?.point?.lat ?? (previousStation ? stationPoint(previousStation)?.lat : null), previousLng: previousFocusRef.current?.point?.lng ?? (previousStation ? stationPoint(previousStation)?.lng : null), previousRotX: s.rotX / DEG, previousRotY: s.rotY / DEG, previousZoom: s.zoom, nextStation: station.name, nextLat: point.lat, nextLng: point.lng, computedTargetRotX: clampFocusLatitude(rotation.rotX + upwardOffset) / DEG, computedTargetRotY: (s.rotY + shortestDeltaY) / DEG, targetZoom, shortestDeltaY: shortestDeltaY / DEG, angularDistance: angularDistance / DEG, focusDuration, durationNearZero: focusDuration <= 16, mobile, reducedMotion: s.disabledMotion, fast, correctionPass: false, geoSource: point.geoSource, geoPrecision: point.geoPrecision, stages: ["zoom-out", "shortest-path-rotation", "final-centered-approach", "landing-pulse"] });
+    debugGlobeFocus("focusPoint", { selectionVersion, fastFlagSource: "BlueMarbleGlobe.teleporting prop", minimumFocusDuration: MINIMUM_FOCUS_DURATION_MS, primaryEasing: "easeInOutCubic", arrivalEasing: "easeOutQuart", previousStation: previousFocusRef.current?.name ?? previousStation?.name ?? null, previousLat: previousFocusRef.current?.point?.lat ?? (previousStation ? stationPoint(previousStation)?.lat : null), previousLng: previousFocusRef.current?.point?.lng ?? (previousStation ? stationPoint(previousStation)?.lng : null), previousRotX: s.rotX / DEG, previousRotY: s.rotY / DEG, previousZoom: s.zoom, nextStation: station.name, nextLat: point.lat, nextLng: point.lng, computedTargetRotX: clampFocusLatitude(rotation.rotX + upwardOffset) / DEG, computedTargetRotY: (s.rotY + shortestDeltaY) / DEG, targetZoom, shortestDeltaY: shortestDeltaY / DEG, angularDistance: angularDistance / DEG, focusDuration, durationNearZero: focusDuration <= 16, mobile, reducedMotion: s.disabledMotion, fast, correctionPass: false, geoSource: point.geoSource, geoPrecision: point.geoPrecision, stages: ["zoom-out", "shortest-path-rotation", "final-centered-approach", "landing-pulse"] });
     s.targetY = s.rotY + shortestDeltaY;
     s.targetX = clampFocusLatitude(rotation.rotX + upwardOffset);
     s.targetZoom = targetZoom;
@@ -323,6 +344,7 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
       return;
     }
     state.current.disabledMotion = prefersReducedMotion();
+    debugGlobeFocus("reducedMotion detection", { reducedMotion: state.current.disabledMotion, mediaQuery: "(prefers-reduced-motion: reduce)" });
     setReady(true);
     let raf = 0;
     let throttleTimer = 0;
@@ -475,9 +497,9 @@ export default function BlueMarbleGlobe({ station, previousStation, teleporting 
             s.travelStartY = s.rotY;
             s.travelStartZoom = s.zoom;
             s.travelActive = !s.disabledMotion;
-            s.focusDuration = s.disabledMotion ? 0 : mobile ? 520 : 720;
+            s.focusDuration = s.disabledMotion ? 0 : POST_FOCUS_CORRECTION_DURATION_MS;
             s.correctiveFocusRan = true;
-            debugGlobeFocus("post-focus corrective pass", { snapDirectly: s.disabledMotion, correctionDuration: s.focusDuration, correctionPass: true, station: runtime.stationName, city: runtime.stationCity, country: runtime.stationCountry, selectionVersion: runtime.selectionVersion, stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, derivedGlobePoint: activeBeacon, targetRotation: { rotX: s.targetX / DEG, rotY: s.targetY / DEG }, actualProjectedX: p.x, actualProjectedY: p.y, targetX: targetScreenX, targetY: targetScreenY, deltaX, deltaY, frontFacing, correctiveFocusRan: true, usableBounds });
+            debugGlobeFocus("post-focus corrective pass", { snapDirectly: s.disabledMotion, correctionMode: s.disabledMotion ? "instant" : "animated", correctionDuration: s.focusDuration, correctionPass: true, station: runtime.stationName, city: runtime.stationCity, country: runtime.stationCountry, selectionVersion: runtime.selectionVersion, stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, derivedGlobePoint: activeBeacon, targetRotation: { rotX: s.targetX / DEG, rotY: s.targetY / DEG }, actualProjectedX: p.x, actualProjectedY: p.y, targetX: targetScreenX, targetY: targetScreenY, deltaX, deltaY, frontFacing, correctiveFocusRan: true, usableBounds });
           } else {
             s.verificationPending = false;
             s.verifiedPointKey = pointKey;
