@@ -1482,6 +1482,71 @@ function MapMarkerController({
 const SIGNAL_SOURCE_ID = "waveatlas-signal-constellations";
 const SIGNAL_LAYER_IDS = ["waveatlas-signal-cluster-halo", "waveatlas-signal-clusters", "waveatlas-signal-cluster-count", "waveatlas-signal-favorite-halo", "waveatlas-signals"] as const;
 
+
+function mapDebugState(map: Map | null) {
+  if (!map) return { hasMap: false };
+  const maybeMap = map as Map & { style?: unknown; _removed?: boolean; removed?: boolean };
+  let loaded: boolean | string = "unavailable";
+  try { loaded = map.loaded(); } catch (error) { loaded = error instanceof Error ? error.message : "failed"; }
+  let styleLoaded: boolean | string = "unavailable";
+  try { styleLoaded = Boolean(map.isStyleLoaded()); } catch (error) { styleLoaded = error instanceof Error ? error.message : "failed"; }
+  return { hasMap: true, hasStyle: Boolean(maybeMap.style), loaded, styleLoaded, removed: Boolean(maybeMap._removed || maybeMap.removed) };
+}
+
+function isMapStyleReady(map: Map | null): map is Map {
+  if (!map) return false;
+  const maybeMap = map as Map & { style?: unknown; _removed?: boolean; removed?: boolean };
+  if (maybeMap._removed || maybeMap.removed || !maybeMap.style) return false;
+  try { return Boolean(map.isStyleLoaded()); } catch { return false; }
+}
+
+function warnMapCleanup(label: string, detail: Record<string, unknown>) {
+  if (process.env.NODE_ENV !== "production") console.warn(`[WaveAtlas map cleanup] ${label}`, detail);
+  logAtlasTransitionDiagnostics(label, detail);
+}
+
+function safeHasLayer(map: Map | null, id: string) {
+  if (!isMapStyleReady(map)) {
+    logAtlasTransitionDiagnostics("style unavailable during layer check", { id, map: mapDebugState(map) });
+    return false;
+  }
+  try { return Boolean(map.getLayer(id)); } catch (error) {
+    warnMapCleanup("layer check failed", { id, error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) });
+    return false;
+  }
+}
+
+function safeRemoveLayer(map: Map | null, id: string) {
+  if (!isMapStyleReady(map)) {
+    warnMapCleanup("style unavailable during layer cleanup", { id, map: mapDebugState(map) });
+    return;
+  }
+  try { if (map.getLayer(id)) map.removeLayer(id); } catch (error) {
+    warnMapCleanup("layer cleanup failed", { id, error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) });
+  }
+}
+
+function safeHasSource(map: Map | null, id: string) {
+  if (!isMapStyleReady(map)) {
+    logAtlasTransitionDiagnostics("style unavailable during source check", { id, map: mapDebugState(map) });
+    return false;
+  }
+  try { return Boolean(map.getSource(id)); } catch (error) {
+    warnMapCleanup("source check failed", { id, error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) });
+    return false;
+  }
+}
+
+function safeRemoveSource(map: Map | null, id: string) {
+  if (!isMapStyleReady(map)) {
+    warnMapCleanup("style unavailable during source cleanup", { id, map: mapDebugState(map) });
+    return;
+  }
+  try { if (map.getSource(id)) map.removeSource(id); } catch (error) {
+    warnMapCleanup("source cleanup failed", { id, error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) });
+  }
+}
+
 function readFavoriteSet() {
   if (typeof window === "undefined") return new Set<string>();
   return new Set(readFavoriteStationIds());
@@ -1497,16 +1562,24 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
     if (!map) return;
     let frame = 0;
     const ensureLayers = () => {
-      if (!map.isStyleLoaded()) return false;
-      if (!map.getSource(SIGNAL_SOURCE_ID)) {
-        map.addSource(SIGNAL_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: true, clusterRadius: 88, clusterMaxZoom: 7 });
+      if (!isMapStyleReady(map)) {
+        logAtlasTransitionDiagnostics("style unavailable during SignalConstellationLayer ensure", { sourceId: SIGNAL_SOURCE_ID, map: mapDebugState(map) });
+        return false;
       }
-      if (!map.getLayer("waveatlas-signal-cluster-halo")) map.addLayer({ id: "waveatlas-signal-cluster-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.05, paint: { "circle-color": "rgba(0,214,143,0.22)", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 20, 50, 32, 250, 47], "circle-blur": 0.65, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.05, 0, 2.85, 0.9] } });
-      if (!map.getLayer("waveatlas-signal-clusters")) map.addLayer({ id: "waveatlas-signal-clusters", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.05, paint: { "circle-color": "#00D68F", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 6, 50, 11, 250, 17], "circle-stroke-color": "rgba(255,255,255,0.72)", "circle-stroke-width": 0.7, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.35, 0, 3.1, 0.78, 7.4, 0.28] } });
-      if (!map.getLayer("waveatlas-signal-cluster-count")) map.addLayer({ id: "waveatlas-signal-cluster-count", type: "symbol", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.85, layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 11], "text-allow-overlap": false }, paint: { "text-color": "rgba(248,250,252,0.88)", "text-halo-color": "rgba(2,6,23,0.9)", "text-halo-width": 1.2, "text-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.15, 4.2, 1, 7.5, 0.35] } });
-      if (!map.getLayer("waveatlas-signal-favorite-halo")) map.addLayer({ id: "waveatlas-signal-favorite-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "favorite"], true]], minzoom: 5.8, paint: { "circle-color": "rgba(255,215,0,0)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 5.8, 7, 12, 13], "circle-stroke-color": "#FFD700", "circle-stroke-width": 1.6, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6.2, 0, 7.1, 0.88] } });
-      if (!map.getLayer("waveatlas-signals")) map.addLayer({ id: "waveatlas-signals", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["!", ["has", "point_count"]], minzoom: 5.0, paint: { "circle-color": ["match", ["get", "status"], "community", "#48C7FF", "unverified", "#D4A64A", "#00D68F"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5.0, 1.6, 8, 3.5, 12, 5.6], "circle-blur": 0.14, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5.0, 0, 6.4, 0.78, 12, 0.9], "circle-stroke-color": "rgba(255,255,255,0.42)", "circle-stroke-width": 0.35 } });
-      return true;
+      try {
+        if (!safeHasSource(map, SIGNAL_SOURCE_ID)) {
+          map.addSource(SIGNAL_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] }, cluster: true, clusterRadius: 88, clusterMaxZoom: 7 });
+        }
+        if (!safeHasLayer(map, "waveatlas-signal-cluster-halo")) map.addLayer({ id: "waveatlas-signal-cluster-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.05, paint: { "circle-color": "rgba(0,214,143,0.22)", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 20, 50, 32, 250, 47], "circle-blur": 0.65, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.05, 0, 2.85, 0.9] } });
+        if (!safeHasLayer(map, "waveatlas-signal-clusters")) map.addLayer({ id: "waveatlas-signal-clusters", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.05, paint: { "circle-color": "#00D68F", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 6, 50, 11, 250, 17], "circle-stroke-color": "rgba(255,255,255,0.72)", "circle-stroke-width": 0.7, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2.35, 0, 3.1, 0.78, 7.4, 0.28] } });
+        if (!safeHasLayer(map, "waveatlas-signal-cluster-count")) map.addLayer({ id: "waveatlas-signal-cluster-count", type: "symbol", source: SIGNAL_SOURCE_ID, filter: ["has", "point_count"], minzoom: 2.85, layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 11], "text-allow-overlap": false }, paint: { "text-color": "rgba(248,250,252,0.88)", "text-halo-color": "rgba(2,6,23,0.9)", "text-halo-width": 1.2, "text-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.15, 4.2, 1, 7.5, 0.35] } });
+        if (!safeHasLayer(map, "waveatlas-signal-favorite-halo")) map.addLayer({ id: "waveatlas-signal-favorite-halo", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "favorite"], true]], minzoom: 5.8, paint: { "circle-color": "rgba(255,215,0,0)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 5.8, 7, 12, 13], "circle-stroke-color": "#FFD700", "circle-stroke-width": 1.6, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6.2, 0, 7.1, 0.88] } });
+        if (!safeHasLayer(map, "waveatlas-signals")) map.addLayer({ id: "waveatlas-signals", type: "circle", source: SIGNAL_SOURCE_ID, filter: ["!", ["has", "point_count"]], minzoom: 5.0, paint: { "circle-color": ["match", ["get", "status"], "community", "#48C7FF", "unverified", "#D4A64A", "#00D68F"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5.0, 1.6, 8, 3.5, 12, 5.6], "circle-blur": 0.14, "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5.0, 0, 6.4, 0.78, 12, 0.9], "circle-stroke-color": "rgba(255,255,255,0.42)", "circle-stroke-width": 0.35 } });
+        return true;
+      } catch (error) {
+        warnMapCleanup("SignalConstellationLayer layer setup failed", { sourceId: SIGNAL_SOURCE_ID, error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) });
+        return false;
+      }
     };
     const updateSignals = () => {
       frame = 0;
@@ -1527,13 +1600,29 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
         const beacon = getActiveBeaconFeature(currentRef.current);
         console.debug("[WaveAtlas signals] refresh", { view: "map", activeStation: currentRef.current.name, beaconCoordinates: beacon?.geometry.coordinates ?? null, zoomLevel: zoom, renderedSignals: visibleSignals.length });
       }
-      (map.getSource(SIGNAL_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: visibleSignals as SignalFeature[] });
+      try {
+        (isMapStyleReady(map) ? map.getSource(SIGNAL_SOURCE_ID) as GeoJSONSource | undefined : undefined)?.setData({ type: "FeatureCollection", features: visibleSignals as SignalFeature[] });
+      } catch (error) {
+        warnMapCleanup("SignalConstellationLayer source update failed", { sourceId: SIGNAL_SOURCE_ID, error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) });
+      }
     };
     const schedule = () => { if (frame) return; frame = window.requestAnimationFrame(updateSignals); };
     scheduleRef.current = schedule;
     map.on("styledata", schedule); map.on("moveend", schedule); map.on("zoomend", schedule); map.on("zoomstart", schedule);
     schedule();
-    return () => { if (frame) window.cancelAnimationFrame(frame); if (scheduleRef.current === schedule) scheduleRef.current = null; map.off("styledata", schedule); map.off("moveend", schedule); map.off("zoomend", schedule); map.off("zoomstart", schedule); for (const id of SIGNAL_LAYER_IDS) if (map.getLayer(id)) map.removeLayer(id); if (map.getSource(SIGNAL_SOURCE_ID)) map.removeSource(SIGNAL_SOURCE_ID); };
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      if (scheduleRef.current === schedule) scheduleRef.current = null;
+      try { map.off("styledata", schedule); map.off("moveend", schedule); map.off("zoomend", schedule); map.off("zoomstart", schedule); } catch (error) {
+        warnMapCleanup("SignalConstellationLayer listener cleanup failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) });
+      }
+      if (!isMapStyleReady(map)) {
+        warnMapCleanup("SignalConstellationLayer style unavailable; skipped layer cleanup", { sourceId: SIGNAL_SOURCE_ID, map: mapDebugState(map) });
+        return;
+      }
+      for (const id of SIGNAL_LAYER_IDS) safeRemoveLayer(map, id);
+      safeRemoveSource(map, SIGNAL_SOURCE_ID);
+    };
   }, [map]);
   return null;
 }
@@ -1696,11 +1785,14 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     m.on("click", clickCountry);
     m.on("touchend", clickCountry);
     return () => {
+      setMap(null);
+      setMarker(null);
       window.removeEventListener("orientationchange", resize);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", resize);
-      m.off("click", clickCountry);
-      m.off("touchend", clickCountry);
+      try { m.off("click", clickCountry); m.off("touchend", clickCountry); } catch (error) {
+        warnMapCleanup("map listener cleanup failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(m) });
+      }
       mk?.remove();
       m.remove();
     };
@@ -1746,7 +1838,16 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     };
     map.on("zoomstart", arm);
     map.on("zoomend", inspectZoom);
-    return () => { map.off("zoomstart", arm); map.off("zoomend", inspectZoom); };
+    return () => {
+      const maybeMap = map as Map & { _removed?: boolean; removed?: boolean };
+      if (maybeMap._removed || maybeMap.removed) {
+        logAtlasTransitionDiagnostics("map-to-globe listener cleanup skipped; map removed", { map: mapDebugState(map) });
+        return;
+      }
+      try { map.off("zoomstart", arm); map.off("zoomend", inspectZoom); } catch (error) {
+        warnMapCleanup("map-to-globe listener cleanup failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) });
+      }
+    };
   }, [map, onWorldZoomRequest, station.id, station.name, station.station_uuid, transitionLocked]);
 
   useEffect(() => {
@@ -2854,7 +2955,12 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     setTransitionLocked(true);
     lastMapToGlobeRef.current = now;
     setTransitionContext(context);
-    window.setTimeout(() => { setAtlasView("globe"); persistAtlasView("globe"); window.setTimeout(() => { transitionLockRef.current = false; setTransitionLocked(false); }, TRANSITION_DEBOUNCE_MS); }, 120);
+    window.setTimeout(() => {
+      setAtlasView("globe");
+      persistAtlasView("globe");
+      logAtlasTransitionDiagnostics("final selected view", { selectedView: "globe", context, activeStation: current.name, stationId: current.station_uuid || current.id });
+      window.setTimeout(() => { transitionLockRef.current = false; setTransitionLocked(false); }, TRANSITION_DEBOUNCE_MS);
+    }, 120);
   }, [current, handleMobileGlobeFallback, mobileGlobeFallbackReason]);
   return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
@@ -3306,7 +3412,11 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     setDesktopTransitionLocked(true);
     lastDesktopMapToGlobeRef.current = now;
     setDesktopTransitionContext(context);
-    window.setTimeout(() => { setDesktopAtlasView("globe"); window.setTimeout(() => { desktopTransitionLockRef.current = false; setDesktopTransitionLocked(false); }, TRANSITION_DEBOUNCE_MS); }, 120);
+    window.setTimeout(() => {
+      setDesktopAtlasView("globe");
+      logAtlasTransitionDiagnostics("final selected view", { selectedView: "globe", context });
+      window.setTimeout(() => { desktopTransitionLockRef.current = false; setDesktopTransitionLocked(false); }, TRANSITION_DEBOUNCE_MS);
+    }, 120);
   }, [globeFallbackReason]);
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
