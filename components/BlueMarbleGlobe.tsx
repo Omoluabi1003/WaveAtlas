@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { geoOrthographic, geoPath, type GeoPermissibleObjects } from "d3-geo";
 import { isoCountryCentroids, resolveStationGeo } from "@/lib/geotruth-resolver";
 import { flagFor, type Station } from "@/lib/stations";
 
@@ -18,7 +19,7 @@ type GlobeLabel = GlobePoint & { active?: boolean };
 type GlobeRuntime = { currentPoint: GlobePoint | null; stationLabel: string; basemap: GlobeBasemapKey; teleporting: boolean; labels: GlobeLabel[]; landShapes: LandShape[] };
 type CanvasSize = { cssWidth: number; cssHeight: number; pixelWidth: number; pixelHeight: number; dpr: number };
 type LandRing = Array<[number, number]>;
-type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number } };
+type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number }; feature: GeoPermissibleObjects };
 type NaturalEarthFeature = {
   type: "Feature";
   properties?: Record<string, string | number | null | undefined>;
@@ -41,6 +42,7 @@ const COUNTRY_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 const LAND_GEOJSON_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
+const LAND_CACHE_NAME = "waveatlas-boundaries-v1";
 const MOBILE_FRAME_MS = 1000 / 30;
 const DESKTOP_FRAME_MS = 1000 / 60;
 const MOBILE_FALLBACK_MS = 2000;
@@ -74,21 +76,33 @@ function normalizeLandFeature(feature: NaturalEarthFeature): LandShape | null {
     code: typeof props.ISO_A2 === "string" && props.ISO_A2.length === 2 ? props.ISO_A2 : undefined,
     rings,
     centroid: ringCentroid(rings),
+    feature: feature as unknown as GeoPermissibleObjects,
   };
+}
+
+async function fetchBoundaryCollection() {
+  const request = new Request(LAND_GEOJSON_URL, { cache: "force-cache" });
+  if (typeof window !== "undefined" && "caches" in window) {
+    const cache = await caches.open(LAND_CACHE_NAME);
+    const cached = await cache.match(request);
+    if (cached) return cached.json() as Promise<NaturalEarthCollection>;
+    const response = await fetch(request);
+    if (!response.ok) throw new Error(`Natural Earth boundaries failed: ${response.status}`);
+    await cache.put(request, response.clone());
+    return response.json() as Promise<NaturalEarthCollection>;
+  }
+  const response = await fetch(request);
+  if (!response.ok) throw new Error(`Natural Earth boundaries failed: ${response.status}`);
+  return response.json() as Promise<NaturalEarthCollection>;
 }
 
 function loadLandShapes() {
   if (landCache) return Promise.resolve(landCache);
   if (!landPromise) {
-    landPromise = fetch(LAND_GEOJSON_URL, { cache: "force-cache" })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Natural Earth boundaries failed: ${response.status}`);
-        return response.json() as Promise<NaturalEarthCollection>;
-      })
-      .then((collection) => {
-        landCache = collection.features.map(normalizeLandFeature).filter((shape): shape is LandShape => Boolean(shape));
-        return landCache;
-      });
+    landPromise = fetchBoundaryCollection().then((collection) => {
+      landCache = collection.features.map(normalizeLandFeature).filter((shape): shape is LandShape => Boolean(shape));
+      return landCache;
+    });
   }
   return landPromise;
 }
@@ -293,14 +307,27 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       else { ocean.addColorStop(0, "#1f6f9d"); ocean.addColorStop(0.42, "#0c3b67"); ocean.addColorStop(1, "#031327"); }
       ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
       if (runtime.landShapes.length) {
-        ctx.fillStyle = runtime.basemap === "night" ? "rgba(28,38,52,0.72)" : runtime.basemap === "signal" ? "rgba(8,31,51,0.38)" : "rgba(74,142,88,0.68)";
-        ctx.strokeStyle = runtime.basemap === "night" ? "rgba(251,191,36,0.22)" : runtime.basemap === "signal" ? "rgba(125,211,252,0.35)" : "rgba(226,255,236,0.36)";
-        ctx.lineWidth = mobile || profile.lowPower ? 0.5 : 0.75;
-        const shapesToDraw = mobile || profile.lowPower ? runtime.landShapes.slice(0, 130) : runtime.landShapes;
+        const projection = geoOrthographic()
+          .translate([cx, cy])
+          .scale(r)
+          .rotate([-(state.current.rotY / DEG), -(state.current.rotX / DEG), 0])
+          .precision(mobile || profile.lowPower ? 0.85 : 0.45)
+          .clipAngle(90);
+        const path = geoPath(projection, ctx);
+        const shapesToDraw = runtime.landShapes;
+
+        ctx.fillStyle = runtime.basemap === "night" ? "rgba(30,41,59,0.78)" : runtime.basemap === "signal" ? "rgba(18,52,70,0.66)" : "rgba(42,92,78,0.82)";
         for (const shape of shapesToDraw) {
           ctx.beginPath();
-          for (const ring of shape.rings) drawRing(ring, w, h, r);
-          ctx.fill();
+          path(shape.feature);
+          ctx.fill("evenodd");
+        }
+
+        ctx.strokeStyle = runtime.basemap === "night" ? "rgba(125,211,252,0.25)" : runtime.basemap === "signal" ? "rgba(125,211,252,0.38)" : "rgba(125,211,252,0.30)";
+        ctx.lineWidth = mobile || profile.lowPower ? 0.42 : 0.65;
+        for (const shape of shapesToDraw) {
+          ctx.beginPath();
+          path(shape.feature);
           ctx.stroke();
         }
       }
