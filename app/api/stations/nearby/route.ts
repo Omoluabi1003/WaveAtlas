@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const requestedRadiusKm = Number(p.get('radiusKm'));
   const radiusKm = Number.isFinite(requestedRadiusKm) && requestedRadiusKm > 0 ? requestedRadiusKm : radiusForZoom(zoom);
   const limit = Math.min(globalTeleport ? 25 : 24, Math.max(1, Number(p.get('limit') ?? 5)));
+  const discoveryLimit = globalTeleport ? 1500 : 500;
   const anchor = parseStationParam(p.get('anchor'));
   const recent = parseRecentParam(p.get('recent'));
   const teleportMode = globalTeleport && anchor;
@@ -31,10 +32,10 @@ export async function GET(req: NextRequest) {
       ? { lat: 20, lng: 0, zoom: 1.5, radiusKm: 20000, label: 'Global audio teleport', mode: 'world' as const }
       : focusForPoint(lat, lng, zoom, radiusKm);
   const resolvedCountry = focusedPlace.countryCode ? (country ?? (await searchCountries(focusedPlace.countryCode)).find((item) => item.code === focusedPlace.countryCode)) : undefined;
-  const countryStations = focusedPlace.countryCode ? await fetchStationsForCountryIntent(resolvedCountry?.name ?? countryNameParam ?? focusedPlace.countryCode, focusedPlace.countryCode, { limit: '120' }) : [];
+  const countryStations = focusedPlace.countryCode ? await fetchStationsForCountryIntent(resolvedCountry?.name ?? countryNameParam ?? focusedPlace.countryCode, focusedPlace.countryCode, { limit: String(discoveryLimit), pageSize: '500' }) : [];
   const globalStations = globalTeleport
     ? await fetchTeleportCandidatePool()
-    : countryStations.length ? [] : await fetchStations({ limit: '120', allowFallback: 'false' });
+    : countryStations.length ? [] : await fetchStations({ limit: String(discoveryLimit), pageSize: '500', allowFallback: 'false' });
   const fallbackPool = focusedPlace.countryCode ? fallbackStations.filter((station) => station.country_code === focusedPlace.countryCode) : fallbackStations;
   const candidates = teleportMode
     ? scoreTeleportCandidates(globalStations, anchor, recent, limit)
@@ -62,6 +63,7 @@ export async function GET(req: NextRequest) {
     status: bestCandidate ? 'signal_found' : 'no_signal',
     focus: { ...focusedPlace, countryName: resolvedCountry?.name ?? focusedPlace.countryName, country: resolvedCountry },
     best: bestCandidate,
+    diagnostics: { fetchedCount: countryStations.length + globalStations.length, curatedCount: [...countryStations, ...globalStations].filter(isCuratedStation).length, returnedCount: candidates.length, poolSize: candidates.length, requestedLimit: limit },
     totalReturned: candidates.length,
     ...(debug ? { debug } : {}),
   });
@@ -83,8 +85,8 @@ function count(items: string[], value: string) { return items.filter((item) => i
 
 async function fetchTeleportCandidatePool() {
   const [broad, continentSeeded] = await Promise.all([
-    fetchStations({ limit: '2000', order: 'clicktrend', allowFallback: 'false' }),
-    fetchGlobalCandidateStations(80),
+    fetchStations({ limit: '3000', pageSize: '500', pages: '6', order: 'clicktrend', allowFallback: 'false' }),
+    fetchGlobalCandidateStations(1500),
   ]);
   const seen = new Set<string>();
   return [...ariyoSeedStations, ...startupStations, ...broad, ...continentSeeded, ...fallbackStations].filter((station) => {
