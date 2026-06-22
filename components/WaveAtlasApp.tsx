@@ -82,6 +82,7 @@ type StationSelectionSource = "manual" | "startup" | "teleport" | "fallback" | "
 type PlayerState = {
   current?: Station;
   stationSelectionSource: StationSelectionSource;
+  selectionVersion: number;
   playing: boolean;
   status: PlaybackStatus;
   volume: number;
@@ -95,7 +96,7 @@ type PlayerState = {
   clearArrivalContext: () => void;
   setArrivalStation: (station: Station, queue?: Station[]) => void;
   replaceStartupStation: (previous: Station, next: Station, reason: string) => void;
-  setStation: (s: Station, source?: StationSelectionSource) => void;
+  setStation: (s: Station, source?: StationSelectionSource, selectionVersion?: number) => void;
   prepareStation: (s: Station, source?: StationSelectionSource) => void;
   toggle: () => void;
   setVolume: (n: number) => void;
@@ -106,6 +107,7 @@ const usePlayer = create<PlayerState>((set) => ({
   playing: false,
   status: "idle",
   stationSelectionSource: "startup",
+  selectionVersion: 0,
   volume: 1,
   userActivated: false,
   startupQueue: [],
@@ -122,10 +124,11 @@ const usePlayer = create<PlayerState>((set) => ({
       replacementReason: reason,
     }));
   },
-  setStation: (current, stationSelectionSource = "manual") =>
+  setStation: (current, stationSelectionSource = "manual", selectionVersion = stationSelectionVersion) =>
     set({
       current,
       stationSelectionSource,
+      selectionVersion,
       playing: false,
       status: "buffering",
       error: undefined,
@@ -175,6 +178,27 @@ function teleportDebugEnabled() {
   return typeof window !== "undefined" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_TELEPORT === "true";
 }
 
+function globeDebugEnabled() {
+  return typeof window !== "undefined" && process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true";
+}
+
+function debugGlobeStationSelection(station: Station, source: StationSelectionSource, selectionVersion: number) {
+  if (!globeDebugEnabled()) return;
+  const geo = resolveStationGeo(station);
+  console.debug("[WaveAtlas globe selection]", {
+    station: station.name,
+    city: station.city,
+    country: station.country,
+    latitude: geo.lat,
+    longitude: geo.lng,
+    source,
+    selectionVersion,
+    geoSource: geo.source,
+    geoPrecision: geo.precision,
+    timestamp: new Date().toISOString(),
+  });
+}
+
 function debugTeleport(label: string, payload: Record<string, unknown>) {
   if (!teleportDebugEnabled()) return;
   console.debug(`[WaveAtlas Teleport] ${label}`, payload);
@@ -217,9 +241,10 @@ function warnIfStationGeoConflicts(station: Station, geo: GeoPoint) {
 
 function setCurrentStationAndDestination(station: Station, source: StationSelectionSource = "manual", queue: Station[] = []) {
   const version = ++stationSelectionVersion;
+  debugGlobeStationSelection(station, source, version);
   warnIfStationGeoConflicts(station, geotruth(station));
   const player = usePlayer.getState();
-  player.setStation(station, source);
+  player.setStation(station, source, version);
   if (queue.length) player.setTeleportQueue(queue.filter((candidate) => stationKey(candidate) !== stationKey(station)));
   return version;
 }
@@ -2535,6 +2560,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
   const wandererTimer = useRef<number | null>(null);
   const [mapContext, setMapContext] = useState<MapTeleportContext | null>(null);
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
+  const selectionVersion = usePlayer((state) => state.selectionVersion);
   const handleTravel = useCallback((intent: string) => {
     setWandererIntent(intent);
   }, [setWandererIntent]);
@@ -2585,7 +2611,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     {selectedView === "map" ? (
       <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     ) : (
-      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} onStreetZoomRequest={enterMobileStreets} />
+      <BlueMarbleGlobe station={current} selectionVersion={selectionVersion} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} onStreetZoomRequest={enterMobileStreets} />
     )}
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
@@ -2809,6 +2835,7 @@ function DailyFlightPanel({ stations }: { stations: Station[] }) {
 export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const reducedMotion = useReducedMotion();
   const playerStatus = usePlayer((state) => state.status);
+  const selectionVersion = usePlayer((state) => state.selectionVersion);
   const [stationPool, setStationPool] = useState(stations);
   const [arrival, setArrival] = useState<ArrivalDestination | undefined>();
   const [arrivalVisible, setArrivalVisible] = useState(false);
@@ -3063,7 +3090,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           {globeFallbackReason || desktopAtlasView === "map" ? (
             <WaveAtlasMap station={current} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
           ) : (
-            <BlueMarbleGlobe station={current} previousStation={previousDesktopStation} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} onStreetZoomRequest={enterDesktopStreets} />
+            <BlueMarbleGlobe station={current} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} onStreetZoomRequest={enterDesktopStreets} />
           )}
         </div>
         {!globeFallbackReason && desktopAtlasView === "globe" ? <GlobeBasemapControl value={desktopGlobeBasemap} onChange={setDesktopGlobeBasemap} /> : null}
