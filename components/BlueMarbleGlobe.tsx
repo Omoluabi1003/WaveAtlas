@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { geoOrthographic, geoPath, type GeoPermissibleObjects } from "d3-geo";
+import { geoPath, type GeoPermissibleObjects, type GeoProjection as D3GeoProjection } from "d3-geo";
 import { isoCountryCentroids, resolveStationGeo } from "@/lib/geotruth-resolver";
 import { flagFor, type Station } from "@/lib/stations";
-import { DEG, focusRotationForPoint, invertGlobePoint, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
+import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, invertGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
 
 type CountryResult = {
   name: string;
@@ -18,7 +18,7 @@ export type GlobeBasemapKey = "blueMarble" | "night" | "signal";
 type GlobePoint = { lat: number; lng: number; label: string };
 type GlobeLabel = GlobePoint & { active?: boolean };
 type GlobeRuntime = { currentPoint: GlobePoint | null; stationName: string; stationLabel: string; basemap: GlobeBasemapKey; teleporting: boolean; labels: GlobeLabel[]; landShapes: LandShape[] };
-type GlobeDebugOverlay = { stationLat: number | null; stationLng: number | null; screenX: number | null; screenY: number | null; rotX: number; rotY: number; selectedCountry: string | null };
+type GlobeDebugOverlay = { stationLat: number | null; stationLng: number | null; screenX: number | null; screenY: number | null; rotX: number; rotY: number; selectedCountry: string | null; d3InputOrder: "[longitude, latitude]" };
 type CanvasSize = { cssWidth: number; cssHeight: number; pixelWidth: number; pixelHeight: number; dpr: number };
 type LandRing = Array<[number, number]>;
 type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number }; feature: GeoPermissibleObjects };
@@ -242,23 +242,14 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
     let painted = false;
     const fallbackTimer = mobile ? window.setTimeout(() => { if (!painted) fallbackRef.current?.("Globe view is optimized for this device using map mode."); }, MOBILE_FALLBACK_MS) : 0;
 
-    const project = (lat: number, lng: number, w: number, h: number, r: number): GlobeProjection => projectGlobePoint({ lat, lng }, { rotX: state.current.rotX, rotY: state.current.rotY }, { width: w, height: h, radius: r });
-
-    const drawRing = (ring: LandRing, w: number, h: number, r: number) => {
-      let started = false;
-      for (let i = 0; i < ring.length; i += 1) {
-        const [lng, lat] = ring[i];
-        const p = project(lat, lng, w, h, r);
-        const prev = i > 0 ? ring[i - 1] : null;
-        const crossesDateLine = prev ? Math.abs(lng - prev[0]) > 180 : false;
-        if (p.z < -0.04 || crossesDateLine) { started = false; continue; }
-        started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
-        started = true;
-      }
+    const project = (lat: number, lng: number, projection: D3GeoProjection): GlobeProjection => {
+      const projected = projection([lng, lat]);
+      const z = globeDepthFromProjection({ lat, lng }, projection);
+      return { x: projected?.[0] ?? Number.NaN, y: projected?.[1] ?? Number.NaN, z, vector: { x: Number.NaN, y: Number.NaN, z }, projection };
     };
 
-    const drawLabel = (text: string, lat: number, lng: number, w: number, h: number, r: number, active = false) => {
-      const p = project(lat, lng, w, h, r);
+    const drawLabel = (text: string, lat: number, lng: number, projection: D3GeoProjection, active = false) => {
+      const p = project(lat, lng, projection);
       if (p.z < -0.02) return;
       ctx.save();
       ctx.font = `${active ? 700 : 600} ${active ? 12 : 9}px var(--font-sans), Inter, system-ui, sans-serif`;
@@ -309,13 +300,9 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       else if (runtime.basemap === "signal") { ocean.addColorStop(0, "#08213a"); ocean.addColorStop(0.55, "#031225"); ocean.addColorStop(1, "#010814"); }
       else { ocean.addColorStop(0, "#1f6f9d"); ocean.addColorStop(0.42, "#0c3b67"); ocean.addColorStop(1, "#031327"); }
       ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      const projection = buildGlobeProjection(w, h, r, state.current.rotX, state.current.rotY)
+        .precision(mobile || profile.lowPower ? 0.85 : 0.45);
       if (runtime.landShapes.length) {
-        const projection = geoOrthographic()
-          .translate([cx, cy])
-          .scale(r)
-          .rotate([-(state.current.rotY / DEG), -(state.current.rotX / DEG), 0])
-          .precision(mobile || profile.lowPower ? 0.85 : 0.45)
-          .clipAngle(90);
         const path = geoPath(projection, ctx);
         const shapesToDraw = runtime.landShapes;
 
@@ -337,33 +324,33 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       ctx.strokeStyle = runtime.basemap === "signal" ? "rgba(56,189,248,0.24)" : runtime.basemap === "night" ? "rgba(148,163,184,0.055)" : "rgba(147,197,253,0.09)"; ctx.lineWidth = mobile || profile.lowPower ? 0.45 : 0.7;
       const latStep = mobile || profile.lowPower ? 30 : 15;
       const lngStep = mobile || profile.lowPower ? 30 : 15;
-      for (let lat = -75; lat <= 75; lat += latStep) { ctx.beginPath(); for (let lng = -180; lng <= 180; lng += 4) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) continue; lng === -180 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.stroke(); }
-      for (let lng = -180; lng < 180; lng += lngStep) { ctx.beginPath(); let started = false; for (let lat = -85; lat <= 85; lat += 3) { const p = project(lat, lng, w, h, r); if (p.z < -0.02) { started = false; continue; } started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); started = true; } ctx.stroke(); }
+      for (let lat = -75; lat <= 75; lat += latStep) { ctx.beginPath(); for (let lng = -180; lng <= 180; lng += 4) { const p = project(lat, lng, projection); if (p.z < -0.02) continue; lng === -180 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.stroke(); }
+      for (let lng = -180; lng < 180; lng += lngStep) { ctx.beginPath(); let started = false; for (let lat = -85; lat <= 85; lat += 3) { const p = project(lat, lng, projection); if (p.z < -0.02) { started = false; continue; } started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); started = true; } ctx.stroke(); }
       if (!mobile && s.zoom > 1.28) {
         const visibleLabels = runtime.landShapes.filter((shape) => shape.code && isoCountryCentroids[shape.code]).slice(0, 70);
         for (const shape of visibleLabels) {
           const centroid = isoCountryCentroids[shape.code as keyof typeof isoCountryCentroids] ?? shape.centroid;
-          drawLabel(shape.name, centroid.lat, centroid.lng, w, h, r);
+          drawLabel(shape.name, centroid.lat, centroid.lng, projection);
         }
       }
       if (runtime.basemap === "night") {
         const lights = mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;
-        for (const light of lights) { const p = project(light.lat, light.lng, w, h, r); if (p.z < -0.02) continue; const glow = 1 + Math.max(0, p.z) * 1.8; ctx.fillStyle = "rgba(251,191,36,0.24)"; ctx.beginPath(); ctx.arc(p.x, p.y, 5.5 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.88)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.4 * glow, 0, TAU); ctx.fill(); }
+        for (const light of lights) { const p = project(light.lat, light.lng, projection); if (p.z < -0.02) continue; const glow = 1 + Math.max(0, p.z) * 1.8; ctx.fillStyle = "rgba(251,191,36,0.24)"; ctx.beginPath(); ctx.arc(p.x, p.y, 5.5 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.88)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.4 * glow, 0, TAU); ctx.fill(); }
       }
       const activeBeacon = runtime.currentPoint;
       if (activeBeacon) {
-        const p = project(activeBeacon.lat, activeBeacon.lng, w, h, r);
+        const p = project(activeBeacon.lat, activeBeacon.lng, projection);
         if (process.env.NODE_ENV === "development" && now - debugOverlayTickRef.current > 250) {
           debugOverlayTickRef.current = now;
           const country = nearestCountry(activeBeacon.lat, activeBeacon.lng);
-          setDebugOverlay({ stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, screenX: p.x, screenY: p.y, rotX: s.rotX / DEG, rotY: s.rotY / DEG, selectedCountry: country?.name ?? null });
+          setDebugOverlay({ stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, screenX: p.x, screenY: p.y, rotX: s.rotX / DEG, rotY: s.rotY / DEG, selectedCountry: country?.name ?? null, d3InputOrder: "[longitude, latitude]" });
         }
         const logKey = `${runtime.stationName}:${activeBeacon.lat}:${activeBeacon.lng}:${Math.round(p.x)}:${Math.round(p.y)}:${Math.round(p.z * 1000)}`;
         if (lastCoordinateLogRef.current !== logKey) {
           lastCoordinateLogRef.current = logKey;
-          debugGlobeCoordinates({ station: runtime.stationName, label: runtime.stationLabel, latitude: activeBeacon.lat, longitude: activeBeacon.lng, rotation: { rotX: s.rotX / DEG, rotY: s.rotY / DEG }, computed3DVector: p.vector, renderedMarkerPosition: { x: p.x, y: p.y, z: p.z } });
+          debugGlobeCoordinates({ station: runtime.stationName, label: runtime.stationLabel, latitude: activeBeacon.lat, longitude: activeBeacon.lng, d3ProjectionInput: [activeBeacon.lng, activeBeacon.lat], d3ProjectionInputOrder: "[longitude, latitude]", rotation: { rotX: s.rotX / DEG, rotY: s.rotY / DEG, d3Rotate: projection.rotate() }, computed3DVector: p.vector, renderedMarkerPosition: { x: p.x, y: p.y, z: p.z } });
         }
-        if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / (mobile ? 360 : 180)) * (mobile ? 0.08 : 0.22); ctx.fillStyle = mobile || profile.lowPower ? "rgba(229,57,53,0.16)" : "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, (mobile ? 13 : 18) * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, mobile ? 5 : 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); for (const label of runtime.labels) drawLabel(label.label, label.lat, label.lng, w, h, r, Boolean(label.active)); }
+        if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / (mobile ? 360 : 180)) * (mobile ? 0.08 : 0.22); ctx.fillStyle = mobile || profile.lowPower ? "rgba(229,57,53,0.16)" : "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, (mobile ? 13 : 18) * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, mobile ? 5 : 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); for (const label of runtime.labels) drawLabel(label.label, label.lat, label.lng, projection, Boolean(label.active)); }
       }
       ctx.restore();
       ctx.strokeStyle = "rgba(0,214,143,0.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
@@ -413,6 +400,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       <div>station lat/lng: {debugOverlay.stationLat?.toFixed(4)}, {debugOverlay.stationLng?.toFixed(4)}</div>
       <div>screen x/y: {debugOverlay.screenX?.toFixed(1)}, {debugOverlay.screenY?.toFixed(1)}</div>
       <div>rotX/rotY: {debugOverlay.rotX.toFixed(2)}°, {debugOverlay.rotY.toFixed(2)}°</div>
+      <div>d3 input: {debugOverlay.d3InputOrder}</div>
       <div>selected country: {debugOverlay.selectedCountry ?? "—"}</div>
     </div> : null}
   </div>;

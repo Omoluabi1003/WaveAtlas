@@ -1,7 +1,10 @@
+import { geoDistance, geoOrthographic, type GeoProjection as D3GeoProjection } from "d3-geo";
+
 export type GlobeRotation = { rotX: number; rotY: number };
 export type GlobeScreen = { width: number; height: number; radius: number };
 export type GlobeGeoPoint = { lat: number; lng: number; label?: string };
-export type GlobeProjection = { x: number; y: number; z: number; vector: { x: number; y: number; z: number } };
+
+export type GlobeProjection = { x: number; y: number; z: number; vector: { x: number; y: number; z: number }; projection: D3GeoProjection };
 
 export const DEG = Math.PI / 180;
 export const RAD = 180 / Math.PI;
@@ -25,32 +28,43 @@ export function rotateFromDrag(rotation: GlobeRotation, dx: number, dy: number, 
   };
 }
 
+export function buildGlobeProjection(width: number, height: number, radius: number, rotX: number, rotY: number): D3GeoProjection {
+  const rotXDeg = rotX * RAD;
+  const rotYDeg = rotY * RAD;
+  return geoOrthographic()
+    .translate([width / 2, height / 2])
+    .scale(radius)
+    .rotate([-rotYDeg, -rotXDeg, 0])
+    .clipAngle(90);
+}
+
+export function globeDepthFromProjection(point: GlobeGeoPoint, projection: D3GeoProjection) {
+  const [rotateLng, rotateLat] = projection.rotate();
+  const center: [number, number] = [-rotateLng, -rotateLat];
+  return Math.cos(geoDistance([point.lng, point.lat], center));
+}
+
 export function projectGlobePoint(point: GlobeGeoPoint, rotation: GlobeRotation, screen: GlobeScreen): GlobeProjection {
-  const phi = point.lat * DEG;
-  const lambda = point.lng * DEG + rotation.rotY;
-  const vectorX = Math.cos(phi) * Math.sin(lambda);
-  const vectorY = Math.sin(phi) * Math.cos(rotation.rotX) - Math.cos(phi) * Math.cos(lambda) * Math.sin(rotation.rotX);
-  const vectorZ = Math.sin(phi) * Math.sin(rotation.rotX) + Math.cos(phi) * Math.cos(lambda) * Math.cos(rotation.rotX);
+  const projection = buildGlobeProjection(screen.width, screen.height, screen.radius, rotation.rotX, rotation.rotY);
+  const projected = projection([point.lng, point.lat]);
+  const z = globeDepthFromProjection(point, projection);
   return {
-    x: screen.width / 2 + vectorX * screen.radius,
-    y: screen.height / 2 - vectorY * screen.radius,
-    z: vectorZ,
-    vector: { x: vectorX, y: vectorY, z: vectorZ },
+    x: projected?.[0] ?? Number.NaN,
+    y: projected?.[1] ?? Number.NaN,
+    z,
+    vector: { x: Number.NaN, y: Number.NaN, z },
+    projection,
   };
 }
 
 export function invertGlobePoint(x: number, y: number, rotation: GlobeRotation, screen: GlobeScreen): GlobeGeoPoint | null {
-  const nx = (x - screen.width / 2) / screen.radius;
-  const ny = (screen.height / 2 - y) / screen.radius;
-  if (nx * nx + ny * ny > 1) return null;
-  const nz = Math.sqrt(1 - nx * nx - ny * ny);
-  const sinX = Math.sin(rotation.rotX);
-  const cosX = Math.cos(rotation.rotX);
-  const worldY = ny * cosX + nz * sinX;
-  const worldZ = nz * cosX - ny * sinX;
-  const lat = Math.asin(worldY) * RAD;
-  const lng = normalizeLongitude((Math.atan2(nx, worldZ) - rotation.rotY) * RAD);
-  return { lat, lng };
+  const dx = x - screen.width / 2;
+  const dy = y - screen.height / 2;
+  if (dx * dx + dy * dy > screen.radius * screen.radius) return null;
+  const projection = buildGlobeProjection(screen.width, screen.height, screen.radius, rotation.rotX, rotation.rotY);
+  const lngLat = projection.invert?.([x, y]);
+  if (!lngLat) return null;
+  return { lng: normalizeLongitude(lngLat[0]), lat: lngLat[1] };
 }
 
 export const GLOBE_COORDINATE_FIXTURES = [
