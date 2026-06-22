@@ -51,6 +51,22 @@ const MOBILE_FALLBACK_MS = 2000;
 let landPromise: Promise<LandShape[]> | null = null;
 let landCache: LandShape[] | null = null;
 
+function easeInOutCubic(t: number) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function easeOutQuart(t: number) {
+  return 1 - Math.pow(1 - t, 4);
+}
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+function clampFocusLatitude(rotX: number) {
+  return Math.max(-70 * DEG, Math.min(70 * DEG, rotX));
+}
+
 function ringCentroid(rings: LandRing[]) {
   let lat = 0;
   let lng = 0;
@@ -224,7 +240,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
   const [landShapes, setLandShapes] = useState<LandShape[]>([]);
-  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, focusStartedAt: 0, focusDuration: 1100, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false, focusToken: 0, verificationPending: false, correctiveFocusRan: false, verifiedPointKey: "" });
+  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, travelStartX: -10 * DEG, travelStartY: 0, travelStartZoom: 1, focusStartedAt: 0, focusDuration: 1100, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false, focusToken: 0, activeFocusToken: 0, verificationPending: false, correctiveFocusRan: false, verifiedPointKey: "", travelActive: false, landingPulseStartedAt: 0 });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchDistance = useRef<number | null>(null);
   const currentPoint = useMemo(() => stationPoint(station), [station]);
@@ -244,19 +260,27 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
     const rotation = focusRotationForPoint(point);
     const upwardOffset = mobile ? -12 * DEG : -3 * DEG;
     const shortestDeltaY = Math.atan2(Math.sin(rotation.rotY - state.current.rotY), Math.cos(rotation.rotY - state.current.rotY));
+    const travelDistance = Math.min(Math.PI, Math.abs(shortestDeltaY) + Math.abs(rotation.rotX - state.current.rotX) * 0.7);
     const targetZoom = mobile ? (fast ? 1.18 : 1.12) : (fast ? 1.2 : 1.08);
-    const focusDuration = state.current.disabledMotion ? 0 : mobile ? (fast ? 650 : 820) : (fast ? 900 : 1200);
+    const focusDuration = state.current.disabledMotion ? 0 : mobile ? Math.round(1400 + (2200 - 1400) * Math.min(1, travelDistance / Math.PI)) : Math.round(1800 + (2800 - 1800) * Math.min(1, travelDistance / Math.PI));
     debugGlobeFocus("focusRotationForPoint", { selectionVersion, label: point.label, latitude: point.lat, longitude: point.lng, rotX: rotation.rotX / DEG, rotY: rotation.rotY / DEG });
     state.current.focusToken += 1;
+    state.current.activeFocusToken = state.current.focusToken;
     state.current.verificationPending = true;
     state.current.correctiveFocusRan = false;
     state.current.verifiedPointKey = "";
-    debugGlobeFocus("focusPoint", { selectionVersion, label: point.label, currentRotX: state.current.rotX / DEG, currentRotY: state.current.rotY / DEG, targetRotX: Math.max(-70 * DEG, Math.min(70 * DEG, rotation.rotX + upwardOffset)) / DEG, targetRotY: (state.current.rotY + shortestDeltaY) / DEG, shortestDeltaY: shortestDeltaY / DEG, targetZoom, focusDuration, mobile, reducedMotion: state.current.disabledMotion, geoSource: point.geoSource, geoPrecision: point.geoPrecision });
+    state.current.travelStartX = state.current.rotX;
+    state.current.travelStartY = state.current.rotY;
+    state.current.travelStartZoom = state.current.zoom;
+    state.current.travelActive = !state.current.disabledMotion;
+    state.current.landingPulseStartedAt = 0;
+    debugGlobeFocus("focusPoint", { selectionVersion, label: point.label, currentRotX: state.current.rotX / DEG, currentRotY: state.current.rotY / DEG, targetRotX: clampFocusLatitude(rotation.rotX + upwardOffset) / DEG, targetRotY: (state.current.rotY + shortestDeltaY) / DEG, shortestDeltaY: shortestDeltaY / DEG, targetZoom, focusDuration, mobile, reducedMotion: state.current.disabledMotion, geoSource: point.geoSource, geoPrecision: point.geoPrecision, stages: ["zoom-out", "shortest-path-rotation", "final-centered-approach", "landing-pulse"] });
     state.current.targetY = state.current.rotY + shortestDeltaY;
-    state.current.targetX = Math.max(-70 * DEG, Math.min(70 * DEG, rotation.rotX + upwardOffset));
+    state.current.targetX = clampFocusLatitude(rotation.rotX + upwardOffset);
     state.current.targetZoom = targetZoom;
     state.current.focusStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
     state.current.focusDuration = focusDuration;
+    if (state.current.disabledMotion) { state.current.rotX = state.current.targetX; state.current.rotY = state.current.targetY; state.current.zoom = state.current.targetZoom; }
   }, [mobile, selectionVersion]);
 
   useEffect(() => { fallbackRef.current = onFallback; }, [onFallback]);
@@ -338,10 +362,21 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       const s = state.current;
       const focusElapsed = s.focusStartedAt ? now - s.focusStartedAt : s.focusDuration;
       const focusProgress = s.focusDuration <= 0 ? 1 : Math.min(1, focusElapsed / s.focusDuration);
-      const ease = s.disabledMotion || focusProgress >= 1 ? 1 : Math.max(0.055, 0.12 * (dt / 16));
-      s.rotX += (s.targetX - s.rotX) * ease;
-      s.rotY += (s.targetY - s.rotY) * ease;
-      s.zoom += (s.targetZoom - s.zoom) * ease;
+      if (s.disabledMotion) {
+        s.rotX = s.targetX; s.rotY = s.targetY; s.zoom = s.targetZoom;
+      } else if (s.travelActive && focusProgress < 1) {
+        const zoomOutEnd = 0.24;
+        const approachStart = 0.72;
+        const rotateProgress = focusProgress < zoomOutEnd ? easeInOutCubic(focusProgress / zoomOutEnd) * 0.08 : focusProgress < approachStart ? 0.08 + easeInOutCubic((focusProgress - zoomOutEnd) / (approachStart - zoomOutEnd)) * 0.76 : 0.84 + easeOutQuart((focusProgress - approachStart) / (1 - approachStart)) * 0.16;
+        const zoomOut = Math.max(0.86, s.travelStartZoom - (mobile ? 0.1 : 0.14));
+        const stagedZoom = focusProgress < approachStart ? lerp(s.travelStartZoom, zoomOut, easeOutQuart(Math.min(1, focusProgress / approachStart))) : lerp(zoomOut, s.targetZoom, easeOutQuart((focusProgress - approachStart) / (1 - approachStart)));
+        s.rotX = lerp(s.travelStartX, s.targetX, rotateProgress);
+        s.rotY = lerp(s.travelStartY, s.targetY, rotateProgress);
+        s.zoom = stagedZoom;
+      } else {
+        s.rotX = s.targetX; s.rotY = s.targetY; s.zoom = s.targetZoom;
+        if (s.travelActive) { s.travelActive = false; s.landingPulseStartedAt = now; }
+      }
       const activeFocusVerified = runtime.currentPoint ? s.verifiedPointKey === `${runtime.selectionVersion ?? "none"}:${runtime.currentPoint.lat}:${runtime.currentPoint.lng}` : true;
       if (!s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1 && activeFocusVerified) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
       const r = Math.min(w, h) * (mobile ? 0.46 : 0.34) * s.zoom;
@@ -415,7 +450,11 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
             s.targetY += frontCorrectionY + horizontalCorrection;
             s.targetX = Math.max(-70 * DEG, Math.min(70 * DEG, s.targetX + verticalCorrection));
             s.focusStartedAt = now;
-            s.focusDuration = s.disabledMotion ? 0 : mobile ? 420 : 620;
+            s.travelStartX = s.rotX;
+            s.travelStartY = s.rotY;
+            s.travelStartZoom = s.zoom;
+            s.travelActive = !s.disabledMotion;
+            s.focusDuration = s.disabledMotion ? 0 : mobile ? 520 : 720;
             s.correctiveFocusRan = true;
             debugGlobeFocus("post-focus corrective pass", { station: runtime.stationName, city: runtime.stationCity, country: runtime.stationCountry, selectionVersion: runtime.selectionVersion, stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, derivedGlobePoint: activeBeacon, targetRotation: { rotX: s.targetX / DEG, rotY: s.targetY / DEG }, actualProjectedX: p.x, actualProjectedY: p.y, targetX: targetScreenX, targetY: targetScreenY, deltaX, deltaY, frontFacing, correctiveFocusRan: true, usableBounds });
           } else {
@@ -439,7 +478,21 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
           settledFocusLogRef.current = settledKey;
           debugGlobeFocus("animation settled projection", { station: runtime.stationName, selectionVersion: runtime.selectionVersion, label: runtime.stationLabel, beaconScreenX: p.x, beaconScreenY: p.y, targetScreenX, targetScreenY, deltaX, deltaY, focusProgress, driftEnabled: false, canvasWidth: w, canvasHeight: h, devicePixelRatio: dpr, visualViewportHeight: viewportDebug?.visualViewport ? viewportDebug.visualViewport.height : null, safeAreaBottomEstimate: viewportDebug?.safeAreaBottomEstimate ?? null, dockRect: viewportDebug?.dockRect ?? null, playerRect: viewportDebug?.playerRect ?? null, usableBounds });
         }
-        if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / (mobile ? 360 : 180)) * (mobile ? 0.08 : 0.22); ctx.fillStyle = mobile || profile.lowPower ? "rgba(229,57,53,0.16)" : "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, (mobile ? 13 : 18) * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, mobile ? 5 : 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); for (const label of runtime.labels) drawLabel(label.label, label.lat, label.lng, projection, Boolean(label.active)); }
+        if (p.z > -0.05) {
+          const approachVisibility = s.disabledMotion ? 1 : Math.min(1, Math.max(0.18, (focusProgress - 0.5) / 0.42));
+          const landingPulseAge = s.landingPulseStartedAt ? now - s.landingPulseStartedAt : 9999;
+          const landingBoost = landingPulseAge < 520 ? 1 + (1 - landingPulseAge / 520) * 0.42 : 1;
+          const pulse = s.disabledMotion ? 1 : (1 + Math.sin(now / (mobile ? 360 : 180)) * (mobile ? 0.08 : 0.22)) * landingBoost;
+          ctx.save();
+          ctx.globalAlpha = approachVisibility;
+          ctx.fillStyle = mobile || profile.lowPower ? "rgba(229,57,53,0.16)" : "rgba(229,57,53,0.22)";
+          ctx.beginPath(); ctx.arc(p.x, p.y, (mobile ? 13 : 18) * pulse, 0, TAU); ctx.fill();
+          ctx.fillStyle = "#ff3838";
+          ctx.beginPath(); ctx.arc(p.x, p.y, mobile ? 5 : 6, 0, TAU); ctx.fill();
+          ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
+          ctx.restore();
+          if (approachVisibility > 0.72) for (const label of runtime.labels) drawLabel(label.label, label.lat, label.lng, projection, Boolean(label.active));
+        }
       }
       ctx.restore();
       if (globeDebugEnabled() && activeBeacon) {
@@ -485,7 +538,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, teleporting]);
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); };
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.travelActive = false; s.focusDuration = 0; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); };
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; event.preventDefault(); pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) { s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom + (distance - pinchDistance.current) * 0.003)); if (s.targetZoom >= 1.68) streetZoomRequestRef.current?.(); } pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; const rotation = rotateFromDrag({ rotX: s.targetX, rotY: s.targetY }, dx, dy, mobile); s.targetX = rotation.rotX; s.targetY = rotation.rotY; s.lastX = event.clientX; s.lastY = event.clientY; };
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
     event.preventDefault();
