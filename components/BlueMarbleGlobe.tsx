@@ -17,8 +17,8 @@ type CountryResult = {
 export type GlobeBasemapKey = "blueMarble" | "night" | "signal";
 type GlobePoint = { lat: number; lng: number; label: string; geoSource?: string; geoPrecision?: string; usedFallbackCentroid?: boolean };
 type GlobeLabel = GlobePoint & { active?: boolean };
-type GlobeRuntime = { currentPoint: GlobePoint | null; selectionVersion?: number; stationName: string; stationLabel: string; basemap: GlobeBasemapKey; teleporting: boolean; labels: GlobeLabel[]; landShapes: LandShape[] };
-type GlobeDebugOverlay = { stationLat: number | null; stationLng: number | null; screenX: number | null; screenY: number | null; targetScreenX: number; targetScreenY: number; deltaX: number | null; deltaY: number | null; usableBounds: { left: number; top: number; right: number; bottom: number }; canvasCenter: { x: number; y: number }; rotX: number; rotY: number; selectedCountry: string | null; d3InputOrder: "[longitude, latitude]" };
+type GlobeRuntime = { currentPoint: GlobePoint | null; selectionVersion?: number; stationName: string; stationCity?: string; stationCountry?: string; stationLabel: string; basemap: GlobeBasemapKey; teleporting: boolean; labels: GlobeLabel[]; landShapes: LandShape[] };
+type GlobeDebugOverlay = { stationLat: number | null; stationLng: number | null; screenX: number | null; screenY: number | null; targetScreenX: number; targetScreenY: number; deltaX: number | null; deltaY: number | null; usableBounds: { left: number; top: number; right: number; bottom: number }; canvasCenter: { x: number; y: number }; rotX: number; rotY: number; selectedCountry: string | null; frontFacing: boolean; correctiveFocusRan: boolean; d3InputOrder: "[longitude, latitude]" };
 type CanvasSize = { cssWidth: number; cssHeight: number; pixelWidth: number; pixelHeight: number; dpr: number };
 type LandRing = Array<[number, number]>;
 type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number }; feature: GeoPermissibleObjects };
@@ -187,22 +187,27 @@ const CITY_LIGHTS: GlobePoint[] = [
 ];
 
 
-function readMobileViewportDebug(wrap: HTMLDivElement, canvas: HTMLCanvasElement) {
+function readMobileViewport(wrap: HTMLDivElement, canvas: HTMLCanvasElement) {
   const canvasRect = canvas.getBoundingClientRect();
   const wrapRect = wrap.getBoundingClientRect();
   const visualViewport = typeof window !== "undefined" ? window.visualViewport : undefined;
+  const headerRect = document.querySelector('[aria-label="Open station search"]')?.getBoundingClientRect();
   const dockRect = document.querySelector('nav[class*="bottom-0"]')?.getBoundingClientRect();
+  const toastRect = document.querySelector('[role="status"], [role="alert"]')?.getBoundingClientRect();
   const playerRect = document.querySelector('[data-waveatlas-player], [aria-label="Now playing"]')?.getBoundingClientRect();
   const visualHeight = visualViewport?.height ?? window.innerHeight;
   const safeAreaBottomEstimate = Math.max(0, window.innerHeight - visualHeight - (visualViewport?.offsetTop ?? 0));
-  const bottomObstruction = Math.max(safeAreaBottomEstimate, dockRect ? Math.max(0, canvasRect.bottom - dockRect.top) : 0, playerRect ? Math.max(0, canvasRect.bottom - playerRect.top) : 0);
-  const usableBounds = { left: 0, top: 0, right: canvasRect.width, bottom: Math.max(0, canvasRect.height - bottomObstruction) };
+  const topObstruction = headerRect ? Math.max(0, headerRect.bottom - canvasRect.top + 16) : 0;
+  const bottomObstruction = Math.max(safeAreaBottomEstimate, dockRect ? Math.max(0, canvasRect.bottom - dockRect.top + 16) : 0, toastRect ? Math.max(0, canvasRect.bottom - toastRect.top + 16) : 0, playerRect ? Math.max(0, canvasRect.bottom - playerRect.top + 16) : 0);
+  const usableBounds = { left: 0, top: Math.min(canvasRect.height, topObstruction), right: canvasRect.width, bottom: Math.max(0, canvasRect.height - bottomObstruction) };
   return {
     canvasRect: { left: canvasRect.left, top: canvasRect.top, width: canvasRect.width, height: canvasRect.height },
     wrapRect: { left: wrapRect.left, top: wrapRect.top, width: wrapRect.width, height: wrapRect.height },
     visualViewport: visualViewport ? { width: visualViewport.width, height: visualViewport.height, offsetTop: visualViewport.offsetTop, offsetLeft: visualViewport.offsetLeft, scale: visualViewport.scale } : null,
     safeAreaBottomEstimate,
+    headerRect: headerRect ? { left: headerRect.left, top: headerRect.top, width: headerRect.width, height: headerRect.height, bottom: headerRect.bottom } : null,
     dockRect: dockRect ? { left: dockRect.left, top: dockRect.top, width: dockRect.width, height: dockRect.height, bottom: dockRect.bottom } : null,
+    toastRect: toastRect ? { left: toastRect.left, top: toastRect.top, width: toastRect.width, height: toastRect.height, bottom: toastRect.bottom } : null,
     playerRect: playerRect ? { left: playerRect.left, top: playerRect.top, width: playerRect.width, height: playerRect.height, bottom: playerRect.bottom } : null,
     usableBounds,
   };
@@ -219,13 +224,13 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
   const [landShapes, setLandShapes] = useState<LandShape[]>([]);
-  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, focusStartedAt: 0, focusDuration: 1100, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false });
+  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, focusStartedAt: 0, focusDuration: 1100, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false, focusToken: 0, verificationPending: false, correctiveFocusRan: false, verifiedPointKey: "" });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchDistance = useRef<number | null>(null);
   const currentPoint = useMemo(() => stationPoint(station), [station]);
   const stationLabel = useMemo(() => [station.city || station.state, station.country].filter(Boolean).join(", ") || station.name, [station]);
   const globeLabels = useMemo<GlobeLabel[]>(() => currentPoint ? [{ ...currentPoint, label: stationLabel, active: true }] : [], [currentPoint, stationLabel]);
-  const runtimeRef = useRef<GlobeRuntime>({ currentPoint, selectionVersion, stationName: station.name, stationLabel, basemap, teleporting, labels: globeLabels, landShapes });
+  const runtimeRef = useRef<GlobeRuntime>({ currentPoint, selectionVersion, stationName: station.name, stationCity: station.city || station.state, stationCountry: station.country, stationLabel, basemap, teleporting, labels: globeLabels, landShapes });
   const lastCoordinateLogRef = useRef("");
   const stableSizeRef = useRef<CanvasSize | null>(null);
   const fallbackRef = useRef(onFallback);
@@ -242,6 +247,10 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
     const targetZoom = mobile ? (fast ? 1.18 : 1.12) : (fast ? 1.2 : 1.08);
     const focusDuration = state.current.disabledMotion ? 0 : mobile ? (fast ? 650 : 820) : (fast ? 900 : 1200);
     debugGlobeFocus("focusRotationForPoint", { selectionVersion, label: point.label, latitude: point.lat, longitude: point.lng, rotX: rotation.rotX / DEG, rotY: rotation.rotY / DEG });
+    state.current.focusToken += 1;
+    state.current.verificationPending = true;
+    state.current.correctiveFocusRan = false;
+    state.current.verifiedPointKey = "";
     debugGlobeFocus("focusPoint", { selectionVersion, label: point.label, currentRotX: state.current.rotX / DEG, currentRotY: state.current.rotY / DEG, targetRotX: Math.max(-70 * DEG, Math.min(70 * DEG, rotation.rotX + upwardOffset)) / DEG, targetRotY: (state.current.rotY + shortestDeltaY) / DEG, shortestDeltaY: shortestDeltaY / DEG, targetZoom, focusDuration, mobile, reducedMotion: state.current.disabledMotion, geoSource: point.geoSource, geoPrecision: point.geoPrecision });
     state.current.targetY = state.current.rotY + shortestDeltaY;
     state.current.targetX = Math.max(-70 * DEG, Math.min(70 * DEG, rotation.rotX + upwardOffset));
@@ -254,8 +263,8 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
   useEffect(() => { streetZoomRequestRef.current = onStreetZoomRequest; }, [onStreetZoomRequest]);
 
   useEffect(() => {
-    runtimeRef.current = { currentPoint, selectionVersion, stationName: station.name, stationLabel, basemap, teleporting, labels: globeLabels, landShapes };
-  }, [basemap, currentPoint, globeLabels, landShapes, selectionVersion, station.name, stationLabel, teleporting]);
+    runtimeRef.current = { currentPoint, selectionVersion, stationName: station.name, stationCity: station.city || station.state, stationCountry: station.country, stationLabel, basemap, teleporting, labels: globeLabels, landShapes };
+  }, [basemap, currentPoint, globeLabels, landShapes, selectionVersion, station.city, station.country, station.name, station.state, stationLabel, teleporting]);
 
   useEffect(() => {
     let mounted = true;
@@ -333,13 +342,16 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       s.rotX += (s.targetX - s.rotX) * ease;
       s.rotY += (s.targetY - s.rotY) * ease;
       s.zoom += (s.targetZoom - s.zoom) * ease;
-      if (!s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
+      const activeFocusVerified = runtime.currentPoint ? s.verifiedPointKey === `${runtime.selectionVersion ?? "none"}:${runtime.currentPoint.lat}:${runtime.currentPoint.lng}` : true;
+      if (!s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1 && activeFocusVerified) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
       const r = Math.min(w, h) * (mobile ? 0.46 : 0.34) * s.zoom;
-      const viewportDebug = globeDebugEnabled() ? readMobileViewportDebug(wrap, canvas) : null;
+      const cx = w / 2, cy = mobile ? h * 0.42 : h / 2;
+      const viewportDebug = mobile || globeDebugEnabled() ? readMobileViewport(wrap, canvas) : null;
       const usableBounds = viewportDebug?.usableBounds ?? { left: 0, top: 0, right: w, bottom: h };
-      const cx = w / 2, cy = mobile ? h * 0.4 : h / 2;
+      const visualViewportHeight = viewportDebug?.visualViewport?.height ?? h;
       const targetScreenX = mobile ? (usableBounds.left + usableBounds.right) / 2 : cx;
-      const targetScreenY = mobile ? (usableBounds.top + usableBounds.bottom) / 2 : cy;
+      const mobileIdealY = visualViewportHeight * 0.42;
+      const targetScreenY = mobile ? Math.max(usableBounds.top + 36, Math.min(usableBounds.bottom - 36, mobileIdealY)) : cy;
 
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
       bg.addColorStop(0, runtime.basemap === "night" ? "rgba(125,92,255,0.16)" : runtime.basemap === "signal" ? "rgba(0,214,143,0.12)" : "rgba(0,214,143,0.18)"); bg.addColorStop(0.64, "rgba(3,12,27,0.10)"); bg.addColorStop(1, "rgba(3,8,20,0)");
@@ -350,7 +362,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       else if (runtime.basemap === "signal") { ocean.addColorStop(0, "#08213a"); ocean.addColorStop(0.55, "#031225"); ocean.addColorStop(1, "#010814"); }
       else { ocean.addColorStop(0, "#1f6f9d"); ocean.addColorStop(0.42, "#0c3b67"); ocean.addColorStop(1, "#031327"); }
       ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-      const projection = buildGlobeProjection(w, h, r, state.current.rotX, state.current.rotY)
+      const projection = buildGlobeProjection(w, h, r, state.current.rotX, state.current.rotY, cx, cy)
         .precision(mobile || profile.lowPower ? 0.85 : 0.45);
       if (runtime.landShapes.length) {
         const path = geoPath(projection, ctx);
@@ -390,26 +402,48 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       const activeBeacon = runtime.currentPoint;
       if (activeBeacon) {
         const p = project(activeBeacon.lat, activeBeacon.lng, projection);
+        const deltaX = p.x - targetScreenX;
+        const deltaY = p.y - targetScreenY;
+        const frontFacing = p.z > 0.08;
+        const withinTarget = Number.isFinite(p.x) && Number.isFinite(p.y) && frontFacing && p.x >= usableBounds.left && p.x <= usableBounds.right && p.y >= usableBounds.top && p.y <= usableBounds.bottom && Math.hypot(deltaX, deltaY) <= (mobile ? 36 : 54);
+        const pointKey = `${runtime.selectionVersion ?? "none"}:${activeBeacon.lat}:${activeBeacon.lng}`;
+        if (focusProgress >= 1 && s.verificationPending && !s.dragging) {
+          if (!withinTarget && !s.correctiveFocusRan) {
+            const frontCorrectionY = frontFacing ? 0 : Math.atan2(Math.sin(focusRotationForPoint(activeBeacon).rotY - s.targetY), Math.cos(focusRotationForPoint(activeBeacon).rotY - s.targetY));
+            const horizontalCorrection = Number.isFinite(deltaX) ? deltaX / Math.max(1, r * Math.max(0.35, Math.abs(p.z))) : 0;
+            const verticalCorrection = Number.isFinite(deltaY) ? -deltaY / Math.max(1, r) : 0;
+            s.targetY += frontCorrectionY + horizontalCorrection;
+            s.targetX = Math.max(-70 * DEG, Math.min(70 * DEG, s.targetX + verticalCorrection));
+            s.focusStartedAt = now;
+            s.focusDuration = s.disabledMotion ? 0 : mobile ? 420 : 620;
+            s.correctiveFocusRan = true;
+            debugGlobeFocus("post-focus corrective pass", { station: runtime.stationName, city: runtime.stationCity, country: runtime.stationCountry, selectionVersion: runtime.selectionVersion, stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, derivedGlobePoint: activeBeacon, targetRotation: { rotX: s.targetX / DEG, rotY: s.targetY / DEG }, actualProjectedX: p.x, actualProjectedY: p.y, targetX: targetScreenX, targetY: targetScreenY, deltaX, deltaY, frontFacing, correctiveFocusRan: true, usableBounds });
+          } else {
+            s.verificationPending = false;
+            s.verifiedPointKey = pointKey;
+            debugGlobeFocus("post-focus verified", { station: runtime.stationName, city: runtime.stationCity, country: runtime.stationCountry, selectionVersion: runtime.selectionVersion, stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, derivedGlobePoint: activeBeacon, targetRotation: { rotX: s.targetX / DEG, rotY: s.targetY / DEG }, actualProjectedX: p.x, actualProjectedY: p.y, targetX: targetScreenX, targetY: targetScreenY, deltaX, deltaY, frontFacing, correctiveFocusRan: s.correctiveFocusRan, usableBounds });
+          }
+        }
         if (globeDebugEnabled() && now - debugOverlayTickRef.current > 250) {
           debugOverlayTickRef.current = now;
           const country = nearestCountry(activeBeacon.lat, activeBeacon.lng);
-          setDebugOverlay({ stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, screenX: p.x, screenY: p.y, targetScreenX, targetScreenY, deltaX: p.x - targetScreenX, deltaY: p.y - targetScreenY, usableBounds, canvasCenter: { x: cx, y: cy }, rotX: s.rotX / DEG, rotY: s.rotY / DEG, selectedCountry: country?.name ?? null, d3InputOrder: "[longitude, latitude]" });
+          setDebugOverlay({ stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, screenX: p.x, screenY: p.y, targetScreenX, targetScreenY, deltaX, deltaY, usableBounds, canvasCenter: { x: cx, y: cy }, rotX: s.rotX / DEG, rotY: s.rotY / DEG, selectedCountry: country?.name ?? null, frontFacing, correctiveFocusRan: s.correctiveFocusRan, d3InputOrder: "[longitude, latitude]" });
         }
         const logKey = `${runtime.stationName}:${activeBeacon.lat}:${activeBeacon.lng}:${Math.round(p.x)}:${Math.round(p.y)}:${Math.round(p.z * 1000)}`;
         if (lastCoordinateLogRef.current !== logKey) {
           lastCoordinateLogRef.current = logKey;
-          debugGlobeCoordinates({ station: runtime.stationName, selectionVersion: runtime.selectionVersion, label: runtime.stationLabel, latitude: activeBeacon.lat, longitude: activeBeacon.lng, d3ProjectionInput: [activeBeacon.lng, activeBeacon.lat], d3ProjectionInputOrder: "[longitude, latitude]", rotation: { rotX: s.rotX / DEG, rotY: s.rotY / DEG, d3Rotate: projection.rotate() }, computed3DVector: p.vector, renderedMarkerPosition: { x: p.x, y: p.y, z: p.z }, beaconScreenX: p.x, beaconScreenY: p.y, targetScreenX, targetScreenY, deltaX: p.x - targetScreenX, deltaY: p.y - targetScreenY, focusProgress, driftEnabled: !s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1, canvas: { width: w, height: h, devicePixelRatio: dpr, pixelWidth, pixelHeight }, viewport: viewportDebug });
+          debugGlobeCoordinates({ station: runtime.stationName, selectionVersion: runtime.selectionVersion, label: runtime.stationLabel, latitude: activeBeacon.lat, longitude: activeBeacon.lng, d3ProjectionInput: [activeBeacon.lng, activeBeacon.lat], d3ProjectionInputOrder: "[longitude, latitude]", rotation: { rotX: s.rotX / DEG, rotY: s.rotY / DEG, d3Rotate: projection.rotate() }, computed3DVector: p.vector, renderedMarkerPosition: { x: p.x, y: p.y, z: p.z }, beaconScreenX: p.x, beaconScreenY: p.y, targetScreenX, targetScreenY, deltaX, deltaY, focusProgress, driftEnabled: !s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1 && activeFocusVerified, canvas: { width: w, height: h, devicePixelRatio: dpr, pixelWidth, pixelHeight }, viewport: viewportDebug });
         }
         const settledKey = `${runtime.stationName}:${activeBeacon.lat}:${activeBeacon.lng}:${Math.round(s.focusStartedAt)}`;
         if (focusProgress >= 1 && settledFocusLogRef.current !== settledKey) {
           settledFocusLogRef.current = settledKey;
-          debugGlobeFocus("animation settled projection", { station: runtime.stationName, selectionVersion: runtime.selectionVersion, label: runtime.stationLabel, beaconScreenX: p.x, beaconScreenY: p.y, targetScreenX, targetScreenY, deltaX: p.x - targetScreenX, deltaY: p.y - targetScreenY, focusProgress, driftEnabled: false, canvasWidth: w, canvasHeight: h, devicePixelRatio: dpr, visualViewportHeight: viewportDebug?.visualViewport ? viewportDebug.visualViewport.height : null, safeAreaBottomEstimate: viewportDebug?.safeAreaBottomEstimate ?? null, dockRect: viewportDebug?.dockRect ?? null, playerRect: viewportDebug?.playerRect ?? null, usableBounds });
+          debugGlobeFocus("animation settled projection", { station: runtime.stationName, selectionVersion: runtime.selectionVersion, label: runtime.stationLabel, beaconScreenX: p.x, beaconScreenY: p.y, targetScreenX, targetScreenY, deltaX, deltaY, focusProgress, driftEnabled: false, canvasWidth: w, canvasHeight: h, devicePixelRatio: dpr, visualViewportHeight: viewportDebug?.visualViewport ? viewportDebug.visualViewport.height : null, safeAreaBottomEstimate: viewportDebug?.safeAreaBottomEstimate ?? null, dockRect: viewportDebug?.dockRect ?? null, playerRect: viewportDebug?.playerRect ?? null, usableBounds });
         }
         if (p.z > -0.05) { const pulse = s.disabledMotion ? 1 : 1 + Math.sin(now / (mobile ? 360 : 180)) * (mobile ? 0.08 : 0.22); ctx.fillStyle = mobile || profile.lowPower ? "rgba(229,57,53,0.16)" : "rgba(229,57,53,0.22)"; ctx.beginPath(); ctx.arc(p.x, p.y, (mobile ? 13 : 18) * pulse, 0, TAU); ctx.fill(); ctx.fillStyle = "#ff3838"; ctx.beginPath(); ctx.arc(p.x, p.y, mobile ? 5 : 6, 0, TAU); ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); for (const label of runtime.labels) drawLabel(label.label, label.lat, label.lng, projection, Boolean(label.active)); }
       }
       ctx.restore();
       if (globeDebugEnabled() && activeBeacon) {
-        const projected = projectGlobePoint(activeBeacon, { rotX: s.rotX, rotY: s.rotY }, { width: w, height: h, radius: r });
+        const projected = projectGlobePoint(activeBeacon, { rotX: s.rotX, rotY: s.rotY }, { width: w, height: h, radius: r, centerX: cx, centerY: cy });
         ctx.save();
         ctx.setLineDash([6, 5]);
         ctx.strokeStyle = "rgba(255,255,255,0.55)";
@@ -459,7 +493,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
     pinchDistance.current = null;
     const s = state.current; s.dragging = pointers.current.size > 0;
     if (Math.hypot(event.clientX - s.downX, event.clientY - s.downY) > 8) return;
-    const rect = event.currentTarget.getBoundingClientRect(); const r = Math.min(rect.width, rect.height) * (mobile ? 0.46 : 0.34) * s.zoom; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r }); if (!point) return;
+    const rect = event.currentTarget.getBoundingClientRect(); const r = Math.min(rect.width, rect.height) * (mobile ? 0.46 : 0.34) * s.zoom; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY: mobile ? rect.height * 0.42 : rect.height / 2 }); if (!point) return;
     const country = nearestCountry(point.lat, point.lng); if (country) onCountrySelect?.(country);
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) streetZoomRequestRef.current?.(); };
@@ -475,6 +509,8 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
       <div>delta x/y: {debugOverlay.deltaX?.toFixed(1)}, {debugOverlay.deltaY?.toFixed(1)}</div>
       <div>usable: {Math.round(debugOverlay.usableBounds.left)},{Math.round(debugOverlay.usableBounds.top)} → {Math.round(debugOverlay.usableBounds.right)},{Math.round(debugOverlay.usableBounds.bottom)}</div>
       <div>rotX/rotY: {debugOverlay.rotX.toFixed(2)}°, {debugOverlay.rotY.toFixed(2)}°</div>
+      <div>front-facing: {String(debugOverlay.frontFacing)}</div>
+      <div>corrective pass: {String(debugOverlay.correctiveFocusRan)}</div>
       <div>d3 input: {debugOverlay.d3InputOrder}</div>
       <div>selected country: {debugOverlay.selectedCountry ?? "—"}</div>
     </div> : null}
