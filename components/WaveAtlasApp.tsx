@@ -56,6 +56,7 @@ const BlueMarbleGlobe = dynamic(() => import("@/components/BlueMarbleGlobe"), {
 import { getAmbientTheme } from "@/lib/world-engine/ambient-theme";
 import { buildAtmosphereLine, buildPlaceDescriptor, buildPlaceLabel } from "@/lib/world-engine/place-labels";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
+import { buildSignalFeatures, type SignalFeature } from "@/lib/signal-constellations";
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
 import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQueue, getAdaptiveBufferPolicy, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
@@ -1419,14 +1420,6 @@ function MapMarkerController({
 const SIGNAL_SOURCE_ID = "waveatlas-signal-constellations";
 const SIGNAL_LAYER_IDS = ["waveatlas-signal-cluster-halo", "waveatlas-signal-clusters", "waveatlas-signal-cluster-count", "waveatlas-signal-favorite-halo", "waveatlas-signals"] as const;
 
-type SignalFeature = GeoJSON.Feature<GeoJSON.Point, { id: string; status: "healthy" | "unverified" | "community"; favorite: boolean; priority: number }>;
-
-function stationSignalStatus(station: Station): SignalFeature["properties"]["status"] {
-  if (isCuratedStation(station)) return "community";
-  if (station.validation_status === "needs_review" || station.validation_status === "candidate" || station.health_score < 55 || !station.last_check_ok) return "unverified";
-  return "healthy";
-}
-
 function readFavoriteSet() {
   if (typeof window === "undefined") return new Set<string>();
   return new Set(readFavoriteStationIds());
@@ -1459,19 +1452,16 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
       const bounds = map.getBounds();
       const zoom = map.getZoom();
       const favoriteIds = readFavoriteSet();
-      const currentKey = stationKey(currentRef.current);
       const maxSignals = zoom < 3.2 ? 120 : zoom < 5.4 ? 260 : zoom < 7 ? 520 : 900;
-      const features: SignalFeature[] = [];
-      for (const station of stationsRef.current) {
-        if (!station.url || !station.is_active || station.failure_count > 2 || station.health_score < 35) continue;
-        if (stationKey(station) === currentKey) continue;
-        const geo = resolveStationGeo(station);
-        if (geo.lat === null || geo.lng === null || !bounds.contains([geo.lng, geo.lat])) continue;
-        const id = station.station_uuid || station.id;
-        features.push({ type: "Feature", geometry: { type: "Point", coordinates: [geo.lng, geo.lat] }, properties: { id, status: stationSignalStatus(station), favorite: favoriteIds.has(id) || favoriteIds.has(station.id), priority: station.health_score + Math.min(30, station.votes / 1000) } });
-      }
-      const priorityFeatures = features.sort((a, b) => b.properties.priority - a.properties.priority).slice(0, maxSignals);
-      (map.getSource(SIGNAL_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: priorityFeatures });
+      const { visibleSignals } = buildSignalFeatures({
+        stations: stationsRef.current,
+        currentStation: currentRef.current,
+        viewportBounds: { contains: (lng, lat) => bounds.contains([lng, lat]) },
+        zoomLevel: zoom,
+        favoriteIds,
+        maxSignals,
+      });
+      (map.getSource(SIGNAL_SOURCE_ID) as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: visibleSignals as SignalFeature[] });
     };
     const schedule = () => { if (frame) return; frame = window.requestAnimationFrame(updateSignals); };
     scheduleRef.current = schedule;
@@ -2748,7 +2738,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     {selectedView === "map" ? (
       <WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     ) : (
-      <BlueMarbleGlobe station={current} selectionVersion={selectionVersion} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} onStreetZoomRequest={enterMobileStreets} />
+      <BlueMarbleGlobe station={current} stations={stations} selectionVersion={selectionVersion} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} onStreetZoomRequest={enterMobileStreets} />
     )}
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
@@ -3227,7 +3217,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           {globeFallbackReason || desktopAtlasView === "map" ? (
             <WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
           ) : (
-            <BlueMarbleGlobe station={current} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} onStreetZoomRequest={enterDesktopStreets} />
+            <BlueMarbleGlobe station={current} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} onStreetZoomRequest={enterDesktopStreets} />
           )}
         </div>
         {!globeFallbackReason && desktopAtlasView === "globe" ? <GlobeBasemapControl value={desktopGlobeBasemap} onChange={setDesktopGlobeBasemap} /> : null}
