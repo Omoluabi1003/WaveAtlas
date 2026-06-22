@@ -32,6 +32,7 @@ type Props = {
   teleporting?: boolean;
   onCountrySelect?: (country: CountryResult) => void;
   onFallback?: (reason: string) => void;
+  onStreetZoomRequest?: () => void;
   mobile?: boolean;
   basemap?: GlobeBasemapKey;
 };
@@ -158,7 +159,7 @@ const GLOBE_STYLE_COPY: Record<GlobeBasemapKey, string> = {
   signal: "Signal Globe",
 };
 
-export default function BlueMarbleGlobe({ station, teleporting = false, onCountrySelect, onFallback, mobile = false, basemap = "blueMarble" }: Props) {
+export default function BlueMarbleGlobe({ station, teleporting = false, onCountrySelect, onFallback, onStreetZoomRequest, mobile = false, basemap = "blueMarble" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -172,6 +173,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
   const runtimeRef = useRef<GlobeRuntime>({ currentPoint, stationLabel, basemap, teleporting, labels: globeLabels, landShapes });
   const stableSizeRef = useRef<CanvasSize | null>(null);
   const fallbackRef = useRef(onFallback);
+  const streetZoomRequestRef = useRef(onStreetZoomRequest);
 
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
@@ -181,6 +183,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
   }, []);
 
   useEffect(() => { fallbackRef.current = onFallback; }, [onFallback]);
+  useEffect(() => { streetZoomRequestRef.current = onStreetZoomRequest; }, [onStreetZoomRequest]);
 
   useEffect(() => {
     runtimeRef.current = { currentPoint, stationLabel, basemap, teleporting, labels: globeLabels, landShapes };
@@ -347,7 +350,7 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, teleporting]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); };
-  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) s.targetZoom = Math.max(0.82, Math.min(1.65, s.targetZoom + (distance - pinchDistance.current) * 0.003)); pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; s.targetY += dx * (mobile ? 0.0045 : 0.006); s.targetX = Math.max(-70 * DEG, Math.min(70 * DEG, s.targetX + dy * (mobile ? 0.003 : 0.004))); s.lastX = event.clientX; s.lastY = event.clientY; };
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) { s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom + (distance - pinchDistance.current) * 0.003)); if (s.targetZoom >= 1.68) streetZoomRequestRef.current?.(); } pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; s.targetY += dx * (mobile ? 0.0045 : 0.006); s.targetX = Math.max(-70 * DEG, Math.min(70 * DEG, s.targetX + dy * (mobile ? 0.003 : 0.004))); s.lastX = event.clientX; s.lastY = event.clientY; };
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
     pointers.current.delete(event.pointerId);
     pinchDistance.current = null;
@@ -356,11 +359,11 @@ export default function BlueMarbleGlobe({ station, teleporting = false, onCountr
     const rect = event.currentTarget.getBoundingClientRect(); const x = event.clientX - rect.left - rect.width / 2; const y = rect.height / 2 - (event.clientY - rect.top); const r = Math.min(rect.width, rect.height) * (mobile ? 0.39 : 0.34) * s.zoom; const nx = x / r; const ny = y / r; if (nx * nx + ny * ny > 1) return;
     const nz = Math.sqrt(1 - nx * nx - ny * ny); const sinX = Math.sin(s.rotX); const cosX = Math.cos(s.rotX); const worldY = ny * cosX + nz * sinX; const worldZ = nz * cosX - ny * sinX; const lat = Math.asin(worldY) / DEG; const lng = (Math.atan2(nx, worldZ) - s.rotY) / DEG; const normalizedLng = ((lng + 540) % 360) - 180; const country = nearestCountry(lat, normalizedLng); if (country) onCountrySelect?.(country);
   };
-  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.65, s.targetZoom - event.deltaY * 0.001)); };
+  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) streetZoomRequestRef.current?.(); };
 
   return <div ref={wrapRef} className={`${mobile ? "fixed inset-0 h-[100dvh] min-h-[100dvh] w-screen pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
     <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
-    <div className={`${mobile ? "left-4 top-[calc(env(safe-area-inset-top)+88px)] text-[9px]" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 ${mobile ? "shadow-none backdrop-blur-sm" : "shadow-lg backdrop-blur-xl"}`}>{GLOBE_STYLE_COPY[basemap]} · drag, zoom, tap to tune</div>
+    <div className={`${mobile ? "left-4 top-[calc(env(safe-area-inset-top)+88px)] text-[9px]" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 ${mobile ? "shadow-none backdrop-blur-sm" : "shadow-lg backdrop-blur-xl"}`}>{GLOBE_STYLE_COPY[basemap]} · zoom in for Atlas Streets · tap to tune</div>
     <div className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing procedural globe…"}</span></div>
   </div>;
 }

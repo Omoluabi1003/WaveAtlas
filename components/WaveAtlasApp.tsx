@@ -964,23 +964,24 @@ function SignalMeter({ score }: { score: number }) {
     </div>
   );
 }
-type BasemapKey = "atlas" | "satellite" | "terrain" | "streets" | "night" | "blueMarble";
+type BasemapKey = "atlasStreets" | "atlas" | "satellite" | "terrain" | "streets" | "night" | "blueMarble";
 type GlobeBasemapKey = "blueMarble" | "night" | "signal";
 type DefaultMapView = { center: [number, number]; zoom: number; bearing: number; pitch: number; duration: number };
 const DEFAULT_MAP_VIEW: Record<"desktop" | "mobile", DefaultMapView> = {
   desktop: { center: [0, 20], zoom: 1.6, bearing: 0, pitch: 0, duration: 2500 },
   mobile: { center: [8.6753, 9.082], zoom: 1.35, bearing: 0, pitch: 0, duration: 2500 },
 };
-const DEFAULT_BASEMAP: BasemapKey = "streets";
+const DEFAULT_BASEMAP: BasemapKey = "atlasStreets";
 const BASEMAP_STORAGE_KEY = "waveatlas:basemap";
 const GLOBE_BASEMAP_STORAGE_KEY = "waveatlas:globe-basemap";
 const ATLAS_VIEW_STORAGE_KEY = "waveatlas:atlas-view";
 type AtlasViewMode = "globe" | "map";
 const basemapStyles: Record<BasemapKey, { label: string; name: string; description: string; style: string | maplibregl.StyleSpecification }> = {
+  atlasStreets: { label: "🛣 Atlas Streets", name: "Atlas Streets", description: "Free vector streets for arrival zoom, powered by OpenStreetMap/OpenFreeMap.", style: "https://tiles.openfreemap.org/styles/liberty" },
   atlas: { label: "🌎 Atlas", name: "Atlas", description: "Premium dark vector map", style: { version: 8, sources: { carto: { type: "raster", tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors © CARTO" } }, layers: [{ id: "carto-dark-matter", type: "raster", source: "carto" }] } },
   satellite: { label: "🛰 Satellite", name: "Satellite", description: "Realistic Earth imagery", style: { version: 8, sources: { esri: { type: "raster", tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community" } }, layers: [{ id: "esri-world-imagery", type: "raster", source: "esri" }] } },
   terrain: { label: "🏔 Terrain", name: "Terrain", description: "Topographic terrain", style: { version: 8, sources: { terrain: { type: "raster", tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap (CC-BY-SA)" } }, layers: [{ id: "opentopomap-terrain", type: "raster", source: "terrain" }] } },
-  streets: { label: "🛣 Streets", name: "Streets", description: "OpenStreetMap style", style: "https://tiles.openfreemap.org/styles/liberty" },
+  streets: { label: "🗺 OSM Streets", name: "OSM Streets", description: "Classic OpenStreetMap vector style", style: "https://tiles.openfreemap.org/styles/liberty" },
   night: { label: "🌃 Night", name: "Night Lights", description: "Earth at night", style: { version: 8, sources: { nasa: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/2012-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / VIIRS City Lights" } }, layers: [{ id: "viirs-night-lights", type: "raster", source: "nasa" }] } },
   blueMarble: { label: "🌊 Blue Marble", name: "Blue Marble", description: "Clean global Earth aesthetic", style: { version: 8, sources: { marble: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / Blue Marble" } }, layers: [{ id: "blue-marble", type: "raster", source: "marble" }] } },
 };
@@ -1147,6 +1148,41 @@ function MapMarkerController({
 
 
 type MapTeleportContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
+
+function stationStreetViewLinks(station: Station) {
+  const geo = resolveStationGeo(station);
+  if (geo.lat === null || geo.lng === null) return [];
+  const label = encodeURIComponent([station.name, station.city || station.state, station.country].filter(Boolean).join(", "));
+  const lat = geo.lat.toFixed(6);
+  const lng = geo.lng.toFixed(6);
+  return [
+    { name: "Google Street View", href: `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}` },
+    { name: "Apple Look Around", href: `https://maps.apple.com/?ll=${lat},${lng}&q=${label}` },
+    { name: "Mapillary", href: `https://www.mapillary.com/app/?lat=${lat}&lng=${lng}&z=17` },
+  ];
+}
+
+function OpenStreetViewButton({ station, mobile = false }: { station: Station; mobile?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const links = useMemo(() => stationStreetViewLinks(station), [station]);
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => { if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false); };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", onPointerDown); document.addEventListener("keydown", onKeyDown);
+    return () => { document.removeEventListener("pointerdown", onPointerDown); document.removeEventListener("keydown", onKeyDown); };
+  }, [open]);
+  if (!links.length) return null;
+  return <div ref={rootRef} className={`${mobile ? "right-4 top-[calc(env(safe-area-inset-top)+204px)]" : "right-6 top-40 xl:right-8"} pointer-events-auto absolute z-50`}>
+    <button type="button" aria-label="Open street view options" aria-expanded={open} onClick={() => setOpen((show) => !show)} className="flex h-11 items-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-3 text-xs font-bold text-ivory shadow-2xl backdrop-blur-xl transition hover:border-radio/40 hover:bg-slate-900/80 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"><Link className="size-4" />{mobile ? "Street" : "Open Street View"}</button>
+    <AnimatePresence>{open ? <motion.div initial={{ opacity: 0, y: -8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.96 }} className="absolute right-0 mt-2 w-[min(280px,calc(100vw-2rem))] rounded-3xl border border-white/12 bg-slate-950/86 p-2 text-left shadow-2xl backdrop-blur-2xl" role="menu" aria-label="External street view portals">
+      <p className="px-2 pb-2 pt-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">External portals</p>
+      {links.map((item) => <a key={item.name} href={item.href} target="_blank" rel="noreferrer" role="menuitem" className="block rounded-2xl px-3 py-2 text-[11px] font-semibold text-ivory/80 transition hover:bg-white/10 hover:text-white">{item.name}</a>)}
+      <p className="px-2 pt-2 text-[10px] leading-snug text-ivory/45">Uses free external links only; no Street View basemap or paid API key.</p>
+    </motion.div> : null}</AnimatePresence>
+  </div>;
+}
 
 function countryNameForCode(code: string) {
   try {
@@ -1347,6 +1383,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
         <div className="cloud-layer pointer-events-none absolute inset-0 opacity-25" />
         <div className="pointer-events-none absolute left-1/2 top-[45%] z-10 size-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-radio/15 bg-radio/5 blur-sm shadow-[0_0_80px_rgba(88,225,132,.18)]" />
         <BasemapControl value={basemap} onChange={setBasemap} mobile />
+        <OpenStreetViewButton station={station} mobile />
 
       </div>
     );
@@ -1359,6 +1396,7 @@ function WaveAtlasMap({ station, mobile = false, resetSignal = 0, basemap: contr
       <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />
       <BasemapControl value={basemap} onChange={setBasemap} />
+      <OpenStreetViewButton station={station} />
       <div className="pointer-events-none absolute left-6 top-20 z-20 rounded-full border border-white/15 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold text-emerald-300 shadow-lg backdrop-blur-xl xl:left-8">
         <Signal className="mr-1.5 inline size-3" />
         GIS · Tap Earth to tune a place
@@ -2350,13 +2388,20 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     setAtlasView(view);
     persistAtlasView(view);
   };
+  const enterMobileStreets = useCallback(() => {
+    setMobileGlobeFallbackReason("");
+    setBasemap("atlasStreets");
+    setAtlasView("map");
+    persistAtlasView("map");
+  }, [setBasemap]);
   return <section className="fixed inset-0 h-[100dvh] w-screen max-w-full overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
       <WaveAtlasMap station={current} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} />
     ) : (
-      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} />
+      <BlueMarbleGlobe station={current} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={handleMobileGlobeFallback} onStreetZoomRequest={enterMobileStreets} />
     )}
     {selectedView === "globe" ? <GlobeBasemapControl value={globeBasemap} onChange={setGlobeBasemap} mobile /> : null}
+    {selectedView === "globe" ? <OpenStreetViewButton station={current} mobile /> : null}
     <div className="pointer-events-auto fixed right-4 top-[calc(env(safe-area-inset-top)+92px)] z-[58] flex rounded-full border border-white/10 bg-slate-950/75 p-1 text-[11px] font-semibold shadow-xl backdrop-blur-xl">
       <button type="button" onClick={() => chooseAtlasView("globe")} className={`rounded-full px-3 py-1.5 ${selectedView === "globe" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Globe</button>
       <button type="button" onClick={() => chooseAtlasView("map")} className={`rounded-full px-3 py-1.5 ${selectedView === "map" ? "bg-radio text-midnight" : "text-ivory/70"}`}>Map</button>
@@ -2563,6 +2608,8 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
   const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
   const [desktopTeleporting, setDesktopTeleporting] = useState(false);
   const [desktopGlobeBasemap, setDesktopGlobeBasemap] = useState<GlobeBasemapKey>(getInitialGlobeBasemap);
+  const [desktopAtlasView, setDesktopAtlasView] = useState<AtlasViewMode>("globe");
+  const [desktopBasemap, setDesktopBasemap] = useState<BasemapKey>("atlasStreets");
   const [globeFallbackReason, setGlobeFallbackReason] = useState("");
   const [previousDesktopStation, setPreviousDesktopStation] = useState<Station | undefined>();
   const lastDesktopStationRef = useRef<Station | undefined>(undefined);
@@ -2733,6 +2780,13 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     lastDesktopStationRef.current = current;
   }, [current]);
 
+  const enterDesktopStreets = useCallback(() => {
+    setGlobeFallbackReason("");
+    setDesktopBasemap("atlasStreets");
+    setDesktopAtlasView("map");
+    setDesktopResetSignal((signal) => signal + 1);
+  }, []);
+
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
   const desktopDrawerActive = query.trim().length > 0 || Boolean(selectedCountry) || desktopMode !== "Atlas";
@@ -2775,13 +2829,15 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         <div className="hidden"><DailyFlightPanel stations={stationPool} /></div>
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-40 rounded-[2rem] border border-radio/30 bg-slate-950/75 p-4 text-left font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
-          {globeFallbackReason ? (
-            <WaveAtlasMap station={current} resetSignal={desktopResetSignal} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
+          {globeFallbackReason || desktopAtlasView === "map" ? (
+            <WaveAtlasMap station={current} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} />
           ) : (
-            <BlueMarbleGlobe station={current} previousStation={previousDesktopStation} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} />
+            <BlueMarbleGlobe station={current} previousStation={previousDesktopStation} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={setGlobeFallbackReason} onStreetZoomRequest={enterDesktopStreets} />
           )}
         </div>
-        {!globeFallbackReason ? <GlobeBasemapControl value={desktopGlobeBasemap} onChange={setDesktopGlobeBasemap} /> : null}
+        {!globeFallbackReason && desktopAtlasView === "globe" ? <GlobeBasemapControl value={desktopGlobeBasemap} onChange={setDesktopGlobeBasemap} /> : null}
+        {!globeFallbackReason && desktopAtlasView === "globe" ? <OpenStreetViewButton station={current} /> : null}
+        {desktopAtlasView === "map" ? <button type="button" onClick={() => setDesktopAtlasView("globe")} className="pointer-events-auto absolute right-6 top-24 z-50 rounded-full border border-white/15 bg-slate-950/60 px-4 py-3 text-xs font-bold text-ivory shadow-2xl backdrop-blur-xl transition hover:border-radio/40 hover:text-radio xl:right-8">Return to Globe</button> : null}
         {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
         <SelectedStationTheater station={current} />
       </div>
