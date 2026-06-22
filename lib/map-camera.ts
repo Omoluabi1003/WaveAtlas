@@ -75,12 +75,12 @@ export function restoreCameraState(map: Map, camera: MapCameraState, options: Pa
   });
 }
 
-export function applyVisualCenterCamera(map: Map, center: [number, number], zoom: number, padding: PaddingOptions = EMPTY_PADDING, options: Partial<FlyToOptions> = {}) {
+export function applyVisualCenterCamera(map: Map, center: [number, number], zoom: number | undefined, padding: PaddingOptions = EMPTY_PADDING, options: Partial<FlyToOptions> = {}) {
   map.stop();
   const reducedMotion = prefersReducedMotion();
   const cameraOptions = {
     center,
-    zoom,
+    ...(zoom === undefined ? {} : { zoom }),
     speed: 0.72,
     curve: 1.35,
     padding,
@@ -101,7 +101,7 @@ export function flyToStation(map: Map, stationGeo: ResolvedStationGeo, padding: 
   const bounds = map.getBounds();
   const isVisible = bounds.contains([targetLng, stationGeo.lat]);
   const computedZoom = stationZoom(stationGeo, currentZoom, distanceKm);
-  const zoom = isVisible ? Math.min(currentZoom, Math.max(computedZoom, currentZoom - 0.35)) : computedZoom;
+  const zoom = isVisible && currentZoom > ZOOM_POLICY.cityMax ? undefined : isVisible ? Math.min(currentZoom, Math.max(computedZoom, currentZoom - 0.35), ZOOM_POLICY.cityMax) : computedZoom;
   const duration = stationDuration(distanceKm);
   if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GLOBE === "true") {
     console.debug("[WaveAtlas map camera] flyToStation", {
