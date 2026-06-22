@@ -1931,13 +1931,14 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
   const [remoteStations, setRemoteStations] = useState<Station[]>([]);
   const [countries, setCountries] = useState<CountryResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [resultMeta, setResultMeta] = useState<{ query: string; intent?: string; countryCode?: string; countryName?: string } | null>(null);
+  const [resultMeta, setResultMeta] = useState<{ query: string; intent?: string; countryCode?: string; countryName?: string; totalAvailable?: number; limit?: number; offset?: number } | null>(null);
+  const [visibleSearchCount, setVisibleSearchCount] = useState(24);
   const activeSearchRequestId = useRef(0);
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
       activeSearchRequestId.current += 1;
-      window.setTimeout(() => { setRemoteStations([]); setCountries([]); setResultMeta(null); }, 0);
+      window.setTimeout(() => { setRemoteStations([]); setCountries([]); setResultMeta(null); setVisibleSearchCount(24); }, 0);
       return;
     }
     const requestId = ++activeSearchRequestId.current;
@@ -1953,17 +1954,18 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
       setLoading(true);
       try {
         const [stationRes, countryRes] = await Promise.all([
-          fetch(`/api/stations/search?q=${encodeURIComponent(q)}&limit=50`, { signal: controller.signal }),
+            fetch(`/api/stations/search?q=${encodeURIComponent(q)}&limit=500`, { signal: controller.signal }),
           fetch(`/api/countries/search?q=${encodeURIComponent(q)}`, { signal: controller.signal }),
         ]);
         if (requestId !== activeSearchRequestId.current) return;
         if (stationRes.ok) {
-          const data = (await stationRes.json()) as { query?: string; intent?: string; countryCode?: string; countryName?: string; stations: Station[] };
+          const data = (await stationRes.json()) as { query?: string; intent?: string; countryCode?: string; countryName?: string; totalAvailable?: number; limit?: number; offset?: number; stations: Station[] };
           const currentQuery = query.trim().toLowerCase();
           if ((data.query ?? currentQuery) === currentQuery) {
             const scopedStations = data.intent === "country" && data.countryCode ? data.stations.filter((station) => station.country_code === data.countryCode) : data.stations;
-            setResultMeta({ query: data.query ?? currentQuery, intent: data.intent, countryCode: data.countryCode, countryName: data.countryName });
+            setResultMeta({ query: data.query ?? currentQuery, intent: data.intent, countryCode: data.countryCode, countryName: data.countryName, totalAvailable: data.totalAvailable ?? scopedStations.length, limit: data.limit, offset: data.offset });
             setRemoteStations(scopedStations);
+            setVisibleSearchCount(24);
           }
         }
         if (countryRes.ok && requestId === activeSearchRequestId.current) setCountries(((await countryRes.json()) as { countries: CountryResult[] }).countries);
@@ -1974,11 +1976,13 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
   const q = query.trim().toLowerCase();
   const localMatches = stations.filter((s) => `${s.name} ${s.country} ${s.language} ${s.tags.join(" ")}`.toLowerCase().includes(q));
   const countryIntentActive = resultMeta?.intent === "country" && resultMeta.query === q;
-  const stationResults = (remoteStations.length || countryIntentActive ? remoteStations : localMatches).slice(0, 50);
+  const allStationResults = remoteStations.length || countryIntentActive ? remoteStations : localMatches;
+  const stationResults = allStationResults.slice(0, visibleSearchCount);
+  const canLoadMoreSearch = allStationResults.length > stationResults.length;
   const genres = Array.from(new Set(stations.flatMap((s) => s.tags).filter((tag) => tag.toLowerCase().includes(q)))).slice(0, 8);
   const languages = Array.from(new Set(stations.map((s) => s.language).filter((language) => language && language.toLowerCase().includes(q)))).slice(0, 8);
   if (query.trim().length < 2) return null;
-  return <div className="rounded-3xl border border-white/[0.12] bg-[rgba(8,17,29,0.82)] p-3 shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(1.15)]"><div className="mb-3 flex items-center justify-between px-1"><p className="font-display text-xs font-semibold text-gold">{countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Destination results"}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className={`grid gap-3 ${compact ? "" : "lg:grid-cols-[1.25fr_.75fr]"}`}><div>{stationResults.length ? stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={onStationSelect} />) : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No active station found. Try country or genre search."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
+  return <div className="rounded-3xl border border-white/[0.12] bg-[rgba(8,17,29,0.82)] p-3 shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(1.15)]"><div className="mb-3 flex items-center justify-between px-1"><p className="font-display text-xs font-semibold text-gold">{countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Destination results"}{allStationResults.length ? ` · ${stationResults.length}/${resultMeta?.totalAvailable ?? allStationResults.length}` : ""}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className={`grid gap-3 ${compact ? "" : "lg:grid-cols-[1.25fr_.75fr]"}`}><div>{stationResults.length ? <>{stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={onStationSelect} />)}{canLoadMoreSearch ? <button type="button" onClick={() => setVisibleSearchCount((count) => count + 24)} className="mt-2 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight">Load More results</button> : null}</> : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No active station found. Try country or genre search."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
 }
 function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
   return <div className="rounded-3xl border border-white/[0.08] bg-[rgba(20,28,42,0.82)] p-4 shadow-lg"><p className="font-display text-xs font-semibold text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.06] px-3 py-2 text-left text-[#E5E7EB] hover:border-sky/40 hover:bg-white/[0.1]"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-white/[0.72]">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
@@ -2710,7 +2714,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
     setLoadingCountry(true);
     setCountrySignalMessage(nextOffset ? "Finding more live signals…" : `Tuning into ${country.name}…`);
     if (!nextOffset) setStationPool([]);
-    const params = new URLSearchParams({ country: country.name, countryCode: country.code, limit: "50", offset: String(nextOffset) });
+    const params = new URLSearchParams({ country: country.name, countryCode: country.code, limit: "500", offset: String(nextOffset) });
     if (tag) params.set("tag", tag);
     const requestUrl = `/api/stations/by-country?${params}`;
     debugCountryClick("request", { apiRequestUrl: requestUrl, resolvedCountryName: country.name, resolvedCountryCode: country.code });

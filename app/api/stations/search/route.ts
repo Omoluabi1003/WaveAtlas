@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
   const q = (p.get("q") ?? p.get("name") ?? "").trim();
   const normalizedQuery = q.toLowerCase();
-  const limit = p.get("limit") ?? "50";
+  const limit = p.get("limit") ?? "24";
   const offset = p.get("offset") ?? "0";
   const explicitCountry = p.get("country") ?? undefined;
   const explicitCountryCode = p.get("countryCode")?.toUpperCase() ?? undefined;
@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
       country: countryIntent,
       source: `radio-browser:bycountrycodeexact/${countryIntent.code}`,
       stations: exactCountryStations,
+      totalAvailable: exactCountryStations.length,
       totalReturned: exactCountryStations.length,
       offset: Number(offset),
       limit: Number(limit),
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
 
   const genreCountries = inferGenreCountries(q);
   const stationGroups = genreCountries.length && !explicitCountryCode
-    ? await Promise.all(genreCountries.slice(0, 6).map((countryCode) => fetchStationsForCountryIntent(countryCode, countryCode, { language, tag: tag ?? q, limit: "20", offset: "0" }).catch(() => [])))
+    ? await Promise.all(genreCountries.slice(0, 6).map((countryCode) => fetchStationsForCountryIntent(countryCode, countryCode, { language, tag: tag ?? q, limit: "250", offset: "0" }).catch(() => [])))
     : [];
   const stations = await fetchStations({
     q,
@@ -78,6 +79,7 @@ export async function GET(req: NextRequest) {
     countryName: explicitCountry,
     source: "radio-browser:stations/search",
     stations: ranked,
+    totalAvailable: ranked.length,
     totalReturned: ranked.length,
     offset: Number(offset),
     limit: Number(limit),

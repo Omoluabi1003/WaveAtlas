@@ -5,12 +5,20 @@ export type Station = { id:string; station_uuid:string; name:string; normalized_
 
 export type CountryResult = { name:string; code:string; flag:string; centroid:{ lat:number; lng:number }; station_count:number };
 
-type RadioBrowserStation = Partial<Record<'stationuuid'|'name'|'url_resolved'|'url'|'homepage'|'favicon'|'country'|'countrycode'|'state'|'language'|'tags'|'codec', string>> & { bitrate?: number; geo_lat?: number; geo_long?: number; votes?: number; clickcount?: number; lastcheckok?: number; lastchecktime_iso8601?: string; clicktrend?: number };
+type RadioBrowserStation = Partial<Record<'stationuuid'|'name'|'url_resolved'|'url'|'homepage'|'favicon'|'country'|'countrycode'|'state'|'language'|'tags'|'codec', string>> & { bitrate?: number; geo_lat?: number; geo_long?: number; votes?: number; clickcount?: number; lastcheckok?: number; lastchecktime_iso8601?: string; clicktrend?: number; clicktimestamp_iso8601?: string };
+type StationDiscoveryDiagnostics = { fetchedCount: number; curatedCount: number; filteredCount: number; returnedCount: number; filterReasons: Record<string, number> };
+
+const RADIO_BROWSER_PAGE_SIZE = 500;
+const GLOBAL_CACHED_PAGES = 6;
+const COUNTRY_PAGE_SIZE = 500;
+const STATION_CACHE_TTL_MS = 10 * 60_000;
 type RadioBrowserCountry = { name?: string; iso_3166_1?: string; stationcount?: number };
 
 const API_BASE = process.env.RADIO_BROWSER_API_BASE ?? 'https://de1.api.radio-browser.info/json';
 const UA = 'WaveAtlas/1.0 (global-radio-discovery)';
 const cache = new Map<string, { expires:number; value: unknown }>();
+function discoveryDiagnostics(label: string, diagnostics: StationDiscoveryDiagnostics) { if (process.env.NODE_ENV !== 'production') console.info(`[WaveAtlas station discovery] ${label}`, diagnostics); }
+function incrementReason(reasons: Record<string, number>, reason: string) { reasons[reason] = (reasons[reason] ?? 0) + 1; }
 
 const countryCentroids: Record<string, { lat:number; lng:number }> = {
   NG:{lat:9.082,lng:8.6753}, DE:{lat:51.1657,lng:10.4515}, GH:{lat:7.9465,lng:-1.0232}, FR:{lat:46.2276,lng:2.2137}, AE:{lat:23.4241,lng:53.8478}, US:{lat:39.8283,lng:-98.5795}, BR:{lat:-14.235,lng:-51.9253}, GB:{lat:55.3781,lng:-3.436}, JP:{lat:36.2048,lng:138.2529}, ZA:{lat:-30.5595,lng:22.9375}, CA:{lat:56.1304,lng:-106.3468}, IN:{lat:20.5937,lng:78.9629}, AU:{lat:-25.2744,lng:133.7751}, MX:{lat:23.6345,lng:-102.5528}, ES:{lat:40.4637,lng:-3.7492}, IT:{lat:41.8719,lng:12.5674}, CN:{lat:35.8617,lng:104.1954}, KR:{lat:35.9078,lng:127.7669}, ID:{lat:-0.7893,lng:113.9213}, PH:{lat:12.8797,lng:121.774}, TH:{lat:15.87,lng:100.9925}, MY:{lat:4.2105,lng:101.9758}, SG:{lat:1.3521,lng:103.8198}, SA:{lat:23.8859,lng:45.0792}, QA:{lat:25.3548,lng:51.1839}, IL:{lat:31.0461,lng:34.8516}, TR:{lat:38.9637,lng:35.2433}, NZ:{lat:-40.9006,lng:174.886}, FJ:{lat:-17.7134,lng:178.065}, PG:{lat:-6.315,lng:143.9555}, KE:{lat:-0.0236,lng:37.9062}, EG:{lat:26.8206,lng:30.8025}, MA:{lat:31.7917,lng:-7.0926}, TZ:{lat:-6.369,lng:34.8888}, UG:{lat:1.3733,lng:32.2903}, CM:{lat:7.3697,lng:12.3547}, SN:{lat:14.4974,lng:-14.4524}, NL:{lat:52.1326,lng:5.2913}, SE:{lat:60.1282,lng:18.6435}, NO:{lat:60.472,lng:8.4689}, IE:{lat:53.1424,lng:-7.6921}, CH:{lat:46.8182,lng:8.2275}, BE:{lat:50.5039,lng:4.4699}, PT:{lat:39.3999,lng:-8.2245}, AR:{lat:-38.4161,lng:-63.6167}, CL:{lat:-35.6751,lng:-71.543}, CO:{lat:4.5709,lng:-74.2973}, PE:{lat:-9.19,lng:-75.0152}
@@ -64,10 +72,10 @@ export function isVerifiedNigerianStation(station: Station) {
 function isAriyoSeed(station: Station) { return station.tags.some((tag) => tag.toLowerCase() === 'ariyo-ai-seed'); }
 function stationUrlKey(station: Station) { return (station.url_resolved || station.url || '').trim().toLowerCase(); }
 function stationNameKey(station: Station) { return normalizedStationName(station.name); }
-export function isStationAvailable(station: Station) { return Boolean(station.url && (/^https?:\/\//i.test(station.url) || isCuratedStation(station)) && (isCuratedStation(station) || (station.is_active && station.failure_count < 3))); }
+export function isStationAvailable(station: Station) { return Boolean(station.url && (/^https?:\/\//i.test(station.url) || isCuratedStation(station))); }
 export function logCuratedStationDiagnostic(station: Station, reason: string, context = 'curated-atlas') { if (isCuratedStation(station) && process.env.NODE_ENV !== 'production') console.info(`[WaveAtlas curated diagnostic] ${context}: ${station.name} (${station.url || 'missing-url'}) [${station.curation_source ?? 'curated'}] -> ${reason}`); }
 function matchesAriyoPriorityIntent(station: Station, rawQuery = '') { const haystack = `${station.name} ${station.country} ${station.country_code} ${station.city ?? ''} ${station.state ?? ''} ${station.language} ${station.tags.join(' ')}`.toLowerCase(); const q = rawQuery.trim().toLowerCase(); if (!isAriyoSeed(station)) return false; if (!q) return false; return ['nigeria','nigerian','nigerian radio','lagos','ibadan','jos','oyo','plateau','yoruba','africa','african','afrobeats','pidgin','gospel','talk','news','agidigbo','jay'].some((term) => q.includes(term) || haystack.includes(q) && haystack.includes(term)); }
-export function mergeSeedStations(stations: Station[], seeds: Station[] = ariyoSeedStations) { const merged: Station[] = []; const seenUrls = new Set<string>(); const seenNames = new Set<string>(); for (const station of [...seeds, ...stations]) { const urlKey = stationUrlKey(station); const nameKey = stationNameKey(station); if (!urlKey) { logCuratedStationDiagnostic(station, 'excluded: missing stream URL', 'mergeSeedStations'); continue; } if (seenUrls.has(urlKey) || seenNames.has(nameKey)) { logCuratedStationDiagnostic(station, 'excluded: duplicate suppressed; curated metadata wins when duplicate is Radio Browser', 'mergeSeedStations'); continue; } seenUrls.add(urlKey); seenNames.add(nameKey); merged.push(isCuratedStation(station) ? { ...station, is_active: true, failure_count: 0, last_check_ok: station.last_check_ok ?? true, validation_status: station.validation_status === 'failed' ? 'needs_review' : station.validation_status } : station); } return merged; }
+export function mergeSeedStations(stations: Station[], seeds: Station[] = ariyoSeedStations) { const merged: Station[] = []; const seenUrls = new Set<string>(); const seenNames = new Set<string>(); for (const station of [...seeds, ...stations]) { const urlKey = stationUrlKey(station); const nameKey = stationNameKey(station); if (!urlKey) { logCuratedStationDiagnostic(station, 'excluded: missing stream URL', 'mergeSeedStations'); continue; } if (seenUrls.has(urlKey) || (!isCuratedStation(station) && seenNames.has(nameKey))) { logCuratedStationDiagnostic(station, 'excluded: duplicate suppressed; curated metadata wins when duplicate is Radio Browser', 'mergeSeedStations'); continue; } seenUrls.add(urlKey); if (nameKey) seenNames.add(nameKey); merged.push(isCuratedStation(station) ? { ...station, is_active: true, failure_count: 0, last_check_ok: station.last_check_ok ?? true, validation_status: station.validation_status === 'failed' ? 'needs_review' : station.validation_status } : station); } return merged; }
 function rankStation(station: Station, rawQuery = '') { const q = rawQuery.trim().toLowerCase(); const name = station.name.toLowerCase(); let score = 0; if (q) { const tokens = q.split(/\s+/).filter((token) => token.length > 2); if (name === q) score += 10000; else if (name.startsWith(q)) score += 7000; else if (name.includes(q)) score += 4500; score += tokens.filter((token) => name.includes(token)).length * 2200; if (tokens[0] && name.includes(tokens[0])) score += 5000; if (`${station.country} ${station.country_code} ${station.language} ${station.tags.join(' ')}`.toLowerCase().includes(q)) score += 900; score += culturalAtlasScore(station, rawQuery); } score += station.is_active ? 1800 : -2000; score += Math.min(1400, station.votes * 1.5); score += Math.min(1200, station.click_count / 4); score += station.bitrate > 0 ? Math.min(800, station.bitrate * 2) : 0; score += station.codec && station.codec !== 'Unknown' ? 350 : 0; score += station.url ? 250 : 0; if (isCuratedStation(station)) score += 1800; if (station.country_code === 'NG' && isCuratedStation(station)) score += 2600; if (matchesAriyoPriorityIntent(station, rawQuery)) score += 9000; return score; }
 export function rankStations(stations: Station[], q = '') { return [...stations].sort((a,b)=>rankStation(b,q)-rankStation(a,q) || sortStations(a,b)); }
 
@@ -80,32 +88,73 @@ const candidateContinentSeeds = [
   { continent: 'South America', codes: ['BR', 'AR', 'CL', 'CO', 'PE'] },
 ];
 
-export async function fetchGlobalCandidateStations(limitPerContinent = 4): Promise<Station[]> {
-  const groups = await Promise.all(candidateContinentSeeds.map(async (group) => {
-    const stations = (await Promise.all(group.codes.map((countryCode) => fetchStationsByCountry({ countryCode, limit: String(limitPerContinent * 3) }).catch(() => [])))).flat();
-    const fallback = fallbackStations.filter((station) => group.codes.includes(station.country_code));
-    const seeded = ariyoSeedStations.filter((station) => group.codes.includes(station.country_code));
-    return { continent: group.continent, stations: rankStations(mergeSeedStations([...stations, ...fallback], seeded), group.continent).slice(0, limitPerContinent) };
-  }));
-  const seen = new Set<string>();
-  const interleaved: Station[] = [];
-  for (let i = 0; i < limitPerContinent; i += 1) {
-    for (const group of groups) {
-      const station = group.stations[i];
-      const key = station?.station_uuid || station?.id;
-      if (station?.url && key && !seen.has(key)) {
-        seen.add(key);
-        interleaved.push(station);
-      }
-    }
-  }
-  return interleaved;
+export async function fetchGlobalCandidateStations(minimum = 1500): Promise<Station[]> {
+  return cached(`global-candidates:${minimum}`, STATION_CACHE_TTL_MS, async () => {
+    const broad = await fetchStations({ limit: String(RADIO_BROWSER_PAGE_SIZE * GLOBAL_CACHED_PAGES), pageSize: String(RADIO_BROWSER_PAGE_SIZE), pages: String(GLOBAL_CACHED_PAGES), order: 'clicktrend', allowFallback: 'true', includeDiagnostics: 'true' });
+    const countryPages = (await Promise.all(candidateContinentSeeds.flatMap((group) => group.codes).map((countryCode) => fetchStationsByCountry({ countryCode, limit: String(Math.ceil(minimum / 6)), pageSize: '150' }).catch(() => [])))).flat();
+    const ranked = rankStations(mergeSeedStations([...broad, ...countryPages, ...fallbackStations], ariyoSeedStations), 'global diverse radio');
+    if (ranked.length < minimum && process.env.NODE_ENV !== 'production') console.warn('[WaveAtlas station discovery] global candidate pool below expected size', { expectedMinimum: minimum, actual: ranked.length });
+    return ranked;
+  });
 }
 
 function seedMatchesParams(station: Station, params: Record<string,string|undefined> = {}) { const query = (params.name || params.q || '').trim().toLowerCase(); const countryCode = params.countryCode?.toUpperCase(); const country = params.country?.trim().toLowerCase(); const language = params.language?.trim().toLowerCase(); const tag = params.tag?.trim().toLowerCase(); const haystack = `${station.name} ${station.country} ${station.country_code} ${station.city ?? ''} ${station.state ?? ''} ${station.language} ${station.tags.join(' ')}`.toLowerCase(); if (countryCode && station.country_code !== countryCode) return false; if (country && station.country.toLowerCase() !== country && station.country_code.toLowerCase() !== country && !haystack.includes(country)) return false; if (language && !station.language.toLowerCase().includes(language)) return false; if (tag && !station.tags.some((item) => item.toLowerCase().includes(tag) || tag.includes(item.toLowerCase()))) return false; return !query || haystack.includes(query) || query.split(/\s+/).some((token) => token.length > 2 && haystack.includes(token)); }
-export async function fetchStations(params: Record<string,string|undefined> = {}): Promise<Station[]> { const limit=params.limit ?? '50'; const offset=params.offset ?? '0'; const allowFallback = params.allowFallback === 'true'; const query = new URLSearchParams({ hidebroken:'true', limit, offset, order: params.order ?? 'votes', reverse:'true' }); if(params.country) query.set('country', params.country); if(params.countryCode) query.set('countrycode', params.countryCode.toUpperCase()); if(params.language) query.set('language', params.language); if(params.tag) query.set('tag', params.tag); if(params.name || params.q) query.set('name', params.name || params.q || ''); return cached(`stations:${query.toString()}`, 5*60_000, async()=>{ try { const res = await fetch(`${API_BASE}/stations/search?${query}`, { headers:{ 'User-Agent': UA }, next:{ revalidate: 300 } }); if(!res.ok) throw new Error(`Radio Browser ${res.status}`); const data = await res.json() as RadioBrowserStation[]; const stations = data.map(normalize).filter(s=>s.url && /^https?:\/\//i.test(s.url)).sort(sortStations); const seeded = ariyoSeedStations.filter((station) => seedMatchesParams(station, params)); const merged = mergeSeedStations(stations, seeded); return merged.length ? rankStations(merged, params.name || params.q || params.tag || params.country || params.countryCode) : (allowFallback ? rankStations(mergeSeedStations(fallbackStations, seeded), params.name || params.q) : []); } catch { const seeded = ariyoSeedStations.filter((station) => seedMatchesParams(station, params)); return allowFallback || seeded.length ? rankStations(mergeSeedStations(allowFallback ? fallbackStations : [], seeded), params.name || params.q || params.tag || params.country || params.countryCode) : []; } }); }
+export async function fetchStations(params: Record<string,string|undefined> = {}): Promise<Station[]> {
+  const requestedLimit = Math.max(1, Number(params.limit ?? String(RADIO_BROWSER_PAGE_SIZE * GLOBAL_CACHED_PAGES)));
+  const pageSize = Math.min(RADIO_BROWSER_PAGE_SIZE, Math.max(1, Number(params.pageSize ?? Math.min(RADIO_BROWSER_PAGE_SIZE, requestedLimit))));
+  const pages = Math.max(1, Number(params.pages ?? Math.ceil(requestedLimit / pageSize)));
+  const startOffset = Math.max(0, Number(params.offset ?? '0'));
+  const allowFallback = params.allowFallback === 'true';
+  const cacheKey = `stations:${JSON.stringify({ ...params, requestedLimit, pageSize, pages, startOffset })}`;
+  return cached(cacheKey, STATION_CACHE_TTL_MS, async()=>{
+    const reasons: Record<string, number> = {};
+    const seeded = ariyoSeedStations.filter((station) => seedMatchesParams(station, params));
+    try {
+      const batches = await Promise.all(Array.from({ length: pages }, async (_, page) => {
+        const query = new URLSearchParams({ hidebroken:'false', limit:String(pageSize), offset:String(startOffset + page * pageSize), order: params.order ?? 'votes', reverse:'true' });
+        if(params.country) query.set('country', params.country); if(params.countryCode) query.set('countrycode', params.countryCode.toUpperCase()); if(params.language) query.set('language', params.language); if(params.tag) query.set('tag', params.tag); if(params.name || params.q) query.set('name', params.name || params.q || '');
+        const res = await fetch(`${API_BASE}/stations/search?${query}`, { headers:{ 'User-Agent': UA }, next:{ revalidate: 300 } });
+        if(!res.ok) throw new Error(`Radio Browser ${res.status}`);
+        return await res.json() as RadioBrowserStation[];
+      }));
+      const data = batches.flat();
+      const stations = data.map(normalize).filter((station) => { if (!station.url) { incrementReason(reasons, 'empty_url'); return false; } if (!/^https?:\/\//i.test(station.url)) { incrementReason(reasons, 'unsafe_url'); return false; } return true; });
+      const merged = mergeSeedStations(stations, seeded);
+      const ranked = rankStations(merged, params.name || params.q || params.tag || params.country || params.countryCode).slice(0, requestedLimit);
+      discoveryDiagnostics('fetchStations', { fetchedCount: data.length, curatedCount: seeded.length, filteredCount: data.length - stations.length, returnedCount: ranked.length, filterReasons: reasons });
+      return ranked.length ? ranked : (allowFallback ? rankStations(mergeSeedStations(fallbackStations, seeded), params.name || params.q) : []);
+    } catch {
+      return allowFallback || seeded.length ? rankStations(mergeSeedStations(allowFallback ? fallbackStations : [], seeded), params.name || params.q || params.tag || params.country || params.countryCode) : [];
+    }
+  });
+}
 
-export async function fetchStationsByCountry(params: Record<string,string|undefined> = {}) { const code=params.countryCode?.toUpperCase() || countryAliases[(params.country || '').toLowerCase()]; const limit=params.limit ?? '50'; const offset=params.offset ?? '0'; const base = code ? `/stations/bycountrycodeexact/${encodeURIComponent(code)}` : `/stations/bycountry/${encodeURIComponent(params.country ?? '')}`; const query = new URLSearchParams({ hidebroken:'true', limit, offset, order:'votes', reverse:'true' }); if(params.tag) query.set('tag', params.tag); if(params.language) query.set('language', params.language); return cached(`country:${base}:${query.toString()}`, 5*60_000, async()=>{ try { const res=await fetch(`${API_BASE}${base}?${query}`, { headers:{ 'User-Agent': UA }, next:{ revalidate: 300 } }); if(!res.ok) throw new Error(`Radio Browser ${res.status}`); const data=await res.json() as RadioBrowserStation[]; const stations = data.map(normalize).filter(s=>s.url && /^https?:\/\//i.test(s.url) && (!code || s.country_code === code)).sort(sortStations); const seeded = ariyoSeedStations.filter((station) => seedMatchesParams(station, { ...params, countryCode: code })); return rankStations(mergeSeedStations(stations, seeded), params.tag || params.language || params.country || params.countryCode); } catch { return rankStations(ariyoSeedStations.filter((station) => seedMatchesParams(station, { ...params, countryCode: code })), params.tag || params.language || params.country || params.countryCode); } }); }
+export async function fetchStationsByCountry(params: Record<string,string|undefined> = {}) {
+  const code=params.countryCode?.toUpperCase() || countryAliases[(params.country || '').toLowerCase()];
+  const requestedLimit = Math.max(1, Number(params.limit ?? String(COUNTRY_PAGE_SIZE)));
+  const pageSize = Math.min(COUNTRY_PAGE_SIZE, Math.max(1, Number(params.pageSize ?? Math.min(COUNTRY_PAGE_SIZE, requestedLimit))));
+  const pages = Math.max(1, Number(params.pages ?? Math.ceil(requestedLimit / pageSize)));
+  const startOffset = Math.max(0, Number(params.offset ?? '0'));
+  const base = code ? `/stations/bycountrycodeexact/${encodeURIComponent(code)}` : `/stations/bycountry/${encodeURIComponent(params.country ?? '')}`;
+  return cached(`country:${base}:${JSON.stringify({ ...params, requestedLimit, pageSize, pages, startOffset })}`, STATION_CACHE_TTL_MS, async()=>{
+    const reasons: Record<string, number> = {};
+    const seeded = ariyoSeedStations.filter((station) => seedMatchesParams(station, { ...params, countryCode: code }));
+    try {
+      const batches = await Promise.all(Array.from({ length: pages }, async (_, page) => {
+        const query = new URLSearchParams({ hidebroken:'false', limit:String(pageSize), offset:String(startOffset + page * pageSize), order:'votes', reverse:'true' });
+        if(params.tag) query.set('tag', params.tag); if(params.language) query.set('language', params.language);
+        const res=await fetch(`${API_BASE}${base}?${query}`, { headers:{ 'User-Agent': UA }, next:{ revalidate: 300 } });
+        if(!res.ok) throw new Error(`Radio Browser ${res.status}`);
+        return await res.json() as RadioBrowserStation[];
+      }));
+      const data=batches.flat();
+      const stations = data.map(normalize).filter((station) => { if (!station.url) { incrementReason(reasons, 'empty_url'); return false; } if (!/^https?:\/\//i.test(station.url)) { incrementReason(reasons, 'unsafe_url'); return false; } if (code && station.country_code !== code) { incrementReason(reasons, 'country_mismatch'); return false; } return true; });
+      const ranked = rankStations(mergeSeedStations(stations, seeded), params.tag || params.language || params.country || params.countryCode).slice(0, requestedLimit);
+      discoveryDiagnostics('fetchStationsByCountry', { fetchedCount: data.length, curatedCount: seeded.length, filteredCount: data.length - stations.length, returnedCount: ranked.length, filterReasons: reasons });
+      return ranked;
+    } catch { return rankStations(seeded, params.tag || params.language || params.country || params.countryCode); }
+  });
+}
 
 export async function searchCountries(q = ''): Promise<CountryResult[]> { const query=q.trim().toLowerCase(); return cached(`countries:${query}`, 60*60_000, async()=>{ try { const res=await fetch(`${API_BASE}/countries`, { headers:{ 'User-Agent': UA }, next:{ revalidate: 3600 } }); if(!res.ok) throw new Error(`Radio Browser ${res.status}`); const data=await res.json() as RadioBrowserCountry[]; return data.filter(c=>c.name && c.iso_3166_1).map(c=>({ name:c.name!, code:c.iso_3166_1!.toUpperCase(), flag:flagFor(c.iso_3166_1), centroid:countryCentroids[c.iso_3166_1!.toUpperCase()] ?? {lat:20,lng:0}, station_count:c.stationcount ?? 0 })).filter(c=>!query || c.name.toLowerCase().includes(query) || c.code.toLowerCase()===query || countryAliases[query]===c.code).sort((a,b)=>b.station_count-a.station_count).slice(0,12); } catch { return Object.entries(countryAliases).filter(([name])=>!query || name.includes(query)).map(([name,code])=>({ name:name.replace(/\b\w/g,m=>m.toUpperCase()), code, flag:flagFor(code), centroid:countryCentroids[code] ?? {lat:20,lng:0}, station_count:0 })).slice(0,8); } }); }
 
