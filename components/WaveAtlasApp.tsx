@@ -877,6 +877,9 @@ function GeoTrustCards({ station }: { station: Station }) {
 
 
 const SIGNAL_SPLASH_KEY = "waveatlas:splash-seen";
+const SIGNAL_SPLASH_PHASE_MS = 1000;
+const SIGNAL_SPLASH_DONE_MS = 4800;
+
 const signalInitializationPhases = [
   "Acquiring signal...",
   "Resolving Earth...",
@@ -896,8 +899,8 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
     onComplete?.();
   }, [onComplete]);
   useEffect(() => {
-    const phaseTimer = window.setInterval(() => setPhase((p) => (p + 1) % signalInitializationPhases.length), 420);
-    const doneTimer = window.setTimeout(dismiss, 1900);
+    const phaseTimer = window.setInterval(() => setPhase((p) => (p + 1) % signalInitializationPhases.length), SIGNAL_SPLASH_PHASE_MS);
+    const doneTimer = window.setTimeout(dismiss, SIGNAL_SPLASH_DONE_MS);
     return () => { window.clearInterval(phaseTimer); window.clearTimeout(doneTimer); };
   }, [dismiss]);
   return <AnimatePresence>{visible ? <motion.div className="fixed inset-0 z-[110] grid place-items-center overflow-hidden bg-midnight/72 text-ivory backdrop-blur-xl" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .45 }}>
@@ -916,8 +919,12 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
       <h1 className="mt-3 font-display text-[36px] font-extrabold leading-[1.08]">{BRAND.name}</h1>
       <p className="mt-2 text-lg text-ivory/70">Explore Humanity Through Sound™</p>
       <AnimatePresence mode="wait"><motion.p key={phase} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6 font-mono text-sm text-radio">{signalInitializationPhases[phase]}</motion.p></AnimatePresence>
+      <div className="mt-8 rounded-full border border-white/10 bg-white/[0.035] px-5 py-3 shadow-[0_12px_40px_rgba(0,0,0,.18)] backdrop-blur-md">
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-ivory/65">Built by ETL GIS Consulting LLC</p>
+        <p className="mt-1 text-[11px] font-medium tracking-[0.18em] text-gold/65">GIS • AI • Automation • Digital Modernization</p>
+      </div>
     </div>
-    <p className="absolute bottom-8 left-1/2 w-full max-w-sm -translate-x-1/2 px-6 text-center text-xs font-medium tracking-wide text-ivory/45 sm:bottom-10">Powered by ETL GIS Consulting LLC</p>
+    <p className="absolute bottom-8 left-1/2 w-full max-w-sm -translate-x-1/2 px-6 text-center text-[11px] font-medium tracking-wide text-ivory/35 sm:bottom-10">Initializing the global radio atlas</p>
   </motion.div> : null}</AnimatePresence>;
 }
 
