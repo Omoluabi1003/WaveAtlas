@@ -17,7 +17,7 @@ const EMPTY_PADDING: PaddingOptions = { top: 0, right: 0, bottom: 0, left: 0 };
 export const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 export function normalizeLongitudeDelta(delta: number) { return ((((delta + 180) % 360) + 360) % 360) - 180; }
 const MAP_BEACON_EASING = easeOutCubic;
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;

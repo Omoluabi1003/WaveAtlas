@@ -13,8 +13,10 @@ type Args = { stations: Station[]; currentStation?: Station | null; viewportBoun
 
 export const DEBUG_SIGNALS = process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_SIGNALS === "true";
 
-function beaconLabel(station: Station) {
-  return [station.city || station.state, station.country].filter(Boolean).join(", ") || station.name;
+function beaconLabel(station: Station, geo: ReturnType<typeof resolveStationGeoTruth>) {
+  const place = geo.precision === "country" ? station.country : station.city || station.state || station.country;
+  const qualifier = geo.precision === "station" || geo.precision === "city" ? station.country : "approximate";
+  return [place, qualifier].filter(Boolean).join(", ") || station.name;
 }
 
 export function getActiveBeaconFeature(currentStation?: Station | null): ActiveBeaconFeature | null {
@@ -26,7 +28,7 @@ export function getActiveBeaconFeature(currentStation?: Station | null): ActiveB
   return {
     type: "Feature",
     geometry: { type: "Point", coordinates: [geo.lng, geo.lat] },
-    properties: { id, name: currentStation.name, label: beaconLabel(currentStation), city: currentStation.city || currentStation.state, country: currentStation.country, source: geo.source, precision: geo.precision, color: "#FF3B30", pulseMs: 1600, halo: "rgba(255,59,48,0.58)" },
+    properties: { id, name: currentStation.name, label: beaconLabel(currentStation, geo), city: geo.precision === "country" ? undefined : currentStation.city || currentStation.state, country: currentStation.country, source: geo.source, precision: geo.precision, color: "#FF3B30", pulseMs: 1600, halo: "rgba(255,59,48,0.58)" },
   };
 }
 

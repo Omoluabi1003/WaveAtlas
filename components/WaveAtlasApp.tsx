@@ -1695,15 +1695,10 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
   const pendingFeatureRef = useRef<ActiveBeaconFeature | null>(null);
   const lastStationRef = useRef<Station | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const moveendCleanupRef = useRef<(() => void) | null>(null);
-  const moveendTimeoutRef = useRef<number | null>(null);
+  const lastBeaconPointRef = useRef<{ lat: number; lng: number } | null>(null);
   const cancelPendingWork = useCallback(() => {
     if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
     animationFrameRef.current = null;
-    if (moveendTimeoutRef.current !== null) window.clearTimeout(moveendTimeoutRef.current);
-    moveendTimeoutRef.current = null;
-    moveendCleanupRef.current?.();
-    moveendCleanupRef.current = null;
   }, []);
   const ensureActiveBeaconSource = useCallback(() => {
     if (!isMapStyleReady(map)) return false;
@@ -1738,11 +1733,12 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
       return;
     }
     const sourceRef = map.getSource(ACTIVE_BEACON_SOURCE_ID) as GeoJSONSource | undefined;
-    const previousCoordinates = previousGeo?.lat !== null && previousGeo?.lng !== null && previousGeo?.lat !== undefined && previousGeo?.lng !== undefined ? { lat: previousGeo.lat, lng: previousGeo.lng } : null;
+    const previousCoordinates = lastBeaconPointRef.current ?? (previousGeo?.lat !== null && previousGeo?.lng !== null && previousGeo?.lat !== undefined && previousGeo?.lng !== undefined ? { lat: previousGeo.lat, lng: previousGeo.lng } : null);
     const duration = beaconMoveDuration(distanceKm);
     const writeFeature = (lng: number, lat: number) => {
       try {
         sourceRef?.setData({ type: "FeatureCollection", features: [{ ...feature, geometry: { ...feature.geometry, coordinates: [lng, lat] } }] });
+        lastBeaconPointRef.current = { lat, lng };
         sourceSetData = true;
         pendingFeatureRef.current = null;
       } catch (error) { warnMapCleanup("active beacon source update failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(map) }); }
@@ -1761,16 +1757,9 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
       };
       animationFrameRef.current = window.requestAnimationFrame(animate);
     }
-    const shouldMoveCamera = !stationVisibleInViewport;
-    if (shouldMoveCamera) {
-      let moveendFired = false;
-      const onMoveEnd = () => { moveendFired = true; debugMapBeacon("moveend", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: true, mapCurrentCenter: { lat: map.getCenter().lat, lng: map.getCenter().lng }, mapCurrentZoom: map.getZoom() }); };
-      map.once("moveend", onMoveEnd);
-      moveendCleanupRef.current = () => { try { map.off("moveend", onMoveEnd); } catch {} };
-      moveendTimeoutRef.current = window.setTimeout(() => { if (!moveendFired) { moveendCleanupRef.current?.(); moveendCleanupRef.current = null; debugMapBeacon("moveend pending", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: false }); } }, duration + 400);
-      onCameraMove(resolved, source);
-    }
-    debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: shouldMoveCamera, flyToDuration: shouldMoveCamera ? 900 : 0, flyToEasing: shouldMoveCamera ? "viewport-aware-camera" : "beacon-only", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false, stationVisibleInViewport });
+    const shouldMoveCamera = true;
+    onCameraMove(resolved, source);
+    debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: shouldMoveCamera, flyToDuration: shouldMoveCamera ? duration : 0, flyToEasing: shouldMoveCamera ? "viewport-aware-camera" : "beacon-only", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false, stationVisibleInViewport });
     map.resize();
     lastStationRef.current = nextStation;
   }, [cancelPendingWork, ensureActiveBeaconSource, map, onCameraMove]);

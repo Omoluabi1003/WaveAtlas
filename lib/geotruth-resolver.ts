@@ -3,6 +3,7 @@ import type { Station } from './stations';
 export type GeoPrecision = 'station' | 'city' | 'country' | 'unknown';
 export type GeoSource = 'manual_override' | 'city_gazetteer' | 'verified_api_geo' | 'country_centroid' | 'unknown';
 export type ResolvedStationGeo = { lat: number | null; lng: number | null; precision: GeoPrecision; confidence: number; source: GeoSource; warning: string | null };
+type ContinentKey = 'africa' | 'europe' | 'asia' | 'north_america' | 'south_america' | 'oceania' | 'antarctica';
 type Point = { lat: number; lng: number };
 type Bounds = { minLat: number; maxLat: number; minLng: number; maxLng: number };
 
@@ -26,6 +27,7 @@ export const countryBounds: Record<string, Bounds> = {
 };
 
 const cityGazetteer: Record<string, Point & { countryCode: string }> = {
+  'GH:accra': { lat: 5.6037, lng: -0.1870, countryCode: 'GH' }, 'GH:kumasi': { lat: 6.6666, lng: -1.6163, countryCode: 'GH' }, 'GH:tamale': { lat: 9.4034, lng: -0.8424, countryCode: 'GH' },
   'NG:lagos': { lat: 6.5244, lng: 3.3792, countryCode: 'NG' }, 'NG:abuja': { lat: 9.0765, lng: 7.3986, countryCode: 'NG' }, 'NG:ibadan': { lat: 7.3775, lng: 3.9470, countryCode: 'NG' }, 'NG:oyo': { lat: 7.3775, lng: 3.9470, countryCode: 'NG' },
   'GB:london': { lat: 51.5072, lng: -0.1276, countryCode: 'GB' }, 'JP:tokyo': { lat: 35.6762, lng: 139.6503, countryCode: 'JP' }, 'JP:osaka': { lat: 34.6937, lng: 135.5023, countryCode: 'JP' },
   'US:new york': { lat: 40.7128, lng: -74.006, countryCode: 'US' }, 'US:washington': { lat: 38.9072, lng: -77.0369, countryCode: 'US' },
@@ -35,15 +37,52 @@ const cityGazetteer: Record<string, Point & { countryCode: string }> = {
 function finitePoint(lat: unknown, lng: unknown): Point | null { return typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 ? { lat, lng } : null; }
 function finiteSwappedPoint(lat: unknown, lng: unknown): Point | null { return typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng) && lng >= -90 && lng <= 90 && lat >= -180 && lat <= 180 ? { lat: lng, lng: lat } : null; }
 function inBounds(point: Point, bounds: Bounds, padding = 0.75) { return point.lat >= bounds.minLat - padding && point.lat <= bounds.maxLat + padding && point.lng >= bounds.minLng - padding && point.lng <= bounds.maxLng + padding; }
+function roughContinent(point: Point): ContinentKey | null {
+  const { lat, lng } = point;
+  if (lat < -60) return 'antarctica';
+  if (lng >= -170 && lng <= -25 && lat >= -5) return 'north_america';
+  if (lng >= -92 && lng <= -25 && lat < 13) return 'south_america';
+  if (lng >= -25 && lng <= 55 && lat >= -35 && lat <= 38) return 'africa';
+  if (lng >= -25 && lng <= 45 && lat > 35) return 'europe';
+  if (lng >= 25 && lng <= 180 && lat >= -12) return 'asia';
+  if ((lng >= 95 || lng <= -140) && lat < 5) return 'oceania';
+  return null;
+}
+function sameContinentAsCountry(point: Point, code: string) {
+  const centroid = isoCountryCentroids[code];
+  if (!centroid) return false;
+  const expected = roughContinent(centroid);
+  const actual = roughContinent(point);
+  return Boolean(expected && actual && expected === actual);
+}
 function normalizedCode(code?: string) { return (code ?? '').trim().toUpperCase(); }
 function stationKeys(station: Station) { return [station.station_uuid, station.id].filter(Boolean); }
 function cityKey(station: Station) { const city = (station.city || station.state || '').trim().toLowerCase(); return city ? `${normalizedCode(station.country_code)}:${city}` : ''; }
 
 export function coordinateMatchesStationCountry(lat: number, lng: number, countryCode?: string) {
   const code = normalizedCode(countryCode);
+  const point = { lat, lng };
   const bounds = countryBounds[code];
-  if (!bounds) return Boolean(isoCountryCentroids[code]);
-  return inBounds({ lat, lng }, bounds);
+  if (bounds) return inBounds(point, bounds);
+  return sameContinentAsCountry(point, code);
+}
+
+function logCoordinateMismatch(station: Station, supplied: Point | null, resolved: ResolvedStationGeo) {
+  if (!supplied || !resolved.warning || typeof console === 'undefined') return;
+  console.debug('[WaveAtlas geotruth] coordinate mismatch', {
+    station: station.name,
+    country_code: normalizedCode(station.country_code) || null,
+    supplied: { lat: supplied.lat, lng: supplied.lng },
+    resolved: { lat: resolved.lat, lng: resolved.lng },
+    precision: resolved.precision,
+    source: resolved.source,
+    warning: resolved.warning,
+  });
+}
+
+function resolvedWithMismatchLog(station: Station, supplied: Point | null, resolved: ResolvedStationGeo) {
+  logCoordinateMismatch(station, supplied, resolved);
+  return resolved;
 }
 
 export function resolveStationGeo(station: Station): ResolvedStationGeo {
@@ -61,11 +100,14 @@ export function resolveStationGeo(station: Station): ResolvedStationGeo {
     }
   }
   const city = cityGazetteer[cityKey(station)];
-  if (city) return { lat: city.lat, lng: city.lng, precision: 'city', confidence: 90, source: 'city_gazetteer', warning: null };
+  if (city) {
+    const cityResolved = { lat: city.lat, lng: city.lng, precision: 'city' as const, confidence: 90, source: 'city_gazetteer' as const, warning: reportedPoint ? `Rejected mismatched coordinates for ${code}; using verified city centroid.` : null };
+    return reportedPoint ? resolvedWithMismatchLog(station, reportedPoint, cityResolved) : cityResolved;
+  }
   if (reportedPoint) {
     const centroid = isoCountryCentroids[code];
-    if (centroid) return { lat: centroid.lat, lng: centroid.lng, precision: 'country', confidence: 60, source: 'country_centroid', warning: `Rejected mismatched coordinates for ${code}; using verified country centroid as last resort.` };
-    return { lat: null, lng: null, precision: 'unknown', confidence: 0, source: 'unknown', warning: `Rejected mismatched coordinates and no verified centroid exists for ${code || 'unknown country'}.` };
+    if (centroid) return resolvedWithMismatchLog(station, reportedPoint, { lat: centroid.lat, lng: centroid.lng, precision: 'country', confidence: 60, source: 'country_centroid', warning: `Rejected mismatched coordinates for ${code}; using verified country centroid as last resort.` });
+    return resolvedWithMismatchLog(station, reportedPoint, { lat: null, lng: null, precision: 'unknown', confidence: 0, source: 'unknown', warning: `Rejected mismatched coordinates and no verified centroid exists for ${code || 'unknown country'}.` });
   }
   const centroid = isoCountryCentroids[code];
   if (centroid) return { lat: centroid.lat, lng: centroid.lng, precision: 'country', confidence: 60, source: 'country_centroid', warning: 'Station coordinates missing; using verified country centroid.' };
