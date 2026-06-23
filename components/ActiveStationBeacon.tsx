@@ -14,22 +14,50 @@ import {
 
 export type ActiveStationBeaconGeo = { lat: number | null; lng: number | null; tone: string };
 
+function applyBeaconElementState(element: HTMLElement, geo: ActiveStationBeaconGeo, status: SignalBeaconStatus) {
+  element.className = signalBeaconClassName(geo.tone, status);
+  element.innerHTML = signalBeaconHtml();
+}
+
 export function ActiveStationBeacon({ map, geo, status }: { map: Map | null; geo: ActiveStationBeaconGeo; status: SignalBeaconStatus }) {
   const markerRef = useRef<Marker | null>(null);
   const animationRef = useRef<number | null>(null);
   const hasPositionRef = useRef(false);
+  const latestGeoRef = useRef(geo);
+  const latestStatusRef = useRef(status);
+
+  useEffect(() => {
+    latestGeoRef.current = geo;
+    latestStatusRef.current = status;
+  }, [geo, status]);
 
   useEffect(() => {
     if (!map) return;
+    let cancelled = false;
+    let marker: Marker | null = null;
     const element = document.createElement("div");
     element.style.transform = "translate3d(0,0,0)";
     element.style.willChange = "transform";
-    const marker = new maplibregl.Marker({ element, anchor: "center" }).setLngLat([0, 0]).addTo(map);
-    markerRef.current = marker;
+    applyBeaconElementState(element, latestGeoRef.current, latestStatusRef.current);
+
+    const attachMarker = () => {
+      if (cancelled || markerRef.current) return;
+      const initialGeo = latestGeoRef.current;
+      marker = new maplibregl.Marker({ element, anchor: "center" }).setLngLat([initialGeo.lng ?? 0, initialGeo.lat ?? 0]).addTo(map);
+      markerRef.current = marker;
+      hasPositionRef.current = initialGeo.lat !== null && initialGeo.lng !== null;
+      applyBeaconElementState(element, initialGeo, latestStatusRef.current);
+    };
+
+    if (map.loaded()) attachMarker();
+    else map.once("load", attachMarker);
+
     return () => {
+      cancelled = true;
+      map.off("load", attachMarker);
       if (animationRef.current !== null) window.cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
-      marker.remove();
+      marker?.remove();
       hasPositionRef.current = false;
       if (markerRef.current === marker) markerRef.current = null;
     };
@@ -61,14 +89,13 @@ export function ActiveStationBeacon({ map, geo, status }: { map: Map | null; geo
     };
     animationRef.current = window.requestAnimationFrame(tick);
     return () => { if (animationRef.current !== null) window.cancelAnimationFrame(animationRef.current); };
-  }, [geo.lat, geo.lng]);
+  }, [geo.lat, geo.lng, map]);
 
   useEffect(() => {
     const element = markerRef.current?.getElement();
     if (!element) return;
-    element.className = signalBeaconClassName(geo.tone, status);
-    element.innerHTML = signalBeaconHtml();
-  }, [geo.tone, status]);
+    applyBeaconElementState(element, geo, status);
+  }, [geo, geo.tone, map, status]);
 
   return null;
 }
