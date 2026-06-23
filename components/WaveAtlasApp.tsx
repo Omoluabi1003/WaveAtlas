@@ -65,6 +65,59 @@ import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQu
 import { localTimeForStation, stationTimeCopy, teleportCopy } from "@/lib/smart-time-copy";
 import { useNavigationEngine, type NavigationSelectionSource } from "@/lib/navigation-engine";
 
+
+type BrowserAudioContextConstructor = typeof AudioContext;
+
+function playPremiumTeleportClick() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContextConstructor = window.AudioContext ?? (window as Window & { webkitAudioContext?: BrowserAudioContextConstructor }).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+    const context = new AudioContextConstructor();
+    const now = context.currentTime;
+    const duration = 0.07;
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.055, now + 0.006);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    master.connect(context.destination);
+
+    const body = context.createOscillator();
+    body.type = "triangle";
+    body.frequency.setValueAtTime(1180, now);
+    body.frequency.exponentialRampToValueAtTime(760, now + 0.032);
+    const bodyGain = context.createGain();
+    bodyGain.gain.setValueAtTime(0.18, now);
+    bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+    body.connect(bodyGain).connect(master);
+
+    const samples = Math.max(1, Math.floor(context.sampleRate * duration));
+    const buffer = context.createBuffer(1, samples, context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < samples; i += 1) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / samples);
+    }
+    const noise = context.createBufferSource();
+    noise.buffer = buffer;
+    const filter = context.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(2400, now);
+    filter.Q.setValueAtTime(9, now);
+    const noiseGain = context.createGain();
+    noiseGain.gain.setValueAtTime(0.09, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.028);
+    noise.connect(filter).connect(noiseGain).connect(master);
+
+    body.start(now);
+    noise.start(now);
+    body.stop(now + duration);
+    noise.stop(now + duration);
+    window.setTimeout(() => void context.close().catch(() => undefined), Math.ceil(duration * 1000) + 40);
+  } catch {
+    // Tactile audio is best-effort; teleporting must never depend on sound playback.
+  }
+}
+
 type CountryResult = {
   name: string;
   code: string;
@@ -2927,7 +2980,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   const status = usePlayer((state) => state.status);
   const pulseTeleport = !reducedMotion && (status === "idle" || status === "playing") && mode !== "Brief" && mode !== "Add Signal";
   const commands = [[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const;
-  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" title={accessibleLabel} onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></button></div>; })}</div></nav>;
+  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel} whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) { playPremiumTeleportClick(); onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
@@ -3669,7 +3722,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/78 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" />
         </div>
         <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/20 bg-slate-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]">
-          {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (value === "Teleport") { if (desktopTeleporting) return; setDesktopTeleporting(true); setDesktopDrawerCollapsed(false); setWandererActive(false); setDesktopMode(value); const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setDesktopTeleporting(false)); } else if (value === "Brief") { setDesktopDrawerCollapsed(false); setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopDrawerCollapsed(false); setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</button></div>; })}
+          {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (value === "Teleport") { playPremiumTeleportClick(); if (desktopTeleporting) return; setDesktopTeleporting(true); setDesktopDrawerCollapsed(false); setWandererActive(false); setDesktopMode(value); const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setDesktopTeleporting(false)); } else if (value === "Brief") { setDesktopDrawerCollapsed(false); setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopDrawerCollapsed(false); setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</motion.button></div>; })}
         </nav>
       </div>
     </main>
