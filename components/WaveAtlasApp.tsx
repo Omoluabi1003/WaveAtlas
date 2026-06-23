@@ -1544,7 +1544,7 @@ function escapeMarkerText(value: string) {
 
 function markerHtml(geo: GeoPoint, status: PlaybackStatus, label?: { place: string; mood: string; station: string }) {
   const labelHtml = label ? `<span class="station-living-label"><b>${escapeMarkerText(label.place)}</b><span>${escapeMarkerText(label.mood)}</span><em>${escapeMarkerText(label.station)}</em></span>` : "";
-  return `<span class="station-pulse-ring"></span><span class="station-pulse-ring two"></span><span class="station-beacon-core" aria-hidden="true"></span><span class="station-pulse-dot"></span>${labelHtml}`;
+  return `<span class="station-beacon-glow" aria-hidden="true"></span><span class="station-pulse-ring radio-wave one"></span><span class="station-pulse-ring radio-wave two"></span><span class="station-pulse-ring radio-wave three"></span><span class="station-signal-accent" aria-hidden="true"></span><span class="station-beacon-core" aria-hidden="true"></span><span class="station-pulse-dot" aria-hidden="true"></span>${labelHtml}`;
 }
 
 function StationPulseMarker({
@@ -1559,10 +1559,13 @@ function StationPulseMarker({
       className={`station-pulse-marker tone-${geo.tone} status-${status}`}
       aria-label={`${geo.label} station pulse`}
     >
-      <span className="station-pulse-ring" />
-      <span className="station-pulse-ring two" />
+      <span className="station-beacon-glow" aria-hidden="true" />
+      <span className="station-pulse-ring radio-wave one" />
+      <span className="station-pulse-ring radio-wave two" />
+      <span className="station-pulse-ring radio-wave three" />
+      <span className="station-signal-accent" aria-hidden="true" />
       <span className="station-beacon-core" aria-hidden="true" />
-      <span className="station-pulse-dot" />
+      <span className="station-pulse-dot" aria-hidden="true" />
     </div>
   );
 }
@@ -1610,7 +1613,7 @@ function MapMarkerController({
 const SIGNAL_SOURCE_ID = "waveatlas-signal-constellations";
 const SIGNAL_LAYER_IDS = ["waveatlas-signal-cluster-halo", "waveatlas-signal-clusters", "waveatlas-signal-cluster-count", "waveatlas-signal-favorite-halo", "waveatlas-signals"] as const;
 const ACTIVE_BEACON_SOURCE_ID = "waveatlas-active-beacon";
-const ACTIVE_BEACON_LAYER_IDS = ["waveatlas-active-beacon-halo", "waveatlas-active-beacon-core"] as const;
+const ACTIVE_BEACON_LAYER_IDS = ["waveatlas-active-beacon-broadcast", "waveatlas-active-beacon-halo", "waveatlas-active-beacon-accent", "waveatlas-active-beacon-core"] as const;
 const DEBUG_MAP_BEACON = process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_MAP_BEACON === "true";
 function beaconMoveDuration(distanceKm: number) { return stationDuration(distanceKm); }
 function beaconTargetZoom(geo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
@@ -1703,8 +1706,10 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
   const ensureActiveBeaconSource = useCallback(() => {
     if (!isMapStyleReady(map)) return false;
     if (!safeHasSource(map, ACTIVE_BEACON_SOURCE_ID)) map.addSource(ACTIVE_BEACON_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-    if (!safeHasLayer(map, "waveatlas-active-beacon-halo")) map.addLayer({ id: "waveatlas-active-beacon-halo", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": "rgba(255,59,48,0.72)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 18, 8, 36, 13, 58], "circle-blur": 0.78, "circle-opacity": 0.66 } });
-    if (!safeHasLayer(map, "waveatlas-active-beacon-core")) map.addLayer({ id: "waveatlas-active-beacon-core", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": ["get", "color"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 5, 8, 9, 13, 13], "circle-stroke-color": "rgba(255,255,255,0.96)", "circle-stroke-width": 2, "circle-opacity": 0.98 } });
+    if (!safeHasLayer(map, "waveatlas-active-beacon-broadcast")) map.addLayer({ id: "waveatlas-active-beacon-broadcast", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": "rgba(255,59,48,0.20)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 20, 8, 42, 13, 64], "circle-blur": 0.55, "circle-stroke-color": "rgba(255,255,255,0.44)", "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 8, 1.2, 13, 1.8], "circle-opacity": 0.58 } });
+    if (!safeHasLayer(map, "waveatlas-active-beacon-halo")) map.addLayer({ id: "waveatlas-active-beacon-halo", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": "rgba(255,59,48,0.36)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 11, 8, 22, 13, 34], "circle-blur": 0.72, "circle-opacity": 0.74 } });
+    if (!safeHasLayer(map, "waveatlas-active-beacon-accent")) map.addLayer({ id: "waveatlas-active-beacon-accent", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": "rgba(0,214,143,0)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 9, 8, 17, 13, 25], "circle-stroke-color": "rgba(214,168,79,0.68)", "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 2, 0.9, 8, 1.5, 13, 2.1], "circle-opacity": 0.78 } });
+    if (!safeHasLayer(map, "waveatlas-active-beacon-core")) map.addLayer({ id: "waveatlas-active-beacon-core", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": ["get", "color"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 4.5, 8, 8, 13, 11], "circle-stroke-color": "rgba(255,255,255,0.96)", "circle-stroke-width": 2, "circle-opacity": 0.98 } });
     return true;
   }, [map]);
   const updateActiveBeaconOnMap = useCallback((nextStation: Station, source: StationSelectionSource) => {
