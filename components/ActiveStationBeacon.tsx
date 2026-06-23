@@ -48,6 +48,7 @@ export function ActiveStationBeacon({ map, geo, status }: { map: Map | null; geo
     const attachMarker = () => {
       if (cancelled || markerRef.current) return;
       const initialGeo = latestGeoRef.current;
+      applyBeaconElementState(element, initialGeo.tone, latestStatusRef.current);
       marker = new maplibregl.Marker({ element, anchor: "center" }).setLngLat([initialGeo.lng ?? 0, initialGeo.lat ?? 0]).addTo(map);
       markerRef.current = marker;
       hasPositionRef.current = initialGeo.lat !== null && initialGeo.lng !== null;
