@@ -839,6 +839,7 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
         </div>
         <StreamHealthBadge station={station} />
       </div>
+      <DailyFlightPanel stations={stations} />
       <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={[station.city || station.state, station.country].filter(Boolean).join(", ")} isPlaying={playing || status === "buffering"} />
       <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
       <WorldContextPanel context={visibleWorldContext} />
@@ -3381,24 +3382,74 @@ function compactLanguageLabel(language?: string) {
   return primary.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function DailyLocationInsight({ station, stationCount }: { station: Station; stationCount?: number }) {
+function formatPopulation(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return "Population TBD";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000).toLocaleString()}K`;
+  return value.toLocaleString();
+}
+
+function compactCapitalLabel(context: WorldContext | null | undefined, station: Station) {
+  const capital = ["capital", "capitalCity", "capital_city"]
+    .map((key) => context?.place?.[key])
+    .find((value): value is string => typeof value === "string" && value.trim().length > 0);
+  return capital || (station.state && !station.city ? station.state : "Capital TBD");
+}
+
+function formatDistanceFromUser(station: Station, userCoords: { lat: number; lng: number } | null) {
+  const geo = geotruth(station);
+  if (!userCoords || geo.lat === null || geo.lng === null) return "Enable location";
+  return `${haversineKm(userCoords, { lat: geo.lat, lng: geo.lng }).toLocaleString()} km away`;
+}
+
+function buildDidYouKnow(station: Station, region: string, stationCount?: number) {
+  const parts = [station.city || station.state || station.country || "This destination"];
+  const stationText = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} indexed ${station.country_code} signals` : `a ${region} listening post`;
+  return `${parts[0]} reaches WaveAtlas through ${stationText}.`;
+}
+
+function DailyPassportInsight({ station, stations }: { station: Station; stations: Station[] }) {
   const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => setUserCoords({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      () => setUserCoords(null),
+      { maximumAge: 1000 * 60 * 30, timeout: 2500, enableHighAccuracy: false },
+    );
+  }, []);
+
+  const countryStationCount = useMemo(() => station.country_code ? stations.filter((item) => item.country_code === station.country_code).length : undefined, [station.country_code, stations]);
   const place = [station.city || station.state, station.country || countryNameForCode(station.country_code)].filter(Boolean).join(", ") || destinationLabel(station);
   const localTime = visibleWorldContext?.radioDNA.localTime || localTimeForStation(station) || "Local time TBD";
   const language = visibleWorldContext?.radioDNA.languages?.[0] || compactLanguageLabel(station.language);
   const region = visibleWorldContext?.radioDNA.region || stationContinent(station);
-  const weather = visibleWorldContext?.climate && typeof visibleWorldContext.climate.temperatureC === "number" ? `${Math.round(visibleWorldContext.climate.temperatureC)}°C now` : visibleWorldContextStatus === "loading" ? "Weather loading" : "Weather TBD";
-  const countLabel = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} stations` : "Station count TBD";
-  const contextNote = visibleWorldContext?.radioDNA.culturalSummary || `${place} is today’s compact listening window into ${region}.`;
+  const weather = visibleWorldContext?.climate && typeof visibleWorldContext.climate.temperatureC === "number" ? `${Math.round(visibleWorldContext.climate.temperatureC)}°C now` : visibleWorldContextStatus === "loading" ? "Loading…" : "Weather TBD";
+  const currency = visibleWorldContext?.radioDNA.currency || "Currency TBD";
+  const population = formatPopulation(visibleWorldContext?.radioDNA.population);
+  const capital = compactCapitalLabel(visibleWorldContext, station);
+  const stationCount = typeof countryStationCount === "number" && countryStationCount > 0 ? `${countryStationCount.toLocaleString()} stations` : "Station count TBD";
+  const distance = formatDistanceFromUser(station, userCoords);
+  const culturalSummary = visibleWorldContext?.radioDNA.culturalSummary || `${place} is today’s compact listening window into ${region}, pairing local radio texture with cached geographic context.`;
+  const didYouKnow = buildDidYouKnow(station, region, countryStationCount);
+  const cards = [
+    ["Flag", flagFor(station.country_code)], ["Local Time", localTime], ["Weather", weather], ["Language", language],
+    ["Region", region], ["Population", population], ["Currency", currency], ["Capital", capital],
+    ["Station Count", stationCount], ["Distance From User", distance], ["Did You Know", didYouKnow], ["Cultural Summary", culturalSummary],
+  ] as const;
 
-  return <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">
-    <div className="flex min-w-0 items-center gap-2">
-      <span className="shrink-0 text-[16px] leading-none" aria-hidden="true">{flagFor(station.country_code)}</span>
-      <p className="min-w-0 truncate text-sm font-semibold text-ivory">{place}</p>
+  return <div className="mt-4 rounded-[1.5rem] border border-[#2f2618]/20 bg-[#f6efd9]/90 p-3 text-[#2f2618] shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
+    <div className="flex min-w-0 items-center justify-between gap-3 border-b border-[#2f2618]/15 pb-2">
+      <div className="min-w-0"><p className="font-serif text-[10px] font-black uppercase tracking-[0.22em] text-[#6f5a2f]">Daily Passport™</p><p className="truncate font-serif text-base font-black">{place}</p></div>
+      <span className="shrink-0 text-2xl leading-none" aria-label={station.country_code ? `${station.country_code} flag` : "Global flag"}>{flagFor(station.country_code)}</span>
     </div>
-    <p className="mt-2 truncate text-[11px] font-medium text-ivory/70">{localTime} · {language} · {region}</p>
-    <p className="mt-1 truncate text-[11px] text-ivory/55">{weather} · {countLabel}</p>
-    <p className="mt-2 line-clamp-2 text-xs leading-5 text-ivory/70">{contextNote}</p>
+    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {cards.map(([label, value]) => <div key={label} className={`${label === "Did You Know" || label === "Cultural Summary" ? "col-span-2 sm:col-span-3" : ""} rounded-xl border border-[#2f2618]/10 bg-[#fffaf0]/70 px-2.5 py-2`}>
+        <p className="font-serif text-[9px] font-black uppercase tracking-[0.16em] text-[#7a6844]">{label}</p>
+        <p className={`${label === "Did You Know" || label === "Cultural Summary" ? "line-clamp-2" : "truncate"} mt-1 font-serif text-[12px] font-bold leading-4 text-[#2f2618]`}>{value}</p>
+      </div>)}
+    </div>
   </div>;
 }
 
@@ -3408,15 +3459,14 @@ function DailyFlightPanel({ stations }: { stations: Station[] }) {
     const seed = [...today].reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return stations[seed % Math.max(1, stations.length)];
   }, [stations]);
-  const countryStationCount = useMemo(() => daily?.country_code ? stations.filter((station) => station.country_code === daily.country_code).length : undefined, [daily, stations]);
   if (!daily) return null;
-  return <section className="rounded-[2rem] border border-gold/20 bg-gold/10 p-5">
-    <p className="font-display text-xs font-semibold text-gold">Daily Flight™</p>
-    <h3 className="mt-2 font-display text-[28px] font-bold leading-tight">Today’s Destination</h3>
-    <p className="mt-2 flex min-w-0 items-center gap-2 text-lg text-ivory"><span className="min-w-0 truncate">{destinationLabel(daily)}</span><span className="shrink-0 text-[16px] leading-none" aria-label={daily.country_code ? `${daily.country_code} flag` : "Global flag"}>{flagFor(daily.country_code)}</span></p>
-    <p className="truncate text-sm text-ivory/60">{getPrimaryGenre(daily)} · {daily.name}</p>
-    <DailyLocationInsight station={daily} stationCount={countryStationCount} />
-    <button onClick={() => setCurrentStationAndDestination(daily)} className="mt-4 rounded-full bg-radio px-5 py-3 text-sm font-medium text-midnight"><Plane className="mr-2 inline size-4" />Board Flight</button>
+  return <section className="rounded-[2rem] border border-[#d6b15d]/30 bg-[#f3ead2]/95 p-4 text-[#2f2618] shadow-2xl md:p-5">
+    <p className="font-serif text-xs font-black uppercase tracking-[0.22em] text-[#8a6b22]">Daily Passport™</p>
+    <h3 className="mt-1 font-serif text-[26px] font-black leading-tight md:text-[28px]">Today’s Destination Intelligence</h3>
+    <p className="mt-2 flex min-w-0 items-center gap-2 font-serif text-base font-bold"><span className="min-w-0 truncate">{destinationLabel(daily)}</span><span className="shrink-0 text-[16px] leading-none" aria-label={daily.country_code ? `${daily.country_code} flag` : "Global flag"}>{flagFor(daily.country_code)}</span></p>
+    <p className="truncate font-serif text-sm text-[#594b35]">{getPrimaryGenre(daily)} · {daily.name}</p>
+    <DailyPassportInsight station={daily} stations={stations} />
+    <button onClick={() => setCurrentStationAndDestination(daily)} className="mt-4 rounded-full bg-radio px-5 py-3 text-sm font-bold text-midnight"><Plane className="mr-2 inline size-4" />Open Passport Signal</button>
   </section>;
 }
 
