@@ -1703,7 +1703,7 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
   const ensureActiveBeaconSource = useCallback(() => {
     if (!isMapStyleReady(map)) return false;
     if (!safeHasSource(map, ACTIVE_BEACON_SOURCE_ID)) map.addSource(ACTIVE_BEACON_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-    if (!safeHasLayer(map, "waveatlas-active-beacon-halo")) map.addLayer({ id: "waveatlas-active-beacon-halo", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": "rgba(214,168,79,0.82)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 18, 8, 36, 13, 58], "circle-blur": 0.78, "circle-opacity": 0.72 } });
+    if (!safeHasLayer(map, "waveatlas-active-beacon-halo")) map.addLayer({ id: "waveatlas-active-beacon-halo", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": "rgba(255,59,48,0.72)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 18, 8, 36, 13, 58], "circle-blur": 0.78, "circle-opacity": 0.66 } });
     if (!safeHasLayer(map, "waveatlas-active-beacon-core")) map.addLayer({ id: "waveatlas-active-beacon-core", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": ["get", "color"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 5, 8, 9, 13, 13], "circle-stroke-color": "rgba(255,255,255,0.96)", "circle-stroke-width": 2, "circle-opacity": 0.98 } });
     return true;
   }, [map]);
@@ -1757,8 +1757,8 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
       };
       animationFrameRef.current = window.requestAnimationFrame(animate);
     }
-    const shouldMoveCamera = true;
-    onCameraMove(resolved, source);
+    const shouldMoveCamera = Boolean(previousStationId);
+    if (shouldMoveCamera) onCameraMove(resolved, source);
     debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: shouldMoveCamera, flyToDuration: shouldMoveCamera ? duration : 0, flyToEasing: shouldMoveCamera ? "viewport-aware-camera" : "beacon-only", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false, stationVisibleInViewport });
     map.resize();
     lastStationRef.current = nextStation;
@@ -1851,7 +1851,7 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
 type MapTeleportContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
 type AtlasTransitionContext = MapTeleportContext & { stationId?: string; reason?: string };
 const MAP_TO_GLOBE_ZOOM_THRESHOLD = 3.0;
-const ATLAS_CONTEXTUAL_ZOOM = { mobile: { min: 4.2, max: 5.8, fallback: 5.2 }, desktop: { min: 4.6, max: 6.2, fallback: 5.4 } } as const;
+const ATLAS_CONTEXTUAL_ZOOM = { mobile: { min: 4.2, max: 5.4, fallback: 5.0 }, desktop: { min: 4.6, max: 5.8, fallback: 5.2 } } as const;
 function clampAtlasContextZoom(zoom: number | undefined, mobile = false) {
   const policy = mobile ? ATLAS_CONTEXTUAL_ZOOM.mobile : ATLAS_CONTEXTUAL_ZOOM.desktop;
   const value = typeof zoom === "number" && Number.isFinite(zoom) ? zoom : policy.fallback;
