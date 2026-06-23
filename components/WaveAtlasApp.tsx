@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import NextLink from "next/link";
-import maplibregl, { type GeoJSONSource, type Map, type Marker } from "maplibre-gl";
+import maplibregl, { type GeoJSONSource, type Map } from "maplibre-gl";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Check,
@@ -40,6 +40,7 @@ import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, t
 import { ArrivalCard } from "@/components/arrival-card";
 import { PlaceHero } from "@/components/PlaceHero";
 import { NewspaperBrief } from "@/components/NewspaperBrief";
+import { NavigationBeaconLayer } from "@/components/NavigationBeacon";
 import { RadioDNA } from "@/components/RadioDNA";
 import { WorldContextPanel } from "@/components/WorldContextPanel";
 import type { WorldContext } from "@/lib/world-engine/types";
@@ -57,7 +58,7 @@ import { getAmbientTheme } from "@/lib/world-engine/ambient-theme";
 import { buildAtmosphereLine, buildPlaceDescriptor, buildPlaceLabel } from "@/lib/world-engine/place-labels";
 import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalFeature } from "@/lib/signal-constellations";
-import { interpolateSignalBeacon, signalBeaconClassName, signalBeaconHtml, signalBeaconTravelDuration } from "@/lib/signal-beacon-engine";
+
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
 import { pickFallbackStation } from "@/lib/discovery/station-picker";
 import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQueue, getAdaptiveBufferPolicy, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
@@ -1538,44 +1539,6 @@ function GlobeBasemapControl({ value, onChange, mobile = false }: { value: Globe
 function MapStyleController({ map, basemap, onResize }: { map: Map | null; basemap: BasemapKey; onResize?: () => void }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); try { window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); } catch { /* Basemap preference is non-critical. */ } const resize = () => requestAnimationFrame(() => { map.resize(); onResize?.(); }); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap, onResize]); return null; }
 
 
-function MapMarkerController({
-  marker,
-  geo,
-  status,
-  label,
-}: {
-  marker: Marker | null;
-  geo: GeoPoint;
-  status: PlaybackStatus;
-  label?: { place: string; mood: string; station: string };
-}) {
-  const animationRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (geo.lat === null || geo.lng === null || !marker) return;
-    if (animationRef.current !== null) window.cancelAnimationFrame(animationRef.current);
-    const start = marker.getLngLat();
-    const target = { lng: geo.lng, lat: geo.lat };
-    const distanceKm = haversineKm({ lat: start.lat, lng: start.lng }, target);
-    const duration = signalBeaconTravelDuration(distanceKm);
-    const startedAt = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - startedAt) / duration);
-      const point = interpolateSignalBeacon({ lat: start.lat, lng: start.lng }, target, t);
-      marker.setLngLat([point.lng, point.lat]);
-      if (t < 1) animationRef.current = window.requestAnimationFrame(tick);
-    };
-    animationRef.current = window.requestAnimationFrame(tick);
-    return () => { if (animationRef.current !== null) window.cancelAnimationFrame(animationRef.current); };
-  }, [geo, marker]);
-  useEffect(() => {
-    const element = marker?.getElement();
-    if (!element) return;
-    element.className = signalBeaconClassName(geo.tone, status);
-    element.innerHTML = signalBeaconHtml(label);
-  }, [geo, label, marker, status]);
-  return null;
-}
-
 
 const SIGNAL_SOURCE_ID = "waveatlas-signal-constellations";
 const SIGNAL_LAYER_IDS = ["waveatlas-signal-cluster-halo", "waveatlas-signal-clusters", "waveatlas-signal-cluster-count", "waveatlas-signal-favorite-halo", "waveatlas-signals"] as const;
@@ -1842,7 +1805,6 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   const activeStation = useNavigationEngine((s) => s.activeStation) ?? station;
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
-  const [marker, setMarker] = useState<Marker | null>(null);
   const [internalBasemap, setInternalBasemap] = useState<BasemapKey>(() => getInitialBasemap(mobile));
   const basemap = controlledBasemap ?? internalBasemap;
   const setBasemap = onBasemapChange ?? setInternalBasemap;
@@ -1877,17 +1839,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
       attributionControl: false,
     });
     m.addControl(new maplibregl.AttributionControl({ compact: true }));
-    let mk: Marker | null = null;
-    if (start.lat !== null && start.lng !== null) {
-      const markerRoot = document.createElement("div");
-      markerRoot.className = signalBeaconClassName(start.tone, "playing");
-      markerRoot.innerHTML = signalBeaconHtml();
-      mk = new maplibregl.Marker({ element: markerRoot, anchor: "center" })
-        .setLngLat([start.lng, start.lat])
-        .addTo(m);
-    }
     setMap(m);
-    setMarker(mk);
     const resize = () => requestAnimationFrame(() => m.resize());
     resize();
     m.once("load", resize);
@@ -1902,14 +1854,12 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     m.on("touchend", clickCountry);
     return () => {
       setMap(null);
-      setMarker(null);
       window.removeEventListener("orientationchange", resize);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", resize);
       try { m.off("click", clickCountry); m.off("touchend", clickCountry); } catch (error) {
         warnMapCleanup("map listener cleanup failed", { error: error instanceof Error ? error.message : String(error), map: mapDebugState(m) });
       }
-      mk?.remove();
       m.remove();
     };
   }, []);
@@ -1980,6 +1930,15 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     camera.remember();
   }, [camera, map, station.id]);
 
+  const lastCenteredStationId = useRef("");
+  useEffect(() => {
+    if (!map || geo.lat === null || geo.lng === null) return;
+    const activeId = activeStation.station_uuid || activeStation.id;
+    if (lastCenteredStationId.current === activeId) return;
+    lastCenteredStationId.current = activeId;
+    camera.selectStation(geo, selectionSource);
+  }, [activeStation.id, activeStation.station_uuid, camera, geo, map, selectionSource]);
+
   useEffect(() => {
     if (!map) return;
     if (searchActive) {
@@ -1994,7 +1953,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
         <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
-        <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
+        <NavigationBeaconLayer map={map} geo={geo} status={status} label={livingLabel} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
         <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
@@ -2008,7 +1967,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
       <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
-      <MapMarkerController marker={marker} geo={geo} status={status} label={livingLabel} />
+      <NavigationBeaconLayer map={map} geo={geo} status={status} label={livingLabel} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />

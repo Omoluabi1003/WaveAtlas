@@ -9,6 +9,7 @@ import { stationContinent } from "@/lib/discovery/station-picker";
 import { stationGenre } from "@/lib/discovery/history";
 import { localTimeForStation } from "@/lib/smart-time-copy";
 import { flagFor, type Station, type StationInventoryStats } from "@/lib/stations";
+import { formatEditorialNumber, guardEditorialCopy } from "@/lib/editorial-guardrail";
 import type { WorldContext } from "@/lib/world-engine/types";
 
 const CLIENT_CACHE_KEY = "waveatlas_daily_cache";
@@ -57,37 +58,12 @@ function passportPlace(station: Station) {
   return [station.city || station.state, station.country || station.country_code].filter(Boolean).join(", ") || station.name || "Global signal";
 }
 
-function extractCompleteSentences(text: string) {
-  return text
-    .replace(/\s+/g, " ")
-    .trim()
-    .match(/[^.!?]+[.!?]+(?:["')\]]+)?/g)
-    ?.map((sentence) => sentence.trim())
-    .filter(Boolean) ?? [];
-}
-
-function normalizePassportSentence(text: string, maxLength = 220) {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (!normalized) return "";
-  const sentences = extractCompleteSentences(normalized);
-  const candidate = sentences.find((sentence) => sentence.length <= maxLength) ?? sentences[0];
-  if (candidate) return /[.!?]["')\]]?$/.test(candidate) ? candidate : `${candidate}.`;
-  const compact = normalized
-    .replace(/\([^)]*$/g, "")
-    .replace(/[,;:–—-]+$/g, "")
-    .trim();
-  if (compact.length <= maxLength) return /[.!?]["')\]]?$/.test(compact) ? compact : `${compact}.`;
-  const words = compact.split(" ");
-  const summary = words.slice(0, Math.min(18, words.length)).join(" ").replace(/[,;:–—-]+$/g, "").trim();
-  return summary ? `${summary}.` : "";
-}
-
 function buildPassportNote(station: Station, region: string, stationCount?: number, context?: WorldContext | null) {
-  const contextSummary = normalizePassportSentence(context?.radioDNA.culturalSummary || "");
-  if (contextSummary) return contextSummary;
   const place = station.city || station.state || station.country || "This destination";
-  const count = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} indexed ${station.country_code || "local"} ${stationCount === 1 ? "signal" : "signals"}` : `a ${region} listening post`;
-  return normalizePassportSentence(`${place} reaches WaveAtlas through ${count}, led by ${stationGenre(station)} on ${station.name}.`);
+  const signalCount = typeof stationCount === "number" && stationCount > 0 ? formatEditorialNumber(stationCount, stationCount === 1 ? "indexed local signal" : "indexed local signals") : undefined;
+  const fallback = `${place} comes into focus through ${signalCount || `a ${region} listening post`}, with ${stationGenre(station)} carried by ${station.name}.`;
+  const regionalFallback = `${place} offers a concise window into ${region}, pairing local atmosphere with a live radio signal from ${station.name}.`;
+  return guardEditorialCopy([context?.radioDNA.culturalSummary, fallback, regionalFallback]) || regionalFallback;
 }
 
 function usePassportWorldContext(station: Station, enabled: boolean) {
