@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Map, PaddingOptions } from "maplibre-gl";
-import { captureCameraState, flyToCountry, flyToStation, resizeThenRestore, restoreCameraState, type CountryGeo, type MapCameraState } from "@/lib/map-camera";
+import { captureCameraState, flyToCountry, flyToStation, stationDuration, haversineKm, resizeThenRestore, restoreCameraState, type CountryGeo, type MapCameraState } from "@/lib/map-camera";
 import type { ResolvedStationGeo } from "@/lib/geotruth-resolver";
 
 export type MapCameraMode = "idle" | "searching" | "results_open" | "station_selected" | "search_closed_no_selection" | "reset";
@@ -45,13 +45,15 @@ export function useMapCameraController(map: Map | null, padding: PaddingOptions 
     resizeThenRestore(map, camera);
   }, [map]);
 
-  const selectStation = useCallback((stationGeo: ResolvedStationGeo) => {
+  const selectStation = useCallback((stationGeo: ResolvedStationGeo, _source?: unknown) => {
     if (!map) return;
     modeRef.current = "station_selected";
     preSearchCameraRef.current = null;
     clearSettleTimer();
     flyToStation(map, stationGeo, padding);
-    settleTimerRef.current = window.setTimeout(() => { intendedCameraRef.current = captureCameraState(map); settleTimerRef.current = null; }, 950);
+    const center = map.getCenter();
+    const duration = stationGeo.lat === null || stationGeo.lng === null ? 0 : stationDuration(haversineKm({ lat: center.lat, lng: center.lng }, { lat: stationGeo.lat, lng: stationGeo.lng }));
+    settleTimerRef.current = window.setTimeout(() => { intendedCameraRef.current = captureCameraState(map); settleTimerRef.current = null; }, duration + 120);
   }, [clearSettleTimer, map, padding]);
 
   const selectCountry = useCallback((countryGeo: CountryGeo) => {
@@ -60,7 +62,7 @@ export function useMapCameraController(map: Map | null, padding: PaddingOptions 
     preSearchCameraRef.current = null;
     clearSettleTimer();
     flyToCountry(map, countryGeo, padding);
-    settleTimerRef.current = window.setTimeout(() => { intendedCameraRef.current = captureCameraState(map); settleTimerRef.current = null; }, 950);
+    settleTimerRef.current = window.setTimeout(() => { intendedCameraRef.current = captureCameraState(map); settleTimerRef.current = null; }, 1020);
   }, [clearSettleTimer, map, padding]);
 
   const resizeThenReapplyIntended = useCallback(() => {
