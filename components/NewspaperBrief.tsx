@@ -116,14 +116,14 @@ function DailyPassportStrip({ station, stations = [], enabled }: { station: Stat
       </div>
       <div className="min-w-0">
         <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#6f5a3f]">Daily Passport™ destination intelligence</p>
-        <h3 className="truncate text-lg font-black leading-tight sm:text-xl">{passportPlace(station)}</h3>
+        <h3 className="whitespace-normal break-words overflow-visible h-auto text-lg font-black leading-tight sm:text-xl">{passportPlace(station)}</h3>
       </div>
       <p className="min-w-0 text-[11px] font-semibold leading-4 text-[#4A4033] [overflow-wrap:anywhere] sm:text-xs">{note}</p>
     </div>
-    <div className="mt-2 grid grid-cols-2 gap-px overflow-hidden border border-slate-900/20 bg-slate-900/20 min-[390px]:grid-cols-3 sm:grid-cols-5">
-      {stats.map(([label, value]) => <div key={label} className="min-w-0 bg-[#F4EFE2]/95 px-2 py-1.5">
-        <p className="truncate text-[8px] font-black uppercase tracking-[0.16em] text-[#6f5a3f]">{label}</p>
-        <p className="mt-0.5 truncate text-[12px] font-extrabold leading-4 text-[#151515]">{value}</p>
+    <div className="mt-2 grid grid-cols-2 gap-px overflow-visible border border-slate-900/20 bg-slate-900/20 min-[390px]:grid-cols-3 sm:grid-cols-5">
+      {stats.map(([label, value]) => <div key={label} className="min-w-0 whitespace-normal break-words overflow-visible h-auto bg-[#F4EFE2]/95 px-2 py-1.5">
+        <p className="whitespace-normal break-words overflow-visible h-auto text-[8px] font-black uppercase tracking-[0.16em] text-[#6f5a3f]">{label}</p>
+        <p className="mt-0.5 whitespace-normal break-words overflow-visible h-auto text-[12px] font-extrabold leading-4 text-[#151515]">{value}</p>
       </div>)}
     </div>
   </section>;

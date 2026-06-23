@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import NextLink from "next/link";
-import maplibregl, { type GeoJSONSource, type Map, type Marker } from "maplibre-gl";
+import maplibregl, { type GeoJSONSource, type LngLatLike, type Map, type Marker } from "maplibre-gl";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Check,
@@ -1725,6 +1725,8 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
     const center = map.getCenter();
     const targetLng = resolved.lng !== null ? center.lng + normalizeLongitudeDelta(resolved.lng - center.lng) : null;
     const distanceKm = resolved.lat !== null && targetLng !== null ? haversineKm({ lat: center.lat, lng: center.lng }, { lat: resolved.lat, lng: targetLng }) : 0;
+    const stationLngLat: LngLatLike | null = resolved.lat !== null && resolved.lng !== null ? [resolved.lng, resolved.lat] : null;
+    const stationVisibleInViewport = stationLngLat ? map.getBounds().contains(stationLngLat) : false;
     let sourceSetData = false;
     if (!feature || resolved.lat === null || resolved.lng === null) {
       debugMapBeacon("station has no renderable coordinates", { previousStation: previousStation?.name, nextStation: nextStation.name, selectionSource: source, resolved });
@@ -1759,17 +1761,17 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
       };
       animationFrameRef.current = window.requestAnimationFrame(animate);
     }
-    let moveendFired = false;
-    const onMoveEnd = () => { moveendFired = true; debugMapBeacon("moveend", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: true, mapCurrentCenter: { lat: map.getCenter().lat, lng: map.getCenter().lng }, mapCurrentZoom: map.getZoom() }); };
-    map.once("moveend", onMoveEnd);
-    moveendCleanupRef.current = () => { try { map.off("moveend", onMoveEnd); } catch {} };
-    moveendTimeoutRef.current = window.setTimeout(() => { if (!moveendFired) { moveendCleanupRef.current?.(); moveendCleanupRef.current = null; debugMapBeacon("moveend pending", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: false }); } }, duration + 400);
-    debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: false, flyToDuration: 0, flyToEasing: "beacon-only", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false });
+    const shouldMoveCamera = !stationVisibleInViewport;
+    if (shouldMoveCamera) {
+      let moveendFired = false;
+      const onMoveEnd = () => { moveendFired = true; debugMapBeacon("moveend", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: true, mapCurrentCenter: { lat: map.getCenter().lat, lng: map.getCenter().lng }, mapCurrentZoom: map.getZoom() }); };
+      map.once("moveend", onMoveEnd);
+      moveendCleanupRef.current = () => { try { map.off("moveend", onMoveEnd); } catch {} };
+      moveendTimeoutRef.current = window.setTimeout(() => { if (!moveendFired) { moveendCleanupRef.current?.(); moveendCleanupRef.current = null; debugMapBeacon("moveend pending", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: false }); } }, 1400);
+      onCameraMove(resolved, source);
+    }
+    debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: shouldMoveCamera, flyToDuration: shouldMoveCamera ? 900 : 0, flyToEasing: shouldMoveCamera ? "viewport-aware-camera" : "beacon-only", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false, stationVisibleInViewport });
     map.resize();
-    // Keep the atlas location stable and animate the beacon to the selected station.
-    // The station beacon should move to the destination, not drag the destination under the beacon.
-    void onCameraMove;
-    void source;
     lastStationRef.current = nextStation;
   }, [cancelPendingWork, ensureActiveBeaconSource, map, onCameraMove]);
   useEffect(() => { updateActiveBeaconOnMap(station, selectionSource); }, [selectionSource, station, updateActiveBeaconOnMap]);
@@ -3439,14 +3441,14 @@ function DailyPassportInsight({ station, stationCount, countScope = "indexed" }:
       <span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-white/45 bg-white/55 text-[1.7rem] leading-none shadow-inner" aria-label={station.country_code ? `${station.country_code} flag` : "Global flag"}>{flagFor(station.country_code)}</span>
       <div className="min-w-0 flex-1">
         <p className="font-serif text-[9px] font-black uppercase tracking-[0.24em] text-[#7a5d18]">Daily Passport live card</p>
-        <p className="mt-0.5 truncate font-serif text-lg font-black leading-tight">{place}</p>
-        <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-4 text-[#4d3d29]">{contextNote}</p>
+        <p className="mt-0.5 whitespace-normal break-words overflow-visible h-auto font-serif text-lg font-black leading-tight">{place}</p>
+        <p className="mt-1 whitespace-normal break-words overflow-visible h-auto text-[11px] font-semibold leading-4 text-[#4d3d29]">{contextNote}</p>
       </div>
     </div>
-    <div className="mt-3 grid grid-cols-2 gap-1.5 min-[380px]:grid-cols-3">
-      {stats.map(([label, value]) => <div key={label} className="min-w-0 rounded-2xl border border-white/35 bg-white/45 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
-        <p className="truncate font-serif text-[8px] font-black uppercase tracking-[0.16em] text-[#7a6844]">{label}</p>
-        <p className="mt-0.5 truncate text-[12px] font-extrabold leading-4 text-[#241a10]">{value}</p>
+    <div className="mt-3 grid grid-cols-2 gap-1.5 overflow-visible min-[380px]:grid-cols-3">
+      {stats.map(([label, value]) => <div key={label} className="min-w-0 whitespace-normal break-words overflow-visible h-auto rounded-2xl border border-white/35 bg-white/45 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
+        <p className="whitespace-normal break-words overflow-visible h-auto font-serif text-[8px] font-black uppercase tracking-[0.16em] text-[#7a6844]">{label}</p>
+        <p className="mt-0.5 whitespace-normal break-words overflow-visible h-auto text-[12px] font-extrabold leading-4 text-[#241a10]">{value}</p>
       </div>)}
     </div>
   </div>;

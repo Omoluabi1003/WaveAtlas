@@ -73,7 +73,7 @@ export async function getStationInventoryStats(): Promise<StationInventoryStats>
   return cached('station-inventory-stats:v1', INVENTORY_STATS_CACHE_TTL_MS, async () => {
     const fallbackCounts = curatedInventoryCountryCounts();
     try {
-      const res = await fetch(`${API_BASE}/countries`, { headers: { 'User-Agent': UA }, next: { revalidate: INVENTORY_STATS_CACHE_TTL_MS / 1000 } });
+      const res = await fetch(`${API_BASE}/countries`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(5000), next: { revalidate: INVENTORY_STATS_CACHE_TTL_MS / 1000 } });
       if (!res.ok) throw new Error(`Radio Browser ${res.status}`);
       const data = await res.json() as RadioBrowserCountry[];
       const countryCounts = data.reduce<Record<string, number>>((counts, country) => {
