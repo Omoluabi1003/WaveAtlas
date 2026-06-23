@@ -1,6 +1,5 @@
 export type SignalBeaconStatus = "idle" | "playing" | "paused" | "buffering" | "failed" | "blocked";
 export type SignalBeaconPoint = { lat: number; lng: number };
-export type SignalBeaconLabel = { place: string; mood: string; station: string };
 
 export function signalBeaconTravelDuration(distanceKm: number) {
   return Math.max(700, Math.min(4200, 650 + distanceKm * 0.55));
@@ -13,13 +12,8 @@ export function interpolateSignalBeacon(start: SignalBeaconPoint, target: Signal
   return { lat: start.lat + (target.lat - start.lat) * eased, lng: start.lng + lngDelta * eased };
 }
 
-function escapeBeaconText(value: string) {
-  return value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char] ?? char);
-}
-
-export function signalBeaconHtml(label?: SignalBeaconLabel) {
-  const labelHtml = label ? `<span class="station-living-label"><b>${escapeBeaconText(label.place)}</b><span>${escapeBeaconText(label.mood)}</span><em>${escapeBeaconText(label.station)}</em></span>` : "";
-  return `<span class="station-beacon-glow" aria-hidden="true"></span><span class="station-pulse-ring radio-wave one"></span><span class="station-pulse-ring radio-wave two"></span><span class="station-pulse-ring radio-wave three"></span><span class="station-signal-accent" aria-hidden="true"></span><span class="station-beacon-core" aria-hidden="true"></span><span class="station-pulse-dot" aria-hidden="true"></span>${labelHtml}`;
+export function signalBeaconHtml() {
+  return `<span class="station-beacon-glow" aria-hidden="true"></span><span class="station-pulse-ring radio-wave one"></span><span class="station-pulse-ring radio-wave two"></span><span class="station-pulse-ring radio-wave three"></span><span class="station-signal-accent" aria-hidden="true"></span><span class="station-beacon-core" aria-hidden="true"></span><span class="station-pulse-dot" aria-hidden="true"></span>`;
 }
 
 export function signalBeaconClassName(tone: string, status: SignalBeaconStatus) {

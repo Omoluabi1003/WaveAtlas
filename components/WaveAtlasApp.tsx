@@ -40,7 +40,7 @@ import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, t
 import { ArrivalCard } from "@/components/arrival-card";
 import { PlaceHero } from "@/components/PlaceHero";
 import { NewspaperBrief } from "@/components/NewspaperBrief";
-import { NavigationBeaconLayer } from "@/components/NavigationBeacon";
+import { ActiveStationBeacon } from "@/components/ActiveStationBeacon";
 import { RadioDNA } from "@/components/RadioDNA";
 import { WorldContextPanel } from "@/components/WorldContextPanel";
 import type { WorldContext } from "@/lib/world-engine/types";
@@ -1812,8 +1812,6 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   const initialTransitionContext = useRef(initialContext);
   const viewMode = useRef<"desktop" | "mobile">(mobile ? "mobile" : "desktop");
   const geo = useMemo(() => geotruth(activeStation), [activeStation]);
-  const { visibleWorldContext } = useStationWorldContext(activeStation);
-  const livingLabel = useMemo(() => ({ place: visibleWorldContext ? buildPlaceLabel(visibleWorldContext) : [activeStation.city || activeStation.state, activeStation.country].filter(Boolean).join(", ") || geo.label, mood: climateOrMood(visibleWorldContext), station: activeStation.name }), [activeStation.city, activeStation.country, activeStation.name, activeStation.state, geo.label, visibleWorldContext]);
   const initialGeo = useRef(geo);
   const onCountrySelectRef = useRef(onCountrySelect);
   const worldZoomRequestRef = useRef(onWorldZoomRequest);
@@ -1953,7 +1951,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
         <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
-        <NavigationBeaconLayer map={map} geo={geo} status={status} label={livingLabel} />
+        <ActiveStationBeacon map={map} geo={geo} status={status} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
         <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:44px_44px] opacity-60" />
@@ -1967,7 +1965,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
       <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
-      <NavigationBeaconLayer map={map} geo={geo} status={status} label={livingLabel} />
+      <ActiveStationBeacon map={map} geo={geo} status={status} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />

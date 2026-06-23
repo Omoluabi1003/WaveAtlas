@@ -6,7 +6,7 @@ import { isoCountryCentroids } from "@/lib/geotruth-resolver";
 import { flagFor, type Station } from "@/lib/stations";
 import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalCluster, type SignalFeature } from "@/lib/signal-constellations";
 import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, invertGlobePoint, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
-import { drawSignalBeacon } from "@/lib/signal-beacon-engine";
+import { drawActiveStationBeacon } from "@/components/ActiveStationBeacon";
 
 type CountryResult = {
   name: string;
@@ -697,7 +697,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         }
         if (p.z > -0.05) {
           const approachVisibility = s.disabledMotion ? 1 : Math.min(1, Math.max(0.18, (focusProgress - 0.5) / 0.42));
-          drawSignalBeacon(ctx, p.x, p.y, { now, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, visibility: approachVisibility, landingPulseStartedAt: s.landingPulseStartedAt });
+          drawActiveStationBeacon(ctx, p.x, p.y, { now, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, visibility: approachVisibility, landingPulseStartedAt: s.landingPulseStartedAt });
           if (approachVisibility > 0.72 && !(iosWebKit && s.travelActive)) drawProgressiveLabels(projection, activeBeacon, runtime, s.zoom);
         }
       }
