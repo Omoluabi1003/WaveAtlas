@@ -14,9 +14,17 @@ import {
 
 export type ActiveStationBeaconGeo = { lat: number | null; lng: number | null; tone: string };
 
-function applyBeaconElementState(element: HTMLElement, geo: ActiveStationBeaconGeo, status: SignalBeaconStatus) {
-  element.className = signalBeaconClassName(geo.tone, status);
+function createBeaconElement(tone: string, status: SignalBeaconStatus) {
+  const element = document.createElement("div");
+  element.style.transform = "translate3d(0,0,0)";
+  element.style.willChange = "transform";
   element.innerHTML = signalBeaconHtml();
+  applyBeaconElementState(element, tone, status);
+  return element;
+}
+
+function applyBeaconElementState(element: HTMLElement, tone: string, status: SignalBeaconStatus) {
+  element.className = signalBeaconClassName(tone, status);
 }
 
 export function ActiveStationBeacon({ map, geo, status }: { map: Map | null; geo: ActiveStationBeaconGeo; status: SignalBeaconStatus }) {
@@ -35,10 +43,7 @@ export function ActiveStationBeacon({ map, geo, status }: { map: Map | null; geo
     if (!map) return;
     let cancelled = false;
     let marker: Marker | null = null;
-    const element = document.createElement("div");
-    element.style.transform = "translate3d(0,0,0)";
-    element.style.willChange = "transform";
-    applyBeaconElementState(element, latestGeoRef.current, latestStatusRef.current);
+    const element = createBeaconElement(latestGeoRef.current.tone, latestStatusRef.current);
 
     const attachMarker = () => {
       if (cancelled || markerRef.current) return;
@@ -46,7 +51,6 @@ export function ActiveStationBeacon({ map, geo, status }: { map: Map | null; geo
       marker = new maplibregl.Marker({ element, anchor: "center" }).setLngLat([initialGeo.lng ?? 0, initialGeo.lat ?? 0]).addTo(map);
       markerRef.current = marker;
       hasPositionRef.current = initialGeo.lat !== null && initialGeo.lng !== null;
-      applyBeaconElementState(element, initialGeo, latestStatusRef.current);
     };
 
     if (map.loaded()) attachMarker();
@@ -94,8 +98,8 @@ export function ActiveStationBeacon({ map, geo, status }: { map: Map | null; geo
   useEffect(() => {
     const element = markerRef.current?.getElement();
     if (!element) return;
-    applyBeaconElementState(element, geo, status);
-  }, [geo, geo.tone, map, status]);
+    applyBeaconElementState(element, geo.tone, status);
+  }, [geo.tone, status]);
 
   return null;
 }
