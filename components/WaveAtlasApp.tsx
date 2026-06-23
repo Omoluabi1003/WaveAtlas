@@ -37,7 +37,7 @@ import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import { easeOutCubic, normalizeLongitudeDelta, stationDuration, stationZoom } from "@/lib/map-camera";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
-import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station } from "@/lib/stations";
+import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station, type StationInventoryStats } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
 import { PlaceHero } from "@/components/PlaceHero";
 import { NewspaperBrief } from "@/components/NewspaperBrief";
@@ -826,7 +826,7 @@ function StationContextBrief({ station, open, onClose }: { station: Station; ope
   );
 }
 
-function StationIntelligencePanel({ station, stations, setQuery }: { station: Station; stations: Station[]; setQuery: (q: string) => void }) {
+function StationIntelligencePanel({ station, stations, inventoryStats, setQuery }: { station: Station; stations: Station[]; inventoryStats?: StationInventoryStats; setQuery: (q: string) => void }) {
   const { playing, status } = usePlayer();
   const genre = getPrimaryGenre(station);
   const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
@@ -839,7 +839,7 @@ function StationIntelligencePanel({ station, stations, setQuery }: { station: St
         </div>
         <StreamHealthBadge station={station} />
       </div>
-      <DailyFlightPanel stations={stations} />
+      <DailyFlightPanel stations={stations} inventoryStats={inventoryStats} />
       <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={[station.city || station.state, station.country].filter(Boolean).join(", ")} isPlaying={playing || status === "buffering"} />
       <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
       <WorldContextPanel context={visibleWorldContext} />
@@ -1764,9 +1764,12 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
     map.once("moveend", onMoveEnd);
     moveendCleanupRef.current = () => { try { map.off("moveend", onMoveEnd); } catch {} };
     moveendTimeoutRef.current = window.setTimeout(() => { if (!moveendFired) { moveendCleanupRef.current?.(); moveendCleanupRef.current = null; debugMapBeacon("moveend pending", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: false }); } }, duration + 400);
-    debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: true, flyToDuration: duration, flyToEasing: "easeOutCubic", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false });
+    debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: false, flyToDuration: 0, flyToEasing: "beacon-only", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false });
     map.resize();
-    onCameraMove(resolved, source);
+    // Keep the atlas location stable and animate the beacon to the selected station.
+    // The station beacon should move to the destination, not drag the destination under the beacon.
+    void onCameraMove;
+    void source;
     lastStationRef.current = nextStation;
   }, [cancelPendingWork, ensureActiveBeaconSource, map, onCameraMove]);
   useEffect(() => { updateActiveBeaconOnMap(station, selectionSource); }, [selectionSource, station, updateActiveBeaconOnMap]);
@@ -3077,10 +3080,10 @@ function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { ope
 }
 
 
-function MobileStationSheet({ station, stations, setQuery, open, setOpen }: { station: Station; stations: Station[]; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
+function MobileStationSheet({ station, stations, inventoryStats, setQuery, open, setOpen }: { station: Station; stations: Station[]; inventoryStats?: StationInventoryStats; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
   return <motion.section drag="y" dragConstraints={{ top: 0, bottom: 0 }} onDragEnd={(_, info) => setOpen(info.offset.y < -40 ? true : info.offset.y > 40 ? false : open)} initial={{ y: 680 }} animate={{ y: open ? 64 : 680 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-0 bottom-0 z-50 max-h-[92dvh] overflow-y-auto rounded-t-[2rem] border border-white/[0.12] bg-[rgba(8,17,29,0.86)] px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-3 shadow-2xl backdrop-blur-xl">
     <button onClick={() => setOpen(!open)} className="mx-auto block h-1.5 w-14 rounded-full bg-white/30" aria-label="Toggle Destination Intelligence" />
-    <StationIntelligencePanel station={station} stations={stations} setQuery={setQuery} />
+    <StationIntelligencePanel station={station} stations={stations} inventoryStats={inventoryStats} setQuery={setQuery} />
   </motion.section>;
 }
 
@@ -3092,7 +3095,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" title={accessibleLabel} onClick={() => { if (isTeleport) onTeleport(); else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></button></div>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
+function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [atlasView, setAtlasView] = useState<AtlasViewMode>(getInitialAtlasView);
@@ -3179,7 +3182,7 @@ function MobileAtlasShell({ stations, current, query, setQuery, onCountrySelect,
     ) : null}
     <AtlasToast station={current} mobile />
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
-    <MobileStationSheet station={current} stations={stations} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
+    <MobileStationSheet station={current} stations={stations} inventoryStats={inventoryStats} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <NewspaperBrief station={current} stations={stations} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
     <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) { commitTeleportStation(station, queue); handleTravel(intent); } }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
@@ -3402,27 +3405,33 @@ function formatDistanceFromUser(station: Station, userCoords: { lat: number; lng
   return `${haversineKm(userCoords, { lat: geo.lat, lng: geo.lng }).toLocaleString()} km away`;
 }
 
-function buildDidYouKnow(station: Station, region: string, stationCount?: number) {
+function signalLabel(count: number, noun = "signal") {
+  return `${count.toLocaleString()} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function buildDidYouKnow(station: Station, region: string, stationCount?: number, countScope: "indexed" | "loaded" = "indexed") {
   const parts = [station.city || station.state || station.country || "This destination"];
-  const stationText = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} indexed ${station.country_code} signals` : `a ${region} listening post`;
+  const scopeLabel = countScope === "indexed" ? "indexed" : "loaded";
+  const stationText = typeof stationCount === "number" && stationCount > 0 ? `${signalLabel(stationCount, `${scopeLabel} signal`)}` : `a ${region} listening post`;
   return `${parts[0]} reaches WaveAtlas through ${stationText}.`;
 }
 
-function DailyPassportInsight({ station, stationCount }: { station: Station; stationCount?: number }) {
+function DailyPassportInsight({ station, stationCount, countScope = "indexed" }: { station: Station; stationCount?: number; countScope?: "indexed" | "loaded" }) {
   const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
   const place = [station.city || station.state, station.country || countryNameForCode(station.country_code)].filter(Boolean).join(", ") || destinationLabel(station);
   const localTime = visibleWorldContext?.radioDNA.localTime || localTimeForStation(station) || "Local time TBD";
   const language = visibleWorldContext?.radioDNA.languages?.[0] || compactLanguageLabel(station.language);
   const region = visibleWorldContext?.radioDNA.region || stationContinent(station);
   const weather = visibleWorldContext?.climate && typeof visibleWorldContext.climate.temperatureC === "number" ? `${Math.round(visibleWorldContext.climate.temperatureC)}°C now` : visibleWorldContextStatus === "loading" ? "Loading…" : "Weather TBD";
-  const stationCountLabel = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} stations` : "Station count TBD";
-  const contextNote = visibleWorldContext?.radioDNA.culturalSummary || buildDidYouKnow(station, region, stationCount);
+  const stationCountLabel = typeof stationCount === "number" && stationCount > 0 ? signalLabel(stationCount) : "Signal count TBD";
+  const stationCountTitle = countScope === "indexed" ? "Indexed signals" : "Loaded signals";
+  const contextNote = visibleWorldContext?.radioDNA.culturalSummary || buildDidYouKnow(station, region, stationCount, countScope);
   const stats = [
     ["Local time", localTime],
     ["Language", language],
     ["Region", region],
     ["Weather", weather],
-    ["Stations", stationCountLabel],
+    [stationCountTitle, stationCountLabel],
   ] as const;
 
   return <div className="mt-3 overflow-hidden rounded-[1.35rem] border border-white/30 bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(246,224,177,0.38)_45%,rgba(0,214,143,0.12))] p-3 text-[#241a10] shadow-[0_18px_45px_rgba(58,39,12,0.22),inset_0_1px_0_rgba(255,255,255,0.68)] backdrop-blur-xl">
@@ -3443,25 +3452,27 @@ function DailyPassportInsight({ station, stationCount }: { station: Station; sta
   </div>;
 }
 
-function DailyFlightPanel({ stations }: { stations: Station[] }) {
+function DailyFlightPanel({ stations, inventoryStats }: { stations: Station[]; inventoryStats?: StationInventoryStats }) {
   const daily = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const seed = [...today].reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return stations[seed % Math.max(1, stations.length)];
   }, [stations]);
-  const stationCount = useMemo(() => daily?.country_code ? stations.filter((item) => item.country_code === daily.country_code).length : undefined, [daily, stations]);
+  const stationCount = daily?.country_code ? inventoryStats?.countryCounts[daily.country_code] : undefined;
+  const stationCountScope = stationCount ? "indexed" : "loaded";
+  const resolvedStationCount = stationCount ?? (daily?.country_code ? stations.filter((item) => item.country_code === daily.country_code).length : undefined);
   if (!daily) return null;
   return <section className="overflow-hidden rounded-[2rem] border border-white/25 bg-[linear-gradient(145deg,rgba(243,234,210,0.96),rgba(214,177,93,0.24)_50%,rgba(6,18,32,0.18))] p-3 text-[#2f2618] shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-5">
     <p className="font-serif text-xs font-black uppercase tracking-[0.22em] text-[#8a6b22]">Daily Passport™</p>
     <h3 className="mt-1 font-serif text-[26px] font-black leading-tight md:text-[28px]">Today’s Destination Intelligence</h3>
     <p className="mt-2 flex min-w-0 items-center gap-2 font-serif text-base font-bold"><span className="min-w-0 truncate">{destinationLabel(daily)}</span><span className="shrink-0 text-[16px] leading-none" aria-label={daily.country_code ? `${daily.country_code} flag` : "Global flag"}>{flagFor(daily.country_code)}</span></p>
     <p className="truncate font-serif text-sm text-[#594b35]">{getPrimaryGenre(daily)} · {daily.name}</p>
-    <DailyPassportInsight station={daily} stationCount={stationCount} />
+    <DailyPassportInsight station={daily} stationCount={resolvedStationCount} countScope={stationCountScope} />
     <button onClick={() => setCurrentStationAndDestination(daily)} className="mt-4 rounded-full bg-radio px-5 py-3 text-sm font-bold text-midnight"><Plane className="mr-2 inline size-4" />Open Passport Signal</button>
   </section>;
 }
 
-export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
+export default function WaveAtlasApp({ stations, inventoryStats }: { stations: Station[]; inventoryStats?: StationInventoryStats }) {
   const reducedMotion = useReducedMotion();
   const playerStatus = usePlayer((state) => state.status);
   const selectionVersion = usePlayer((state) => state.selectionVersion);
@@ -3708,7 +3719,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
-      <MobileAtlasShell stations={stationPool} current={current} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
+      <MobileAtlasShell stations={stationPool} current={current} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
       <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
@@ -3719,7 +3730,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
         </button>
       </div>
       <div className="absolute inset-0 z-0">
-        <div className="hidden"><DailyFlightPanel stations={stationPool} /></div>
+        <div className="hidden"><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div>
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-40 rounded-[2rem] border border-radio/30 bg-slate-950/75 p-4 text-left font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
         <div className={`absolute left-6 z-40 xl:left-8 ${wandererActive ? "top-48" : "top-28"}`}>
           <AtlasLocationPill stations={stationPool} current={current} />
@@ -3769,7 +3780,7 @@ export default function WaveAtlasApp({ stations }: { stations: Station[] }) {
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
           {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={(view) => { if (view === desktopAtlasView && !globeFallbackReason) return; if (view === "map") desktopTransition.requestGlobeToMap("manual atlas view selection", desktopTransitionContext); else if (globeFallbackReason) desktopTransition.retryGlobe("manual atlas view selection with fallback recovery", desktopTransitionContext); else desktopTransition.requestMapToGlobe("manual atlas view selection", desktopTransitionContext); }} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} streetLinks={stationStreetViewLinks(current)} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
-          {desktopMode === "Brief" ? <div className="mt-5"><DailyFlightPanel stations={stationPool} /></div> : null}
+          {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { setCurrentStationAndDestination(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} compact /> : null}
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">

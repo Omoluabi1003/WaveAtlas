@@ -14,6 +14,8 @@ const GLOBAL_CACHED_PAGES = 6;
 const COUNTRY_PAGE_SIZE = 500;
 const STATION_CACHE_TTL_MS = 10 * 60_000;
 type RadioBrowserCountry = { name?: string; iso_3166_1?: string; stationcount?: number };
+export type StationInventoryStats = { globalCount: number; countryCounts: Record<string, number>; source: 'radio-browser' | 'curated-fallback'; updatedAt: string };
+const INVENTORY_STATS_CACHE_TTL_MS = 6 * 60 * 60_000;
 
 const API_BASE = process.env.RADIO_BROWSER_API_BASE ?? 'https://de1.api.radio-browser.info/json';
 const UA = 'WaveAtlas/1.0 (global-radio-discovery)';
@@ -55,6 +57,46 @@ const fallbackStations: Station[] = [
   { id:'tokyo-fm', station_uuid:'tokyo-fm', name:'Tokyo FM', url:'https://playerservices.streamtheworld.com/api/livestream-redirect/TOKYOFM.mp3', homepage:'https://www.tfm.co.jp', favicon:'', country:'Japan', country_code:'JP', state:'Tokyo', language:'Japanese', tags:['j-pop','talk','local'], codec:'MP3', bitrate:128, latitude:35.6762, longitude:139.6503, votes:24000, click_count:70000, health_score:90, is_active:true, last_checked_at:new Date().toISOString(), failure_count:0, response_time_ms:210 },
   { id:'abc-radio-sydney', station_uuid:'abc-radio-sydney', name:'ABC Radio Sydney', url:'https://live-radio01.mediahubaustralia.com/2LRW/mp3/', homepage:'https://www.abc.net.au/sydney', favicon:'', country:'Australia', country_code:'AU', state:'Sydney', language:'English', tags:['news','talk','local'], codec:'MP3', bitrate:96, latitude:-33.8688, longitude:151.2093, votes:23000, click_count:69000, health_score:91, is_active:true, last_checked_at:new Date().toISOString(), failure_count:0, response_time_ms:220 }
 ];
+
+
+function curatedInventoryCountryCounts() {
+  const counts: Record<string, number> = {};
+  for (const station of mergeSeedStations(fallbackStations, [...ariyoSeedStations, ...campusAtlasStations])) {
+    const code = station.country_code?.toUpperCase();
+    if (!code || code === 'UN') continue;
+    counts[code] = (counts[code] ?? 0) + 1;
+  }
+  return counts;
+}
+
+export async function getStationInventoryStats(): Promise<StationInventoryStats> {
+  return cached('station-inventory-stats:v1', INVENTORY_STATS_CACHE_TTL_MS, async () => {
+    const fallbackCounts = curatedInventoryCountryCounts();
+    try {
+      const res = await fetch(`${API_BASE}/countries`, { headers: { 'User-Agent': UA }, next: { revalidate: INVENTORY_STATS_CACHE_TTL_MS / 1000 } });
+      if (!res.ok) throw new Error(`Radio Browser ${res.status}`);
+      const data = await res.json() as RadioBrowserCountry[];
+      const countryCounts = data.reduce<Record<string, number>>((counts, country) => {
+        const code = country.iso_3166_1?.toUpperCase();
+        const stationCount = Number(country.stationcount ?? 0);
+        if (code && Number.isFinite(stationCount) && stationCount > 0) counts[code] = Math.max(stationCount, fallbackCounts[code] ?? 0);
+        return counts;
+      }, { ...fallbackCounts });
+      const globalCount = Object.values(countryCounts).reduce((sum, count) => sum + count, 0);
+      if (globalCount <= 0) throw new Error('Radio Browser returned no station inventory counts');
+      return { globalCount, countryCounts, source: 'radio-browser', updatedAt: new Date().toISOString() };
+    } catch {
+      return { globalCount: Object.values(fallbackCounts).reduce((sum, count) => sum + count, 0), countryCounts: fallbackCounts, source: 'curated-fallback', updatedAt: new Date().toISOString() };
+    }
+  });
+}
+
+export async function getCountryStationCount(countryCode: string): Promise<number | undefined> {
+  const code = countryCode.trim().toUpperCase();
+  if (!code) return undefined;
+  const stats = await getStationInventoryStats();
+  return stats.countryCounts[code];
+}
 
 export function flagFor(code = '') { return code.length === 2 ? String.fromCodePoint(...code.toUpperCase().split('').map((c)=>127397+c.charCodeAt(0))) : '🌐'; }
 async function cached<T>(key:string, ttlMs:number, fn:()=>Promise<T>): Promise<T> { const hit=cache.get(key); if(hit && hit.expires>Date.now()) return hit.value as T; const value=await fn(); cache.set(key,{value,expires:Date.now()+ttlMs}); return value; }
