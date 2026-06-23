@@ -2897,7 +2897,7 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, 
 
 
 type AtlasToastKind = "status" | "alert";
-type AtlasToastEventDetail = { title: string; subtitle?: string; kind?: AtlasToastKind; id?: string };
+type AtlasToastEventDetail = { title: string; subtitle?: string; kind?: AtlasToastKind; id?: string; countryCode?: string };
 
 const ATLAS_TOAST_EVENT = "waveatlas:atlas-toast";
 const ATLAS_TOAST_DURATION_MS = 6000;
@@ -2936,6 +2936,7 @@ function buildAtlasToast(station: Station, override?: Partial<AtlasToastEventDet
     subtitle: uniqueToastParts([languageLine, soundLine, signalLine]).slice(0, 3).join(" • "),
     kind: "status",
     id: `station-${stationKey(station)}`,
+    countryCode: station.country_code,
     ...override,
   };
 }
@@ -2955,6 +2956,7 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
   const [visible, setVisible] = useState(true);
   const [paused, setPaused] = useState(false);
   const toastKey = toast.id ?? `${toast.title}-${toast.subtitle ?? ""}`;
+  const toastFlag = toast.kind !== "alert" && toast.countryCode ? flagFor(toast.countryCode) : null;
 
   useEffect(() => {
     const onTravel = (event: Event) => setGlobeTravelActive(Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active));
@@ -3019,7 +3021,13 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
           aria-label="Station notification"
         >
           <div className="flex items-start gap-3">
-            <Compass className="mt-0.5 size-4 shrink-0 text-[#D4A64A]" aria-hidden="true" />
+            {toastFlag ? (
+              <span className="mt-0.5 grid size-4 shrink-0 place-items-center text-[15px] leading-none" aria-hidden="true">
+                {toastFlag}
+              </span>
+            ) : (
+              <Compass className="mt-0.5 size-4 shrink-0 text-[#D4A64A]" aria-hidden="true" />
+            )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold leading-5 tracking-[-0.01em] text-[#F8FAFC]">{toast.title}</p>
               {toast.subtitle ? <p className="mt-0.5 truncate text-[11px] font-medium leading-4 text-white/[0.72]">{toast.subtitle}</p> : null}
