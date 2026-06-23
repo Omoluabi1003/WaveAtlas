@@ -8,6 +8,7 @@ import {
   interpolateSignalBeacon,
   signalBeaconClassName,
   signalBeaconHtml,
+  logMapBeaconPulsePath,
   signalBeaconTravelDuration,
   type SignalBeaconStatus,
 } from "@/lib/signal-beacon-engine";
@@ -19,12 +20,14 @@ function createBeaconElement(tone: string, status: SignalBeaconStatus) {
   element.style.transform = "translate3d(0,0,0)";
   element.style.willChange = "transform";
   element.innerHTML = signalBeaconHtml();
+  element.dataset.waveatlasBeacon = "active";
   applyBeaconElementState(element, tone, status);
   return element;
 }
 
 function applyBeaconElementState(element: HTMLElement, tone: string, status: SignalBeaconStatus) {
   element.className = signalBeaconClassName(tone, status);
+  logMapBeaconPulsePath(status, tone);
 }
 
 export function ActiveStationBeacon({ map, geo, status }: { map: Map | null; geo: ActiveStationBeaconGeo; status: SignalBeaconStatus }) {
