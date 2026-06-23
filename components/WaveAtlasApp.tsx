@@ -1767,7 +1767,7 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
       const onMoveEnd = () => { moveendFired = true; debugMapBeacon("moveend", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: true, mapCurrentCenter: { lat: map.getCenter().lat, lng: map.getCenter().lng }, mapCurrentZoom: map.getZoom() }); };
       map.once("moveend", onMoveEnd);
       moveendCleanupRef.current = () => { try { map.off("moveend", onMoveEnd); } catch {} };
-      moveendTimeoutRef.current = window.setTimeout(() => { if (!moveendFired) { moveendCleanupRef.current?.(); moveendCleanupRef.current = null; debugMapBeacon("moveend pending", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: false }); } }, 1400);
+      moveendTimeoutRef.current = window.setTimeout(() => { if (!moveendFired) { moveendCleanupRef.current?.(); moveendCleanupRef.current = null; debugMapBeacon("moveend pending", { nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, mapMoveendFired: false }); } }, duration + 400);
       onCameraMove(resolved, source);
     }
     debugMapBeacon("update", { previousStation: previousStation?.name, previousStationId: previousStation?.station_uuid || previousStation?.id, previousCoordinates: previousGeo ? { lat: previousGeo.lat, lng: previousGeo.lng } : null, nextStation: nextStation.name, nextStationId: nextStation.station_uuid || nextStation.id, nextCoordinates: { lat: resolved.lat, lng: resolved.lng }, resolvedGeoSource: resolved.source, resolvedGeoPrecision: resolved.precision, selectionSource: source, mapLoadedState: map.loaded(), styleLoadedState: map.isStyleLoaded(), mapCurrentCenter: { lat: center.lat, lng: center.lng }, mapTargetCenter: { lat: resolved.lat, lng: resolved.lng }, mapCurrentZoom: map.getZoom(), mapTargetZoom: beaconTargetZoom(resolved, map.getZoom(), distanceKm), flyToEaseToCalled: shouldMoveCamera, flyToDuration: shouldMoveCamera ? 900 : 0, flyToEasing: shouldMoveCamera ? "viewport-aware-camera" : "beacon-only", beaconFeatureUpdated: Boolean(feature), activeBeaconSourceSetData: sourceSetData, mapMoveendFired: false, stationVisibleInViewport });
@@ -3812,7 +3812,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </aside> : null}
-      <NewspaperBrief station={current} stations={stationPool} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
+      <NewspaperBrief station={current} stations={stationPool} inventoryStats={inventoryStats} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
       <AtlasToast station={current} />
       <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">

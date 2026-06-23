@@ -8,7 +8,7 @@ import type { Headline } from "@/lib/news-agent";
 import { stationContinent } from "@/lib/discovery/station-picker";
 import { stationGenre } from "@/lib/discovery/history";
 import { localTimeForStation } from "@/lib/smart-time-copy";
-import { flagFor, type Station } from "@/lib/stations";
+import { flagFor, type Station, type StationInventoryStats } from "@/lib/stations";
 import type { WorldContext } from "@/lib/world-engine/types";
 
 const CLIENT_CACHE_KEY = "waveatlas_daily_cache";
@@ -57,11 +57,24 @@ function passportPlace(station: Station) {
   return [station.city || station.state, station.country || station.country_code].filter(Boolean).join(", ") || station.name || "Global signal";
 }
 
+function normalizePassportSentence(text: string, maxLength = 220) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  const sentences = normalized.match(/[^.!?]+[.!?]+(?:["')\]]+)?/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
+  const selected = sentences.length ? sentences.slice(0, 2).join(" ") : normalized;
+  if (selected.length <= maxLength) return /[.!?]["')\]]?$/.test(selected) ? selected : `${selected}.`;
+  const firstSentence = sentences[0];
+  if (firstSentence && firstSentence.length <= maxLength) return firstSentence;
+  const clipped = selected.slice(0, maxLength).replace(/\s+\S*$/, "").replace(/[,;:–—-]+$/, "").trim();
+  return clipped ? `${clipped}.` : "";
+}
+
 function buildPassportNote(station: Station, region: string, stationCount?: number, context?: WorldContext | null) {
-  if (context?.radioDNA.culturalSummary) return context.radioDNA.culturalSummary;
+  const contextSummary = normalizePassportSentence(context?.radioDNA.culturalSummary || "");
+  if (contextSummary) return contextSummary;
   const place = station.city || station.state || station.country || "This destination";
-  const count = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} indexed ${station.country_code || "local"} signals` : `a ${region} listening post`;
-  return `${place} reaches WaveAtlas through ${count}, led by ${stationGenre(station)} on ${station.name}.`;
+  const count = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} indexed ${station.country_code || "local"} ${stationCount === 1 ? "signal" : "signals"}` : `a ${region} listening post`;
+  return normalizePassportSentence(`${place} reaches WaveAtlas through ${count}, led by ${stationGenre(station)} on ${station.name}.`);
 }
 
 function usePassportWorldContext(station: Station, enabled: boolean) {
@@ -97,20 +110,20 @@ function usePassportWorldContext(station: Station, enabled: boolean) {
   return { worldContext, status };
 }
 
-function DailyPassportStrip({ station, stations = [], enabled }: { station: Station; stations?: Station[]; enabled: boolean }) {
+function DailyPassportStrip({ station, stations = [], inventoryStats, enabled }: { station: Station; stations?: Station[]; inventoryStats?: StationInventoryStats; enabled: boolean }) {
   const { worldContext, status } = usePassportWorldContext(station, enabled);
-  const stationCount = useMemo(() => station.country_code ? stations.filter((item) => item.country_code === station.country_code).length : undefined, [station.country_code, stations]);
+  const stationCount = useMemo(() => station.country_code ? inventoryStats?.countryCounts[station.country_code] ?? stations.filter((item) => item.country_code === station.country_code).length : undefined, [inventoryStats?.countryCounts, station.country_code, stations]);
   const region = worldContext?.radioDNA.region || stationContinent(station);
   const localTime = worldContext?.radioDNA.localTime || localTimeForStation(station) || "Local time TBD";
   const language = worldContext?.radioDNA.languages?.[0] || compactLanguageLabel(station.language);
   const weather = worldContext?.climate && typeof worldContext.climate.temperatureC === "number" ? `${Math.round(worldContext.climate.temperatureC)}°C now` : status === "loading" ? "Weather loading" : "Weather TBD";
-  const stationsLabel = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} stations` : "Station count TBD";
+  const stationsLabel = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} ${stationCount === 1 ? "station" : "stations"}` : "Station count TBD";
   const note = buildPassportNote(station, region, stationCount, worldContext);
   const stats = [["Time", localTime], ["Language", language], ["Region", region], ["Weather", weather], ["Signals", stationsLabel]] as const;
 
   return <section className="my-3 border-y border-slate-900/25 py-2 font-serif text-[#241a10]" aria-label="Daily Passport destination intelligence">
     <div className="grid max-w-full grid-cols-[auto_minmax(0,1fr)] gap-2 sm:gap-3">
-      <div className="row-span-2 flex flex-col items-center justify-center border-r border-slate-900/20 pr-2 sm:pr-3">
+      <div className="flex flex-col items-center justify-center self-stretch border-r border-slate-900/20 pr-2 sm:pr-3">
         <span className="text-3xl leading-none sm:text-4xl" aria-label={station.country_code ? `${station.country_code} flag` : "Global flag"}>{flagFor(station.country_code)}</span>
         <span className="mt-1 text-[8px] font-black uppercase tracking-[0.18em] text-[#6f5a3f]">Passport</span>
       </div>
@@ -118,7 +131,7 @@ function DailyPassportStrip({ station, stations = [], enabled }: { station: Stat
         <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#6f5a3f]">Daily Passport™ destination intelligence</p>
         <h3 className="whitespace-normal break-words overflow-visible h-auto text-lg font-black leading-tight sm:text-xl">{passportPlace(station)}</h3>
       </div>
-      <p className="min-w-0 text-[11px] font-semibold leading-4 text-[#4A4033] [overflow-wrap:anywhere] sm:text-xs">{note}</p>
+      <p className="col-span-2 min-w-0 text-[11px] font-semibold leading-4 text-[#4A4033] [overflow-wrap:anywhere] sm:col-span-1 sm:text-xs">{note}</p>
     </div>
     <div className="mt-2 grid grid-cols-2 gap-px overflow-visible border border-slate-900/20 bg-slate-900/20 min-[390px]:grid-cols-3 sm:grid-cols-5">
       {stats.map(([label, value]) => <div key={label} className="min-w-0 whitespace-normal break-words overflow-visible h-auto bg-[#F4EFE2]/95 px-2 py-1.5">
@@ -129,7 +142,7 @@ function DailyPassportStrip({ station, stations = [], enabled }: { station: Stat
   </section>;
 }
 
-export function NewspaperBrief({ station, stations = [], open, onClose }: { station: Station; stations?: Station[]; open: boolean; onClose: () => void }) {
+export function NewspaperBrief({ station, stations = [], inventoryStats, open, onClose }: { station: Station; stations?: Station[]; inventoryStats?: StationInventoryStats; open: boolean; onClose: () => void }) {
   const [headlines, setHeadlines] = useState<Headline[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -205,7 +218,7 @@ export function NewspaperBrief({ station, stations = [], open, onClose }: { stat
               <p className="mt-1 font-serif text-xs font-bold uppercase tracking-[0.18em] text-[#4A4033]">Live stories from this destination</p>
             </header>
 
-            <DailyPassportStrip station={station} stations={stations} enabled={open} />
+            <DailyPassportStrip station={station} stations={stations} inventoryStats={inventoryStats} enabled={open} />
 
             <nav className="my-4 flex max-w-full flex-wrap gap-2 overflow-x-hidden border-y border-slate-900/25 py-2">
               {tabs.map((item) => <button key={item} onClick={() => setTab(item)} className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] ${tab === item ? "bg-slate-950 text-white" : "text-[#4A4033]"}`}>{item}</button>)}
