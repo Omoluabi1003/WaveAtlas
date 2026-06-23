@@ -29,14 +29,16 @@ export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; l
 export function prefersReducedMotion() { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; }
 function prefersIOSCameraPath() { return typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent); }
 function isMobileViewport() { return typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches; }
-const ZOOM_POLICY = { worldDefault: 3.2, continentDefault: 4.2, countryDefault: 5.2, stationDefault: 5.8, stationMax: 6.8, cityMax: 7.2, mobileMax: 6.2 } as const;
+const ZOOM_POLICY = { worldDefault: 4.6, continentDefault: 5.0, countryDefault: 5.4, stationDefault: 5.8, stationMax: 6.2, cityMax: 6.2, mobileMin: 4.2, mobileMax: 5.8, desktopMin: 4.6, desktopMax: 6.2 } as const;
 export function stationDuration(distanceKm: number) {
   if (prefersReducedMotion()) return 0;
   const base = distanceKm > 2400 ? 2200 : distanceKm < 350 ? 900 : 1500;
   return isMobileViewport() ? Math.round(base * 0.72) : base;
 }
 export function stationZoom(stationGeo: ResolvedStationGeo, currentZoom: number, distanceKm: number) {
-  const viewportMax = isMobileViewport() ? ZOOM_POLICY.mobileMax : Number.POSITIVE_INFINITY;
+  const mobile = isMobileViewport();
+  const viewportMax = mobile ? ZOOM_POLICY.mobileMax : ZOOM_POLICY.desktopMax;
+  const viewportMin = mobile ? ZOOM_POLICY.mobileMin : ZOOM_POLICY.desktopMin;
   const precisionMax = stationGeo.precision === "station" ? ZOOM_POLICY.stationMax : stationGeo.precision === "city" ? ZOOM_POLICY.cityMax : ZOOM_POLICY.countryDefault;
   const policyMax = Math.min(precisionMax, viewportMax, ZOOM_POLICY.cityMax);
   const contextualDefault = distanceKm > 5200
@@ -46,9 +48,9 @@ export function stationZoom(stationGeo: ResolvedStationGeo, currentZoom: number,
       : stationGeo.precision === "country" || stationGeo.precision === "unknown"
         ? ZOOM_POLICY.countryDefault
         : ZOOM_POLICY.stationDefault;
-  const clampedCurrent = Math.min(currentZoom, policyMax);
+  const clampedCurrent = Math.min(Math.max(currentZoom, viewportMin), policyMax);
   const targetZoom = distanceKm < 80 ? Math.max(clampedCurrent, Math.min(contextualDefault, policyMax)) : contextualDefault;
-  return Math.min(targetZoom, policyMax);
+  return Math.min(Math.max(targetZoom, viewportMin), policyMax);
 }
 
 export function captureCameraState(map: Map): MapCameraState {

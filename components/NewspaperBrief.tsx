@@ -57,16 +57,29 @@ function passportPlace(station: Station) {
   return [station.city || station.state, station.country || station.country_code].filter(Boolean).join(", ") || station.name || "Global signal";
 }
 
+function extractCompleteSentences(text: string) {
+  return text
+    .replace(/\s+/g, " ")
+    .trim()
+    .match(/[^.!?]+[.!?]+(?:["')\]]+)?/g)
+    ?.map((sentence) => sentence.trim())
+    .filter(Boolean) ?? [];
+}
+
 function normalizePassportSentence(text: string, maxLength = 220) {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (!normalized) return "";
-  const sentences = normalized.match(/[^.!?]+[.!?]+(?:["')\]]+)?/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
-  const selected = sentences.length ? sentences.slice(0, 2).join(" ") : normalized;
-  if (selected.length <= maxLength) return /[.!?]["')\]]?$/.test(selected) ? selected : `${selected}.`;
-  const firstSentence = sentences[0];
-  if (firstSentence && firstSentence.length <= maxLength) return firstSentence;
-  const clipped = selected.slice(0, maxLength).replace(/\s+\S*$/, "").replace(/[,;:–—-]+$/, "").trim();
-  return clipped ? `${clipped}.` : "";
+  const sentences = extractCompleteSentences(normalized);
+  const candidate = sentences.find((sentence) => sentence.length <= maxLength) ?? sentences[0];
+  if (candidate) return /[.!?]["')\]]?$/.test(candidate) ? candidate : `${candidate}.`;
+  const compact = normalized
+    .replace(/\([^)]*$/g, "")
+    .replace(/[,;:–—-]+$/g, "")
+    .trim();
+  if (compact.length <= maxLength) return /[.!?]["')\]]?$/.test(compact) ? compact : `${compact}.`;
+  const words = compact.split(" ");
+  const summary = words.slice(0, Math.min(18, words.length)).join(" ").replace(/[,;:–—-]+$/g, "").trim();
+  return summary ? `${summary}.` : "";
 }
 
 function buildPassportNote(station: Station, region: string, stationCount?: number, context?: WorldContext | null) {
