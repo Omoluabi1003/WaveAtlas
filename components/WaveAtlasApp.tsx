@@ -2540,14 +2540,14 @@ function NowPlaying({
     else toggle();
   };
   return (
-    <aside className="glass rounded-[2rem] border-white/20 bg-slate-950/92 p-6 shadow-[0_24px_90px_rgba(0,0,0,.58)] backdrop-blur-2xl">
+    <aside className="glass rounded-[2rem] border border-white/25 bg-slate-950/96 p-6 text-white shadow-[0_30px_110px_rgba(0,0,0,.68),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-display text-[12px] font-semibold text-radio">
             Now playing
           </p>
-          <h2 className="mt-2 font-display text-[28px] font-bold leading-tight">{station.name}</h2>
-          <p className="mt-2 flex items-center gap-2 text-ivory/70">
+          <h2 className="mt-2 font-display text-[28px] font-extrabold leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.55)]">{station.name}</h2>
+          <p className="mt-2 flex items-center gap-2 font-medium text-ivory/86 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]">
             <MapPin size={16} />
             {station.country} · {station.language}
           </p>
@@ -2573,13 +2573,13 @@ function NowPlaying({
           )}
           {playing ? "Pause" : status === "blocked" ? "Tap to Play" : "Play"}
         </button>
-        <button className="rounded-full border border-white/15 p-4">
+        <button className="rounded-full border border-white/25 bg-slate-950/55 p-4 text-white shadow-[0_10px_30px_rgba(0,0,0,.35)] transition hover:border-radio/45 hover:bg-radio/10">
           <Heart />
         </button>
-        <button className="rounded-full border border-white/15 p-4">
+        <button className="rounded-full border border-white/25 bg-slate-950/55 p-4 text-white shadow-[0_10px_30px_rgba(0,0,0,.35)] transition hover:border-radio/45 hover:bg-radio/10">
           <Link />
         </button>
-        <Volume2 />
+        <Volume2 className="text-ivory/80 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" />
         <input
           aria-label="Volume"
           type="range"
@@ -3060,8 +3060,8 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
-  return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/20 bg-slate-950/94 p-2.5 text-white shadow-[0_20px_70px_rgba(0,0,0,.55)] backdrop-blur-2xl">
-    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><p className="truncate font-display text-xs font-bold">{station.city || station.state || station.country} · {station.country}</p><p className="truncate text-[11px] text-ivory/60">{getPrimaryGenre(station)} · {station.name} · {status}</p></div><Volume2 className="size-4 text-ivory/60" /></div>
+  return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/30 bg-[rgba(3,9,18,0.96)] p-2.5 text-white shadow-[0_26px_90px_rgba(0,0,0,.72),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
+    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)]">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><p className="truncate font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]">{station.city || station.state || station.country} · {station.country}</p><p className="truncate text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]">{getPrimaryGenre(station)} · {station.name} · {status}</p></div><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
   </div>;
 }
 
@@ -3818,7 +3818,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       </aside> : null}
       <NewspaperBrief station={current} stations={stationPool} inventoryStats={inventoryStats} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
       <AtlasToast station={current} />
-      <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/15 bg-midnight/90 p-2 shadow-glow backdrop-blur-xl xl:bottom-8">
+      <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid max-w-6xl pointer-events-auto grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[2rem] border border-white/25 bg-[rgba(3,9,18,0.96)] p-2 text-white shadow-[0_28px_95px_rgba(0,0,0,.70),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)] xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
             onClick={() => {
@@ -3826,18 +3826,18 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
               if (!player.current) setCurrentStationAndDestination(current);
               else player.toggle();
             }}
-            className="grid size-12 shrink-0 place-items-center rounded-full bg-radio text-midnight"
+            className="grid size-12 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_26px_rgba(54,245,162,.36)]"
             aria-label="Play or pause current station"
           >
             {usePlayer.getState().playing ? <Pause /> : <Play />}
           </button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-ivory">{current.city || current.state || current.country} · {current.country}</p>
-            <p className="truncate text-[11px] text-ivory/60">{getPrimaryGenre(current)} · {current.name}</p>
+            <p className="truncate text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]">{current.city || current.state || current.country} · {current.country}</p>
+            <p className="truncate text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]">{getPrimaryGenre(current)} · {current.name}</p>
           </div>
-          <Volume2 className="ml-auto size-4 shrink-0 text-ivory/50" />
+          <Volume2 className="ml-auto size-4 shrink-0 text-ivory/78 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" />
         </div>
-        <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/10 bg-slate-950/80 p-1">
+        <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/20 bg-slate-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]">
           {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<button type="button" onClick={() => { if (value === "Teleport") { if (desktopTeleporting) return; setDesktopTeleporting(true); setDesktopDrawerCollapsed(false); setWandererActive(false); setDesktopMode(value); const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setDesktopTeleporting(false)); } else if (value === "Brief") { setDesktopDrawerCollapsed(false); setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopDrawerCollapsed(false); setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</button></div>; })}
         </nav>
       </div>
