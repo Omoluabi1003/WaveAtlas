@@ -22,9 +22,12 @@ export function signalBeaconClassName(tone: string, status: SignalBeaconStatus) 
 
 export function drawSignalBeacon(ctx: CanvasRenderingContext2D, x: number, y: number, options: { now: number; mobile?: boolean; lowPower?: boolean; reducedMotion?: boolean; visibility?: number; landingPulseStartedAt?: number | null }) {
   const { now, mobile = false, lowPower = false, reducedMotion = false, visibility = 1, landingPulseStartedAt = null } = options;
-  const landingPulseAge = landingPulseStartedAt ? now - landingPulseStartedAt : 9999;
+  const liveNow = Number.isFinite(now) && now > 0 ? now : performance.now();
+  const landingPulseAge = landingPulseStartedAt ? liveNow - landingPulseStartedAt : 9999;
   const landingBoost = landingPulseAge < 520 ? 1 + (1 - landingPulseAge / 520) * 0.42 : 1;
-  const pulse = reducedMotion ? 1 : (1 + Math.sin(now / (mobile ? 360 : 180)) * (mobile ? 0.08 : 0.22)) * landingBoost;
+  const pulsePeriod = reducedMotion ? (mobile ? 1320 : 960) : (mobile ? 360 : 180);
+  const pulseAmplitude = reducedMotion ? (mobile ? 0.045 : 0.1) : (mobile ? 0.08 : 0.22);
+  const pulse = (1 + Math.sin(liveNow / pulsePeriod) * pulseAmplitude) * landingBoost;
   ctx.save();
   ctx.globalAlpha = visibility;
   ctx.shadowColor = "rgba(255,59,48,0.58)";
