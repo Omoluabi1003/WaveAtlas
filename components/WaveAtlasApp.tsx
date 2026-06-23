@@ -3384,8 +3384,8 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
-  const [desktopMode, setDesktopMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "add-signal" ? "Add Signal" : "Teleport");
-  const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(false);
+  const [desktopMode, setDesktopMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "add-signal" ? "Add Signal" : "Atlas");
+  const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(true);
   const [briefOpen, setBriefOpen] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
@@ -3589,7 +3589,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     setQuery("");
     setSelectedCountry(null);
     setDesktopMode("Atlas");
-    setDesktopDrawerCollapsed(false);
+    setDesktopDrawerCollapsed(true);
   }, []);
 
   const visible = stationPool
@@ -3621,10 +3621,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       </div>
       <div className="absolute inset-0 z-0">
         <div className="hidden"><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div>
-        {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-40 rounded-[2rem] border border-radio/30 bg-slate-950/75 p-4 text-left font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
-        <div className={`absolute left-6 z-40 xl:left-8 ${wandererActive ? "top-48" : "top-28"}`}>
-          <AtlasLocationPill stations={stationPool} current={current} />
-        </div>
+        {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-30 rounded-[2rem] border border-radio/30 bg-slate-950/55 px-4 py-3 text-left text-sm font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
           {globeFallbackReason || desktopAtlasView === "map" ? (
             <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={activeDesktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
@@ -3651,7 +3648,21 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           </div>
         </div>
       </section>
-      {desktopDrawerActive ? <aside className={`${desktopDrawerOpen ? "translate-x-0 opacity-100" : "-translate-x-[calc(100%-3.5rem)] opacity-95"} pointer-events-auto fixed bottom-28 left-6 top-28 z-40 flex w-[min(420px,calc(100vw-3rem))] flex-col rounded-[2rem] border border-white/10 bg-[rgba(8,17,29,0.78)] p-4 text-ivory shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(1.15)] transition duration-300 xl:left-8`} aria-label="Search and discovery drawer">
+      {!desktopDrawerActive ? <nav className="pointer-events-auto fixed left-6 top-28 z-30 flex flex-col gap-2 rounded-full border border-white/10 bg-slate-950/35 p-2 text-ivory shadow-2xl backdrop-blur-2xl xl:left-8" aria-label="Atlas quick actions">
+        {([
+          [Globe2, "Explore"],
+          [Heart, "Favorites"],
+          [Signal, "Add Signal"],
+          [Newspaper, "Brief"],
+          [Settings, "Settings"],
+        ] as const).map(([Icon, label]) => {
+          const I = Icon as typeof Settings;
+          return <button key={label} type="button" onClick={() => { setDesktopDrawerCollapsed(false); setBriefOpen(label === "Brief"); setDesktopMode(label); }} className="grid size-11 place-items-center rounded-full border border-white/[0.08] bg-white/[0.04] text-ivory/72 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={`Open ${label}`}>
+            <I className="size-4" />
+          </button>;
+        })}
+      </nav> : null}
+      {desktopDrawerActive ? <aside className={`${desktopDrawerOpen ? "translate-x-0 opacity-100" : "-translate-x-[calc(100%-3.5rem)] opacity-95"} pointer-events-auto fixed bottom-28 left-6 top-32 z-40 flex w-[min(400px,calc(100vw-3rem))] flex-col rounded-[2rem] border border-white/10 bg-[rgba(8,17,29,0.62)] p-4 text-ivory shadow-[0_16px_48px_rgba(0,0,0,0.32)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(1.08)] transition duration-300 xl:left-8`} aria-label="Search and discovery drawer">
         <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div className="min-w-0">
             <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold">Atlas drawer</p>
