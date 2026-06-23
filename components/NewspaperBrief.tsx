@@ -106,24 +106,24 @@ function DailyPassportStrip({ station, stations = [], enabled }: { station: Stat
   const weather = worldContext?.climate && typeof worldContext.climate.temperatureC === "number" ? `${Math.round(worldContext.climate.temperatureC)}°C now` : status === "loading" ? "Weather loading" : "Weather TBD";
   const stationsLabel = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} stations` : "Station count TBD";
   const note = buildPassportNote(station, region, stationCount, worldContext);
-  const stats = [["Time", localTime], ["Language", language], ["Region", region], ["Weather", weather], ["Signals", stationsLabel]] as const;
+  const stats = [["Time", localTime], ["Language", language], ["Region", region], ["Weather", weather], ["Signals", stationsLabel], ["Station", station.name || "Live signal"]] as const;
 
-  return <section className="my-3 border-y border-slate-900/25 py-2 font-serif text-[#241a10]" aria-label="Daily Passport destination intelligence">
-    <div className="grid max-w-full grid-cols-[auto_minmax(0,1fr)] gap-2 sm:gap-3">
+  return <section className="my-3 h-auto overflow-visible border-y border-slate-900/25 py-2 font-serif text-[#241a10]" aria-label="Daily Passport destination intelligence">
+    <div className="grid h-auto max-w-full grid-cols-[auto_minmax(0,1fr)] items-start gap-2 overflow-visible sm:gap-3">
       <div className="row-span-2 flex flex-col items-center justify-center border-r border-slate-900/20 pr-2 sm:pr-3">
         <span className="text-3xl leading-none sm:text-4xl" aria-label={station.country_code ? `${station.country_code} flag` : "Global flag"}>{flagFor(station.country_code)}</span>
         <span className="mt-1 text-[8px] font-black uppercase tracking-[0.18em] text-[#6f5a3f]">Passport</span>
       </div>
       <div className="min-w-0">
         <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#6f5a3f]">Daily Passport™ destination intelligence</p>
-        <h3 className="truncate text-lg font-black leading-tight sm:text-xl">{passportPlace(station)}</h3>
+        <h3 className="whitespace-normal break-words text-lg font-black leading-tight sm:text-xl">{passportPlace(station)}</h3>
       </div>
-      <p className="min-w-0 text-[11px] font-semibold leading-4 text-[#4A4033] [overflow-wrap:anywhere] sm:text-xs">{note}</p>
+      <p className="min-w-0 h-auto whitespace-normal break-words text-[11px] font-semibold leading-4 text-[#4A4033] [overflow-wrap:anywhere] sm:text-xs">{note}</p>
     </div>
-    <div className="mt-2 grid grid-cols-2 gap-px overflow-hidden border border-slate-900/20 bg-slate-900/20 min-[390px]:grid-cols-3 sm:grid-cols-5">
+    <div className="mt-2 grid h-auto grid-cols-2 items-start gap-px overflow-visible border border-slate-900/20 bg-slate-900/20 min-[390px]:grid-cols-3 sm:grid-cols-6">
       {stats.map(([label, value]) => <div key={label} className="min-w-0 bg-[#F4EFE2]/95 px-2 py-1.5">
-        <p className="truncate text-[8px] font-black uppercase tracking-[0.16em] text-[#6f5a3f]">{label}</p>
-        <p className="mt-0.5 truncate text-[12px] font-extrabold leading-4 text-[#151515]">{value}</p>
+        <p className="whitespace-normal break-words text-[8px] font-black uppercase tracking-[0.16em] text-[#6f5a3f]">{label}</p>
+        <p className="mt-0.5 whitespace-normal break-words text-[12px] font-extrabold leading-4 text-[#151515] [overflow-wrap:anywhere]">{value}</p>
       </div>)}
     </div>
   </section>;

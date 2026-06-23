@@ -3423,21 +3423,22 @@ function DailyPassportInsight({ station, stationCount }: { station: Station; sta
     ["Region", region],
     ["Weather", weather],
     ["Stations", stationCountLabel],
+    ["Signal", station.name || getPrimaryGenre(station)],
   ] as const;
 
-  return <div className="mt-3 overflow-hidden rounded-[1.35rem] border border-white/30 bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(246,224,177,0.38)_45%,rgba(0,214,143,0.12))] p-3 text-[#241a10] shadow-[0_18px_45px_rgba(58,39,12,0.22),inset_0_1px_0_rgba(255,255,255,0.68)] backdrop-blur-xl">
-    <div className="flex min-w-0 items-start gap-3">
+  return <div className="mt-3 h-auto overflow-visible rounded-[1.35rem] border border-white/30 bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(246,224,177,0.38)_45%,rgba(0,214,143,0.12))] p-3 text-[#241a10] shadow-[0_18px_45px_rgba(58,39,12,0.22),inset_0_1px_0_rgba(255,255,255,0.68)] backdrop-blur-xl">
+    <div className="flex min-w-0 items-start gap-3 overflow-visible">
       <span className="grid size-12 shrink-0 place-items-center rounded-2xl border border-white/45 bg-white/55 text-[1.7rem] leading-none shadow-inner" aria-label={station.country_code ? `${station.country_code} flag` : "Global flag"}>{flagFor(station.country_code)}</span>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-visible">
         <p className="font-serif text-[9px] font-black uppercase tracking-[0.24em] text-[#7a5d18]">Daily Passport live card</p>
-        <p className="mt-0.5 truncate font-serif text-lg font-black leading-tight">{place}</p>
-        <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-4 text-[#4d3d29]">{contextNote}</p>
+        <p className="mt-0.5 whitespace-normal break-words font-serif text-lg font-black leading-tight">{place}</p>
+        <p className="mt-1 h-auto whitespace-normal break-words text-[11px] font-semibold leading-4 text-[#4d3d29] [overflow-wrap:anywhere]">{contextNote}</p>
       </div>
     </div>
-    <div className="mt-3 grid grid-cols-2 gap-1.5 min-[380px]:grid-cols-3">
+    <div className="mt-3 grid h-auto grid-cols-2 items-start gap-1.5 overflow-visible min-[380px]:grid-cols-3">
       {stats.map(([label, value]) => <div key={label} className="min-w-0 rounded-2xl border border-white/35 bg-white/45 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
-        <p className="truncate font-serif text-[8px] font-black uppercase tracking-[0.16em] text-[#7a6844]">{label}</p>
-        <p className="mt-0.5 truncate text-[12px] font-extrabold leading-4 text-[#241a10]">{value}</p>
+        <p className="whitespace-normal break-words font-serif text-[8px] font-black uppercase tracking-[0.16em] text-[#7a6844]">{label}</p>
+        <p className="mt-0.5 whitespace-normal break-words text-[12px] font-extrabold leading-4 text-[#241a10] [overflow-wrap:anywhere]">{value}</p>
       </div>)}
     </div>
   </div>;
@@ -3451,11 +3452,11 @@ function DailyFlightPanel({ stations }: { stations: Station[] }) {
   }, [stations]);
   const stationCount = useMemo(() => daily?.country_code ? stations.filter((item) => item.country_code === daily.country_code).length : undefined, [daily, stations]);
   if (!daily) return null;
-  return <section className="overflow-hidden rounded-[2rem] border border-white/25 bg-[linear-gradient(145deg,rgba(243,234,210,0.96),rgba(214,177,93,0.24)_50%,rgba(6,18,32,0.18))] p-3 text-[#2f2618] shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-5">
+  return <section className="h-auto overflow-visible rounded-[2rem] border border-white/25 bg-[linear-gradient(145deg,rgba(243,234,210,0.96),rgba(214,177,93,0.24)_50%,rgba(6,18,32,0.18))] p-3 text-[#2f2618] shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-5">
     <p className="font-serif text-xs font-black uppercase tracking-[0.22em] text-[#8a6b22]">Daily Passport™</p>
     <h3 className="mt-1 font-serif text-[26px] font-black leading-tight md:text-[28px]">Today’s Destination Intelligence</h3>
-    <p className="mt-2 flex min-w-0 items-center gap-2 font-serif text-base font-bold"><span className="min-w-0 truncate">{destinationLabel(daily)}</span><span className="shrink-0 text-[16px] leading-none" aria-label={daily.country_code ? `${daily.country_code} flag` : "Global flag"}>{flagFor(daily.country_code)}</span></p>
-    <p className="truncate font-serif text-sm text-[#594b35]">{getPrimaryGenre(daily)} · {daily.name}</p>
+    <p className="mt-2 flex min-w-0 items-center gap-2 font-serif text-base font-bold"><span className="min-w-0 whitespace-normal break-words">{destinationLabel(daily)}</span><span className="shrink-0 text-[16px] leading-none" aria-label={daily.country_code ? `${daily.country_code} flag` : "Global flag"}>{flagFor(daily.country_code)}</span></p>
+    <p className="whitespace-normal break-words font-serif text-sm text-[#594b35] [overflow-wrap:anywhere]">{getPrimaryGenre(daily)} · {daily.name}</p>
     <DailyPassportInsight station={daily} stationCount={stationCount} />
     <button onClick={() => setCurrentStationAndDestination(daily)} className="mt-4 rounded-full bg-radio px-5 py-3 text-sm font-bold text-midnight"><Plane className="mr-2 inline size-4" />Open Passport Signal</button>
   </section>;
