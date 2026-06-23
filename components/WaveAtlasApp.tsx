@@ -1703,8 +1703,8 @@ function ActiveBeaconLayer({ map, station, selectionSource, onCameraMove }: { ma
   const ensureActiveBeaconSource = useCallback(() => {
     if (!isMapStyleReady(map)) return false;
     if (!safeHasSource(map, ACTIVE_BEACON_SOURCE_ID)) map.addSource(ACTIVE_BEACON_SOURCE_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-    if (!safeHasLayer(map, "waveatlas-active-beacon-halo")) map.addLayer({ id: "waveatlas-active-beacon-halo", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": ["get", "halo"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 10, 8, 22, 13, 34], "circle-blur": 0.65, "circle-opacity": 0.82 } });
-    if (!safeHasLayer(map, "waveatlas-active-beacon-core")) map.addLayer({ id: "waveatlas-active-beacon-core", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": ["get", "color"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 3.5, 8, 7, 13, 10], "circle-stroke-color": "rgba(255,255,255,0.92)", "circle-stroke-width": 1.4, "circle-opacity": 0.96 } });
+    if (!safeHasLayer(map, "waveatlas-active-beacon-halo")) map.addLayer({ id: "waveatlas-active-beacon-halo", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": "rgba(214,168,79,0.82)", "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 18, 8, 36, 13, 58], "circle-blur": 0.78, "circle-opacity": 0.72 } });
+    if (!safeHasLayer(map, "waveatlas-active-beacon-core")) map.addLayer({ id: "waveatlas-active-beacon-core", type: "circle", source: ACTIVE_BEACON_SOURCE_ID, paint: { "circle-color": ["get", "color"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 5, 8, 9, 13, 13], "circle-stroke-color": "rgba(255,255,255,0.96)", "circle-stroke-width": 2, "circle-opacity": 0.98 } });
     return true;
   }, [map]);
   const updateActiveBeaconOnMap = useCallback((nextStation: Station, source: StationSelectionSource) => {
@@ -1851,6 +1851,19 @@ function SignalConstellationLayer({ map, stations, currentStation }: { map: Map 
 type MapTeleportContext = { lat: number; lng: number; zoom: number; countryCode?: string; countryName?: string };
 type AtlasTransitionContext = MapTeleportContext & { stationId?: string; reason?: string };
 const MAP_TO_GLOBE_ZOOM_THRESHOLD = 3.0;
+const ATLAS_CONTEXTUAL_ZOOM = { mobile: { min: 4.2, max: 5.8, fallback: 5.2 }, desktop: { min: 4.6, max: 6.2, fallback: 5.4 } } as const;
+function clampAtlasContextZoom(zoom: number | undefined, mobile = false) {
+  const policy = mobile ? ATLAS_CONTEXTUAL_ZOOM.mobile : ATLAS_CONTEXTUAL_ZOOM.desktop;
+  const value = typeof zoom === "number" && Number.isFinite(zoom) ? zoom : policy.fallback;
+  return Math.min(policy.max, Math.max(policy.min, value));
+}
+function transitionContextForStation(station: Station, fallback?: MapTeleportContext | null, reason = "active station atlas handoff", mobile = false): AtlasTransitionContext | null {
+  const geo = resolveStationGeo(station);
+  const lat = geo.lat ?? fallback?.lat;
+  const lng = geo.lng ?? fallback?.lng;
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+  return { lat, lng, zoom: clampAtlasContextZoom(fallback?.zoom, mobile), stationId: station.station_uuid || station.id, reason };
+}
 function debugAtlasTransition(detail: { fromView: AtlasViewMode; toView: AtlasViewMode; activeStation?: string; stationId?: string; coordinates: { lat: number; lng: number }; zoomLevel: number; transitionReason: string; preservedContext: boolean; globeReadyState?: string }) {
   if (process.env.NODE_ENV !== "production") console.info("[WaveAtlas] atlas view transition", detail);
   logAtlasTransitionDiagnostics("view transition", detail);
@@ -1981,8 +1994,8 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     const m = new maplibregl.Map({
       container: container.current,
       style: basemapStyles[initialBasemap.current].style,
-      center: initialTransitionContext.current ? [initialTransitionContext.current.lng, initialTransitionContext.current.lat] : DEFAULT_MAP_VIEW[viewMode.current].center,
-      zoom: initialTransitionContext.current ? Math.max(DEFAULT_MAP_VIEW[viewMode.current].zoom, initialTransitionContext.current.zoom) : DEFAULT_MAP_VIEW[viewMode.current].zoom,
+      center: start.lat !== null && start.lng !== null ? [start.lng, start.lat] : initialTransitionContext.current ? [initialTransitionContext.current.lng, initialTransitionContext.current.lat] : DEFAULT_MAP_VIEW[viewMode.current].center,
+      zoom: clampAtlasContextZoom(initialTransitionContext.current?.zoom, viewMode.current === "mobile"),
       bearing: DEFAULT_MAP_VIEW[viewMode.current].bearing,
       pitch: DEFAULT_MAP_VIEW[viewMode.current].pitch,
       attributionControl: false,
@@ -2527,7 +2540,7 @@ function NowPlaying({
     else toggle();
   };
   return (
-    <aside className="glass rounded-[2rem] p-6">
+    <aside className="glass rounded-[2rem] border-white/20 bg-slate-950/92 p-6 shadow-[0_24px_90px_rgba(0,0,0,.58)] backdrop-blur-2xl">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-display text-[12px] font-semibold text-radio">
@@ -3047,7 +3060,7 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
-  return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/10 bg-slate-950/88 p-2.5 shadow-2xl backdrop-blur-xl">
+  return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/20 bg-slate-950/94 p-2.5 text-white shadow-[0_20px_70px_rgba(0,0,0,.55)] backdrop-blur-2xl">
     <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><p className="truncate font-display text-xs font-bold">{station.city || station.state || station.country} · {station.country}</p><p className="truncate text-[11px] text-ivory/60">{getPrimaryGenre(station)} · {station.name} · {status}</p></div><Volume2 className="size-4 text-ivory/60" /></div>
   </div>;
 }
@@ -3132,6 +3145,7 @@ function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, 
     });
   }, []);
   const atlasTransition = useAtlasTransitionController({ initialView: atlasView, activeStation: current, onViewChange: setAtlasView, onPersistView: persistAtlasView, onFallback: handleMobileGlobeFallback });
+  const activeTransitionContext = useMemo(() => transitionContextForStation(current, mapContext, "active station handoff", true) ?? transitionContext, [current, mapContext, transitionContext]);
   const mobileGlobeFallbackReason = atlasTransition.state.fallbackReason || "";
   const selectedView: AtlasViewMode = mobileGlobeFallbackReason ? "map" : atlasTransition.state.currentView;
   useEffect(() => {
@@ -3139,9 +3153,9 @@ function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, 
   }, [mobileGlobeFallbackReason, selectedView]);
   const chooseAtlasView = (view: AtlasViewMode) => {
     if (view === selectedView) return;
-    if (view === "map") atlasTransition.requestGlobeToMap("manual atlas view selection", transitionContext);
-    else if (mobileGlobeFallbackReason) atlasTransition.retryGlobe("manual atlas view selection with fallback recovery", transitionContext);
-    else atlasTransition.requestMapToGlobe("manual atlas view selection", transitionContext);
+    if (view === "map") { const context = transitionContextForStation(current, mapContext, "manual atlas view selection", true); setTransitionContext(context); atlasTransition.requestGlobeToMap("manual atlas view selection", context); }
+    else if (mobileGlobeFallbackReason) atlasTransition.retryGlobe("manual atlas view selection with fallback recovery", transitionContextForStation(current, mapContext, "manual atlas view selection with fallback recovery", true) ?? transitionContext);
+    else atlasTransition.requestMapToGlobe("manual atlas view selection", transitionContextForStation(current, mapContext, "manual atlas view selection", true) ?? transitionContext);
   };
   const enterMobileStreets = useCallback((context?: AtlasTransitionContext) => {
     atlasTransition.resetFallback();
@@ -3155,7 +3169,7 @@ function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, 
   }, [atlasTransition]);
   return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
-      <AtlasViewErrorBoundary key={`mobile-map-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={transitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
+      <AtlasViewErrorBoundary key={`mobile-map-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={activeTransitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
     ) : (
       <AtlasViewErrorBoundary key={`mobile-globe-${current.station_uuid || current.id}-${atlasTransition.state.transitionVersion}`} name="mobile globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => atlasTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stations} selectionVersion={selectionVersion} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={(reason) => atlasTransition.failTransition(reason)} onStreetZoomRequest={enterMobileStreets} /></AtlasViewErrorBoundary>
     )}
@@ -3670,6 +3684,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     dispatchAtlasToast({ title: "Globe view is unavailable on this device right now.", subtitle: reason, kind: "alert", id: `desktop-globe-fallback-${Date.now()}` });
   }, []);
   const desktopTransition = useAtlasTransitionController({ initialView: desktopAtlasView, activeStation: current, onViewChange: setDesktopAtlasView, onFallback: handleDesktopGlobeFallback });
+  const activeDesktopTransitionContext = useMemo(() => transitionContextForStation(current, desktopMapContext, "active station handoff") ?? desktopTransitionContext, [current, desktopMapContext, desktopTransitionContext]);
   const globeFallbackReason = desktopTransition.state.fallbackReason || "";
   const enterDesktopStreets = useCallback((context?: AtlasTransitionContext) => {
     desktopTransition.resetFallback();
@@ -3728,7 +3743,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         </div>
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) setDesktopDrawerCollapsed(true); }}>
           {globeFallbackReason || desktopAtlasView === "map" ? (
-            <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={desktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
+            <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={activeDesktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
           ) : (
             <AtlasViewErrorBoundary key={`desktop-globe-${current.station_uuid || current.id}-${desktopTransition.state.transitionVersion}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
           )}
@@ -3769,7 +3784,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         </div>
         <div className={`${desktopDrawerOpen ? "block" : "hidden"} atlas-drawer-scroll min-h-0 flex-1 overflow-y-auto pr-1`}>
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
-          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={(view) => { if (view === desktopAtlasView && !globeFallbackReason) return; if (view === "map") desktopTransition.requestGlobeToMap("manual atlas view selection", desktopTransitionContext); else if (globeFallbackReason) desktopTransition.retryGlobe("manual atlas view selection with fallback recovery", desktopTransitionContext); else desktopTransition.requestMapToGlobe("manual atlas view selection", desktopTransitionContext); }} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} streetLinks={stationStreetViewLinks(current)} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
+          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={(view) => { if (view === desktopAtlasView && !globeFallbackReason) return; if (view === "map") desktopTransition.requestGlobeToMap("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); else if (globeFallbackReason) desktopTransition.retryGlobe("manual atlas view selection with fallback recovery", transitionContextForStation(current, desktopMapContext, "manual atlas view selection with fallback recovery") ?? desktopTransitionContext); else desktopTransition.requestMapToGlobe("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); }} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} streetLinks={stationStreetViewLinks(current)} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { setCurrentStationAndDestination(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} compact /> : null}
