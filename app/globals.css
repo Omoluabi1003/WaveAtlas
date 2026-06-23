@@ -13,7 +13,7 @@
 @media (max-width:767px){.waveatlas-globe-shell[data-globe-travel-active="true"]{contain:layout paint size;}.waveatlas-globe-shell[data-globe-travel-active="true"] canvas{contain:strict;}[data-waveatlas-player],[role="status"],[role="alert"]{will-change:transform,opacity;}.waveatlas-globe-shell[data-globe-travel-active="true"]~[data-waveatlas-player]{min-height:58px;}}
 
 /* Active station beacon: shared live radio-signal identity for map and globe. */
-.station-pulse-marker{width:5.8rem;height:5.8rem;contain:layout paint;overflow:visible;pointer-events:none;filter:drop-shadow(0 16px 22px rgba(0,0,0,.44)) drop-shadow(0 0 30px rgba(255,59,48,.32)) drop-shadow(0 0 22px rgba(214,168,79,.22));will-change:transform;transform:translate3d(0,0,0);}
+.station-pulse-marker{width:5.8rem;height:5.8rem;contain:layout;overflow:visible;pointer-events:none;filter:drop-shadow(0 16px 22px rgba(0,0,0,.44)) drop-shadow(0 0 30px rgba(255,59,48,.32)) drop-shadow(0 0 22px rgba(214,168,79,.22));will-change:transform;transform:translate3d(0,0,0);}
 
 .station-pulse-marker .station-pulse-ring,.station-pulse-marker .station-beacon-core,.station-pulse-marker .station-pulse-dot,.station-pulse-marker .station-beacon-glow,.station-pulse-marker .station-signal-accent{pointer-events:none;position:absolute;inset:50% auto auto 50%;transform:translate3d(-50%,-50%,0);border-radius:9999px;}
 .station-pulse-marker .station-beacon-glow{z-index:0;width:3.85rem;height:3.85rem;background:radial-gradient(circle,rgba(255,255,255,.18) 0,rgba(255,59,48,.30) 20%,rgba(214,168,79,.16) 48%,rgba(0,214,143,.08) 62%,transparent 76%);box-shadow:0 0 30px rgba(255,59,48,.40),0 0 58px rgba(214,168,79,.20),0 0 76px rgba(0,214,143,.12);animation:station-signal-glow 2.2s ease-in-out infinite;will-change:transform,opacity;}
@@ -25,7 +25,10 @@
 .station-pulse-marker .station-pulse-dot{z-index:4;width:.42rem;height:.42rem;border:1px solid rgba(255,255,255,.96);background:#fff;box-shadow:0 0 12px rgba(255,255,255,.72),0 0 20px rgba(214,168,79,.38);}
 
 .station-pulse-marker.status-buffering .station-pulse-ring{animation-duration:1.28s;border-color:rgba(255,255,255,.78);}
-.station-pulse-marker.status-paused .station-beacon-glow,.station-pulse-marker.status-idle .station-beacon-glow,.station-pulse-marker.status-paused .station-pulse-ring,.station-pulse-marker.status-idle .station-pulse-ring,.station-pulse-marker.status-paused .station-beacon-core,.station-pulse-marker.status-idle .station-beacon-core{animation-play-state:paused;}
+.station-pulse-marker.status-paused,.station-pulse-marker.status-idle{opacity:.72;filter:drop-shadow(0 12px 18px rgba(0,0,0,.38)) drop-shadow(0 0 18px rgba(255,59,48,.18)) drop-shadow(0 0 16px rgba(214,168,79,.14));}
+.station-pulse-marker.status-paused .station-pulse-ring,.station-pulse-marker.status-idle .station-pulse-ring{animation-duration:4.8s;opacity:.46;border-color:rgba(255,255,255,.38);}
+.station-pulse-marker.status-paused .station-beacon-glow,.station-pulse-marker.status-idle .station-beacon-glow{animation-duration:4.2s;opacity:.58;}
+.station-pulse-marker.status-paused .station-beacon-core,.station-pulse-marker.status-idle .station-beacon-core{animation-duration:2.8s;opacity:.82;}
 @keyframes station-radio-wave{0%{opacity:.78;transform:translate3d(-50%,-50%,0) scale(.36);}58%{opacity:.28;}100%{opacity:0;transform:translate3d(-50%,-50%,0) scale(2.25);}}
 @keyframes station-signal-glow{0%,100%{opacity:.70;transform:translate3d(-50%,-50%,0) scale(.92);}50%{opacity:1;transform:translate3d(-50%,-50%,0) scale(1.1);}}
 @keyframes active-beacon-core{0%,100%{opacity:.94;transform:translate3d(-50%,-50%,0) scale(.94);}50%{opacity:1;transform:translate3d(-50%,-50%,0) scale(1.1);}}
