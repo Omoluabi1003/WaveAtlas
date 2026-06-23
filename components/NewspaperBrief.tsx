@@ -5,7 +5,11 @@ import { Newspaper, Radio, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NewspaperHeadline } from "@/components/NewspaperHeadline";
 import type { Headline } from "@/lib/news-agent";
-import type { Station } from "@/lib/stations";
+import { stationContinent } from "@/lib/discovery/station-picker";
+import { stationGenre } from "@/lib/discovery/history";
+import { localTimeForStation } from "@/lib/smart-time-copy";
+import { flagFor, type Station } from "@/lib/stations";
+import type { WorldContext } from "@/lib/world-engine/types";
 
 const CLIENT_CACHE_KEY = "waveatlas_daily_cache";
 const CLIENT_CACHE_TTL_MS = 900_000;
@@ -43,7 +47,89 @@ function writeCache(key: string, headlines: Headline[]) {
   }
 }
 
-export function NewspaperBrief({ station, open, onClose }: { station: Station; open: boolean; onClose: () => void }) {
+function compactLanguageLabel(language?: string) {
+  const primary = language?.split(/[;,/]/)[0]?.trim();
+  if (!primary) return "Language TBD";
+  return primary.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function passportPlace(station: Station) {
+  return [station.city || station.state, station.country || station.country_code].filter(Boolean).join(", ") || station.name || "Global signal";
+}
+
+function buildPassportNote(station: Station, region: string, stationCount?: number, context?: WorldContext | null) {
+  if (context?.radioDNA.culturalSummary) return context.radioDNA.culturalSummary;
+  const place = station.city || station.state || station.country || "This destination";
+  const count = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} indexed ${station.country_code || "local"} signals` : `a ${region} listening post`;
+  return `${place} reaches WaveAtlas through ${count}, led by ${stationGenre(station)} on ${station.name}.`;
+}
+
+function usePassportWorldContext(station: Station, enabled: boolean) {
+  const [worldContext, setWorldContext] = useState<WorldContext | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "empty">("loading");
+
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams();
+    params.set("stationName", station.name);
+    if (station.city) params.set("city", station.city);
+    if (station.state) params.set("state", station.state);
+    if (station.country) params.set("country", station.country);
+    if (station.country_code) params.set("countryCode", station.country_code);
+    if (station.language) params.set("language", station.language);
+    if (typeof station.latitude === "number") params.set("lat", String(station.latitude));
+    if (typeof station.longitude === "number") params.set("lng", String(station.longitude));
+    fetch(`/api/world-context?${params.toString()}`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: WorldContext | null) => {
+        setWorldContext(payload?.radioDNA ? payload : null);
+        setStatus(payload?.radioDNA ? "ready" : "empty");
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setWorldContext(null);
+        setStatus("empty");
+      });
+    return () => controller.abort();
+  }, [enabled, station.city, station.country, station.country_code, station.language, station.latitude, station.longitude, station.name, station.state]);
+
+  return { worldContext, status };
+}
+
+function DailyPassportStrip({ station, stations = [], enabled }: { station: Station; stations?: Station[]; enabled: boolean }) {
+  const { worldContext, status } = usePassportWorldContext(station, enabled);
+  const stationCount = useMemo(() => station.country_code ? stations.filter((item) => item.country_code === station.country_code).length : undefined, [station.country_code, stations]);
+  const region = worldContext?.radioDNA.region || stationContinent(station);
+  const localTime = worldContext?.radioDNA.localTime || localTimeForStation(station) || "Local time TBD";
+  const language = worldContext?.radioDNA.languages?.[0] || compactLanguageLabel(station.language);
+  const weather = worldContext?.climate && typeof worldContext.climate.temperatureC === "number" ? `${Math.round(worldContext.climate.temperatureC)}°C now` : status === "loading" ? "Weather loading" : "Weather TBD";
+  const stationsLabel = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} stations` : "Station count TBD";
+  const note = buildPassportNote(station, region, stationCount, worldContext);
+  const stats = [["Time", localTime], ["Language", language], ["Region", region], ["Weather", weather], ["Signals", stationsLabel]] as const;
+
+  return <section className="my-3 border-y border-slate-900/25 py-2 font-serif text-[#241a10]" aria-label="Daily Passport destination intelligence">
+    <div className="grid max-w-full grid-cols-[auto_minmax(0,1fr)] gap-2 sm:gap-3">
+      <div className="row-span-2 flex flex-col items-center justify-center border-r border-slate-900/20 pr-2 sm:pr-3">
+        <span className="text-3xl leading-none sm:text-4xl" aria-label={station.country_code ? `${station.country_code} flag` : "Global flag"}>{flagFor(station.country_code)}</span>
+        <span className="mt-1 text-[8px] font-black uppercase tracking-[0.18em] text-[#6f5a3f]">Passport</span>
+      </div>
+      <div className="min-w-0">
+        <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#6f5a3f]">Daily Passport™ destination intelligence</p>
+        <h3 className="truncate text-lg font-black leading-tight sm:text-xl">{passportPlace(station)}</h3>
+      </div>
+      <p className="min-w-0 text-[11px] font-semibold leading-4 text-[#4A4033] [overflow-wrap:anywhere] sm:text-xs">{note}</p>
+    </div>
+    <div className="mt-2 grid grid-cols-2 gap-px overflow-hidden border border-slate-900/20 bg-slate-900/20 min-[390px]:grid-cols-3 sm:grid-cols-5">
+      {stats.map(([label, value]) => <div key={label} className="min-w-0 bg-[#F4EFE2]/95 px-2 py-1.5">
+        <p className="truncate text-[8px] font-black uppercase tracking-[0.16em] text-[#6f5a3f]">{label}</p>
+        <p className="mt-0.5 truncate text-[12px] font-extrabold leading-4 text-[#151515]">{value}</p>
+      </div>)}
+    </div>
+  </section>;
+}
+
+export function NewspaperBrief({ station, stations = [], open, onClose }: { station: Station; stations?: Station[]; open: boolean; onClose: () => void }) {
   const [headlines, setHeadlines] = useState<Headline[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -54,8 +140,8 @@ export function NewspaperBrief({ station, open, onClose }: { station: Station; o
   const place = destination(station);
   const editionTitle = `${place.city.toUpperCase()} DAILY`;
   const localDate = useMemo(() => new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(editionClock), [editionClock]);
-  const localTime = useMemo(() => typeof station.longitude === "number" ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(editionClock.getTime() + Math.round(station.longitude / 15) * 3600_000)) : "Local time unavailable", [editionClock, station.longitude]);
-  const genre = station.tags?.[0] || station.language || "Live radio";
+  const localTime = useMemo(() => localTimeForStation(station, editionClock) || (typeof station.longitude === "number" ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(editionClock.getTime() + Math.round(station.longitude / 15) * 3600_000)) : "Local time unavailable"), [editionClock, station]);
+  const genre = stationGenre(station);
 
   const visibleHeadlines = useMemo(() => {
     if (tab === "Front Page") return headlines;
@@ -118,6 +204,8 @@ export function NewspaperBrief({ station, open, onClose }: { station: Station; o
               <p className="mt-2 max-w-full font-serif text-sm italic text-[#4A4033] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word]">{place.city}, {place.country} • {localDate}</p>
               <p className="mt-1 font-serif text-xs font-bold uppercase tracking-[0.18em] text-[#4A4033]">Live stories from this destination</p>
             </header>
+
+            <DailyPassportStrip station={station} stations={stations} enabled={open} />
 
             <nav className="my-4 flex max-w-full flex-wrap gap-2 overflow-x-hidden border-y border-slate-900/25 py-2">
               {tabs.map((item) => <button key={item} onClick={() => setTab(item)} className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] ${tab === item ? "bg-slate-950 text-white" : "text-[#4A4033]"}`}>{item}</button>)}
