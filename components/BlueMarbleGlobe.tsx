@@ -32,6 +32,8 @@ type NaturalEarthFeature = {
 };
 type NaturalEarthCollection = { type: "FeatureCollection"; features: NaturalEarthFeature[] };
 
+type SpaceStar = { x: number; y: number; radius: number; alpha: number; hue: number; phase: number; twinkle: number };
+
 type Props = {
   station: Station;
   stations?: Station[];
@@ -64,8 +66,80 @@ const IOS_FRAME_DELTA_CLAMP_MS = 32;
 const MINIMUM_FOCUS_DURATION_MS = 2400;
 const LONG_DISTANCE_FOCUS_DURATION_MS = 4200;
 const REDUCED_MOTION_FOCUS_DURATION_MS = 280;
+
+const SPACE_STAR_SEED = 92821;
+const SPACE_STAR_COUNT_DESKTOP = 90;
+const SPACE_STAR_COUNT_MOBILE = 35;
+const SPACE_STAR_COUNT_LOW_POWER = 20;
+const SPACE_STARS = buildSpaceStars(SPACE_STAR_COUNT_DESKTOP, SPACE_STAR_SEED);
 let landPromise: Promise<LandShape[]> | null = null;
 let landCache: LandShape[] | null = null;
+
+
+function seededUnit(seed: number) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function buildSpaceStars(count: number, seed: number): SpaceStar[] {
+  return Array.from({ length: count }, (_, index) => {
+    const starSeed = seed + index * 17;
+    return {
+      x: seededUnit(starSeed + 1),
+      y: seededUnit(starSeed + 2),
+      radius: 0.45 + seededUnit(starSeed + 3) * 1.05,
+      alpha: 0.12 + seededUnit(starSeed + 4) * 0.28,
+      hue: seededUnit(starSeed + 5),
+      phase: seededUnit(starSeed + 6) * TAU,
+      twinkle: 0.015 + seededUnit(starSeed + 7) * 0.045,
+    };
+  });
+}
+
+function drawSpaceBackdrop(ctx: CanvasRenderingContext2D, options: { width: number; height: number; cx: number; cy: number; radius: number; now: number; mobile: boolean; lowPower: boolean; reducedMotion: boolean; basemap: GlobeBasemapKey }) {
+  const { width, height, cx, cy, radius, now, mobile, lowPower, reducedMotion, basemap } = options;
+  const starCount = lowPower ? SPACE_STAR_COUNT_LOW_POWER : mobile ? SPACE_STAR_COUNT_MOBILE : SPACE_STAR_COUNT_DESKTOP;
+  ctx.save();
+
+  const ambience = ctx.createRadialGradient(cx - radius * 0.32, cy - radius * 0.38, radius * 0.15, cx, cy, radius * 1.95);
+  ambience.addColorStop(0, basemap === "night" ? "rgba(59,130,246,0.10)" : basemap === "signal" ? "rgba(0,214,143,0.08)" : "rgba(56,189,248,0.075)");
+  ambience.addColorStop(0.5, "rgba(15,23,42,0.055)");
+  ambience.addColorStop(1, "rgba(2,6,23,0)");
+  ctx.fillStyle = ambience;
+  ctx.fillRect(0, 0, width, height);
+
+  for (let index = 0; index < starCount; index += 1) {
+    const star = SPACE_STARS[index];
+    const x = star.x * width;
+    const y = star.y * height;
+    const distanceFromGlobe = Math.hypot(x - cx, y - cy);
+    if (distanceFromGlobe < radius * 1.04) continue;
+    const twinkle = reducedMotion ? 0 : Math.sin(now * 0.00042 + star.phase) * star.twinkle;
+    const alpha = Math.max(0.04, star.alpha + twinkle) * (distanceFromGlobe < radius * 1.22 ? 0.58 : 1);
+    const cool = star.hue > 0.78;
+    ctx.fillStyle = cool ? `rgba(191,219,254,${alpha})` : `rgba(255,255,255,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(x, y, star.radius * (mobile || lowPower ? 0.82 : 1), 0, TAU);
+    ctx.fill();
+  }
+
+  if (!lowPower) {
+    ctx.lineCap = "round";
+    for (const [index, scale] of [1.18, 1.34].entries()) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(index === 0 ? -0.22 : 0.18);
+      ctx.strokeStyle = index === 0 ? "rgba(125,211,252,0.075)" : "rgba(0,214,143,0.055)";
+      ctx.lineWidth = mobile ? 0.45 : 0.7;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, radius * scale, radius * (scale * 0.34), 0, Math.PI * 0.08, Math.PI * 0.84);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  ctx.restore();
+}
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -579,6 +653,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       const mobileIdealY = visualViewportHeight * 0.42;
       const targetScreenY = mobile ? Math.max(usableBounds.top + 36, Math.min(usableBounds.bottom - 36, mobileIdealY)) : cy;
 
+      drawSpaceBackdrop(ctx, { width: w, height: h, cx, cy, radius: r, now, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, basemap: runtime.basemap });
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
       bg.addColorStop(0, runtime.basemap === "night" ? "rgba(125,92,255,0.16)" : runtime.basemap === "signal" ? "rgba(0,214,143,0.12)" : "rgba(0,214,143,0.18)"); bg.addColorStop(0.64, "rgba(3,12,27,0.10)"); bg.addColorStop(1, "rgba(3,8,20,0)");
       ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
