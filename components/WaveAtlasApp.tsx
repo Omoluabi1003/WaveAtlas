@@ -29,6 +29,7 @@ import {
   Sparkles,
   Volume2,
   X,
+  ChevronRight,
 } from "lucide-react";
 import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
@@ -3386,6 +3387,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [desktopMode, setDesktopMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "add-signal" ? "Add Signal" : "Atlas");
   const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(true);
+  const [desktopRailVisible, setDesktopRailVisible] = useState(true);
   const [briefOpen, setBriefOpen] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
@@ -3583,6 +3585,22 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let hideTimer: number | undefined;
+    const revealRail = () => {
+      setDesktopRailVisible(true);
+      if (hideTimer) window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => setDesktopRailVisible(false), 8000);
+    };
+    revealRail();
+    window.addEventListener("mousemove", revealRail, { passive: true });
+    return () => {
+      window.removeEventListener("mousemove", revealRail);
+      if (hideTimer) window.clearTimeout(hideTimer);
+    };
+  }, []);
+
   const desktopDrawerActive = query.trim().length > 0 || Boolean(selectedCountry) || desktopMode !== "Atlas";
   const desktopDrawerOpen = desktopDrawerActive && !desktopDrawerCollapsed;
   const closeDesktopDrawer = useCallback(() => {
@@ -3615,9 +3633,6 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
           WaveAtlas™
         </b>
-        <button type="button" onClick={() => { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode("Settings"); }} className="pointer-events-auto mr-24 grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/40 text-ivory shadow-2xl backdrop-blur-2xl transition hover:border-radio/30 hover:text-radio" aria-label="Open settings">
-          <Settings className="size-4" />
-        </button>
       </div>
       <div className="absolute inset-0 z-0">
         <div className="hidden"><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div>
@@ -3648,20 +3663,25 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           </div>
         </div>
       </section>
-      {!desktopDrawerActive ? <nav className="pointer-events-auto fixed left-6 top-28 z-30 flex flex-col gap-2 rounded-full border border-white/10 bg-slate-950/35 p-2 text-ivory shadow-2xl backdrop-blur-2xl xl:left-8" aria-label="Atlas quick actions">
-        {([
-          [Globe2, "Explore"],
-          [Heart, "Favorites"],
-          [Signal, "Add Signal"],
-          [Newspaper, "Brief"],
-          [Settings, "Settings"],
-        ] as const).map(([Icon, label]) => {
-          const I = Icon as typeof Settings;
-          return <button key={label} type="button" onClick={() => { setDesktopDrawerCollapsed(false); setBriefOpen(label === "Brief"); setDesktopMode(label); }} className="grid size-11 place-items-center rounded-full border border-white/[0.08] bg-white/[0.04] text-ivory/72 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={`Open ${label}`}>
-            <I className="size-4" />
-          </button>;
-        })}
-      </nav> : null}
+      {!desktopDrawerActive ? <>
+        <nav className={`${desktopRailVisible ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-25"} pointer-events-auto fixed left-6 top-28 z-30 hidden flex-col gap-2 rounded-full border border-white/10 bg-slate-950/25 p-2 text-ivory shadow-2xl backdrop-blur-2xl transition duration-500 [backdrop-filter:blur(18px)_saturate(1.05)] min-[1440px]:flex xl:left-8`} aria-label="Atlas utility rail">
+          {([
+            [Heart, "Favorites"],
+            [Globe2, "Explore"],
+            [Signal, "Add Signal"],
+            [Newspaper, "Brief"],
+            [Settings, "Settings"],
+          ] as const).map(([Icon, label]) => {
+            const I = Icon as typeof Settings;
+            return <button key={label} type="button" onClick={() => { setDesktopRailVisible(true); setDesktopDrawerCollapsed(false); setBriefOpen(label === "Brief"); setDesktopMode(label); }} className="grid size-11 place-items-center rounded-full border border-white/[0.08] bg-white/[0.04] text-ivory/72 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={`Open ${label}`}>
+              <I className="size-4" />
+            </button>;
+          })}
+        </nav>
+        <button type="button" onClick={() => { setDesktopRailVisible(true); setDesktopDrawerCollapsed(false); }} className="pointer-events-auto fixed left-4 top-1/2 z-30 grid size-10 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-slate-950/25 text-ivory/70 shadow-2xl backdrop-blur-2xl transition hover:border-radio/35 hover:text-radio min-[1440px]:hidden" aria-label="Expand atlas utility rail">
+          <ChevronRight className="size-4" />
+        </button>
+      </> : null}
       {desktopDrawerActive ? <aside className={`${desktopDrawerOpen ? "translate-x-0 opacity-100" : "-translate-x-[calc(100%-3.5rem)] opacity-95"} pointer-events-auto fixed bottom-28 left-6 top-32 z-40 flex w-[min(400px,calc(100vw-3rem))] flex-col rounded-[2rem] border border-white/10 bg-[rgba(8,17,29,0.62)] p-4 text-ivory shadow-[0_16px_48px_rgba(0,0,0,0.32)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(1.08)] transition duration-300 xl:left-8`} aria-label="Search and discovery drawer">
         <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div className="min-w-0">
@@ -3682,6 +3702,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={(view) => { if (view === desktopAtlasView && !globeFallbackReason) return; if (view === "map") desktopTransition.requestGlobeToMap("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); else if (globeFallbackReason) desktopTransition.retryGlobe("manual atlas view selection with fallback recovery", transitionContextForStation(current, desktopMapContext, "manual atlas view selection with fallback recovery") ?? desktopTransitionContext); else desktopTransition.requestMapToGlobe("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); }} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} streetLinks={stationStreetViewLinks(current)} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div> : null}
+          {desktopMode === "History" ? <div className="mt-5"><RecentlyVisitedPanel /></div> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station) => { setCurrentStationAndDestination(station); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} compact /> : null}
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">
@@ -3732,8 +3753,8 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           </div>
           <Volume2 className="ml-auto size-4 shrink-0 text-ivory/78 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" />
         </div>
-        <nav className="pointer-events-auto grid grid-cols-7 gap-1 rounded-full border border-white/20 bg-slate-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]">
-          {([[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (value === "Teleport") { playPremiumTeleportClick(); if (desktopTeleporting) return; setDesktopTeleporting(true); setDesktopDrawerCollapsed(false); setWandererActive(false); setDesktopMode(value); const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setDesktopTeleporting(false)); } else if (value === "Brief") { setDesktopDrawerCollapsed(false); setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopDrawerCollapsed(false); setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</motion.button></div>; })}
+        <nav className="pointer-events-auto grid grid-cols-3 gap-1 rounded-full border border-white/20 bg-slate-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" aria-label="Primary desktop actions">
+          {([[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (value === "Teleport") { playPremiumTeleportClick(); if (desktopTeleporting) return; setDesktopTeleporting(true); setDesktopDrawerCollapsed(false); setWandererActive(false); setDesktopMode(value); const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setDesktopTeleporting(false)); } else if (value === "Brief") { setDesktopDrawerCollapsed(false); setDesktopMode(value); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setDesktopDrawerCollapsed(false); setDesktopMode("Wanderer"); setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${(desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</motion.button></div>; })}
         </nav>
       </div>
     </main>
