@@ -3375,18 +3375,47 @@ function WorldPassportPanel() {
   </section>;
 }
 
+function compactLanguageLabel(language?: string) {
+  const primary = language?.split(/[;,/]/)[0]?.trim();
+  if (!primary) return "Language TBD";
+  return primary.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function DailyLocationInsight({ station, stationCount }: { station: Station; stationCount?: number }) {
+  const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
+  const place = [station.city || station.state, station.country || countryNameForCode(station.country_code)].filter(Boolean).join(", ") || destinationLabel(station);
+  const localTime = visibleWorldContext?.radioDNA.localTime || localTimeForStation(station) || "Local time TBD";
+  const language = visibleWorldContext?.radioDNA.languages?.[0] || compactLanguageLabel(station.language);
+  const region = visibleWorldContext?.radioDNA.region || stationContinent(station);
+  const weather = visibleWorldContext?.climate && typeof visibleWorldContext.climate.temperatureC === "number" ? `${Math.round(visibleWorldContext.climate.temperatureC)}°C now` : visibleWorldContextStatus === "loading" ? "Weather loading" : "Weather TBD";
+  const countLabel = typeof stationCount === "number" && stationCount > 0 ? `${stationCount.toLocaleString()} stations` : "Station count TBD";
+  const contextNote = visibleWorldContext?.radioDNA.culturalSummary || `${place} is today’s compact listening window into ${region}.`;
+
+  return <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl">
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="shrink-0 text-[16px] leading-none" aria-hidden="true">{flagFor(station.country_code)}</span>
+      <p className="min-w-0 truncate text-sm font-semibold text-ivory">{place}</p>
+    </div>
+    <p className="mt-2 truncate text-[11px] font-medium text-ivory/70">{localTime} · {language} · {region}</p>
+    <p className="mt-1 truncate text-[11px] text-ivory/55">{weather} · {countLabel}</p>
+    <p className="mt-2 line-clamp-2 text-xs leading-5 text-ivory/70">{contextNote}</p>
+  </div>;
+}
+
 function DailyFlightPanel({ stations }: { stations: Station[] }) {
   const daily = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const seed = [...today].reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return stations[seed % Math.max(1, stations.length)];
   }, [stations]);
+  const countryStationCount = useMemo(() => daily?.country_code ? stations.filter((station) => station.country_code === daily.country_code).length : undefined, [daily, stations]);
   if (!daily) return null;
   return <section className="rounded-[2rem] border border-gold/20 bg-gold/10 p-5">
     <p className="font-display text-xs font-semibold text-gold">Daily Flight™</p>
     <h3 className="mt-2 font-display text-[28px] font-bold leading-tight">Today’s Destination</h3>
-    <p className="mt-2 text-lg text-ivory">{destinationLabel(daily)} {flagFor(daily.country_code)}</p>
-    <p className="text-sm text-ivory/60">{getPrimaryGenre(daily)}</p>
+    <p className="mt-2 flex min-w-0 items-center gap-2 text-lg text-ivory"><span className="min-w-0 truncate">{destinationLabel(daily)}</span><span className="shrink-0 text-[16px] leading-none" aria-label={daily.country_code ? `${daily.country_code} flag` : "Global flag"}>{flagFor(daily.country_code)}</span></p>
+    <p className="truncate text-sm text-ivory/60">{getPrimaryGenre(daily)} · {daily.name}</p>
+    <DailyLocationInsight station={daily} stationCount={countryStationCount} />
     <button onClick={() => setCurrentStationAndDestination(daily)} className="mt-4 rounded-full bg-radio px-5 py-3 text-sm font-medium text-midnight"><Plane className="mr-2 inline size-4" />Board Flight</button>
   </section>;
 }
