@@ -19,6 +19,9 @@ function createBeaconElement(tone: string, status: SignalBeaconStatus) {
   const element = document.createElement("div");
   element.style.transform = "translate3d(0,0,0)";
   element.style.willChange = "transform";
+  element.style.isolation = "isolate";
+  element.style.zIndex = "10";
+  element.setAttribute("aria-hidden", "true");
   element.innerHTML = signalBeaconHtml();
   element.dataset.waveatlasBeacon = "active";
   applyBeaconElementState(element, tone, status);
