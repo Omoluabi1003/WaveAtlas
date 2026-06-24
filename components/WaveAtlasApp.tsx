@@ -23,7 +23,6 @@ import {
   Link,
   Signal,
   Trophy,
-  Layers,
   Settings,
   Newspaper,
   Sparkles,
@@ -1510,87 +1509,6 @@ function debugAtlasDecision(details: Record<string, unknown>) {
   if (process.env.NODE_ENV !== "development" || typeof window === "undefined") return;
   console.info("[WaveAtlas atlas-view]", { viewport: `${window.innerWidth}x${window.innerHeight}`, userAgent: navigator.userAgent, ...details });
 }
-function BasemapControl({ value, onChange, mobile = false }: { value: BasemapKey; onChange: (value: BasemapKey) => void; mobile?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-  return (
-    <div ref={rootRef} className={`${mobile ? "right-4 top-[148px]" : "right-6 top-24 xl:right-8"} pointer-events-auto absolute z-50`}>
-      <button
-        type="button"
-        aria-label="Change map style"
-        aria-expanded={open}
-        onClick={() => setOpen((show) => !show)}
-        className="grid size-11 place-items-center rounded-full border border-white/15 bg-slate-950/55 text-ivory shadow-2xl backdrop-blur-xl transition hover:border-gold/40 hover:bg-slate-900/75 hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-      >
-        <Layers className="size-5" />
-      </button>
-      <AnimatePresence>
-        {open ? (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.96 }}
-            className="absolute right-0 mt-2 w-[min(280px,calc(100vw-2rem))] rounded-3xl border border-white/12 bg-slate-950/82 p-2 shadow-2xl backdrop-blur-2xl"
-            role="menu"
-            aria-label="Map style options"
-          >
-            <p className="px-2 pb-2 pt-1 text-[10px] font-black uppercase tracking-[0.2em] text-gold/80">Map Style</p>
-            <div className="grid grid-cols-2 gap-1">
-              {(Object.keys(basemapStyles) as BasemapKey[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={value === key}
-                  aria-label={`Switch basemap to ${basemapStyles[key].name}`}
-                  onClick={() => { onChange(key); setOpen(false); }}
-                  className={`rounded-2xl px-3 py-2 text-left text-[11px] font-semibold transition ${value === key ? "bg-gold text-midnight shadow-lg" : "text-ivory/78 hover:bg-white/10 hover:text-white"}`}
-                  title={basemapStyles[key].description}
-                >
-                  {basemapStyles[key].label}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
-  );
-}
-function GlobeBasemapControl({ value, onChange, mobile = false }: { value: GlobeBasemapKey; onChange: (value: GlobeBasemapKey) => void; mobile?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => { if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false); };
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
-    document.addEventListener("pointerdown", onPointerDown); document.addEventListener("keydown", onKeyDown);
-    return () => { document.removeEventListener("pointerdown", onPointerDown); document.removeEventListener("keydown", onKeyDown); };
-  }, [open]);
-  const choose = (key: GlobeBasemapKey) => { onChange(key); try { window.localStorage.setItem(GLOBE_BASEMAP_STORAGE_KEY, key); } catch { /* Non-critical preference. */ } setOpen(false); };
-  return <div ref={rootRef} className={`${mobile ? "left-4 top-[calc(env(safe-area-inset-top)+136px)]" : "right-6 top-24 xl:right-8"} pointer-events-auto absolute z-50`}>
-    <button type="button" aria-label="Change globe style" aria-expanded={open} onClick={() => setOpen((show) => !show)} className="grid size-11 place-items-center rounded-full border border-white/15 bg-slate-950/55 text-ivory shadow-2xl backdrop-blur-xl transition hover:border-radio/40 hover:bg-slate-900/75 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"><Globe2 className="size-5" /></button>
-    <AnimatePresence>{open ? <motion.div initial={{ opacity: 0, y: -8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.96 }} className="absolute left-0 mt-2 w-[min(300px,calc(100vw-2rem))] rounded-3xl border border-white/12 bg-slate-950/82 p-2 shadow-2xl backdrop-blur-2xl md:left-auto md:right-0" role="menu" aria-label="Globe style options">
-      <p className="px-2 pb-2 pt-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Globe Style</p>
-      <div className="grid gap-1">{(Object.keys(globeBasemapStyles) as GlobeBasemapKey[]).map((key) => <button key={key} type="button" role="menuitemradio" aria-checked={value === key} aria-label={`Switch globe basemap to ${globeBasemapStyles[key].name}`} onClick={() => choose(key)} className={`rounded-2xl px-3 py-2 text-left text-[11px] font-semibold transition ${value === key ? "bg-radio text-midnight shadow-lg" : "text-ivory/78 hover:bg-white/10 hover:text-white"}`} title={globeBasemapStyles[key].description}>{globeBasemapStyles[key].label}</button>)}</div>
-    </motion.div> : null}</AnimatePresence>
-  </div>;
-}
 function MapStyleController({ map, basemap, onResize }: { map: Map | null; basemap: BasemapKey; onResize?: () => void }) { useEffect(() => { if (!map) return; map.setStyle(basemapStyles[basemap].style); try { window.localStorage.setItem(BASEMAP_STORAGE_KEY, basemap); } catch { /* Basemap preference is non-critical. */ } const resize = () => requestAnimationFrame(() => { map.resize(); onResize?.(); }); map.once("styledata", resize); resize(); return () => { map.off("styledata", resize); }; }, [map, basemap, onResize]); return null; }
 
 
@@ -1761,41 +1679,6 @@ function transitionContextForStation(station: Station, fallback?: MapTeleportCon
 function debugAtlasTransition(detail: { fromView: AtlasViewMode; toView: AtlasViewMode; activeStation?: string; stationId?: string; coordinates: { lat: number; lng: number }; zoomLevel: number; transitionReason: string; preservedContext: boolean; globeReadyState?: string }) {
   if (process.env.NODE_ENV !== "production") console.info("[WaveAtlas] atlas view transition", detail);
   logAtlasTransitionDiagnostics("view transition", detail);
-}
-
-function stationStreetViewLinks(station: Station) {
-  const geo = resolveStationGeo(station);
-  if (geo.lat === null || geo.lng === null) return [];
-  const label = encodeURIComponent([station.name, station.city || station.state, station.country].filter(Boolean).join(", "));
-  const lat = geo.lat.toFixed(6);
-  const lng = geo.lng.toFixed(6);
-  return [
-    { name: "Google Street View", href: `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}` },
-    { name: "Apple Look Around", href: `https://maps.apple.com/?ll=${lat},${lng}&q=${label}` },
-    { name: "Mapillary", href: `https://www.mapillary.com/app/?lat=${lat}&lng=${lng}&z=17` },
-  ];
-}
-
-function OpenStreetViewButton({ station, mobile = false }: { station: Station; mobile?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const links = useMemo(() => stationStreetViewLinks(station), [station]);
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => { if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false); };
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
-    document.addEventListener("pointerdown", onPointerDown); document.addEventListener("keydown", onKeyDown);
-    return () => { document.removeEventListener("pointerdown", onPointerDown); document.removeEventListener("keydown", onKeyDown); };
-  }, [open]);
-  if (!links.length) return null;
-  return <div ref={rootRef} className={`${mobile ? "right-4 top-[calc(env(safe-area-inset-top)+204px)]" : "right-6 top-40 xl:right-8"} pointer-events-auto absolute z-50`}>
-    <button type="button" aria-label="Open street view options" aria-expanded={open} onClick={() => setOpen((show) => !show)} className="flex h-11 items-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-3 text-xs font-bold text-ivory shadow-2xl backdrop-blur-xl transition hover:border-radio/40 hover:bg-slate-900/80 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"><Link className="size-4" />{mobile ? "Street" : "Open Street View"}</button>
-    <AnimatePresence>{open ? <motion.div initial={{ opacity: 0, y: -8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.96 }} className="absolute right-0 mt-2 w-[min(280px,calc(100vw-2rem))] rounded-3xl border border-white/12 bg-slate-950/86 p-2 text-left shadow-2xl backdrop-blur-2xl" role="menu" aria-label="External street view portals">
-      <p className="px-2 pb-2 pt-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">External portals</p>
-      {links.map((item) => <a key={item.name} href={item.href} target="_blank" rel="noreferrer" role="menuitem" className="block rounded-2xl px-3 py-2 text-[11px] font-semibold text-ivory/80 transition hover:bg-white/10 hover:text-white">{item.name}</a>)}
-      <p className="px-2 pt-2 text-[10px] leading-snug text-ivory/45">Uses free external links only; no Street View basemap or paid API key.</p>
-    </motion.div> : null}</AnimatePresence>
-  </div>;
 }
 
 function countryNameForCode(code: string) {
@@ -2024,8 +1907,6 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
       <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:56px_56px] opacity-40" />
-      <BasemapControl value={basemap} onChange={setBasemap} />
-      <OpenStreetViewButton station={station} />
       <div className="pointer-events-none absolute left-6 top-20 z-20 rounded-full border border-white/15 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold text-emerald-300 shadow-lg backdrop-blur-xl xl:left-8">
         <Signal className="mr-1.5 inline size-3" />
         GIS · Tap Earth to tune a place
@@ -3065,7 +2946,7 @@ function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, 
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
-    {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact atlasView={selectedView} onChooseAtlasView={chooseAtlasView} atlasViewTransitioning={atlasTransition.transitionLocked} globeFallbackReason={mobileGlobeFallbackReason} basemap={basemap} onBasemapChange={setBasemap} globeBasemap={globeBasemap} onGlobeBasemapChange={(value) => { setGlobeBasemap(value); if (selectedView !== "globe" || mobileGlobeFallbackReason) atlasTransition.retryGlobe("globe style selection", transitionContext); }} streetLinks={stationStreetViewLinks(current)} atlasDrive={<AtlasLocationPill stations={stations} current={current} />} onClose={() => setMode("Atlas")} /></div> : null}
+    {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact atlasView={selectedView} onChooseAtlasView={chooseAtlasView} atlasViewTransitioning={atlasTransition.transitionLocked} globeFallbackReason={mobileGlobeFallbackReason} basemap={basemap} onBasemapChange={setBasemap} globeBasemap={globeBasemap} onGlobeBasemapChange={(value) => { setGlobeBasemap(value); if (selectedView !== "globe" || mobileGlobeFallbackReason) atlasTransition.retryGlobe("globe style selection", transitionContext); }} atlasDrive={<AtlasLocationPill stations={stations} current={current} />} onClose={() => setMode("Atlas")} /></div> : null}
     {mode === "Add Signal" ? (
       <div className="pointer-events-auto fixed inset-0 z-[999] flex h-[100dvh] items-start justify-center overflow-y-auto overscroll-contain bg-black/45 px-3 pb-[calc(140px_+_env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))] backdrop-blur-[10px]">
         <AddYourSignalPanel compact onCancel={() => setMode("Atlas")} />
@@ -3096,12 +2977,11 @@ type UtilityLinksPanelProps = {
   onBasemapChange?: (value: BasemapKey) => void;
   globeBasemap?: GlobeBasemapKey;
   onGlobeBasemapChange?: (value: GlobeBasemapKey) => void;
-  streetLinks?: { name: string; href: string }[];
   atlasDrive?: React.ReactNode;
   onClose?: () => void;
 };
 
-function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atlasViewTransitioning = false, globeFallbackReason = "", basemap, onBasemapChange, globeBasemap, onGlobeBasemapChange, streetLinks = [], atlasDrive, onClose }: UtilityLinksPanelProps) {
+function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atlasViewTransitioning = false, globeFallbackReason = "", basemap, onBasemapChange, globeBasemap, onGlobeBasemapChange, atlasDrive, onClose }: UtilityLinksPanelProps) {
   const links = [
     ["Demo", "/demo", "Learn the product in minutes."],
     ["About", "/about", "Mission, indexing, and ownership."],
@@ -3145,10 +3025,6 @@ function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atla
       </div>
     </details> : null}
 
-    {streetLinks.length ? <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
-      <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Street portals</p>
-      <div className="mt-2 grid gap-2">{streetLinks.map((item) => <a key={item.name} href={item.href} target="_blank" rel="noreferrer" className="rounded-2xl bg-white/[0.05] px-3 py-2 text-xs font-semibold text-ivory/80 hover:bg-white/10">{item.name}</a>)}</div>
-    </div> : null}
 
     {atlasDrive ? <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3"><p className="px-1 pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Atlas Drive</p><div className="relative min-h-16">{atlasDrive}</div></div> : null}
 
@@ -3649,8 +3525,6 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
             <AtlasViewErrorBoundary key={`desktop-globe-${current.station_uuid || current.id}-${desktopTransition.state.transitionVersion}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
           )}
         </div>
-        {!globeFallbackReason && desktopAtlasView === "globe" ? <GlobeBasemapControl value={desktopGlobeBasemap} onChange={setDesktopGlobeBasemap} /> : null}
-        {!globeFallbackReason && desktopAtlasView === "globe" ? <OpenStreetViewButton station={current} /> : null}
         {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
         <SelectedStationTheater station={current} />
       </div>
@@ -3704,7 +3578,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         </div>
         <div className={`${desktopDrawerOpen ? "block" : "hidden"} atlas-drawer-scroll min-h-0 flex-1 overflow-y-auto pr-1`}>
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
-          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={(view) => { if (view === desktopAtlasView && !globeFallbackReason) return; if (view === "map") desktopTransition.requestGlobeToMap("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); else if (globeFallbackReason) desktopTransition.retryGlobe("manual atlas view selection with fallback recovery", transitionContextForStation(current, desktopMapContext, "manual atlas view selection with fallback recovery") ?? desktopTransitionContext); else desktopTransition.requestMapToGlobe("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); }} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} streetLinks={stationStreetViewLinks(current)} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
+          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={(view) => { if (view === desktopAtlasView && !globeFallbackReason) return; if (view === "map") desktopTransition.requestGlobeToMap("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); else if (globeFallbackReason) desktopTransition.retryGlobe("manual atlas view selection with fallback recovery", transitionContextForStation(current, desktopMapContext, "manual atlas view selection with fallback recovery") ?? desktopTransitionContext); else desktopTransition.requestMapToGlobe("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); }} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div> : null}
           {desktopMode === "History" ? <div className="mt-5"><RecentlyVisitedPanel /></div> : null}
