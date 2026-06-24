@@ -3,22 +3,27 @@
 import { useEffect } from "react";
 
 const FALLBACK_TOAST = "Signal unavailable. Trying another station.";
+const WEAK_SIGNAL_TOAST = "This signal is weak. We are checking it in the background.";
 const LONG_BUFFER_TOAST = "Holding Jay 101.9 FM. This station may take longer to open.";
 const JAY_FM_PATTERN = /Jay\s*(?:101\.9\s*)?FM|Jay\s*101\.9/i;
 
-function pageShowsJayBuffering() {
+function pageShowsJayFm() {
   if (typeof document === "undefined") return false;
-  const text = document.body.innerText || "";
-  return JAY_FM_PATTERN.test(text) && /buffering/i.test(text);
+  return JAY_FM_PATTERN.test(document.body.innerText || "");
 }
 
-function rewriteFallbackToastText() {
-  if (typeof document === "undefined" || !pageShowsJayBuffering()) return;
+function rewriteLongBufferStatusText() {
+  if (typeof document === "undefined" || !pageShowsJayFm()) return;
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   let node = walker.nextNode();
   while (node) {
-    if (node.nodeValue?.includes(FALLBACK_TOAST)) {
-      node.nodeValue = node.nodeValue.replace(FALLBACK_TOAST, LONG_BUFFER_TOAST);
+    const value = node.nodeValue || "";
+    if (value.includes(FALLBACK_TOAST)) {
+      node.nodeValue = value.replace(FALLBACK_TOAST, LONG_BUFFER_TOAST);
+    } else if (value.includes(WEAK_SIGNAL_TOAST)) {
+      node.nodeValue = value.replace(WEAK_SIGNAL_TOAST, LONG_BUFFER_TOAST);
+    } else if (/Jay\s*101\.9\s*FM\s*Jos\s*·\s*failed/i.test(value)) {
+      node.nodeValue = value.replace(/failed/i, "holding signal");
     }
     node = walker.nextNode();
   }
@@ -30,7 +35,7 @@ export function LongBufferToastGuard() {
     let frame = 0;
     const scheduleRewrite = () => {
       if (frame) window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(rewriteFallbackToastText);
+      frame = window.requestAnimationFrame(rewriteLongBufferStatusText);
     };
     scheduleRewrite();
     const observer = new MutationObserver(scheduleRewrite);
