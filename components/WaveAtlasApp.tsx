@@ -2803,7 +2803,7 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
           aria-label="Station notification"
         >
           <div className="flex items-start gap-3">
-            {toastFlag ? (
+            {toastFlag && mobile ? (
               <span className="mt-0.5 grid size-4 shrink-0 place-items-center text-[15px] leading-none" aria-hidden="true">
                 {toastFlag}
               </span>
@@ -2811,7 +2811,7 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
               <Compass className="mt-0.5 size-4 shrink-0 text-[#D4A64A]" aria-hidden="true" />
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold leading-5 tracking-[-0.01em] text-[#F8FAFC]">{toast.title}</p>
+              <p className="flex min-w-0 items-center gap-1.5 truncate text-[13px] font-semibold leading-5 tracking-[-0.01em] text-[#F8FAFC]">{toastFlag && !mobile ? <span className="shrink-0 text-[14px] leading-none" aria-label={`${toast.countryCode?.toUpperCase()} flag`}>{toastFlag}</span> : null}<span className="min-w-0 truncate">{toast.title}</span></p>
               {toast.subtitle ? <p className="mt-0.5 truncate text-[11px] font-medium leading-4 text-white/[0.72]">{toast.subtitle}</p> : null}
             </div>
             <button type="button" onClick={() => setVisible(false)} className="-mr-1 grid size-7 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D4A64A]" aria-label="Dismiss notification">
