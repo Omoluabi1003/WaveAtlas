@@ -22,6 +22,10 @@ function destination(station: Station) {
   return { city: station.city || station.state || station.country || "World", country: station.country || station.country_code || "Live Radio" };
 }
 
+function flagLabel(station: Station) {
+  return station.country_code ? `${station.country_code.toUpperCase()} flag` : "Global flag";
+}
+
 function stationBriefKey(station: Station) {
   const place = destination(station);
   return [place.city, place.country, station.country_code || ""].map((part) => part.trim().toLowerCase()).join("|");
@@ -202,7 +206,10 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
             <header className="max-w-full overflow-x-hidden border-b-4 border-double border-[#151515] pb-3 text-center lg:pb-4">
               <p className="font-serif text-xs font-black uppercase tracking-[0.32em] text-[#4A4033]">WaveAtlas Daily™</p>
               <h2 className="mt-1 max-w-full font-serif text-5xl font-black leading-none tracking-[-0.07em] text-[#151515] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word] md:text-7xl">{editionTitle}</h2>
-              <p className="mt-2 max-w-full font-serif text-sm italic text-[#4A4033] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word]">{place.city}, {place.country} • {localDate}</p>
+              <p className="mt-2 flex max-w-full flex-wrap items-center justify-center gap-x-1.5 gap-y-1 font-serif text-sm italic text-[#4A4033] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word]">
+                <span className="hidden shrink-0 text-[0.95em] not-italic leading-none sm:inline-flex" aria-label={flagLabel(station)}>{flagFor(station.country_code)}</span>
+                <span className="min-w-0">{place.city}, {place.country} • {localDate}</span>
+              </p>
               <p className="mt-1 font-serif text-xs font-bold uppercase tracking-[0.18em] text-[#4A4033]">Live stories from this destination</p>
             </header>
 
@@ -217,7 +224,7 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
             {!loading && !headlines.length ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">No fresh local headlines found yet. Try another destination or keep listening while the next edition forms.</p> : null}
             <div className="grid max-w-full gap-x-6 gap-y-5 overflow-x-hidden lg:grid-cols-[minmax(32rem,1.15fr)_minmax(26rem,.85fr)]">{visibleHeadlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0 && tab === "Front Page"} />)}</div>
             <footer className="mt-6 max-w-full overflow-x-hidden border-t-4 border-double border-[#151515]/70 pt-3 font-serif text-xs text-[#4A4033] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word]">
-              <div className="grid gap-2 text-left sm:grid-cols-4"><span><b>Radio Signal:</b> {station.name}</span><span><b>Edition:</b> {place.city}, {place.country}</span><span><b>Genre:</b> {genre}</span><span><b>Local Time:</b> {localTime}</span></div>
+              <div className="grid gap-2 text-left sm:grid-cols-4"><span><b>Radio Signal:</b> {station.name}</span><span><b>Edition:</b> <span className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0.5 align-baseline"><span className="hidden shrink-0 text-[0.95em] leading-none sm:inline-flex" aria-label={flagLabel(station)}>{flagFor(station.country_code)}</span><span className="min-w-0">{place.city}, {place.country}</span></span></span><span><b>Genre:</b> {genre}</span><span><b>Local Time:</b> {localTime}</span></div>
               <p className="mt-3 text-center"><Newspaper className="mr-1 inline size-3" /> Open RSS + GDELT sources. Summaries and links only; full articles remain with publishers.</p>
             </footer>
           </div>
