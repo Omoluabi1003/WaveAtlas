@@ -235,25 +235,57 @@ export async function fetchStationsForCountryIntent(countryName: string, country
   return rankStations(scoped, params.name || params.q || params.tag || params.language || countryName || code);
 }
 
+function inferStreamFormat(url: string, contentType = '') {
+  const value = `${url} ${contentType}`.toLowerCase();
+  if (/opus/.test(value)) return { codec: 'OPUS', isPlaylist: false };
+  if (/ogg|oga/.test(value)) return { codec: 'OGG', isPlaylist: false };
+  if (/aac|aacp|aach|audio\/a[a]?c/.test(value)) return { codec: 'AAC', isPlaylist: false };
+  if (/mp3|mpeg/.test(value)) return { codec: 'MP3', isPlaylist: false };
+  if (/\.pls(?:[?#]|$)|scpls/.test(value)) return { codec: 'Unknown', isPlaylist: true };
+  if (/\.m3u8?(?:[?#]|$)|mpegurl/.test(value)) return { codec: 'Unknown', isPlaylist: true };
+  return { codec: 'Unknown', isPlaylist: false };
+}
+
+function parsePlaylist(body: string, baseUrl: string) {
+  const plsFile = body.match(/^\s*File\d+=(.+)$/im)?.[1]?.trim();
+  const line = plsFile ?? body.split(/\r?\n/).map((item) => item.trim()).find((line) => line && !line.startsWith('#') && !/^\[playlist\]/i.test(line));
+  if (!line) return undefined;
+  try { return new URL(line, baseUrl).toString(); } catch { return undefined; }
+}
+
 export async function validateStream(url: string, options: { curated?: boolean } = {}) {
   const started = Date.now();
   const controller = new AbortController();
-  const timer = setTimeout(()=>controller.abort(), options.curated ? 16000 : 8000);
-  const uncertain = (reason: string, contentType = 'unknown') => ({ is_active: Boolean(options.curated), health_score: options.curated ? 55 : 10, response_time_ms: Date.now()-started, failure_count: options.curated ? 0 : 1, content_type: contentType, last_checked_at:new Date().toISOString(), validation_status: options.curated ? 'needs_review' as const : 'failed' as const, validation_reason: reason });
+  const timer = setTimeout(()=>controller.abort(), options.curated ? 16000 : 9000);
+  const checkedAt = () => new Date().toISOString();
+  const uncertain = (reason: string, contentType = 'unknown', resolvedUrl?: string) => ({ is_active: Boolean(options.curated), health_score: options.curated ? 55 : 10, response_time_ms: Date.now()-started, failure_count: options.curated ? 0 : 1, content_type: contentType, codec: inferStreamFormat(resolvedUrl || url, contentType).codec, bitrate: 0, url_resolved: resolvedUrl, last_checked_at: checkedAt(), validation_status: options.curated ? 'needs_review' as const : 'failed' as const, validation_reason: reason });
   try {
     if(!/^https?:\/\//i.test(url)) throw new Error('Unsafe stream URL');
+    let currentUrl = url;
     let res: Response | undefined;
     let headError: unknown;
-    try { res = await fetch(url, { method:'HEAD', signal:controller.signal, redirect:'follow' }); } catch (error) { headError = error; }
-    if (!res?.ok) {
-      try { res = await fetch(url, { method:'GET', signal:controller.signal, redirect:'follow', headers: { Range: 'bytes=0-2048' } }); } catch (error) { if (!options.curated) throw error; return uncertain(`HEAD failed${headError ? ' and GET retry failed' : ''}`); }
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try { res = await fetch(currentUrl, { method:'HEAD', signal:controller.signal, redirect:'follow' }); } catch (error) { headError = error; }
+      if (!res?.ok) res = await fetch(currentUrl, { method:'GET', signal:controller.signal, redirect:'follow', headers: { Range: 'bytes=0-4095', 'Icy-MetaData': '1' } });
+      const type = res.headers.get('content-type') ?? '';
+      const responseUrl = res.url || currentUrl;
+      const format = inferStreamFormat(responseUrl, type);
+      if (format.isPlaylist && attempt === 0) {
+        const text = await res.clone().text().catch(() => '');
+        const target = parsePlaylist(text, responseUrl);
+        if (target && /^https?:\/\//i.test(target)) { currentUrl = target; continue; }
+        return uncertain('Playlist URL did not contain a playable HTTP(S) stream target.', type, responseUrl);
+      }
+      const extensionPlayable = /\.(mp3|aac|aacp|ogg|oga|opus)(?:[?#]|$)/i.test(responseUrl);
+      const typePlayable = /(audio|mpeg|ogg|opus|aac|mp3|octet-stream)/i.test(type);
+      const icyPlayable = Boolean(res.headers.get('icy-br') || res.headers.get('icy-name') || res.headers.get('icy-genre'));
+      const playable = Boolean(res.ok && (typePlayable || extensionPlayable || icyPlayable || (options.curated && !type)));
+      const codec = format.codec;
+      const bitrate = Number(res.headers.get('icy-br') ?? 0) || 0;
+      if (!playable && options.curated) return uncertain(`Uncertain content-type: ${type || 'missing'}`, type, responseUrl);
+      return { is_active: playable, health_score: playable ? (responseUrl.startsWith('https://') ? 94 : 82) : 35, response_time_ms: Date.now()-started, failure_count: playable ? 0 : 1, content_type:type, codec, bitrate, url_resolved: responseUrl, last_verified_at: playable ? checkedAt() : undefined, last_checked_at: checkedAt(), validation_status: playable ? 'verified' as const : 'failed' as const, validation_reason: playable ? 'Stream accepted by validation with redirect, playlist, content-type, and lightweight audio checks.' : `Unsupported content-type: ${type || 'missing'}` };
     }
-    const type = res.headers.get('content-type') ?? '';
-    const extensionPlayable = /\.(mp3|aac|ogg|m3u8?|pls)(?:[?#]|$)/i.test(url);
-    const typePlayable = /(audio|mpeg|ogg|aac|mp3|mpegurl|x-mpegurl|x-scpls|octet-stream)/i.test(type);
-    const playable = Boolean(res.ok && (typePlayable || extensionPlayable || (options.curated && !type)));
-    if (!playable && options.curated) return uncertain(`Uncertain content-type: ${type || 'missing'}`, type);
-    return { is_active: playable, health_score: playable ? 90 : 35, response_time_ms: Date.now()-started, failure_count: playable ? 0 : 1, content_type:type, last_checked_at:new Date().toISOString(), validation_status: playable ? 'verified' as const : 'failed' as const, validation_reason: playable ? 'Stream accepted by validation.' : `Unsupported content-type: ${type || 'missing'}` };
+    return uncertain('Validation loop ended without a playable response.');
   } catch (error) {
     return uncertain(error instanceof Error ? error.message : 'Validation failed');
   } finally { clearTimeout(timer); }
