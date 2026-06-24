@@ -49,15 +49,17 @@ function readJson<T>(key: string, fallback: T): T { try { const raw = storage()?
 function writeJson(key: string, value: unknown) { try { storage()?.setItem(key, JSON.stringify(value)); } catch { /* local health memory is best-effort. */ } }
 
 function normalizedStationIdentity(station: Station) {
-  return `${station.name} ${station.city || ""} ${station.state || ""} ${station.country || ""} ${station.url || ""} ${station.url_resolved || ""}`.toLowerCase().replace(/[^a-z0-9.]+/g, " ").trim();
+  return `${station.name} ${station.city || ""} ${station.state || ""} ${station.country || ""} ${station.country_code || ""} ${station.url || ""} ${station.url_resolved || ""}`.toLowerCase().replace(/[^a-z0-9.]+/g, " ").trim();
 }
 
 export function isJay1019Fm(station: Station) {
   const identity = normalizedStationIdentity(station);
   const compactIdentity = identity.replace(/\s+/g, "");
-  const hasJayName = /\bjay\b/.test(identity) || compactIdentity.includes("jayfm");
+  const hasJayName = /\bjay\b/.test(identity) || compactIdentity.includes("jayfm") || compactIdentity.includes("jay1019");
   const hasFrequency = identity.includes("101.9") || compactIdentity.includes("1019");
-  return hasJayName && hasFrequency;
+  const hasNigeriaScope = station.country_code === "NG" || /\bnigeria\b/.test(identity) || /\bjos\b/.test(identity) || /\bplateau\b/.test(identity);
+  const hasFmContext = /\bfm\b/.test(identity) || compactIdentity.includes("jayfm") || compactIdentity.includes("jay1019");
+  return hasJayName && hasNigeriaScope && (hasFrequency || hasFmContext);
 }
 
 export function readStationHealthMemory(): HealthMemory {
