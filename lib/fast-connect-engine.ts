@@ -3,7 +3,7 @@ import { rotatedStartupStations, startupStations } from "@/lib/startupStations";
 import { stationCity } from "@/lib/discovery/history";
 import { stationContinent } from "@/lib/discovery/station-picker";
 
-export type StationTrustClass = "unknown_station" | "radio_browser_station" | "curated_station" | "verified_station" | "verified_nigerian_station" | "manual_selection" | "recently_successful_station";
+export type StationTrustClass = "unknown_station" | "radio_browser_station" | "curated_station" | "verified_station" | "verified_nigerian_station" | "jay_1019_fm" | "manual_selection" | "recently_successful_station";
 export type AdaptiveBufferPolicy = { startupTimeoutMs: number; bufferTimeoutMs: number; maxAttempts: number; trusted: boolean; message: string; timeoutMessage: string };
 
 export const ADAPTIVE_BUFFER_POLICIES: Record<StationTrustClass, AdaptiveBufferPolicy> = {
@@ -12,6 +12,7 @@ export const ADAPTIVE_BUFFER_POLICIES: Record<StationTrustClass, AdaptiveBufferP
   curated_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 16000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
   verified_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 16000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
   verified_nigerian_station: { startupTimeoutMs: 16000, bufferTimeoutMs: 22000, maxAttempts: 2, trusted: true, message: "Holding the Nigerian signal…", timeoutMessage: "Still giving this Nigerian signal time…" },
+  jay_1019_fm: { startupTimeoutMs: 45000, bufferTimeoutMs: 60000, maxAttempts: 4, trusted: true, message: "Holding Jay 101.9 FM…", timeoutMessage: "Still giving Jay 101.9 FM time to buffer…" },
   manual_selection: { startupTimeoutMs: 18000, bufferTimeoutMs: 25000, maxAttempts: 2, trusted: true, message: "Holding the selected signal…", timeoutMessage: "Still trying the station you selected…" },
   recently_successful_station: { startupTimeoutMs: 20000, bufferTimeoutMs: 28000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Still holding this recently working signal…" },
 };
@@ -47,6 +48,18 @@ export function stationKey(station: Station) { return station.station_uuid || st
 function readJson<T>(key: string, fallback: T): T { try { const raw = storage()?.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; } }
 function writeJson(key: string, value: unknown) { try { storage()?.setItem(key, JSON.stringify(value)); } catch { /* local health memory is best-effort. */ } }
 
+function normalizedStationIdentity(station: Station) {
+  return `${station.name} ${station.city || ""} ${station.state || ""} ${station.country || ""} ${station.url || ""} ${station.url_resolved || ""}`.toLowerCase().replace(/[^a-z0-9.]+/g, " ").trim();
+}
+
+export function isJay1019Fm(station: Station) {
+  const identity = normalizedStationIdentity(station);
+  const compactIdentity = identity.replace(/\s+/g, "");
+  const hasJayName = /\bjay\b/.test(identity) || compactIdentity.includes("jayfm");
+  const hasFrequency = identity.includes("101.9") || compactIdentity.includes("1019");
+  return hasJayName && hasFrequency;
+}
+
 export function readStationHealthMemory(): HealthMemory {
   const now = Date.now();
   const memory = readJson<HealthMemory>(HEALTH_KEY, {});
@@ -65,6 +78,7 @@ function recentSuccessfulKeys() {
 function hasRecentFailure(station: Station) {
   const record = readStationHealthMemory()[stationKey(station)];
   if (!record) return false;
+  if (isJay1019Fm(station) && record.failureKind !== "hard") return false;
   if (isVerifiedNigerianStation(station) && record.failureKind !== "hard") return false;
   return Boolean(record.degradedUntil && Date.now() < record.degradedUntil);
 }
@@ -93,6 +107,21 @@ export function markStationFailure(station: Station, errorType: SignalFailureTyp
   const key = stationKey(station);
   const previous = memory[key] ?? { failures: 0, successes: 0 };
   const soft = SOFT_FAILURE_TYPES.has(errorType);
+  if (soft && isJay1019Fm(station)) {
+    memory[key] = {
+      ...previous,
+      softFailures: (previous.softFailures ?? 0) + 1,
+      lastFailureAt: Date.now(),
+      lastSoftFailureAt: Date.now(),
+      degradedUntil: undefined,
+      hardDegradedUntil: previous.hardDegradedUntil,
+      errorType,
+      failureKind: "soft",
+    };
+    writeJson(HEALTH_KEY, memory);
+    queueSignalReview(station, errorType, `${detail || "Slow buffer observed."} Jay 101.9 FM is station-confirmed active; soft buffer failures do not degrade this station.`);
+    return;
+  }
   const ttl = soft && isVerifiedNigerianStation(station) ? SOFT_FAILURE_TTL_MS : HARD_FAILURE_TTL_MS;
   memory[key] = {
     ...previous,
@@ -118,11 +147,12 @@ function healthAdjustedScore(station: Station, selected?: Station) {
   if (station.last_check_ok) score += 14;
   if (isCuratedStation(station)) score += 12;
   if (isVerifiedNigerianStation(station)) score += 70;
+  if (isJay1019Fm(station)) score += 90;
   if (DIRECT_STREAM_PATTERN.test(`${station.codec} ${station.url_resolved || station.url}`)) score += 10;
   if (record?.lastSuccessAt && Date.now() - record.lastSuccessAt < DAY_MS) score += 28;
-  if (record?.degradedUntil && record.degradedUntil > Date.now()) score -= record.failureKind === "soft" && isVerifiedNigerianStation(station) ? 12 : 70 + record.failures * 18;
+  if (record?.degradedUntil && record.degradedUntil > Date.now()) score -= record.failureKind === "soft" && (isVerifiedNigerianStation(station) || isJay1019Fm(station)) ? 12 : 70 + record.failures * 18;
   if (!getStationStreamUrl(station)) score -= 500;
-  if (station.failure_count > 1) score -= station.failure_count * 15;
+  if (station.failure_count > 1 && !isJay1019Fm(station)) score -= station.failure_count * 15;
   if (selected && stationKey(station) === stationKey(selected)) score += 1000;
   return score;
 }
@@ -138,6 +168,7 @@ export function classifyStationTrust(station: Station): StationTrustClass {
   const verified = station.validation_status === "verified" || station.validation_status === "curated" || tags.includes("manual-playback-verified");
 
   if (recentlySuccessful) return "recently_successful_station";
+  if (isJay1019Fm(station)) return "jay_1019_fm";
   if (isVerifiedNigerianStation(station)) return "verified_nigerian_station";
   if (verified) return "verified_station";
   if (curated) return "curated_station";
