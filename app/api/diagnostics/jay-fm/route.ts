@@ -21,6 +21,15 @@ type RadioBrowserStation = {
   lastchecktime_iso8601?: string;
 };
 
+type RadioGardenCandidate = {
+  endpoint: string;
+  ok: boolean;
+  status?: number;
+  raw?: unknown;
+  extracted?: Array<{ title?: string; url?: string; href?: string; page?: string; place?: string }>;
+  error?: string;
+};
+
 type UrlProbe = {
   url: string;
   ok: boolean;
@@ -45,6 +54,29 @@ function extractCandidateUrls(html: string) {
     if (/(?:mp3|aac|m3u8|pls|stream|icecast|shoutcast|radio|live)/i.test(url)) urls.add(url);
   }
   return Array.from(urls);
+}
+
+function extractRadioGardenCandidates(payload: unknown): Array<{ title?: string; url?: string; href?: string; page?: string; place?: string }> {
+  const extracted: Array<{ title?: string; url?: string; href?: string; page?: string; place?: string }> = [];
+  const visit = (value: unknown) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    const record = value as Record<string, unknown>;
+    const title = typeof record.title === "string" ? record.title : typeof record.name === "string" ? record.name : undefined;
+    const url = typeof record.url === "string" ? record.url : typeof record.stream === "string" ? record.stream : undefined;
+    const href = typeof record.href === "string" ? record.href : typeof record.path === "string" ? record.path : undefined;
+    const page = typeof record.page === "string" ? record.page : undefined;
+    const place = typeof record.place === "string" ? record.place : typeof record.subtitle === "string" ? record.subtitle : undefined;
+    if ([title, url, href, page, place].some(Boolean)) extracted.push({ title, url, href, page, place });
+    for (const nested of Object.values(record)) {
+      if (nested && typeof nested === "object") visit(nested);
+    }
+  };
+  visit(payload);
+  return extracted.filter((item) => `${item.title ?? ""} ${item.place ?? ""} ${item.href ?? ""} ${item.url ?? ""}`.toLowerCase().includes("jay")).slice(0, 25);
 }
 
 async function fetchRadioBrowserCandidates() {
@@ -87,6 +119,39 @@ async function fetchOfficialCandidates() {
   };
 }
 
+async function fetchRadioGardenCandidates(): Promise<RadioGardenCandidate[]> {
+  const endpoints = [
+    "https://radio.garden/api/search?q=Jay%20FM",
+    "https://radio.garden/api/search?q=Jay%20101.9",
+    "https://radio.garden/api/ara/content/search/Jay%20FM",
+    "https://radio.garden/api/ara/content/search/Jay%20101.9",
+    "https://radio.garden/api/ara/content/search/Jos%20Nigeria",
+    "https://radio.garden/api/ara/content/places/search/Jos",
+  ];
+
+  return Promise.all(endpoints.map(async (endpoint) => {
+    try {
+      const response = await fetch(endpoint, {
+        headers: { "User-Agent": USER_AGENT, Accept: "application/json,text/plain,*/*" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(10000),
+        cache: "no-store",
+      });
+      const contentType = response.headers.get("content-type") || "";
+      const raw = contentType.includes("json") ? await response.json() : await response.text();
+      return {
+        endpoint,
+        ok: response.ok,
+        status: response.status,
+        raw,
+        extracted: extractRadioGardenCandidates(raw),
+      };
+    } catch (error) {
+      return { endpoint, ok: false, error: error instanceof Error ? error.message : "Radio Garden fetch failed" };
+    }
+  }));
+}
+
 async function probeUrl(url: string): Promise<UrlProbe> {
   try {
     const response = await fetch(url, {
@@ -112,9 +177,10 @@ async function probeUrl(url: string): Promise<UrlProbe> {
 }
 
 export async function GET() {
-  const [radioBrowser, official] = await Promise.allSettled([
+  const [radioBrowser, official, radioGarden] = await Promise.allSettled([
     fetchRadioBrowserCandidates(),
     fetchOfficialCandidates(),
+    fetchRadioGardenCandidates(),
   ]);
 
   const radioBrowserStations = radioBrowser.status === "fulfilled" ? radioBrowser.value : [];
@@ -126,15 +192,17 @@ export async function GET() {
     hasStartListeningCopy: false,
     error: official.reason instanceof Error ? official.reason.message : "Official site fetch failed",
   };
+  const radioGardenCandidates = radioGarden.status === "fulfilled" ? radioGarden.value : [{ endpoint: "radio-garden", ok: false, error: radioGarden.reason instanceof Error ? radioGarden.reason.message : "Radio Garden fetch failed" }];
 
   const radioBrowserUrls = radioBrowserStations.flatMap((station) => [station.url_resolved, station.url]).filter((url): url is string => Boolean(url));
   const officialUrls = "candidateUrls" in officialPage ? officialPage.candidateUrls : [];
-  const urlsToProbe = unique([...radioBrowserUrls, ...officialUrls]).slice(0, 20);
+  const radioGardenUrls = radioGardenCandidates.flatMap((candidate) => candidate.extracted?.flatMap((item) => [item.url, item.href, item.page]).filter((url): url is string => Boolean(url)) ?? []).filter((url) => /^https?:\/\//i.test(url));
+  const urlsToProbe = unique([...radioBrowserUrls, ...officialUrls, ...radioGardenUrls]).slice(0, 30);
   const probes = await Promise.all(urlsToProbe.map(probeUrl));
 
   return NextResponse.json({
     station: "Jay FM 101.9 Jos",
-    purpose: "Compare WaveAtlas Radio Browser stream candidates against official Jay FM page stream hints before any playback override.",
+    purpose: "Compare WaveAtlas Radio Browser stream candidates against official Jay FM page and Radio Garden hints before any playback override.",
     radioBrowser: {
       apiBase: RADIO_BROWSER_API_BASE,
       count: radioBrowserStations.length,
@@ -156,10 +224,11 @@ export async function GET() {
       })),
     },
     officialSite: officialPage,
-    probes,
     radioGarden: {
-      status: "not_confirmed_by_endpoint",
-      note: "Radio Garden stream URLs are not exposed in the WaveAtlas codebase. Use this diagnostic output to compare against any Radio Garden network URL captured manually from the browser devtools if needed.",
+      note: "Radio Garden does not publish a stable documented stream API for WaveAtlas. These attempts capture any discoverable station records or URLs for comparison only.",
+      candidates: radioGardenCandidates,
     },
+    probes,
+    recommendation: "Use a stream URL as a WaveAtlas override only if it appears in at least one trusted source and probes as browser-playable audio or a supported playlist.",
   });
 }
