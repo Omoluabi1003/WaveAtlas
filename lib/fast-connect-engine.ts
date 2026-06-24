@@ -208,6 +208,7 @@ export function buildFastConnectQueue(stations: Station[], selected: Station, mi
 }
 
 export function nextFastConnectCandidate(stations: Station[], failed: Station, attemptedKeys: string[]) {
+  if (isJay1019Fm(failed)) return undefined;
   const queue = buildFastConnectQueue(stations, failed, 6);
   return queue.find((station) => !attemptedKeys.includes(stationKey(station)) && stationKey(station) !== stationKey(failed));
 }
