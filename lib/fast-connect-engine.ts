@@ -12,7 +12,7 @@ export const ADAPTIVE_BUFFER_POLICIES: Record<StationTrustClass, AdaptiveBufferP
   curated_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 16000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
   verified_station: { startupTimeoutMs: 12000, bufferTimeoutMs: 16000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Finding a stronger live signal…" },
   verified_nigerian_station: { startupTimeoutMs: 16000, bufferTimeoutMs: 22000, maxAttempts: 2, trusted: true, message: "Holding the Nigerian signal…", timeoutMessage: "Still giving this Nigerian signal time…" },
-  jay_1019_fm: { startupTimeoutMs: 45000, bufferTimeoutMs: 60000, maxAttempts: 4, trusted: true, message: "Holding Jay 101.9 FM…", timeoutMessage: "Still giving Jay 101.9 FM time to buffer…" },
+  jay_1019_fm: { startupTimeoutMs: 180000, bufferTimeoutMs: 180000, maxAttempts: 8, trusted: true, message: "Holding this signal…", timeoutMessage: "Still holding this signal…" },
   manual_selection: { startupTimeoutMs: 18000, bufferTimeoutMs: 25000, maxAttempts: 2, trusted: true, message: "Holding the selected signal…", timeoutMessage: "Still trying the station you selected…" },
   recently_successful_station: { startupTimeoutMs: 20000, bufferTimeoutMs: 28000, maxAttempts: 2, trusted: true, message: "Holding the signal…", timeoutMessage: "Still holding this recently working signal…" },
 };
@@ -121,7 +121,7 @@ export function markStationFailure(station: Station, errorType: SignalFailureTyp
       failureKind: "soft",
     };
     writeJson(HEALTH_KEY, memory);
-    queueSignalReview(station, errorType, `${detail || "Slow buffer observed."} Jay 101.9 FM is station-confirmed active; soft buffer failures do not degrade this station.`);
+    queueSignalReview(station, errorType, detail);
     return;
   }
   const ttl = soft && isVerifiedNigerianStation(station) ? SOFT_FAILURE_TTL_MS : HARD_FAILURE_TTL_MS;
