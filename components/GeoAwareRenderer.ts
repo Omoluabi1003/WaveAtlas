@@ -20,8 +20,20 @@ type GeoAwareRendererOptions = {
   reducedMotion: boolean;
 };
 
+let loggedGeoAwareFlagState = false;
+let loggedGeoAwareDrawCall = false;
+
 export function geoAwareRendererEnabled() {
-  return typeof process !== "undefined" && process.env.NEXT_PUBLIC_GEOAWARE_RENDERER === "true";
+  try {
+    const enabled = process.env.NEXT_PUBLIC_GEOAWARE_RENDERER === "true";
+    if (process.env.NODE_ENV === "development" && !loggedGeoAwareFlagState) {
+      loggedGeoAwareFlagState = true;
+      console.debug("[WaveAtlas GeoAwareRenderer] enabled", { enabled });
+    }
+    return enabled;
+  } catch {
+    return false;
+  }
 }
 
 function addStops(gradient: CanvasGradient, stops: Array<[number, string]>) {
@@ -36,6 +48,10 @@ function addStops(gradient: CanvasGradient, stops: Array<[number, string]>) {
  */
 export function drawGeoAwareEarthRenderer(options: GeoAwareRendererOptions) {
   const { ctx, projection, landShapes, width, height, cx, cy, radius: r, now, basemap, mobile, lowPower, reducedMotion } = options;
+  if (process.env.NODE_ENV === "development" && !loggedGeoAwareDrawCall) {
+    loggedGeoAwareDrawCall = true;
+    console.debug("[WaveAtlas GeoAwareRenderer] drawGeoAwareEarthRenderer() called", { basemap, mobile, lowPower, reducedMotion });
+  }
   const path = geoPath(projection, ctx);
   const performanceMode = mobile || lowPower;
   const dayMode = basemap !== "night";
@@ -67,8 +83,13 @@ export function drawGeoAwareEarthRenderer(options: GeoAwareRendererOptions) {
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
   const bathymetry = ctx.createRadialGradient(cx + r * 0.25, cy + r * 0.18, r * 0.08, cx, cy, r * 1.1);
-  addStops(bathymetry, [[0, "rgba(125,211,252,0.18)"], [0.45, "rgba(14,165,233,0.08)"], [1, "rgba(2,6,23,0.34)"]]);
+  addStops(bathymetry, [[0, "rgba(186,230,253,0.24)"], [0.34, "rgba(14,165,233,0.11)"], [0.72, "rgba(15,23,42,0.2)"], [1, "rgba(2,6,23,0.46)"]]);
   ctx.fillStyle = bathymetry;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+  const deepOcean = ctx.createLinearGradient(cx - r * 0.75, cy - r * 0.9, cx + r * 0.72, cy + r * 0.88);
+  addStops(deepOcean, [[0, "rgba(255,255,255,0.16)"], [0.22, "rgba(56,189,248,0.08)"], [0.58, "rgba(8,47,73,0.1)"], [1, "rgba(0,0,0,0.34)"]]);
+  ctx.fillStyle = deepOcean;
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
   ctx.fillStyle = basemap === "night" ? "rgba(22,32,50,0.86)" : basemap === "signal" ? "rgba(28,92,78,0.78)" : "rgba(58,122,82,0.9)";
@@ -88,22 +109,26 @@ export function drawGeoAwareEarthRenderer(options: GeoAwareRendererOptions) {
   }
   ctx.restore();
 
-  if (!performanceMode) {
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.strokeStyle = "rgba(255,255,255,0.16)";
-    ctx.lineWidth = 1.1;
-    for (let i = -1; i <= 3; i += 1) {
-      ctx.beginPath();
-      ctx.ellipse(cx - r * 0.2 + i * r * 0.75 + cloudShift - r * 1.2, cy - r * 0.22 + i * r * 0.16, r * 0.62, r * 0.09, -0.28, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.restore();
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  ctx.strokeStyle = performanceMode ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.24)";
+  ctx.lineWidth = performanceMode ? 0.8 : 1.35;
+  const cloudBands = performanceMode ? 2 : 5;
+  for (let i = 0; i < cloudBands; i += 1) {
+    ctx.beginPath();
+    ctx.ellipse(cx - r * 0.98 + i * r * 0.58 + cloudShift, cy - r * 0.28 + i * r * 0.13, r * (performanceMode ? 0.42 : 0.58), r * 0.055, -0.24, 0, Math.PI * 2);
+    ctx.stroke();
   }
+  ctx.restore();
 
   const terminator = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
-  addStops(terminator, [[0, "rgba(255,255,255,0.22)"], [0.36, "rgba(255,255,255,0.04)"], [0.68, "rgba(2,6,23,0.2)"], [1, "rgba(0,0,0,0.66)"]]);
+  addStops(terminator, [[0, "rgba(255,255,255,0.34)"], [0.26, "rgba(255,255,255,0.08)"], [0.58, "rgba(15,23,42,0.16)"], [0.82, "rgba(2,6,23,0.52)"], [1, "rgba(0,0,0,0.78)"]]);
   ctx.fillStyle = terminator;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+  const limbDepth = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 1.02);
+  addStops(limbDepth, [[0, "rgba(255,255,255,0)"], [0.68, "rgba(255,255,255,0.02)"], [0.88, "rgba(14,165,233,0.14)"], [1, "rgba(0,0,0,0.42)"]]);
+  ctx.fillStyle = limbDepth;
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
   const specular = ctx.createRadialGradient(cx - r * 0.43, cy - r * 0.45, 0, cx - r * 0.43, cy - r * 0.45, r * 0.72);
@@ -113,14 +138,22 @@ export function drawGeoAwareEarthRenderer(options: GeoAwareRendererOptions) {
   ctx.restore();
 
   ctx.save();
-  ctx.lineWidth = performanceMode ? 5 : 8;
-  ctx.strokeStyle = basemap === "night" ? "rgba(96,165,250,0.42)" : "rgba(125,211,252,0.48)";
+  ctx.lineWidth = performanceMode ? 6 : 10;
+  ctx.strokeStyle = basemap === "night" ? "rgba(96,165,250,0.56)" : "rgba(125,211,252,0.68)";
   if (!performanceMode) {
     ctx.shadowColor = basemap === "signal" ? "rgba(0,214,143,0.5)" : "rgba(56,189,248,0.42)";
-    ctx.shadowBlur = 24;
+    ctx.shadowBlur = 34;
   }
   ctx.beginPath();
   ctx.arc(cx, cy, r + (performanceMode ? 2 : 3), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.lineWidth = performanceMode ? 1.5 : 2.4;
+  ctx.strokeStyle = basemap === "signal" ? "rgba(0,214,143,0.34)" : "rgba(224,242,254,0.42)";
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.01, cy - r * 0.01, r - (performanceMode ? 1.5 : 2.5), 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }

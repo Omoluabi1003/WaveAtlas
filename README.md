@@ -6,6 +6,24 @@ This repository follows GeoAware OS v1.0.0, a design and engineering philosophy 
 
 WaveAtlas is an Audio Tourism™ platform backed by Radio Browser data.
 
+## GeoAware globe renderer
+
+WaveAtlas includes a feature-flagged GeoAware globe material pass that preserves the existing GIS projection, stations, polygons, labels, beacons, OSM map view, navigation, playback, and interaction behavior while upgrading the globe's visual atmosphere and lighting.
+
+Enable it explicitly in every environment where the premium renderer should be visible:
+
+```bash
+NEXT_PUBLIC_GEOAWARE_RENDERER=true
+```
+
+Deployment checklist:
+
+- **Vercel Preview**: add `NEXT_PUBLIC_GEOAWARE_RENDERER=true` to the Preview environment variables and redeploy the preview build.
+- **Vercel Production**: add `NEXT_PUBLIC_GEOAWARE_RENDERER=true` to the Production environment variables and redeploy production.
+- **Local development**: add `NEXT_PUBLIC_GEOAWARE_RENDERER=true` to `.env.local`, then restart `next dev` so Next.js can inline the public flag into the browser bundle.
+
+When the variable is omitted or set to any value other than `true`, WaveAtlas uses the legacy BlueMarble renderer. Development builds log whether the GeoAware renderer is enabled and whether `drawGeoAwareEarthRenderer()` is invoked.
+
 
 ## Source Oracle™ and Station Truth Mesh™
 
