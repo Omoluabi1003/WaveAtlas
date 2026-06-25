@@ -6,24 +6,11 @@ This repository follows GeoAware OS v1.0.0, a design and engineering philosophy 
 
 WaveAtlas is an Audio Tourism™ platform backed by Radio Browser data.
 
-## GeoAware globe renderer
+## GeoAware™ experience mode
 
-WaveAtlas includes a feature-flagged GeoAware Bible globe renderer compatibility adapter. The adapter is intentionally limited to the Earth material, atmosphere, lighting, cloud, and post-processing pass so the existing Canvas 2D GIS projection, stations, polygons, labels, beacons, OSM map view, navigation, playback, teleport, and wander behavior remain owned by WaveAtlas.
+WaveAtlas exposes GeoAware™ as a separate cinematic experience mode alongside Atlas and Map. GeoAware™ uses its own CSS/DOM renderer for atmosphere, soft Earth rotation, cloud bands, terminator shading, station metadata, playback controls, and Daily Passport context when inventory intelligence is available. It does not replace, wrap, or inject into the Atlas Canvas 2D BlueMarbleGlobe renderer or the MapLibre map view.
 
-Enable it explicitly in every environment where the premium renderer should be visible:
-
-```bash
-NEXT_PUBLIC_GEOAWARE_RENDERER=true
-```
-
-Deployment checklist:
-
-- **Vercel Preview**: add `NEXT_PUBLIC_GEOAWARE_RENDERER=true` to the Preview environment variables and redeploy the preview build.
-- **Vercel Production**: add `NEXT_PUBLIC_GEOAWARE_RENDERER=true` to the Production environment variables and redeploy production.
-- **Local development**: add `NEXT_PUBLIC_GEOAWARE_RENDERER=true` to `.env.local`, then restart `next dev` so Next.js can inline the public flag into the browser bundle.
-
-When the variable is omitted or set to any value other than `true`, WaveAtlas uses the legacy BlueMarble renderer. Development builds log whether the GeoAware renderer is enabled and whether `drawGeoAwareEarthRenderer()` is invoked. If a future drop of the actual GeoAware Bible renderer is WebGL/Three.js rather than Canvas 2D, it must be connected through this compatibility adapter instead of replacing WaveAtlas GIS/runtime layers or silently recreating the renderer.
-
+Atlas remains the precision GIS globe for country polygons, radio stations, station clustering, Candidate Lock, Teleport, Wander, labels, beacon, navigation, projection behavior, and playback handoff. Map remains the fast flat operational navigation view. The three modes share station and playback state so switching modes does not restart audio or clear the selected station.
 
 ## Source Oracle™ and Station Truth Mesh™
 
