@@ -1,0 +1,12 @@
+{
+  "extends": "GeoAware OS v1.0.0",
+  "source": "https://github.com/Omoluabi1003/GeoAware-OS",
+  "product": "WaveAtlas",
+  "founder": {
+    "name": "Paul Iyogun",
+    "title": "Founder and Chief Architect",
+    "organization": "ETL GIS Consulting LLC"
+  },
+  "mission": "Discover global radio through a calm geography-first experience.",
+  "rule": "The world is the interface. One screen deserves one hero. Motion must have meaning."
+}
