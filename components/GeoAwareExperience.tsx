@@ -13,14 +13,28 @@ type GeoAwareExperienceProps = {
   onTogglePlayback: () => void;
 };
 
+function stationText(value: unknown, fallback = "") {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+}
+
 function stationCountry(station: Station) {
-  const code = station.country_code || "";
-  return `${code ? `${flagFor(code)} ` : ""}${station.country || code || "Earth"}`;
+  const code = stationText(station.country_code).toUpperCase();
+  const country = stationText(station.country, code || "Earth");
+  return `${code ? `${flagFor(code)} ` : ""}${country}`;
 }
 
 export function GeoAwareExperience({ station, status, playing, volume, inventoryStats, onTogglePlayback }: GeoAwareExperienceProps) {
-  const place = [station.city, station.state, stationCountry(station)].filter(Boolean).join(" · ");
-  const tags = station.tags.slice(0, 4).join(" · ") || station.language || "Live local signal";
+  const stationName = stationText(station.name, "Unknown station");
+  const city = stationText(station.city);
+  const state = stationText(station.state);
+  const language = stationText(station.language);
+  const place = [city, state, stationCountry(station)].filter(Boolean).join(" · ");
+  const stationTags = Array.isArray(station.tags) ? station.tags : [];
+  const tags = stationTags
+    .map((tag) => stationText(tag))
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(" · ") || language || "Live local signal";
   const passport = inventoryStats
     ? `${inventoryStats.globalCount.toLocaleString()} indexed global signals${inventoryStats.source === "radio-browser" ? " from Radio Browser inventory" : " in curated passport mode"}.`
     : "Daily Passport intelligence appears here when fresh inventory context is available.";
@@ -36,7 +50,7 @@ export function GeoAwareExperience({ station, status, playing, volume, inventory
       </div>
       <article className={styles.card}>
         <p className={styles.eyebrow}>GeoAware™ · cinematic discovery</p>
-        <h1 className={styles.title}>{station.name}</h1>
+        <h1 className={styles.title}>{stationName}</h1>
         <p className={styles.meta}>{place}</p>
         <p className={styles.meta}>{tags}</p>
         <div className={styles.controls}>
