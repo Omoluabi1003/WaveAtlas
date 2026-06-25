@@ -7,6 +7,7 @@ import { flagFor, type Station } from "@/lib/stations";
 import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalCluster, type SignalFeature } from "@/lib/signal-constellations";
 import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, invertGlobePoint, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
 import { drawActiveStationBeacon } from "@/components/ActiveStationBeacon";
+import { drawGeoAwareEarthRenderer, geoAwareRendererEnabled } from "@/components/GeoAwareRenderer";
 
 type CountryResult = {
   name: string;
@@ -657,14 +658,19 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
       bg.addColorStop(0, runtime.basemap === "night" ? "rgba(125,92,255,0.16)" : runtime.basemap === "signal" ? "rgba(0,214,143,0.12)" : "rgba(0,214,143,0.18)"); bg.addColorStop(0.64, "rgba(3,12,27,0.10)"); bg.addColorStop(1, "rgba(3,8,20,0)");
       ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+      const projection = buildGlobeProjection(w, h, r, state.current.rotX, state.current.rotY, cx, cy)
+        .precision(mobile || profile.lowPower ? 0.85 : 0.45);
+      const useGeoAwareRenderer = geoAwareRendererEnabled();
+      if (useGeoAwareRenderer) {
+        drawGeoAwareEarthRenderer({ ctx, projection, landShapes: runtime.landShapes, width: w, height: h, cx, cy, radius: r, now, basemap: runtime.basemap, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion });
+      }
       ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.clip();
+      if (!useGeoAwareRenderer) {
       const ocean = ctx.createRadialGradient(cx - r * 0.38, cy - r * 0.44, r * 0.12, cx, cy, r * 1.12);
       if (runtime.basemap === "night") { ocean.addColorStop(0, "#111827"); ocean.addColorStop(0.55, "#050816"); ocean.addColorStop(1, "#01030a"); }
       else if (runtime.basemap === "signal") { ocean.addColorStop(0, "#08213a"); ocean.addColorStop(0.55, "#031225"); ocean.addColorStop(1, "#010814"); }
       else { ocean.addColorStop(0, "#1f6f9d"); ocean.addColorStop(0.42, "#0c3b67"); ocean.addColorStop(1, "#031327"); }
       ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-      const projection = buildGlobeProjection(w, h, r, state.current.rotX, state.current.rotY, cx, cy)
-        .precision(mobile || profile.lowPower ? 0.85 : 0.45);
       if (runtime.landShapes.length) {
         const path = geoPath(projection, ctx);
         const shapesToDraw = runtime.landShapes;
@@ -683,6 +689,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
           path(shape.feature);
           ctx.stroke();
         }
+      }
       }
       ctx.strokeStyle = runtime.basemap === "signal" ? "rgba(56,189,248,0.24)" : runtime.basemap === "night" ? "rgba(148,163,184,0.055)" : "rgba(147,197,253,0.09)"; ctx.lineWidth = mobile || profile.lowPower ? 0.45 : 0.7;
       const latStep = mobile || profile.lowPower ? 30 : 15;
