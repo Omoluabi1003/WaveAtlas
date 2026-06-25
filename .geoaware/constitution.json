@@ -8,5 +8,28 @@
     "organization": "ETL GIS Consulting LLC"
   },
   "mission": "Discover global radio through a calm geography-first experience.",
-  "rule": "The world is the interface. One screen deserves one hero. Motion must have meaning."
+  "rule": "The world is the interface. One screen deserves one hero. Motion must have meaning.",
+  "inherits": [
+    "GDL",
+    "GEC",
+    "GPC",
+    "GAIC",
+    "GDS"
+  ],
+  "design_principles": [
+    "Geography-first discovery: location, place, and cultural context guide the experience.",
+    "Calm technology: systems should quietly support discovery without overwhelming the user.",
+    "One screen, one hero: each view should preserve a clear focal point.",
+    "Meaningful motion: movement must clarify state, orientation, or intent.",
+    "Restraint over novelty: avoid interface behavior that distracts from place-based understanding."
+  ],
+  "quality_gate": {
+    "requires": [
+      "performance",
+      "accessibility",
+      "restraint",
+      "product coherence"
+    ],
+    "description": "Changes should preserve fast, accessible, restrained, and coherent geography-first product behavior."
+  }
 }
