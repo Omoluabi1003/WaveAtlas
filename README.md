@@ -8,7 +8,7 @@ WaveAtlas is an Audio Tourism™ platform backed by Radio Browser data.
 
 ## GeoAware globe renderer
 
-WaveAtlas includes a feature-flagged GeoAware globe material pass that preserves the existing GIS projection, stations, polygons, labels, beacons, OSM map view, navigation, playback, and interaction behavior while upgrading the globe's visual atmosphere and lighting.
+WaveAtlas includes a feature-flagged GeoAware Bible globe renderer compatibility adapter. The adapter is intentionally limited to the Earth material, atmosphere, lighting, cloud, and post-processing pass so the existing Canvas 2D GIS projection, stations, polygons, labels, beacons, OSM map view, navigation, playback, teleport, and wander behavior remain owned by WaveAtlas.
 
 Enable it explicitly in every environment where the premium renderer should be visible:
 
@@ -22,7 +22,7 @@ Deployment checklist:
 - **Vercel Production**: add `NEXT_PUBLIC_GEOAWARE_RENDERER=true` to the Production environment variables and redeploy production.
 - **Local development**: add `NEXT_PUBLIC_GEOAWARE_RENDERER=true` to `.env.local`, then restart `next dev` so Next.js can inline the public flag into the browser bundle.
 
-When the variable is omitted or set to any value other than `true`, WaveAtlas uses the legacy BlueMarble renderer. Development builds log whether the GeoAware renderer is enabled and whether `drawGeoAwareEarthRenderer()` is invoked.
+When the variable is omitted or set to any value other than `true`, WaveAtlas uses the legacy BlueMarble renderer. Development builds log whether the GeoAware renderer is enabled and whether `drawGeoAwareEarthRenderer()` is invoked. If a future drop of the actual GeoAware Bible renderer is WebGL/Three.js rather than Canvas 2D, it must be connected through this compatibility adapter instead of replacing WaveAtlas GIS/runtime layers or silently recreating the renderer.
 
 
 ## Source Oracle™ and Station Truth Mesh™
