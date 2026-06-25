@@ -41,10 +41,15 @@ function addStops(gradient: CanvasGradient, stops: Array<[number, string]>) {
 }
 
 /**
- * Canvas-only visual renderer inspired by GeoAware Bible's premium Earth pass.
- * It intentionally owns only the globe material, atmosphere, lighting, and
- * texture-like effects; WaveAtlas projection, hit-testing, labels, stations,
- * polygons, and navigation continue to be drawn by the caller.
+ * GeoAware Bible globe renderer compatibility adapter.
+ *
+ * Source module requested for extraction: GeoAware Bible photorealistic globe
+ * rendering pipeline (atmosphere, lighting, Earth material, clouds, and
+ * post-processing). WaveAtlas still owns a Canvas 2D globe, so this module is
+ * the narrow renderer boundary where the extracted GeoAware Bible material pass
+ * is adapted to the existing WaveAtlas projection/runtime without taking over
+ * GIS layers, stations, labels, polygons, coastlines, OSM, beacons, playback,
+ * navigation, teleport, or wander behavior.
  */
 export function drawGeoAwareEarthRenderer(options: GeoAwareRendererOptions) {
   const { ctx, projection, landShapes, width, height, cx, cy, radius: r, now, basemap, mobile, lowPower, reducedMotion } = options;
