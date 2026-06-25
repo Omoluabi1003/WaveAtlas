@@ -1,5 +1,9 @@
 # WaveAtlas
 
+## GeoAware OS Governance
+
+This repository follows GeoAware OS v1.0.0, a design and engineering philosophy founded by Paul Iyogun for calm, geography-first digital experiences where technology quietly guides discovery. WaveAtlas applies this governance to preserve performance, accessibility, restraint, and product coherence without changing application behavior.
+
 WaveAtlas is an Audio Tourism™ platform backed by Radio Browser data.
 
 
