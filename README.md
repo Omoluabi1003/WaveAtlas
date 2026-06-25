@@ -6,11 +6,6 @@ This repository follows GeoAware OS v1.0.0, a design and engineering philosophy 
 
 WaveAtlas is an Audio Tourism™ platform backed by Radio Browser data.
 
-## GeoAware™ experience mode
-
-WaveAtlas exposes GeoAware™ as a separate cinematic experience mode alongside Atlas and Map. GeoAware™ uses its own CSS/DOM renderer for atmosphere, soft Earth rotation, cloud bands, terminator shading, station metadata, playback controls, and Daily Passport context when inventory intelligence is available. It does not replace, wrap, or inject into the Atlas Canvas 2D BlueMarbleGlobe renderer or the MapLibre map view.
-
-Atlas remains the precision GIS globe for country polygons, radio stations, station clustering, Candidate Lock, Teleport, Wander, labels, beacon, navigation, projection behavior, and playback handoff. Map remains the fast flat operational navigation view. The three modes share station and playback state so switching modes does not restart audio or clear the selected station.
 
 ## Source Oracle™ and Station Truth Mesh™
 
