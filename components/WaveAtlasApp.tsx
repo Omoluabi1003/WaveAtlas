@@ -14,6 +14,7 @@ import {
   Heart,
   Languages,
   MapPin,
+  Mic,
   Navigation,
   Pause,
   Play,
@@ -65,6 +66,7 @@ import { pickFallbackStation } from "@/lib/discovery/station-picker";
 import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQueue, getAdaptiveBufferPolicy, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
 import { localTimeForStation, stationTimeCopy, teleportCopy } from "@/lib/smart-time-copy";
 import { useNavigationEngine, type NavigationSelectionSource } from "@/lib/navigation-engine";
+import { getSpeechRecognitionConstructor, parseVoiceCommand, type BrowserSpeechRecognition, type VoiceCommandIntent } from "@/lib/voice-command-engine";
 
 
 type BrowserAudioContextConstructor = typeof AudioContext;
@@ -3239,6 +3241,90 @@ function DailyFlightPanel({ stations, inventoryStats }: { stations: Station[]; i
   </section>;
 }
 
+
+type VoiceCommandButtonProps = {
+  compact?: boolean;
+  onIntent: (intent: VoiceCommandIntent) => void;
+  onFeedback?: (message: string) => void;
+};
+
+function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceCommandButtonProps) {
+  const [supported] = useState(() => Boolean(getSpeechRecognitionConstructor()));
+  const [listening, setListening] = useState(false);
+  const [message, setMessage] = useState(() => getSpeechRecognitionConstructor() ? "Voice commands are push-to-talk." : "Voice commands are unavailable in this browser.");
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+
+  useEffect(() => {
+    const Recognition = getSpeechRecognitionConstructor();
+    if (!Recognition) return;
+    const recognition = new Recognition();
+    recognition.lang = navigator.language || "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => {
+      setListening(true);
+      setMessage("Listening… try “Search Switzerland” or “Open map view”.");
+    };
+    recognition.onend = () => setListening(false);
+    recognition.onerror = (event) => {
+      setListening(false);
+      const fallback = event.error === "not-allowed" ? "Microphone permission was blocked." : "Voice command was not recognized. Try again.";
+      setMessage(fallback);
+      onFeedback?.(fallback);
+    };
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        transcript += event.results[index][0]?.transcript ?? "";
+      }
+      if (!transcript.trim()) return;
+      setMessage(transcript.trim());
+      const result = parseVoiceCommand(transcript);
+      const finalLike = Boolean(event.results[event.results.length - 1]?.isFinal);
+      if (finalLike) {
+        setMessage(result.feedback);
+        onFeedback?.(result.feedback);
+        if (result.intent) onIntent(result.intent);
+      }
+    };
+    recognitionRef.current = recognition;
+    return () => {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.onstart = null;
+      recognition.abort();
+      recognitionRef.current = null;
+    };
+  }, [onFeedback, onIntent]);
+
+  const pushToTalk = () => {
+    if (!supported || !recognitionRef.current) {
+      const fallback = "Voice commands are unavailable in this browser. You can still use search and controls manually.";
+      setMessage(fallback);
+      onFeedback?.(fallback);
+      return;
+    }
+    if (listening) {
+      recognitionRef.current.stop();
+      return;
+    }
+    try {
+      recognitionRef.current.start();
+    } catch {
+      recognitionRef.current.stop();
+    }
+  };
+
+  return <div className="relative">
+    <button type="button" onClick={pushToTalk} className={`${compact ? "size-11" : "size-10"} grid place-items-center rounded-full border ${listening ? "border-radio bg-radio text-midnight" : "border-white/15 bg-white/[0.06] text-ivory/75 hover:border-radio/35 hover:text-radio"} shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold`} aria-pressed={listening} aria-label={supported ? "Push to talk voice command" : "Voice commands unsupported"} title={supported ? "Push to talk" : "Voice commands unsupported"}>
+      <Mic className="size-4" />
+    </button>
+    <span className={`${compact ? "right-0 top-12" : "left-1/2 top-12 -translate-x-1/2"} pointer-events-none absolute z-[80] w-64 rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl transition ${listening || message !== "Voice commands are push-to-talk." ? "opacity-100" : "opacity-0"}`} role="status" aria-live="polite">{message}</span>
+  </div>;
+}
+
 export default function WaveAtlasApp({ stations, inventoryStats }: { stations: Station[]; inventoryStats?: StationInventoryStats }) {
   const reducedMotion = useReducedMotion();
   const playerStatus = usePlayer((state) => state.status);
@@ -3264,6 +3350,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const [countrySignalMessage, setCountrySignalMessage] = useState("");
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
+  const [voiceFeedback, setVoiceFeedback] = useState("");
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [desktopMode, setDesktopMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "add-signal" ? "Add Signal" : "Atlas");
   const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(true);
@@ -3463,6 +3550,91 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     desktopTransition.requestMapToGlobe(context.reason || "map world/country zoom threshold", context);
   }, [desktopTransition]);
 
+  const chooseDesktopAtlasView = useCallback((view: AtlasViewMode) => {
+    if (view === desktopAtlasView && !globeFallbackReason) return;
+    if (view === "map") desktopTransition.requestGlobeToMap("voice atlas view selection", transitionContextForStation(current, desktopMapContext, "voice atlas view selection") ?? desktopTransitionContext);
+    else if (globeFallbackReason) desktopTransition.retryGlobe("voice atlas view selection with fallback recovery", transitionContextForStation(current, desktopMapContext, "voice atlas view selection with fallback recovery") ?? desktopTransitionContext);
+    else desktopTransition.requestMapToGlobe("voice atlas view selection", transitionContextForStation(current, desktopMapContext, "voice atlas view selection") ?? desktopTransitionContext);
+  }, [current, desktopAtlasView, desktopMapContext, desktopTransition, desktopTransitionContext, globeFallbackReason]);
+
+  const runDesktopTeleport = useCallback(() => {
+    if (desktopTeleporting) return;
+    playPremiumTeleportClick();
+    setDesktopTeleporting(true);
+    setWandererActive(false);
+    const selectionVersion = ++stationSelectionVersion;
+    usePlayer.getState().setStatus("buffering", "Teleporting…");
+    void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current)
+      .then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); })
+      .catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); })
+      .finally(() => setDesktopTeleporting(false));
+  }, [current, desktopTeleporting, stationPool]);
+
+  const handleVoiceIntent = useCallback((intent: VoiceCommandIntent) => {
+    setDesktopDrawerCollapsed(false);
+    if (intent.type === "search") {
+      setDesktopMode("Atlas");
+      setSelectedCountry(null);
+      setQuery(intent.query);
+      setVoiceFeedback(`Searching ${intent.query}.`);
+      return;
+    }
+    if (intent.type === "play") {
+      if (intent.query) {
+        setDesktopMode("Atlas");
+        setSelectedCountry(null);
+        setQuery(intent.query);
+        setVoiceFeedback(`Searching ${intent.query}.`);
+      } else {
+        const player = usePlayer.getState();
+        if (!player.current) setCurrentStationAndDestination(current);
+        if (!player.playing) player.toggle();
+        setVoiceFeedback("Starting playback.");
+      }
+      return;
+    }
+    if (intent.type === "pause") {
+      const player = usePlayer.getState();
+      if (player.playing || player.status === "buffering") player.toggle();
+      setVoiceFeedback("Paused playback.");
+      return;
+    }
+    if (intent.type === "resume") {
+      const player = usePlayer.getState();
+      if (!player.current) setCurrentStationAndDestination(current);
+      if (!player.playing) player.toggle();
+      setVoiceFeedback("Resumed playback.");
+      return;
+    }
+    if (intent.type === "switch_view") {
+      chooseDesktopAtlasView(intent.view === "map" ? "map" : "globe");
+      setVoiceFeedback(intent.view === "map" ? "Opened map view." : "Switched to Atlas globe.");
+      return;
+    }
+    if (intent.type === "teleport") {
+      if (intent.query) setQuery(intent.query);
+      runDesktopTeleport();
+      setVoiceFeedback(intent.query ? `Teleporting to ${intent.query}.` : "Teleporting.");
+      return;
+    }
+    if (intent.type === "wander") {
+      setWandererActive(true);
+      setWandererIntent(intent.query || "Voice wander");
+      setVoiceFeedback("Wanderer Mode started.");
+      return;
+    }
+    if (intent.type === "volume") {
+      setPlayerVolume(intent.value);
+      setVoiceFeedback(`Volume ${Math.round(intent.value * 100)}%.`);
+      return;
+    }
+    if (intent.type === "open_settings") {
+      setDesktopMode("Settings");
+      setBriefOpen(false);
+      setVoiceFeedback("Opened settings.");
+    }
+  }, [chooseDesktopAtlasView, current, runDesktopTeleport, setPlayerVolume]);
+
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
   useEffect(() => {
@@ -3508,6 +3680,8 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
+      <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={setVoiceFeedback} /></div>
+      {voiceFeedback ? <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+118px)] z-[61] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-radio/20 bg-slate-950/86 px-3 py-2 text-center text-xs font-medium text-radio shadow-2xl backdrop-blur-xl md:hidden" role="status" aria-live="polite">{voiceFeedback}</div> : null}
       <MobileAtlasShell stations={stationPool} current={current} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
       <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">
@@ -3530,7 +3704,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       </div>
       <section className="pointer-events-none fixed left-1/2 top-6 z-50 w-[min(560px,calc(100vw-3rem))] -translate-x-1/2">
         <div className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/40 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl">
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
             <Search className="shrink-0 text-sky" />
             <input
               value={query}
@@ -3539,8 +3713,10 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
               placeholder="Search country, city, destination..."
               className="w-full bg-transparent outline-none placeholder:text-ivory/45"
             />
+            <VoiceCommandButton onIntent={handleVoiceIntent} onFeedback={setVoiceFeedback} />
           </div>
         </div>
+        {voiceFeedback ? <p className="pointer-events-none mx-auto mt-2 w-fit rounded-full border border-radio/20 bg-slate-950/70 px-3 py-1.5 text-center text-xs font-medium text-radio shadow-xl backdrop-blur-xl" role="status" aria-live="polite">{voiceFeedback}</p> : null}
       </section>
       <>
         <nav className={`${desktopRailVisible ? "flex translate-x-0 opacity-100" : "hidden -translate-x-3 opacity-25 min-[1440px]:flex"} pointer-events-auto fixed left-6 top-28 z-30 flex-col gap-2 rounded-full border border-white/10 bg-slate-950/25 p-2 text-ivory shadow-2xl backdrop-blur-2xl transition duration-500 [backdrop-filter:blur(18px)_saturate(1.05)] xl:left-8`} aria-label="Atlas utility rail">
@@ -3578,7 +3754,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         </div>
         <div className={`${desktopDrawerOpen ? "block" : "hidden"} atlas-drawer-scroll min-h-0 flex-1 overflow-y-auto pr-1`}>
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
-          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={(view) => { if (view === desktopAtlasView && !globeFallbackReason) return; if (view === "map") desktopTransition.requestGlobeToMap("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); else if (globeFallbackReason) desktopTransition.retryGlobe("manual atlas view selection with fallback recovery", transitionContextForStation(current, desktopMapContext, "manual atlas view selection with fallback recovery") ?? desktopTransitionContext); else desktopTransition.requestMapToGlobe("manual atlas view selection", transitionContextForStation(current, desktopMapContext, "manual atlas view selection") ?? desktopTransitionContext); }} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
+          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div> : null}
           {desktopMode === "History" ? <div className="mt-5"><RecentlyVisitedPanel /></div> : null}
@@ -3635,7 +3811,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           </button>
         </div>
         <nav className="pointer-events-auto grid grid-cols-3 gap-1 rounded-full border border-white/20 bg-slate-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" aria-label="Primary desktop actions">
-          {([[Newspaper,"Brief"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (value === "Teleport") { playPremiumTeleportClick(); if (desktopTeleporting) return; setDesktopTeleporting(true); setWandererActive(false); const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setDesktopTeleporting(false)); } else if (value === "Brief") { setDesktopMode("Atlas"); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${((value === "Brief" && briefOpen) || desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</motion.button></div>; })}
+          {([[Newspaper,"Brief"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (value === "Teleport") { runDesktopTeleport(); } else if (value === "Brief") { setDesktopMode("Atlas"); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${((value === "Brief" && briefOpen) || desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</motion.button></div>; })}
         </nav>
       </div>
     </main>
