@@ -3250,15 +3250,38 @@ type VoiceCommandButtonProps = {
 };
 
 const VOICE_FEEDBACK_AUTO_DISMISS_MS = 4000;
+const VOICE_TOOLTIP_DEFAULT_MESSAGE = "Voice commands are push-to-talk.";
+const VOICE_TOOLTIP_RESET_MS = 3000;
 
 function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceCommandButtonProps) {
   const [supported] = useState(() => Boolean(getSpeechRecognitionConstructor()));
   const [listening, setListening] = useState(false);
-  const [message, setMessage] = useState(() => getSpeechRecognitionConstructor() ? "Voice commands are push-to-talk." : "Voice commands are unavailable in this browser.");
+  const [message, setMessage] = useState(() => getSpeechRecognitionConstructor() ? VOICE_TOOLTIP_DEFAULT_MESSAGE : "Voice commands are unavailable in this browser.");
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const recognitionActiveRef = useRef(false);
   const manualStopRef = useRef(false);
   const heardSpeechRef = useRef(false);
+  const tooltipResetTimerRef = useRef<number | null>(null);
+
+  const clearTooltipResetTimer = useCallback(() => {
+    if (tooltipResetTimerRef.current !== null) {
+      window.clearTimeout(tooltipResetTimerRef.current);
+      tooltipResetTimerRef.current = null;
+    }
+  }, []);
+
+  const resetLocalTooltip = useCallback(() => {
+    clearTooltipResetTimer();
+    setMessage(supported ? VOICE_TOOLTIP_DEFAULT_MESSAGE : "Voice commands are unavailable in this browser.");
+  }, [clearTooltipResetTimer, supported]);
+
+  const scheduleLocalTooltipReset = useCallback(() => {
+    clearTooltipResetTimer();
+    tooltipResetTimerRef.current = window.setTimeout(() => {
+      tooltipResetTimerRef.current = null;
+      setMessage(VOICE_TOOLTIP_DEFAULT_MESSAGE);
+    }, VOICE_TOOLTIP_RESET_MS);
+  }, [clearTooltipResetTimer]);
 
   useEffect(() => {
     const Recognition = getSpeechRecognitionConstructor();
@@ -3272,6 +3295,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       recognitionActiveRef.current = true;
       manualStopRef.current = false;
       heardSpeechRef.current = false;
+      clearTooltipResetTimer();
       setListening(true);
       setMessage("Listening… try “Search Switzerland” or “Open map view”.");
     };
@@ -3280,6 +3304,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       recognitionActiveRef.current = false;
       manualStopRef.current = false;
       setListening(false);
+      resetLocalTooltip();
       if (manuallyStopped || !heardSpeechRef.current) onFeedback?.("");
       heardSpeechRef.current = false;
     };
@@ -3289,6 +3314,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       manualStopRef.current = false;
       heardSpeechRef.current = false;
       setListening(false);
+      resetLocalTooltip();
       if (manuallyStopped) return;
       const fallback = event.error === "not-allowed" ? "Microphone permission was blocked." : "Voice command was not recognized. Try again.";
       setMessage(fallback);
@@ -3308,6 +3334,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
         setMessage(result.feedback);
         onFeedback?.(result.feedback);
         if (result.intent) onIntent(result.intent);
+        scheduleLocalTooltipReset();
       }
     };
     recognitionRef.current = recognition;
@@ -3316,13 +3343,15 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       recognition.onerror = null;
       recognition.onend = null;
       recognition.onstart = null;
+      clearTooltipResetTimer();
       recognitionActiveRef.current = false;
       manualStopRef.current = false;
       heardSpeechRef.current = false;
+      setMessage(VOICE_TOOLTIP_DEFAULT_MESSAGE);
       recognition.abort();
       recognitionRef.current = null;
     };
-  }, [onFeedback, onIntent]);
+  }, [clearTooltipResetTimer, onFeedback, onIntent, resetLocalTooltip, scheduleLocalTooltipReset]);
 
   const pushToTalk = () => {
     if (!supported || !recognitionRef.current) {
@@ -3335,7 +3364,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       manualStopRef.current = true;
       recognitionActiveRef.current = false;
       setListening(false);
-      setMessage("Voice command stopped.");
+      resetLocalTooltip();
       onFeedback?.("");
       try {
         recognitionRef.current.stop();
@@ -3358,7 +3387,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
     <button type="button" onClick={pushToTalk} className={`${compact ? "size-11" : "size-10"} grid place-items-center rounded-full border ${listening ? "border-radio bg-radio text-midnight" : "border-white/15 bg-white/[0.06] text-ivory/75 hover:border-radio/35 hover:text-radio"} shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold`} aria-pressed={listening} aria-label={supported ? "Push to talk voice command" : "Voice commands unsupported"} title={supported ? "Push to talk" : "Voice commands unsupported"}>
       <Mic className="size-4" />
     </button>
-    <span className={`${compact ? "right-0 top-12" : "left-1/2 top-12 -translate-x-1/2"} pointer-events-none absolute z-[80] w-64 rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl transition ${listening || message !== "Voice commands are push-to-talk." ? "opacity-100" : "opacity-0"}`} role="status" aria-live="polite">{message}</span>
+    <span className={`${compact ? "right-0 top-12" : "left-1/2 top-12 -translate-x-1/2"} pointer-events-none absolute z-[80] w-64 rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl transition ${listening ? "opacity-100" : "opacity-0"}`} role="status" aria-live="polite">{message}</span>
   </div>;
 }
 
@@ -3390,6 +3419,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const [voiceFeedback, setVoiceFeedback] = useState("");
   const voiceFeedbackTimerRef = useRef<number | null>(null);
   const [voiceSearchOverlayRequest, setVoiceSearchOverlayRequest] = useState(0);
+  const [voiceFocusNonce, setVoiceFocusNonce] = useState(0);
   const voiceSearchRequestRef = useRef(0);
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [desktopMode, setDesktopMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "add-signal" ? "Add Signal" : "Atlas");
@@ -3649,7 +3679,8 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
 
   const selectVoiceStation = useCallback((station: Station) => {
     clearVoiceFeedback();
-    setCurrentStationAndDestination(station);
+    setCurrentStationAndDestination(station, "voice");
+    setVoiceFocusNonce((nonce) => nonce + 1);
     setStationPool((prev) => prev.some((item) => stationKey(item) === stationKey(station)) ? prev : [station, ...prev]);
     setSelectedCountry(null);
     setQuery("");
@@ -3678,6 +3709,11 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       const exactStations = stations.filter((station) => station.name.toLowerCase() === normalizedQuery);
       const singleStation = exactStations[0] ?? (stations.length === 1 ? stations[0] : undefined);
 
+      const ambiguousCountry = countries.length > 1 && countries.some((country) => country.name.toLowerCase().includes(normalizedQuery) || normalizedQuery.includes(country.name.toLowerCase()));
+      if ((action === "navigate" || action === "play") && ambiguousCountry && !singleStation) {
+        showVoiceSearchResults(query, `Found multiple matches for ${query}. Showing results.`);
+        return;
+      }
       if (action === "navigate" && exactCountry) {
         selectCountry(exactCountry);
         clearVoiceFeedback();
@@ -3825,7 +3861,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           {globeFallbackReason || desktopAtlasView === "map" ? (
             <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={activeDesktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
           ) : (
-            <AtlasViewErrorBoundary key={`desktop-globe-${current.station_uuid || current.id}-${desktopTransition.state.transitionVersion}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
+            <AtlasViewErrorBoundary key={`desktop-globe-${current.station_uuid || current.id}-${desktopTransition.state.transitionVersion}-${voiceFocusNonce}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
           )}
         </div>
         {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}

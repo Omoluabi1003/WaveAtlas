@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Station } from "@/lib/stations";
 
-export type NavigationSelectionSource = "manual" | "startup" | "teleport" | "fallback" | "wanderer" | "deeplink" | "auto" | "atlas-drive";
+export type NavigationSelectionSource = "manual" | "voice" | "startup" | "teleport" | "fallback" | "wanderer" | "deeplink" | "auto" | "atlas-drive";
 export type NavigationCameraReason = "station-selected" | "teleport" | "wanderer" | "candidate-lock" | "startup" | "fallback" | "deeplink" | "auto" | "atlas-drive";
 export type NavigationBeaconState = "idle" | "traveling" | "arrived";
 
