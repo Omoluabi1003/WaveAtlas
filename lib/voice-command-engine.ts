@@ -14,7 +14,7 @@ export type BrowserSpeechRecognition = {
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
 export type VoiceCommandIntent =
-  | { type: "search"; query: string }
+  | { type: "search"; query: string; action?: "search" | "navigate" }
   | { type: "play"; query?: string }
   | { type: "pause" }
   | { type: "resume" }
@@ -71,7 +71,7 @@ export function parseVoiceCommand(transcript: string): VoiceCommandParseResult {
   if (/\b(pause|stop)\b/.test(lower)) return { transcript: normalized, intent: { type: "pause" }, feedback: "Pausing playback." };
   if (/\b(resume|continue)\b/.test(lower)) return { transcript: normalized, intent: { type: "resume" }, feedback: "Resuming playback." };
   if (/^play\b/.test(lower)) {
-    const query = stripCommand(normalized, [/^play\s+(.+)$/i]);
+    const query = stripCommand(normalized, [/^play\s+(.+?)(?:\s+radio)?$/i]);
     return { transcript: normalized, intent: { type: "play", query: query || undefined }, feedback: query ? `Searching ${titleCase(query)}.` : "Starting playback." };
   }
   if (/\b(volume|mute|louder|quieter)\b/.test(lower)) {
@@ -83,9 +83,17 @@ export function parseVoiceCommand(transcript: string): VoiceCommandParseResult {
     const query = stripCommand(normalized, [/^teleport\s+(?:to\s+)?(.+)$/i]);
     return { transcript: normalized, intent: { type: "teleport", query: query || undefined }, feedback: query ? `Teleporting to ${titleCase(query)}.` : "Teleporting." };
   }
+  if (/^(?:go to|take me to)\b/.test(lower)) {
+    const query = stripCommand(normalized, [/^(?:go to|take me to)\s+(.+)$/i]);
+    if (query) return { transcript: normalized, intent: { type: "search", query, action: "navigate" }, feedback: `Navigating to ${titleCase(query)}.` };
+  }
+  if (/^(?:stations in)\b/.test(lower)) {
+    const query = stripCommand(normalized, [/^stations in\s+(.+)$/i]);
+    if (query) return { transcript: normalized, intent: { type: "search", query, action: "search" }, feedback: `Searching stations in ${titleCase(query)}.` };
+  }
   if (/^(search|find|look for)\b/.test(lower)) {
     const query = stripCommand(normalized, [/^(?:search|find|look for)\s+(?:for\s+)?(.+)$/i]);
-    if (query) return { transcript: normalized, intent: { type: "search", query }, feedback: `Searching ${titleCase(query)}.` };
+    if (query) return { transcript: normalized, intent: { type: "search", query, action: "search" }, feedback: `Searching ${titleCase(query)}.` };
   }
   return { transcript: normalized, intent: { type: "search", query: normalized }, feedback: `Searching ${titleCase(normalized)}.` };
 }
