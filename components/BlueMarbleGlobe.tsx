@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { geoPath, type GeoPermissibleObjects, type GeoProjection as D3GeoProjection } from "d3-geo";
 import { isoCountryCentroids } from "@/lib/geotruth-resolver";
 import { flagFor, type Station } from "@/lib/stations";
+import { stationKey } from "@/lib/fast-connect-engine";
 import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalCluster, type SignalFeature } from "@/lib/signal-constellations";
 import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, invertGlobePoint, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
 import { drawActiveStationBeacon } from "@/components/ActiveStationBeacon";
@@ -20,7 +21,7 @@ export type GlobeBasemapKey = "blueMarble" | "night" | "signal";
 type GlobePoint = { lat: number; lng: number; label: string; geoSource?: string; geoPrecision?: string; usedFallbackCentroid?: boolean };
 type GlobeLabelKind = "active" | "country" | "city" | "station";
 type GlobeLabel = GlobePoint & { active?: boolean; kind?: GlobeLabelKind; priority?: number };
-type GlobeRuntime = { currentPoint: GlobePoint | null; selectionVersion?: number; stationName: string; stationCity?: string; stationCountry?: string; stationLabel: string; basemap: GlobeBasemapKey; teleporting: boolean; labels: GlobeLabel[]; landShapes: LandShape[]; signalFeatures: SignalFeature[]; signalClusters: SignalCluster[] };
+type GlobeRuntime = { currentPoint: GlobePoint | null; selectionVersion?: number; focusIdentityKey: string; stationName: string; stationCity?: string; stationCountry?: string; stationLabel: string; basemap: GlobeBasemapKey; teleporting: boolean; labels: GlobeLabel[]; landShapes: LandShape[]; signalFeatures: SignalFeature[]; signalClusters: SignalCluster[] };
 type GlobeDebugOverlay = { stationLat: number | null; stationLng: number | null; screenX: number | null; screenY: number | null; targetScreenX: number; targetScreenY: number; deltaX: number | null; deltaY: number | null; usableBounds: { left: number; top: number; right: number; bottom: number }; canvasCenter: { x: number; y: number }; rotX: number; rotY: number; selectedCountry: string | null; frontFacing: boolean; correctiveFocusRan: boolean; d3InputOrder: "[longitude, latitude]" };
 type CanvasSize = { cssWidth: number; cssHeight: number; pixelWidth: number; pixelHeight: number; dpr: number };
 type LandRing = Array<[number, number]>;
@@ -403,14 +404,15 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
   const [landShapes, setLandShapes] = useState<LandShape[]>([]);
-  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, travelStartX: -10 * DEG, travelStartY: 0, travelStartZoom: 1, focusStartedAt: 0, focusDuration: 1100, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false, focusToken: 0, activeFocusToken: 0, activeSelectionVersion: selectionVersion, verificationPending: false, correctiveFocusRan: false, verifiedPointKey: "", travelActive: false, landingPulseStartedAt: 0, progressMilestones: new Set<number>() });
+  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, travelStartX: -10 * DEG, travelStartY: 0, travelStartZoom: 1, focusStartedAt: 0, focusDuration: 1100, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false, focusToken: 0, activeFocusToken: 0, activeSelectionVersion: selectionVersion, verificationPending: false, correctiveFocusRan: false, verifiedPointKey: "", travelActive: false, landingPulseStartedAt: 0, progressMilestones: new Set<number>(), activeFocusIdentityKey: "" });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchDistance = useRef<number | null>(null);
   const currentPoint = useMemo(() => stationPoint(station), [station]);
   const stationLabel = useMemo(() => [station.city || station.state, station.country].filter(Boolean).join(", ") || station.name, [station]);
   const globeLabels = useMemo<GlobeLabel[]>(() => currentPoint ? [{ ...currentPoint, label: stationLabel, active: true, kind: "active", priority: 1000 }] : [], [currentPoint, stationLabel]);
+  const stationFocusIdentityKey = useMemo(() => [stationKey(station), currentPoint?.lat ?? "none", currentPoint?.lng ?? "none", selectionVersion ?? "none"].join(":"), [currentPoint?.lat, currentPoint?.lng, selectionVersion, station]);
   const signalConstellation = useMemo(() => buildSignalFeatures({ stations, currentStation: station, globeVisibleHemisphere: { centerLat: -10, centerLng: 0 }, globeScale: 1, favoriteIds: readGlobeFavoriteSet(), maxSignals: mobile ? 220 : 520 }), [mobile, station, stations]);
-  const runtimeRef = useRef<GlobeRuntime>({ currentPoint, selectionVersion, stationName: station.name, stationCity: station.city || station.state, stationCountry: station.country, stationLabel, basemap, teleporting, labels: globeLabels, landShapes, signalFeatures: signalConstellation.visibleSignals, signalClusters: signalConstellation.clusters });
+  const runtimeRef = useRef<GlobeRuntime>({ currentPoint, selectionVersion, focusIdentityKey: stationFocusIdentityKey, stationName: station.name, stationCity: station.city || station.state, stationCountry: station.country, stationLabel, basemap, teleporting, labels: globeLabels, landShapes, signalFeatures: signalConstellation.visibleSignals, signalClusters: signalConstellation.clusters });
   const lastCoordinateLogRef = useRef("");
   const stableSizeRef = useRef<CanvasSize | null>(null);
   const fallbackRef = useRef(onFallback);
@@ -425,17 +427,15 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
 
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
-    const focusKey = `${selectionVersion ?? "none"}:${point.lat}:${point.lng}`;
+    const focusKey = stationFocusIdentityKey;
     const s = state.current;
     if (lastFocusKeyRef.current === focusKey && !s.disabledMotion) {
-      debugGlobeFocus("focusPoint duplicate ignored", { selectionVersion, label: point.label, fast, reason: "same selection/point already animating or landed", travelActive: s.travelActive, focusProgress: s.focusDuration <= 0 ? 1 : Math.min(1, ((typeof performance !== "undefined" ? performance.now() : Date.now()) - s.focusStartedAt) / s.focusDuration) });
-      return;
+      debugGlobeFocus("focusPoint duplicate restarting", { selectionVersion, focusKey, label: point.label, fast, reason: "same station/point/version requested again; recentering to prevent drift", travelActive: s.travelActive, focusProgress: s.focusDuration <= 0 ? 1 : Math.min(1, ((typeof performance !== "undefined" ? performance.now() : Date.now()) - s.focusStartedAt) / s.focusDuration) });
     }
     lastFocusKeyRef.current = focusKey;
     const previousPoint = previousFocusRef.current?.point ?? (previousStation ? stationPoint(previousStation) : null);
     const rotation = focusRotationForPoint(point);
-    const upwardOffset = mobile ? -12 * DEG : -3 * DEG;
-    const targetRotX = clampFocusLatitude(rotation.rotX + upwardOffset);
+    const targetRotX = clampFocusLatitude(rotation.rotX);
     const shortestDeltaY = Math.atan2(Math.sin(rotation.rotY - s.rotY), Math.cos(rotation.rotY - s.rotY));
     const targetRotY = s.rotY + shortestDeltaY;
     const rotationAngularDistance = Math.min(Math.PI, Math.abs(shortestDeltaY) + Math.abs(targetRotX - s.rotX) * 0.7);
@@ -449,6 +449,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     s.focusToken += 1;
     s.activeFocusToken = s.focusToken;
     s.activeSelectionVersion = selectionVersion;
+    s.activeFocusIdentityKey = focusKey;
     s.verificationPending = true;
     s.correctiveFocusRan = false;
     s.verifiedPointKey = "";
@@ -468,7 +469,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     s.focusDuration = focusDuration;
     if (s.disabledMotion) { debugGlobeFocus("focusPoint reduced-motion snap", { selectionVersion, label: point.label, targetRotX: s.targetX / DEG, targetRotY: s.targetY / DEG, targetZoom: s.targetZoom }); s.rotX = s.targetX; s.rotY = s.targetY; s.zoom = s.targetZoom; }
     previousFocusRef.current = { name: station.name, point };
-  }, [mobile, previousStation, selectionVersion, station.name]);
+  }, [mobile, previousStation, selectionVersion, station.name, stationFocusIdentityKey]);
 
   useEffect(() => { fallbackRef.current = onFallback; }, [onFallback]);
   useEffect(() => { streetZoomRequestRef.current = onStreetZoomRequest; streetZoomTriggeredRef.current = false; }, [onStreetZoomRequest, station.id]);
@@ -482,8 +483,8 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   }, [station.id, station.name, station.station_uuid]);
 
   useEffect(() => {
-    runtimeRef.current = { currentPoint, selectionVersion, stationName: station.name, stationCity: station.city || station.state, stationCountry: station.country, stationLabel, basemap, teleporting, labels: globeLabels, landShapes, signalFeatures: signalConstellation.visibleSignals, signalClusters: signalConstellation.clusters };
-  }, [basemap, currentPoint, globeLabels, landShapes, selectionVersion, signalConstellation, station.city, station.country, station.name, station.state, stationLabel, teleporting]);
+    runtimeRef.current = { currentPoint, selectionVersion, focusIdentityKey: stationFocusIdentityKey, stationName: station.name, stationCity: station.city || station.state, stationCountry: station.country, stationLabel, basemap, teleporting, labels: globeLabels, landShapes, signalFeatures: signalConstellation.visibleSignals, signalClusters: signalConstellation.clusters };
+  }, [basemap, currentPoint, globeLabels, landShapes, selectionVersion, stationFocusIdentityKey, signalConstellation, station.city, station.country, station.name, station.state, stationLabel, teleporting]);
 
   useEffect(() => {
     let mounted = true;
@@ -633,8 +634,8 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         s.rotX = s.targetX; s.rotY = s.targetY; s.zoom = s.targetZoom;
         if (s.travelActive) { s.travelActive = false; s.landingPulseStartedAt = now; }
       }
-      const activeFocusVerified = runtime.currentPoint ? s.verifiedPointKey === `${runtime.selectionVersion ?? "none"}:${runtime.currentPoint.lat}:${runtime.currentPoint.lng}` : true;
-      if (s.activeSelectionVersion !== runtime.selectionVersion && s.travelActive) { debugGlobeFocus("stale transition cancelled", { activeSelectionVersion: s.activeSelectionVersion, runtimeSelectionVersion: runtime.selectionVersion, travelActive: s.travelActive }); s.travelActive = false; }
+      const activeFocusVerified = runtime.currentPoint ? s.verifiedPointKey === runtime.focusIdentityKey : true;
+      if (s.activeFocusIdentityKey !== runtime.focusIdentityKey && s.travelActive) { debugGlobeFocus("stale transition cancelled", { activeFocusIdentityKey: s.activeFocusIdentityKey, runtimeFocusIdentityKey: runtime.focusIdentityKey, activeSelectionVersion: s.activeSelectionVersion, runtimeSelectionVersion: runtime.selectionVersion, travelActive: s.travelActive }); s.travelActive = false; }
       if (globeDebugEnabled() && s.focusStartedAt && s.activeSelectionVersion === runtime.selectionVersion) {
         for (const milestone of [0, 25, 50, 75, 100]) {
           if (focusProgress >= milestone / 100 && !s.progressMilestones.has(milestone)) {
@@ -643,15 +644,13 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
           }
         }
       }
-      if (!s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1 && activeFocusVerified) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
+      if (!runtime.currentPoint && !s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1 && activeFocusVerified) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
       const r = Math.min(w, h) * (mobile ? 0.46 : 0.34) * s.zoom;
       const cx = w / 2, cy = mobile ? h * 0.42 : h / 2;
       const viewportDebug = mobile || globeDebugEnabled() ? readMobileViewport(wrap, canvas) : null;
       const usableBounds = viewportDebug?.usableBounds ?? { left: 0, top: 0, right: w, bottom: h };
-      const visualViewportHeight = viewportDebug?.visualViewport?.height ?? h;
-      const targetScreenX = mobile ? (usableBounds.left + usableBounds.right) / 2 : cx;
-      const mobileIdealY = visualViewportHeight * 0.42;
-      const targetScreenY = mobile ? Math.max(usableBounds.top + 36, Math.min(usableBounds.bottom - 36, mobileIdealY)) : cy;
+      const targetScreenX = cx;
+      const targetScreenY = cy;
 
       drawSpaceBackdrop(ctx, { width: w, height: h, cx, cy, radius: r, now, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, basemap: runtime.basemap });
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
@@ -733,7 +732,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         const deltaY = p.y - targetScreenY;
         const frontFacing = p.z > 0.08;
         const withinTarget = Number.isFinite(p.x) && Number.isFinite(p.y) && frontFacing && p.x >= usableBounds.left && p.x <= usableBounds.right && p.y >= usableBounds.top && p.y <= usableBounds.bottom && Math.hypot(deltaX, deltaY) <= (mobile ? 36 : 54);
-        const pointKey = `${runtime.selectionVersion ?? "none"}:${activeBeacon.lat}:${activeBeacon.lng}`;
+        const pointKey = runtime.focusIdentityKey;
         if (focusProgress >= 1 && s.verificationPending && !s.dragging) {
           if (!withinTarget && !s.correctiveFocusRan) {
             const frontCorrectionY = frontFacing ? 0 : Math.atan2(Math.sin(focusRotationForPoint(activeBeacon).rotY - s.targetY), Math.cos(focusRotationForPoint(activeBeacon).rotY - s.targetY));
@@ -843,7 +842,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     return () => { document.removeEventListener("visibilitychange", onVisibility); resizeObserver?.disconnect(); window.removeEventListener("orientationchange", onOrientationChange); window.removeEventListener("resize", onWindowResize); window.visualViewport?.removeEventListener("resize", onVisualViewportResize); window.visualViewport?.removeEventListener("scroll", onVisualViewportScroll); window.clearTimeout(throttleTimer); if (fallbackTimer) window.clearTimeout(fallbackTimer); cancelAnimationFrame(raf); raf = 0; };
   }, [focusPoint, mobile, station, stations]);
 
-  useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, teleporting]);
+  useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, stationFocusIdentityKey, teleporting]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; debugGlobeFocus("user drag cancelled transition", { selectionVersion, station: station.name, travelActive: s.travelActive, focusDuration: s.focusDuration }); s.travelActive = false; s.focusDuration = 0; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); };
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; event.preventDefault(); pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) { s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom + (distance - pinchDistance.current) * 0.003)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "pinch street/city threshold"); } pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; const rotation = rotateFromDrag({ rotX: s.targetX, rotY: s.targetY }, dx, dy, mobile); s.targetX = rotation.rotX; s.targetY = rotation.rotY; s.lastX = event.clientX; s.lastY = event.clientY; };
