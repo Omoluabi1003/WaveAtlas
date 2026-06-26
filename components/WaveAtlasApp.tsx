@@ -3249,6 +3249,8 @@ type VoiceCommandButtonProps = {
   onFeedback?: (message: string) => void;
 };
 
+const VOICE_FEEDBACK_AUTO_DISMISS_MS = 4000;
+
 function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceCommandButtonProps) {
   const [supported] = useState(() => Boolean(getSpeechRecognitionConstructor()));
   const [listening, setListening] = useState(false);
@@ -3256,6 +3258,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const recognitionActiveRef = useRef(false);
   const manualStopRef = useRef(false);
+  const heardSpeechRef = useRef(false);
 
   useEffect(() => {
     const Recognition = getSpeechRecognitionConstructor();
@@ -3268,18 +3271,23 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
     recognition.onstart = () => {
       recognitionActiveRef.current = true;
       manualStopRef.current = false;
+      heardSpeechRef.current = false;
       setListening(true);
       setMessage("Listening… try “Search Switzerland” or “Open map view”.");
     };
     recognition.onend = () => {
+      const manuallyStopped = manualStopRef.current;
       recognitionActiveRef.current = false;
       manualStopRef.current = false;
       setListening(false);
+      if (manuallyStopped || !heardSpeechRef.current) onFeedback?.("");
+      heardSpeechRef.current = false;
     };
     recognition.onerror = (event) => {
       const manuallyStopped = manualStopRef.current;
       recognitionActiveRef.current = false;
       manualStopRef.current = false;
+      heardSpeechRef.current = false;
       setListening(false);
       if (manuallyStopped) return;
       const fallback = event.error === "not-allowed" ? "Microphone permission was blocked." : "Voice command was not recognized. Try again.";
@@ -3292,6 +3300,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
         transcript += event.results[index][0]?.transcript ?? "";
       }
       if (!transcript.trim()) return;
+      heardSpeechRef.current = true;
       setMessage(transcript.trim());
       const result = parseVoiceCommand(transcript);
       const finalLike = Boolean(event.results[event.results.length - 1]?.isFinal);
@@ -3309,6 +3318,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       recognition.onstart = null;
       recognitionActiveRef.current = false;
       manualStopRef.current = false;
+      heardSpeechRef.current = false;
       recognition.abort();
       recognitionRef.current = null;
     };
@@ -3326,6 +3336,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       recognitionActiveRef.current = false;
       setListening(false);
       setMessage("Voice command stopped.");
+      onFeedback?.("");
       try {
         recognitionRef.current.stop();
       } catch {
@@ -3339,6 +3350,7 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
     } catch {
       recognitionActiveRef.current = false;
       setListening(false);
+      onFeedback?.("");
     }
   };
 
@@ -3376,6 +3388,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [voiceFeedback, setVoiceFeedback] = useState("");
+  const voiceFeedbackTimerRef = useRef<number | null>(null);
   const [voiceSearchOverlayRequest, setVoiceSearchOverlayRequest] = useState(0);
   const voiceSearchRequestRef = useRef(0);
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
@@ -3399,6 +3412,34 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     return /^[a-z0-9-]{8,80}$/i.test(value) ? value : "";
   });
   const initialStationPoolRef = useRef(stationPool);
+
+  const clearVoiceFeedback = useCallback(() => {
+    if (voiceFeedbackTimerRef.current !== null) {
+      window.clearTimeout(voiceFeedbackTimerRef.current);
+      voiceFeedbackTimerRef.current = null;
+    }
+    setVoiceFeedback("");
+  }, []);
+
+  const showVoiceFeedback = useCallback((message: string) => {
+    if (voiceFeedbackTimerRef.current !== null) {
+      window.clearTimeout(voiceFeedbackTimerRef.current);
+      voiceFeedbackTimerRef.current = null;
+    }
+    if (!message.trim()) {
+      setVoiceFeedback("");
+      return;
+    }
+    setVoiceFeedback(message);
+    voiceFeedbackTimerRef.current = window.setTimeout(() => {
+      voiceFeedbackTimerRef.current = null;
+      setVoiceFeedback("");
+    }, VOICE_FEEDBACK_AUTO_DISMISS_MS);
+  }, []);
+
+  useEffect(() => () => {
+    if (voiceFeedbackTimerRef.current !== null) window.clearTimeout(voiceFeedbackTimerRef.current);
+  }, []);
 
   const completeArrivalFlow = useCallback(() => {
     markArrivalCompleted();
@@ -3597,23 +3638,24 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       .finally(() => setDesktopTeleporting(false));
   }, [current, desktopTeleporting, stationPool]);
 
-  const showVoiceSearchResults = useCallback((query: string, feedback?: string) => {
+  const showVoiceSearchResults = useCallback((query: string, _feedback?: string) => {
     setDesktopMode("Atlas");
     setSelectedCountry(null);
     setDesktopDrawerCollapsed(false);
     setQuery(query);
     setVoiceSearchOverlayRequest((request) => request + 1);
-    setVoiceFeedback(feedback ?? `Searching ${query}.`);
-  }, []);
+    clearVoiceFeedback();
+  }, [clearVoiceFeedback]);
 
   const selectVoiceStation = useCallback((station: Station) => {
+    clearVoiceFeedback();
     setCurrentStationAndDestination(station);
     setStationPool((prev) => prev.some((item) => stationKey(item) === stationKey(station)) ? prev : [station, ...prev]);
     setSelectedCountry(null);
     setQuery("");
     setDesktopDrawerCollapsed(true);
     centerAppAfterQuery();
-  }, [centerAppAfterQuery]);
+  }, [centerAppAfterQuery, clearVoiceFeedback]);
 
   const resolveVoiceSearchIntent = useCallback(async (intent: Extract<VoiceCommandIntent, { type: "search" }> | Extract<VoiceCommandIntent, { type: "play" }>) => {
     const query = intent.query?.trim();
@@ -3621,7 +3663,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     const action = intent.type === "play" ? "play" : intent.action ?? "search";
     const requestId = ++voiceSearchRequestRef.current;
     if (action === "search") showVoiceSearchResults(query, `Searching ${query}.`);
-    else setVoiceFeedback(action === "navigate" ? `Looking for ${query}.` : `Searching ${query}.`);
+    else showVoiceFeedback(action === "navigate" ? `Looking for ${query}.` : `Searching ${query}.`);
     try {
       const [countryRes, stationRes] = await Promise.all([
         fetch(`/api/countries/search?q=${encodeURIComponent(query)}`),
@@ -3638,17 +3680,17 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
 
       if (action === "navigate" && exactCountry) {
         selectCountry(exactCountry);
-        setVoiceFeedback(`Navigating to ${exactCountry.name}.`);
+        clearVoiceFeedback();
         return;
       }
       if ((action === "play" || action === "navigate") && singleStation) {
         selectVoiceStation(singleStation);
-        setVoiceFeedback(`Playing ${singleStation.name}.`);
+        clearVoiceFeedback();
         return;
       }
       if (action === "play" && exactCountry) {
         selectCountry(exactCountry);
-        setVoiceFeedback(`Tuning stations in ${exactCountry.name}.`);
+        clearVoiceFeedback();
         return;
       }
       if ((countries.length + stations.length) > 1) {
@@ -3661,7 +3703,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       if (requestId !== voiceSearchRequestRef.current) return;
       showVoiceSearchResults(query, `Searching ${query}.`);
     }
-  }, [selectCountry, selectVoiceStation, showVoiceSearchResults]);
+  }, [clearVoiceFeedback, selectCountry, selectVoiceStation, showVoiceFeedback, showVoiceSearchResults]);
 
   const handleVoiceIntent = useCallback((intent: VoiceCommandIntent) => {
     setDesktopDrawerCollapsed(false);
@@ -3676,51 +3718,51 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         const player = usePlayer.getState();
         if (!player.current) setCurrentStationAndDestination(current);
         if (!player.playing) player.toggle();
-        setVoiceFeedback("Starting playback.");
+        clearVoiceFeedback();
       }
       return;
     }
     if (intent.type === "pause") {
       const player = usePlayer.getState();
       if (player.playing || player.status === "buffering") player.toggle();
-      setVoiceFeedback("Paused playback.");
+      showVoiceFeedback("Paused playback.");
       return;
     }
     if (intent.type === "resume") {
       const player = usePlayer.getState();
       if (!player.current) setCurrentStationAndDestination(current);
       if (!player.playing) player.toggle();
-      setVoiceFeedback("Resumed playback.");
+      clearVoiceFeedback();
       return;
     }
     if (intent.type === "switch_view") {
       chooseDesktopAtlasView(intent.view === "map" ? "map" : "globe");
-      setVoiceFeedback(intent.view === "map" ? "Opened map view." : "Switched to Atlas globe.");
+      showVoiceFeedback(intent.view === "map" ? "Opened map view." : "Switched to Atlas globe.");
       return;
     }
     if (intent.type === "teleport") {
       if (intent.query) setQuery(intent.query);
       runDesktopTeleport();
-      setVoiceFeedback(intent.query ? `Teleporting to ${intent.query}.` : "Teleporting.");
+      showVoiceFeedback(intent.query ? `Teleporting to ${intent.query}.` : "Teleporting.");
       return;
     }
     if (intent.type === "wander") {
       setWandererActive(true);
       setWandererIntent(intent.query || "Voice wander");
-      setVoiceFeedback("Wanderer Mode started.");
+      showVoiceFeedback("Wanderer Mode started.");
       return;
     }
     if (intent.type === "volume") {
       setPlayerVolume(intent.value);
-      setVoiceFeedback(`Volume ${Math.round(intent.value * 100)}%.`);
+      showVoiceFeedback(`Volume ${Math.round(intent.value * 100)}%.`);
       return;
     }
     if (intent.type === "open_settings") {
       setDesktopMode("Settings");
       setBriefOpen(false);
-      setVoiceFeedback("Opened settings.");
+      showVoiceFeedback("Opened settings.");
     }
-  }, [chooseDesktopAtlasView, current, resolveVoiceSearchIntent, runDesktopTeleport, setPlayerVolume]);
+  }, [chooseDesktopAtlasView, clearVoiceFeedback, current, resolveVoiceSearchIntent, runDesktopTeleport, setPlayerVolume, showVoiceFeedback]);
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
@@ -3767,7 +3809,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
-      <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={setVoiceFeedback} /></div>
+      <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} /></div>
       {voiceFeedback ? <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+118px)] z-[61] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-radio/20 bg-slate-950/86 px-3 py-2 text-center text-xs font-medium text-radio shadow-2xl backdrop-blur-xl md:hidden" role="status" aria-live="polite">{voiceFeedback}</div> : null}
       <MobileAtlasShell stations={stationPool} current={current} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
@@ -3800,7 +3842,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
               placeholder="Search country, city, destination..."
               className="w-full bg-transparent outline-none placeholder:text-ivory/45"
             />
-            <VoiceCommandButton onIntent={handleVoiceIntent} onFeedback={setVoiceFeedback} />
+            <VoiceCommandButton onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} />
           </div>
         </div>
         {voiceFeedback ? <p className="pointer-events-none mx-auto mt-2 w-fit rounded-full border border-radio/20 bg-slate-950/70 px-3 py-1.5 text-center text-xs font-medium text-radio shadow-xl backdrop-blur-xl" role="status" aria-live="polite">{voiceFeedback}</p> : null}
