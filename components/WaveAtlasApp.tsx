@@ -3459,7 +3459,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     return () => controller.abort();
   }, [deepLinkUuid]);
 
-  const loadCountryStations = async (country: CountryResult, nextOffset = 0, tag = activeTag) => {
+  const loadCountryStations = useCallback(async (country: CountryResult, nextOffset = 0, tag = activeTag) => {
     setLoadingCountry(true);
     setCountrySignalMessage(nextOffset ? "Finding more live signals…" : `Tuning into ${country.name}…`);
     if (!nextOffset) setStationPool([]);
@@ -3491,20 +3491,20 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     } finally {
       setLoadingCountry(false);
     }
-  };
+  }, [activeTag]);
   const centerAppAfterQuery = useCallback(() => {
     window.requestAnimationFrame(() => {
       document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, destination..."]')?.blur();
     });
   }, []);
 
-  const selectCountry = (country: CountryResult) => {
+  const selectCountry = useCallback((country: CountryResult) => {
     setDesktopDrawerCollapsed(false);
     setSelectedCountry(country);
     setQuery("");
     setActiveTag("");
     void loadCountryStations(country, 0, "").finally(centerAppAfterQuery);
-  };
+  }, [centerAppAfterQuery, loadCountryStations]);
   const selectTag = (tag: string) => {
     setActiveTag(tag);
     if (selectedCountry) void loadCountryStations(selectedCountry, 0, tag);
@@ -3570,21 +3570,75 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       .finally(() => setDesktopTeleporting(false));
   }, [current, desktopTeleporting, stationPool]);
 
+  const showVoiceSearchResults = useCallback((query: string, feedback?: string) => {
+    setDesktopMode("Atlas");
+    setSelectedCountry(null);
+    setDesktopDrawerCollapsed(false);
+    setQuery(query);
+    setVoiceFeedback(feedback ?? `Searching ${query}.`);
+  }, []);
+
+  const selectVoiceStation = useCallback((station: Station) => {
+    setCurrentStationAndDestination(station);
+    setStationPool((prev) => prev.some((item) => item.id === station.id) ? prev : [station, ...prev]);
+    setSelectedCountry(null);
+    setQuery("");
+    setDesktopDrawerCollapsed(true);
+    centerAppAfterQuery();
+  }, [centerAppAfterQuery]);
+
+  const resolveVoiceSearchIntent = useCallback(async (intent: Extract<VoiceCommandIntent, { type: "search" }> | Extract<VoiceCommandIntent, { type: "play" }>) => {
+    const query = intent.query?.trim();
+    if (!query) return;
+    const action = intent.type === "play" ? "play" : intent.action ?? "search";
+    showVoiceSearchResults(query, action === "navigate" ? `Looking for ${query}.` : `Searching ${query}.`);
+    try {
+      const [countryRes, stationRes] = await Promise.all([
+        fetch(`/api/countries/search?q=${encodeURIComponent(query)}`),
+        fetch(`/api/stations/search?q=${encodeURIComponent(query)}&limit=25`),
+      ]);
+      const countries = countryRes.ok ? ((await countryRes.json()) as { countries: CountryResult[] }).countries : [];
+      const stations = stationRes.ok ? ((await stationRes.json()) as { stations: Station[] }).stations : [];
+      const normalizedQuery = query.toLowerCase();
+      const exactCountry = countries.find((country) => country.name.toLowerCase() === normalizedQuery || country.code.toLowerCase() === normalizedQuery);
+      const exactStations = stations.filter((station) => station.name.toLowerCase() === normalizedQuery);
+      const singleStation = exactStations[0] ?? (stations.length === 1 ? stations[0] : undefined);
+
+      if (action === "navigate" && exactCountry) {
+        selectCountry(exactCountry);
+        setVoiceFeedback(`Navigating to ${exactCountry.name}.`);
+        return;
+      }
+      if ((action === "play" || action === "navigate") && singleStation) {
+        selectVoiceStation(singleStation);
+        setVoiceFeedback(`Playing ${singleStation.name}.`);
+        return;
+      }
+      if (action === "play" && exactCountry) {
+        selectCountry(exactCountry);
+        setVoiceFeedback(`Tuning stations in ${exactCountry.name}.`);
+        return;
+      }
+      if ((countries.length + stations.length) > 1) {
+        setVoiceFeedback(`Found multiple matches for ${query}. Showing results.`);
+        return;
+      }
+      if (!countries.length && !stations.length) setVoiceFeedback(`No match found for ${query}. Showing search results.`);
+      else setVoiceFeedback(`Showing results for ${query}.`);
+    } catch {
+      setVoiceFeedback(`Searching ${query}.`);
+    }
+  }, [selectCountry, selectVoiceStation, showVoiceSearchResults]);
+
   const handleVoiceIntent = useCallback((intent: VoiceCommandIntent) => {
     setDesktopDrawerCollapsed(false);
     if (intent.type === "search") {
-      setDesktopMode("Atlas");
-      setSelectedCountry(null);
-      setQuery(intent.query);
-      setVoiceFeedback(`Searching ${intent.query}.`);
+      void resolveVoiceSearchIntent(intent);
       return;
     }
     if (intent.type === "play") {
       if (intent.query) {
-        setDesktopMode("Atlas");
-        setSelectedCountry(null);
-        setQuery(intent.query);
-        setVoiceFeedback(`Searching ${intent.query}.`);
+        void resolveVoiceSearchIntent(intent);
       } else {
         const player = usePlayer.getState();
         if (!player.current) setCurrentStationAndDestination(current);
@@ -3633,7 +3687,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       setBriefOpen(false);
       setVoiceFeedback("Opened settings.");
     }
-  }, [chooseDesktopAtlasView, current, runDesktopTeleport, setPlayerVolume]);
+  }, [chooseDesktopAtlasView, current, resolveVoiceSearchIntent, runDesktopTeleport, setPlayerVolume]);
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
