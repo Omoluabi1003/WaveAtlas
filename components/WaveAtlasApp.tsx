@@ -2868,7 +2868,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel} whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) { playPremiumTeleportClick(); onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete }: { stations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void }) {
+function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest }: { stations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [atlasView, setAtlasView] = useState<AtlasViewMode>(getInitialAtlasView);
@@ -2882,6 +2882,7 @@ function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, 
   const [mapContext, setMapContext] = useState<MapTeleportContext | null>(null);
   const [transitionContext, setTransitionContext] = useState<AtlasTransitionContext | null>(null);
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
+  const mobileSearchOverlayOpen = searchOverlayOpen || (voiceSearchOverlayRequest > 0 && Boolean(query.trim()));
   const selectionVersion = usePlayer((state) => state.selectionVersion);
   const handleTravel = useCallback((intent: string) => {
     setWandererIntent(intent);
@@ -2938,13 +2939,13 @@ function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, 
   }, [atlasTransition]);
   return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
-      <AtlasViewErrorBoundary key={`mobile-map-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={activeTransitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={searchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
+      <AtlasViewErrorBoundary key={`mobile-map-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={activeTransitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={mobileSearchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
     ) : (
       <AtlasViewErrorBoundary key={`mobile-globe-${current.station_uuid || current.id}-${atlasTransition.state.transitionVersion}`} name="mobile globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => atlasTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stations} selectionVersion={selectionVersion} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onFallback={(reason) => atlasTransition.failTransition(reason)} onStreetZoomRequest={enterMobileStreets} /></AtlasViewErrorBoundary>
     )}
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
-    <MobileSearchCommandOverlay open={searchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setCurrentStationAndDestination(station); }, 250); }} />
+    <MobileSearchCommandOverlay open={mobileSearchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setCurrentStationAndDestination(station); }, 250); }} />
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
@@ -3253,6 +3254,8 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState(() => getSpeechRecognitionConstructor() ? "Voice commands are push-to-talk." : "Voice commands are unavailable in this browser.");
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const recognitionActiveRef = useRef(false);
+  const manualStopRef = useRef(false);
 
   useEffect(() => {
     const Recognition = getSpeechRecognitionConstructor();
@@ -3263,12 +3266,22 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
     recognition.continuous = false;
     recognition.maxAlternatives = 1;
     recognition.onstart = () => {
+      recognitionActiveRef.current = true;
+      manualStopRef.current = false;
       setListening(true);
       setMessage("Listening… try “Search Switzerland” or “Open map view”.");
     };
-    recognition.onend = () => setListening(false);
-    recognition.onerror = (event) => {
+    recognition.onend = () => {
+      recognitionActiveRef.current = false;
+      manualStopRef.current = false;
       setListening(false);
+    };
+    recognition.onerror = (event) => {
+      const manuallyStopped = manualStopRef.current;
+      recognitionActiveRef.current = false;
+      manualStopRef.current = false;
+      setListening(false);
+      if (manuallyStopped) return;
       const fallback = event.error === "not-allowed" ? "Microphone permission was blocked." : "Voice command was not recognized. Try again.";
       setMessage(fallback);
       onFeedback?.(fallback);
@@ -3294,6 +3307,8 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       recognition.onerror = null;
       recognition.onend = null;
       recognition.onstart = null;
+      recognitionActiveRef.current = false;
+      manualStopRef.current = false;
       recognition.abort();
       recognitionRef.current = null;
     };
@@ -3306,14 +3321,24 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       onFeedback?.(fallback);
       return;
     }
-    if (listening) {
-      recognitionRef.current.stop();
+    if (listening || recognitionActiveRef.current) {
+      manualStopRef.current = true;
+      recognitionActiveRef.current = false;
+      setListening(false);
+      setMessage("Voice command stopped.");
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        recognitionRef.current.abort();
+      }
       return;
     }
     try {
+      recognitionActiveRef.current = true;
       recognitionRef.current.start();
     } catch {
-      recognitionRef.current.stop();
+      recognitionActiveRef.current = false;
+      setListening(false);
     }
   };
 
@@ -3351,6 +3376,8 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const [desktopResetSignal, setDesktopResetSignal] = useState(0);
   const [deepLinkStatus, setDeepLinkStatus] = useState<"idle" | "loading" | "unavailable">("idle");
   const [voiceFeedback, setVoiceFeedback] = useState("");
+  const [voiceSearchOverlayRequest, setVoiceSearchOverlayRequest] = useState(0);
+  const voiceSearchRequestRef = useRef(0);
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [desktopMode, setDesktopMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "add-signal" ? "Add Signal" : "Atlas");
   const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(true);
@@ -3575,12 +3602,13 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     setSelectedCountry(null);
     setDesktopDrawerCollapsed(false);
     setQuery(query);
+    setVoiceSearchOverlayRequest((request) => request + 1);
     setVoiceFeedback(feedback ?? `Searching ${query}.`);
   }, []);
 
   const selectVoiceStation = useCallback((station: Station) => {
     setCurrentStationAndDestination(station);
-    setStationPool((prev) => prev.some((item) => item.id === station.id) ? prev : [station, ...prev]);
+    setStationPool((prev) => prev.some((item) => stationKey(item) === stationKey(station)) ? prev : [station, ...prev]);
     setSelectedCountry(null);
     setQuery("");
     setDesktopDrawerCollapsed(true);
@@ -3591,14 +3619,18 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     const query = intent.query?.trim();
     if (!query) return;
     const action = intent.type === "play" ? "play" : intent.action ?? "search";
-    showVoiceSearchResults(query, action === "navigate" ? `Looking for ${query}.` : `Searching ${query}.`);
+    const requestId = ++voiceSearchRequestRef.current;
+    if (action === "search") showVoiceSearchResults(query, `Searching ${query}.`);
+    else setVoiceFeedback(action === "navigate" ? `Looking for ${query}.` : `Searching ${query}.`);
     try {
       const [countryRes, stationRes] = await Promise.all([
         fetch(`/api/countries/search?q=${encodeURIComponent(query)}`),
         fetch(`/api/stations/search?q=${encodeURIComponent(query)}&limit=25`),
       ]);
+      if (requestId !== voiceSearchRequestRef.current) return;
       const countries = countryRes.ok ? ((await countryRes.json()) as { countries: CountryResult[] }).countries : [];
       const stations = stationRes.ok ? ((await stationRes.json()) as { stations: Station[] }).stations : [];
+      if (requestId !== voiceSearchRequestRef.current) return;
       const normalizedQuery = query.toLowerCase();
       const exactCountry = countries.find((country) => country.name.toLowerCase() === normalizedQuery || country.code.toLowerCase() === normalizedQuery);
       const exactStations = stations.filter((station) => station.name.toLowerCase() === normalizedQuery);
@@ -3620,13 +3652,14 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         return;
       }
       if ((countries.length + stations.length) > 1) {
-        setVoiceFeedback(`Found multiple matches for ${query}. Showing results.`);
+        showVoiceSearchResults(query, `Found multiple matches for ${query}. Showing results.`);
         return;
       }
-      if (!countries.length && !stations.length) setVoiceFeedback(`No match found for ${query}. Showing search results.`);
-      else setVoiceFeedback(`Showing results for ${query}.`);
+      if (!countries.length && !stations.length) showVoiceSearchResults(query, `No match found for ${query}. Showing search results.`);
+      else showVoiceSearchResults(query, `Showing results for ${query}.`);
     } catch {
-      setVoiceFeedback(`Searching ${query}.`);
+      if (requestId !== voiceSearchRequestRef.current) return;
+      showVoiceSearchResults(query, `Searching ${query}.`);
     }
   }, [selectCountry, selectVoiceStation, showVoiceSearchResults]);
 
@@ -3736,7 +3769,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
       <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={setVoiceFeedback} /></div>
       {voiceFeedback ? <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+118px)] z-[61] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-radio/20 bg-slate-950/86 px-3 py-2 text-center text-xs font-medium text-radio shadow-2xl backdrop-blur-xl md:hidden" role="status" aria-live="polite">{voiceFeedback}</div> : null}
-      <MobileAtlasShell stations={stationPool} current={current} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} />
+      <MobileAtlasShell stations={stationPool} current={current} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} />
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
       <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
