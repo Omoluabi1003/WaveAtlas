@@ -3727,7 +3727,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
 
   const selectVoiceStation = useCallback((station: Station, candidates: Station[] = [station], label?: string) => {
     clearVoiceFeedback();
-    setScopedStationAndDestination(station, "voice", candidates, label || scopedQueueLabel(station));
+    setScopedStationAndDestination(station, "voice", candidates, label);
     setVoiceFocusNonce((nonce) => nonce + 1);
     setStationPool((prev) => uniqueStationCandidates([station, ...candidates, ...prev]));
     setSelectedCountry(null);
