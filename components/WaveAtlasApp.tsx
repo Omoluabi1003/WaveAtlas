@@ -218,6 +218,7 @@ type PlayerState = {
   scopedSearchLabel?: string;
   setTeleportQueue: (stations: Station[]) => void;
   startScopedSearchSession: (label: string) => number;
+  clearScopedSearchSession: () => void;
   clearArrivalContext: () => void;
   setArrivalStation: (station: Station, queue?: Station[]) => void;
   replaceStartupStation: (previous: Station, next: Station, reason: string) => void;
@@ -240,6 +241,7 @@ const usePlayer = create<PlayerState>((set) => ({
   scopedSearchSessionId: 0,
   setTeleportQueue: (teleportQueue) => set({ teleportQueue }),
   startScopedSearchSession: (scopedSearchLabel) => { const scopedSearchSessionId = Date.now() + Math.random(); set({ scopedSearchSessionId, scopedSearchLabel }); return scopedSearchSessionId; },
+  clearScopedSearchSession: () => set({ scopedSearchSessionId: 0, scopedSearchLabel: undefined, teleportQueue: [] }),
   clearArrivalContext: () => set({ arrivalStation: undefined, startupQueue: [], replacementReason: undefined }),
   setArrivalStation: (station, queue = [station]) => set({ arrivalStation: station, startupQueue: queue.length ? queue : [station], replacementReason: undefined }),
   replaceStartupStation: (previous, next, reason) => {
@@ -376,7 +378,11 @@ function setCurrentStationAndDestination(station: Station, source: StationSelect
   const player = usePlayer.getState();
   useNavigationEngine.getState().setActiveStation(station, source, version);
   player.setStation(station, source, version);
-  player.setTeleportQueue(queue.length ? queue.filter((candidate) => stationKey(candidate) !== stationKey(station)) : []);
+  if (queue.length) {
+    player.setTeleportQueue(queue.filter((candidate) => stationKey(candidate) !== stationKey(station)));
+  } else {
+    player.clearScopedSearchSession();
+  }
   return version;
 }
 
@@ -398,9 +404,12 @@ function commitTeleportStation(station: Station, queue: Station[] = []) {
   setCurrentStationAndDestination(station, "teleport", queue);
 }
 
+function stationLocalQueueLabel(station: Station) {
+  return station.city || station.state || station.country || station.tags[0] || station.language || "these results";
+}
+
 function scopedQueueLabel(station: Station) {
-  const scopedLabel = usePlayer.getState().scopedSearchLabel;
-  return scopedLabel || station.city || station.state || station.country || station.tags[0] || station.language || "these results";
+  return usePlayer.getState().scopedSearchLabel || stationLocalQueueLabel(station);
 }
 
 function uniqueStationCandidates(candidates: Station[]) {
@@ -417,10 +426,16 @@ function playFirstSearchCandidate(candidates: Station[], source: StationSelectio
   return setCurrentStationAndDestination(scopedCandidates[0], source, scopedCandidates);
 }
 
-function setScopedStationAndDestination(station: Station, source: StationSelectionSource, candidates: Station[], label = scopedQueueLabel(station)) {
-  const scopedCandidates = uniqueStationCandidates([station, ...candidates]);
-  usePlayer.getState().startScopedSearchSession(label);
-  return setCurrentStationAndDestination(station, source, scopedCandidates.length ? scopedCandidates : [station]);
+function setScopedStationAndDestination(station: Station, source: StationSelectionSource, candidates: Station[], label?: string) {
+  const scopedCandidates = uniqueStationCandidates([station, ...candidates]).filter((candidate) => getStationStreamUrl(candidate));
+  const scopedLabel = label?.trim() || stationLocalQueueLabel(station);
+  if (!scopedCandidates.length) {
+    usePlayer.getState().setStatus("failed", `No playable stations found for ${scopedLabel}.`);
+    return undefined;
+  }
+  const selected = scopedCandidates.find((candidate) => stationKey(candidate) === stationKey(station)) ?? scopedCandidates[0];
+  usePlayer.getState().startScopedSearchSession(scopedLabel);
+  return setCurrentStationAndDestination(selected, source, scopedCandidates);
 }
 
 
@@ -1026,7 +1041,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
     const hardFailure = ["audio_error", "network_error", "unsupported_media", "autoplay_blocked", "missing_url", "abort", "playback_error"].includes(errorType);
     const state = usePlayer.getState();
-    const hasScopedQueue = state.teleportQueue.length > 0;
+    const hasScopedQueue = state.scopedSearchSessionId > 0;
     const now = Date.now();
     skipTimestamps.current = skipTimestamps.current.filter((timestamp) => now - timestamp < 20000);
     if (!hasScopedQueue && !hardFailure && skipTimestamps.current.length >= 2) {
@@ -1066,7 +1081,8 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       }
       return true;
     }
-    setStatus("failed", hasScopedQueue ? `No playable stations remain in ${scopedQueueLabel(failed)}. Try another search or choose a previous station manually.` : FAST_CONNECT_COPY.failed);
+    if (hasScopedQueue) state.clearScopedSearchSession();
+    setStatus("failed", hasScopedQueue ? `No playable stations found for ${scopedQueueLabel(failed)}.` : FAST_CONNECT_COPY.failed);
     return false;
   }, [setStatus, stations]);
 
@@ -1074,7 +1090,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     if (!current) return;
     const queue = buildFastConnectQueue(stations, current, FAST_CONNECT_PARALLEL_CANDIDATES - 1);
     const state = usePlayer.getState();
-    if (state.teleportQueue.length) {
+    if (state.scopedSearchSessionId > 0) {
       if (scopedAttemptSession.current !== scopedSearchSessionId) {
         scopedAttemptSession.current = scopedSearchSessionId;
         attempted.current = [];
@@ -3300,11 +3316,18 @@ type VoiceCommandButtonProps = {
 const VOICE_FEEDBACK_AUTO_DISMISS_MS = 4000;
 const VOICE_TOOLTIP_DEFAULT_MESSAGE = "Voice commands are push-to-talk.";
 const VOICE_TOOLTIP_RESET_MS = 3000;
+type MicrophonePermissionState = "unknown" | "granted" | "prompt" | "blocked" | "unsupported" | "unavailable";
+
+function microphoneBlockedMessage() {
+  return "Microphone permission is blocked. Re-enable the microphone for this site in your browser settings, then press Retry. Manual search and playback still work.";
+}
 
 function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceCommandButtonProps) {
   const [supported] = useState(() => Boolean(getSpeechRecognitionConstructor()));
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState(() => getSpeechRecognitionConstructor() ? VOICE_TOOLTIP_DEFAULT_MESSAGE : "Voice commands are unavailable in this browser.");
+  const [microphonePermission, setMicrophonePermission] = useState<MicrophonePermissionState>(() => supported ? "unknown" : "unsupported");
+  const permissionStatusRef = useRef<PermissionStatus | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const recognitionActiveRef = useRef(false);
   const manualStopRef = useRef(false);
@@ -3330,6 +3353,44 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       setMessage(VOICE_TOOLTIP_DEFAULT_MESSAGE);
     }, VOICE_TOOLTIP_RESET_MS);
   }, [clearTooltipResetTimer]);
+
+  const refreshMicrophonePermission = useCallback(async () => {
+    if (!supported || typeof navigator === "undefined") {
+      setMicrophonePermission("unsupported");
+      return "unsupported" as MicrophonePermissionState;
+    }
+    if (!("mediaDevices" in navigator) || !navigator.mediaDevices?.getUserMedia) {
+      setMicrophonePermission("unavailable");
+      return "unavailable" as MicrophonePermissionState;
+    }
+    if (!("permissions" in navigator)) {
+      setMicrophonePermission("unknown");
+      return "unknown" as MicrophonePermissionState;
+    }
+    try {
+      const status = await navigator.permissions.query({ name: "microphone" as PermissionName });
+      permissionStatusRef.current = status;
+      const state: MicrophonePermissionState = status.state === "denied" ? "blocked" : status.state === "granted" ? "granted" : "prompt";
+      setMicrophonePermission(state);
+      status.onchange = () => {
+        const next: MicrophonePermissionState = status.state === "denied" ? "blocked" : status.state === "granted" ? "granted" : "prompt";
+        setMicrophonePermission(next);
+        setMessage(next === "blocked" ? microphoneBlockedMessage() : VOICE_TOOLTIP_DEFAULT_MESSAGE);
+      };
+      return state;
+    } catch {
+      setMicrophonePermission("unknown");
+      return "unknown" as MicrophonePermissionState;
+    }
+  }, [supported]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void refreshMicrophonePermission(), 0);
+    return () => {
+      window.clearTimeout(timer);
+      if (permissionStatusRef.current) permissionStatusRef.current.onchange = null;
+    };
+  }, [refreshMicrophonePermission]);
 
   useEffect(() => {
     const Recognition = getSpeechRecognitionConstructor();
@@ -3364,7 +3425,11 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
       setListening(false);
       resetLocalTooltip();
       if (manuallyStopped) return;
-      const fallback = event.error === "not-allowed" ? "Microphone permission was blocked." : "Voice command was not recognized. Try again.";
+      let fallback = "Voice command was not recognized. Try again.";
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") { setMicrophonePermission("blocked"); fallback = microphoneBlockedMessage(); }
+      else if (event.error === "audio-capture") { setMicrophonePermission("unavailable"); fallback = "No available microphone was detected. Manual search and playback still work."; }
+      else if (event.error === "no-speech") fallback = "Voice timed out without speech. Try again or use manual search.";
+      else if (event.error === "network") fallback = "Voice recognition is temporarily unavailable. Manual search still works.";
       setMessage(fallback);
       onFeedback?.(fallback);
     };
@@ -3401,9 +3466,24 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
     };
   }, [clearTooltipResetTimer, onFeedback, onIntent, resetLocalTooltip, scheduleLocalTooltipReset]);
 
-  const pushToTalk = () => {
+  const pushToTalk = async () => {
     if (!supported || !recognitionRef.current) {
       const fallback = "Voice commands are unavailable in this browser. You can still use search and controls manually.";
+      setMessage(fallback);
+      onFeedback?.(fallback);
+      return;
+    }
+    if (microphonePermission === "blocked") {
+      const next = await refreshMicrophonePermission();
+      if (next === "blocked") {
+        const fallback = microphoneBlockedMessage();
+        setMessage(fallback);
+        onFeedback?.(fallback);
+        return;
+      }
+    }
+    if (microphonePermission === "unavailable") {
+      const fallback = "No available microphone was detected. Manual search and playback still work.";
       setMessage(fallback);
       onFeedback?.(fallback);
       return;
@@ -3432,9 +3512,11 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
   };
 
   return <div className="relative">
-    <button type="button" onClick={pushToTalk} className={`${compact ? "size-11" : "size-10"} grid place-items-center rounded-full border ${listening ? "border-radio bg-radio text-midnight" : "border-white/15 bg-white/[0.06] text-ivory/75 hover:border-radio/35 hover:text-radio"} shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold`} aria-pressed={listening} aria-label={supported ? "Push to talk voice command" : "Voice commands unsupported"} title={supported ? "Push to talk" : "Voice commands unsupported"}>
+    <button type="button" onClick={pushToTalk} className={`${compact ? "size-11" : "size-10"} grid place-items-center rounded-full border ${listening ? "border-radio bg-radio text-midnight" : "border-white/15 bg-white/[0.06] text-ivory/75 hover:border-radio/35 hover:text-radio"} shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold`} aria-pressed={listening} aria-label={microphonePermission === "blocked" ? "Microphone blocked. Retry voice permission" : supported ? "Push to talk voice command" : "Voice commands unsupported"} title={microphonePermission === "blocked" ? "Microphone blocked — retry after restoring permission" : supported ? "Push to talk" : "Voice commands unsupported"}>
       <Mic className="size-4" />
+      {microphonePermission === "blocked" ? <span className="absolute -right-1 -top-1 size-3 rounded-full border border-slate-950 bg-red-400" aria-hidden="true" /> : null}
     </button>
+    {microphonePermission === "blocked" ? <button type="button" onClick={() => void refreshMicrophonePermission()} className="absolute -right-2 top-11 rounded-full border border-red-300/25 bg-red-500/15 px-2 py-1 text-[10px] font-bold text-red-100">Retry</button> : null}
     <span className={`${compact ? "right-0 top-12" : "left-1/2 top-12 -translate-x-1/2"} pointer-events-none absolute z-[80] w-64 rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl transition ${listening ? "opacity-100" : "opacity-0"}`} role="status" aria-live="polite">{message}</span>
   </div>;
 }
