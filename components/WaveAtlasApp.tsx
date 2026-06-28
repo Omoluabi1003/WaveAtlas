@@ -214,7 +214,10 @@ type PlayerState = {
   startupQueue: Station[];
   replacementReason?: string;
   teleportQueue: Station[];
+  scopedSearchSessionId: number;
+  scopedSearchLabel?: string;
   setTeleportQueue: (stations: Station[]) => void;
+  startScopedSearchSession: (label: string) => number;
   clearArrivalContext: () => void;
   setArrivalStation: (station: Station, queue?: Station[]) => void;
   replaceStartupStation: (previous: Station, next: Station, reason: string) => void;
@@ -234,7 +237,9 @@ const usePlayer = create<PlayerState>((set) => ({
   userActivated: false,
   startupQueue: [],
   teleportQueue: [],
+  scopedSearchSessionId: 0,
   setTeleportQueue: (teleportQueue) => set({ teleportQueue }),
+  startScopedSearchSession: (scopedSearchLabel) => { const scopedSearchSessionId = Date.now() + Math.random(); set({ scopedSearchSessionId, scopedSearchLabel }); return scopedSearchSessionId; },
   clearArrivalContext: () => set({ arrivalStation: undefined, startupQueue: [], replacementReason: undefined }),
   setArrivalStation: (station, queue = [station]) => set({ arrivalStation: station, startupQueue: queue.length ? queue : [station], replacementReason: undefined }),
   replaceStartupStation: (previous, next, reason) => {
@@ -255,7 +260,6 @@ const usePlayer = create<PlayerState>((set) => ({
       status: "buffering",
       error: undefined,
       userActivated: true,
-      teleportQueue: [],
     }),
   prepareStation: (current, stationSelectionSource = "startup") => {
     useNavigationEngine.getState().setActiveStation(current, stationSelectionSource);
@@ -372,7 +376,7 @@ function setCurrentStationAndDestination(station: Station, source: StationSelect
   const player = usePlayer.getState();
   useNavigationEngine.getState().setActiveStation(station, source, version);
   player.setStation(station, source, version);
-  if (queue.length) player.setTeleportQueue(queue.filter((candidate) => stationKey(candidate) !== stationKey(station)));
+  player.setTeleportQueue(queue.length ? queue.filter((candidate) => stationKey(candidate) !== stationKey(station)) : []);
   return version;
 }
 
@@ -395,11 +399,27 @@ function commitTeleportStation(station: Station, queue: Station[] = []) {
 }
 
 function scopedQueueLabel(station: Station) {
-  return station.city || station.state || station.country || station.tags[0] || station.language || "these results";
+  const scopedLabel = usePlayer.getState().scopedSearchLabel;
+  return scopedLabel || station.city || station.state || station.country || station.tags[0] || station.language || "these results";
 }
 
-function setScopedStationAndDestination(station: Station, source: StationSelectionSource, candidates: Station[]) {
-  const scopedCandidates = candidates.filter((candidate, index, all) => all.findIndex((item) => stationKey(item) === stationKey(candidate)) === index);
+function uniqueStationCandidates(candidates: Station[]) {
+  return candidates.filter((candidate, index, all) => all.findIndex((item) => stationKey(item) === stationKey(candidate)) === index);
+}
+
+function playFirstSearchCandidate(candidates: Station[], source: StationSelectionSource, label: string) {
+  const scopedCandidates = uniqueStationCandidates(candidates).filter((station) => getStationStreamUrl(station));
+  if (!scopedCandidates.length) {
+    usePlayer.getState().setStatus("failed", `No playable stations found for ${label}.`);
+    return undefined;
+  }
+  usePlayer.getState().startScopedSearchSession(label);
+  return setCurrentStationAndDestination(scopedCandidates[0], source, scopedCandidates);
+}
+
+function setScopedStationAndDestination(station: Station, source: StationSelectionSource, candidates: Station[], label = scopedQueueLabel(station)) {
+  const scopedCandidates = uniqueStationCandidates([station, ...candidates]);
+  usePlayer.getState().startScopedSearchSession(label);
   return setCurrentStationAndDestination(station, source, scopedCandidates.length ? scopedCandidates : [station]);
 }
 
@@ -996,11 +1016,12 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
 }
 
 function AudioEngine({ stations }: { stations: Station[] }) {
-  const { current, status, volume, userActivated, stationSelectionSource, setStatus } = usePlayer();
+  const { current, status, volume, userActivated, stationSelectionSource, scopedSearchSessionId, setStatus } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
   const attempted = useRef<string[]>([]);
   const skipTimestamps = useRef<number[]>([]);
   const currentKey = current ? stationKey(current) : "";
+  const scopedAttemptSession = useRef(0);
 
   const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
     const hardFailure = ["audio_error", "network_error", "unsupported_media", "autoplay_blocked", "missing_url", "abort", "playback_error"].includes(errorType);
@@ -1028,10 +1049,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     }
     const failedContinent = stationContinent(failed);
     const isUnattempted = (station: Station) => !attempted.current.includes(stationKey(station)) && !attempted.current.includes(getStationStreamUrl(station));
-    const scopedCountryFallback = state.teleportQueue.find((station) => station.country_code === failed.country_code && isUnattempted(station));
-    const queueFallback = scopedCountryFallback
-      ?? state.teleportQueue.find((station) => isUnattempted(station) && stationContinent(station) !== failedContinent)
-      ?? state.teleportQueue.find(isUnattempted);
+    const queueFallback = state.teleportQueue.find(isUnattempted);
     const fallback = queueFallback ?? (hasScopedQueue ? undefined : nextFastConnectCandidate(stations, failed, attempted.current) ?? pickFallbackStation(stations, failed, readArrivalHistory()));
     if (fallback) {
       const reason = errorType === "startup_timeout" || errorType === "waiting" || errorType === "stalled" ? "weak_signal" : "fallback";
@@ -1055,9 +1073,19 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   useEffect(() => {
     if (!current) return;
     const queue = buildFastConnectQueue(stations, current, FAST_CONNECT_PARALLEL_CANDIDATES - 1);
-    attempted.current = [stationKey(current)];
-    if (queue.length > 1) setStatus("buffering", usePlayer.getState().stationSelectionSource === "manual" ? "Holding the selected signal…" : getAdaptiveBufferPolicy(current).message);
-  }, [currentKey, current, setStatus, stations]);
+    const state = usePlayer.getState();
+    if (state.teleportQueue.length) {
+      if (scopedAttemptSession.current !== scopedSearchSessionId) {
+        scopedAttemptSession.current = scopedSearchSessionId;
+        attempted.current = [];
+      }
+      attempted.current = [...new Set([...attempted.current, stationKey(current)])];
+    } else {
+      scopedAttemptSession.current = 0;
+      attempted.current = [stationKey(current)];
+    }
+    if (queue.length > 1) setStatus("buffering", state.stationSelectionSource === "manual" ? "Holding the selected signal…" : getAdaptiveBufferPolicy(current).message);
+  }, [currentKey, current, scopedSearchSessionId, setStatus, stations]);
 
   useEffect(() => {
     const element = new Audio();
@@ -3594,9 +3622,9 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       setStationPool((prev) => nextOffset ? [...prev, ...sameCountryStations] : sameCountryStations);
       setOffset(nextOffset + sameCountryStations.length);
       if (!nextOffset && sameCountryStations[0]) {
-        setCurrentStationAndDestination(sameCountryStations[0], "auto", sameCountryStations.slice(1));
-        setCountrySignalMessage(`Loading ${sameCountryStations[0].name} from ${country.name}…`);
-        debugCountryClick("playback", { selectedStation: sameCountryStations[0], playbackResult: "station-loaded" });
+        playFirstSearchCandidate(sameCountryStations, "auto", country.name);
+        setCountrySignalMessage(`Loading first playable station from ${country.name}…`);
+        debugCountryClick("playback", { selectedStation: sameCountryStations[0], playbackResult: "search-session-started" });
       } else if (!nextOffset) {
         setCountrySignalMessage("No live signal found here yet. Try Teleport or Add Your Signal.");
         usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station.");
@@ -3697,11 +3725,11 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     clearVoiceFeedback();
   }, [clearVoiceFeedback]);
 
-  const selectVoiceStation = useCallback((station: Station) => {
+  const selectVoiceStation = useCallback((station: Station, candidates: Station[] = [station], label?: string) => {
     clearVoiceFeedback();
-    setCurrentStationAndDestination(station, "voice");
+    setScopedStationAndDestination(station, "voice", candidates, label || scopedQueueLabel(station));
     setVoiceFocusNonce((nonce) => nonce + 1);
-    setStationPool((prev) => prev.some((item) => stationKey(item) === stationKey(station)) ? prev : [station, ...prev]);
+    setStationPool((prev) => uniqueStationCandidates([station, ...candidates, ...prev]));
     setSelectedCountry(null);
     setQuery("");
     setDesktopDrawerCollapsed(true);
@@ -3740,7 +3768,12 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         return;
       }
       if ((action === "play" || action === "navigate") && singleStation) {
-        selectVoiceStation(singleStation);
+        selectVoiceStation(singleStation, stations.length ? stations : [singleStation], query);
+        clearVoiceFeedback();
+        return;
+      }
+      if (action === "play" && stations.length) {
+        selectVoiceStation(stations[0], stations, query);
         clearVoiceFeedback();
         return;
       }
