@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { inferGenreCountries } from "@/lib/cultural-atlas";
+import { rankStationsForResolvedPlace, resolveGlobalGeoQuery } from "@/lib/global-geo-resolver";
 import {
   countryAliases,
   fetchStations,
@@ -19,6 +20,46 @@ export async function GET(req: NextRequest) {
   const explicitCountryCode = p.get("countryCode")?.toUpperCase() ?? undefined;
   const language = p.get("language") ?? undefined;
   const tag = p.get("tag") ?? p.get("genre") ?? undefined;
+
+  const geoResolution = q && !tag ? await resolveGlobalGeoQuery(q) : null;
+
+  if (geoResolution?.ambiguous) {
+    return NextResponse.json({
+      query: normalizedQuery,
+      intent: "geo-disambiguation",
+      ambiguous: true,
+      disambiguation: geoResolution.disambiguation,
+      stations: [],
+      totalAvailable: 0,
+      totalReturned: 0,
+      offset: Number(offset),
+      limit: Number(limit),
+    });
+  }
+
+  if (geoResolution?.place) {
+    const place = geoResolution.place;
+    const scopedStations = await fetchStationsForCountryIntent(place.countryName, place.countryCode, {
+      language,
+      limit: "500",
+      offset: "0",
+    });
+    const scopedRanked = rankStationsForResolvedPlace(scopedStations, place, q);
+    const ranked = scopedRanked.slice(Number(offset), Number(offset) + Number(limit));
+    return NextResponse.json({
+      query: normalizedQuery,
+      intent: "geo",
+      resolvedPlace: place,
+      countryCode: place.countryCode,
+      countryName: place.countryName,
+      source: `global-geo-resolver:${place.source}`,
+      stations: ranked,
+      totalAvailable: scopedRanked.length,
+      totalReturned: ranked.length,
+      offset: Number(offset),
+      limit: Number(limit),
+    });
+  }
 
   const embeddedCountryCode = !explicitCountryCode && q
     ? Object.entries(countryAliases).find(([name]) => new RegExp(String.raw`(^|\b)${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\b|$)`, "i").test(q))?.[1]
