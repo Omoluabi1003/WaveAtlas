@@ -67,6 +67,7 @@ import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQu
 import { localTimeForStation, stationTimeCopy, teleportCopy } from "@/lib/smart-time-copy";
 import { useNavigationEngine, type NavigationSelectionSource } from "@/lib/navigation-engine";
 import { getSpeechRecognitionConstructor, parseVoiceCommand, type BrowserSpeechRecognition, type VoiceCommandIntent } from "@/lib/voice-command-engine";
+import { LiveTrackMetadataEngine, type LiveTrackMetadataState } from "@/lib/live-track-metadata-engine";
 
 
 type BrowserAudioContextConstructor = typeof AudioContext;
@@ -692,6 +693,51 @@ function StationMetricCard({
   );
 }
 
+
+function useLiveTrackMetadata(station: Station) {
+  const { status } = usePlayer();
+  const [state, setState] = useState<LiveTrackMetadataState>({ status: "idle" });
+  const engineRef = useRef<LiveTrackMetadataEngine | null>(null);
+
+  useEffect(() => {
+    engineRef.current ??= new LiveTrackMetadataEngine(setState);
+    engineRef.current.start(station, status);
+    return () => engineRef.current?.stop(false);
+  }, [station, status]);
+
+  return state;
+}
+
+function NowPlayingEnrichmentCard({ station }: { station: Station }) {
+  const state = useLiveTrackMetadata(station);
+  const track = state.metadata;
+  if (state.status === "disabled" || state.status === "idle" || state.status === "unsupported") return null;
+  if (!track && (state.status === "unrecognized" || state.status === "error")) return null;
+  return (
+    <div className="rounded-3xl border border-radio/20 bg-radio/[0.07] p-4 shadow-[0_18px_45px_rgba(0,0,0,.18)]">
+      <div className="flex items-start gap-3">
+        {track?.coverArtUrl ? <Image src={track.coverArtUrl} alt="Song cover art" width={64} height={64} className="size-16 rounded-2xl object-cover" /> : <div className="grid size-16 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.06]"><Mic className="size-6 text-radio" /></div>}
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-radio">Song metadata · optional enrichment</p>
+          {track ? (
+            <>
+              <h3 className="mt-1 truncate text-lg font-semibold text-white">{track.title}</h3>
+              <p className="truncate text-sm text-ivory/72">{track.artist}</p>
+              <p className="mt-1 text-xs text-ivory/48">{[track.album, track.releaseYear].filter(Boolean).join(" · ") || "Album details unavailable"}</p>
+              <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-medium text-ivory/58">
+                <span className="rounded-full border border-white/10 bg-black/10 px-2 py-1">Source: {track.provider}</span>
+                <span className="rounded-full border border-white/10 bg-black/10 px-2 py-1">Confidence: {Math.round(track.confidence * 100)}%</span>
+                {track.isrc ? <span className="rounded-full border border-white/10 bg-black/10 px-2 py-1">ISRC: {track.isrc}</span> : null}
+              </div>
+            </>
+          ) : <p className="mt-2 text-sm text-ivory/65">Identifying the current song without interrupting playback…</p>}
+        </div>
+      </div>
+      <p className="mt-3 text-[11px] leading-5 text-ivory/45">Station identity stays separate: {station.name} remains the live radio source. If recognition fails, WaveAtlas shows station info only.</p>
+    </div>
+  );
+}
+
 function StreamHealthBadge({ station }: { station: Station }) {
   const health = getStreamHealth(station);
   return (
@@ -942,6 +988,7 @@ function StationIntelligencePanel({ station, stations, inventoryStats, setQuery 
       </div>
       <DailyFlightPanel stations={stations} inventoryStats={inventoryStats} />
       <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={[station.city || station.state, station.country].filter(Boolean).join(", ")} isPlaying={playing || status === "buffering"} />
+      <NowPlayingEnrichmentCard station={station} />
       <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
       <WorldContextPanel context={visibleWorldContext} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
