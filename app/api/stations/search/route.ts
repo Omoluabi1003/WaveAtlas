@@ -37,9 +37,9 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  if (geoResolution?.place) {
-    const place = geoResolution.place;
-    const scopedStations = await fetchStationsForCountryIntent(place.countryName, place.countryCode, {
+  if (geoResolution?.location) {
+    const place = geoResolution.location;
+    const scopedStations = await fetchStationsForCountryIntent(place.country ?? place.countryCode ?? place.label, place.countryCode ?? "", {
       language,
       limit: "500",
       offset: "0",
@@ -50,8 +50,9 @@ export async function GET(req: NextRequest) {
       query: normalizedQuery,
       intent: "geo",
       resolvedPlace: place,
+      geoAwareLocation: place,
       countryCode: place.countryCode,
-      countryName: place.countryName,
+      countryName: place.country,
       source: `global-geo-resolver:${place.source}`,
       stations: ranked,
       totalAvailable: scopedRanked.length,

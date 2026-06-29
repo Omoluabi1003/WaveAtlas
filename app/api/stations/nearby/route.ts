@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { focusForPoint, radiusForZoom } from '@/lib/geo-focus';
+import { geoAwareFromFocus } from '@/lib/geoaware-core';
 import { startupStations } from '@/lib/startupStations';
 import { rankNearbyStations } from '@/lib/station-ranking';
 import { ariyoSeedStations, fallbackStations, fetchGlobalCandidateStations, fetchStations, fetchStationsForCountryIntent, isCuratedStation, isStationAvailable, logCuratedStationDiagnostic, searchCountries, type Station } from '@/lib/stations';
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
     : globalTeleport
       ? { lat: 20, lng: 0, zoom: 1.5, radiusKm: 20000, label: 'Global audio teleport', mode: 'world' as const }
       : focusForPoint(lat, lng, zoom, radiusKm);
+  const geoAwareLocation = geoAwareFromFocus(focusedPlace);
   const resolvedCountry = focusedPlace.countryCode ? (country ?? (await searchCountries(focusedPlace.countryCode)).find((item) => item.code === focusedPlace.countryCode)) : undefined;
   const countryStations = focusedPlace.countryCode ? await fetchStationsForCountryIntent(resolvedCountry?.name ?? countryNameParam ?? focusedPlace.countryCode, focusedPlace.countryCode, { limit: String(discoveryLimit), pageSize: '500' }) : [];
   const globalStations = globalTeleport
@@ -54,14 +56,15 @@ export async function GET(req: NextRequest) {
   if (debug) console.debug('[WaveAtlas Teleport API]', debug);
 
   return NextResponse.json({
-    focusedPlace: { ...focusedPlace, countryName: resolvedCountry?.name ?? focusedPlace.countryName, country: resolvedCountry },
+    focusedPlace: { ...focusedPlace, countryName: resolvedCountry?.name ?? focusedPlace.countryName, country: resolvedCountry, geoAwareLocation },
+    geoAwareLocation,
     countryCode: focusedPlace.countryCode ?? null,
     candidates,
     bestCandidate,
     signalStrength: bestCandidate?.signalStrength ?? 0,
     searchRadiusKm: focusedPlace.radiusKm,
     status: bestCandidate ? 'signal_found' : 'no_signal',
-    focus: { ...focusedPlace, countryName: resolvedCountry?.name ?? focusedPlace.countryName, country: resolvedCountry },
+    focus: { ...focusedPlace, countryName: resolvedCountry?.name ?? focusedPlace.countryName, country: resolvedCountry, geoAwareLocation },
     best: bestCandidate,
     diagnostics: { fetchedCount: countryStations.length + globalStations.length, curatedCount: [...countryStations, ...globalStations].filter(isCuratedStation).length, returnedCount: candidates.length, poolSize: candidates.length, requestedLimit: limit },
     totalReturned: candidates.length,

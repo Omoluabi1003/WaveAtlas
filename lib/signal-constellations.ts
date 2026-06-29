@@ -1,3 +1,4 @@
+import { geoAwareFromStation } from "@/lib/geoaware-core";
 import { resolveStationGeo as resolveStationGeoTruth } from "@/lib/geotruth-resolver";
 export { resolveStationGeoTruth as resolveStationGeo };
 import { isCuratedStation, type Station } from "@/lib/stations";
@@ -14,6 +15,8 @@ type Args = { stations: Station[]; currentStation?: Station | null; viewportBoun
 export const DEBUG_SIGNALS = process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_SIGNALS === "true";
 
 function beaconLabel(station: Station, geo: ReturnType<typeof resolveStationGeoTruth>) {
+  const resolved = geoAwareFromStation(station);
+  if (resolved) return resolved.hierarchyLabel || resolved.label;
   const place = geo.precision === "country" ? station.country : station.city || station.state || station.country;
   const qualifier = geo.precision === "station" || geo.precision === "city" ? station.country : "approximate";
   return [place, qualifier].filter(Boolean).join(", ") || station.name;
