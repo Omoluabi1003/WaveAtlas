@@ -378,6 +378,7 @@ function setCurrentStationAndDestination(station: Station, source: StationSelect
   warnIfStationGeoConflicts(station, geotruth(station));
   const player = usePlayer.getState();
   useNavigationEngine.getState().setActiveStation(station, source, version);
+  useAtlasContext.getState().setActiveStationDestinationFromStation(station, source);
   player.setStation(station, source, version);
   if (queue.length) {
     player.setTeleportQueue(queue.filter((candidate) => stationKey(candidate) !== stationKey(station)));
@@ -492,6 +493,28 @@ type AtlasLocationState = {
   error?: string;
 };
 
+type AtlasUserLocationState = AtlasLocationState & { context: "current-location" };
+type ActiveStationDestinationState = {
+  context: "station-destination";
+  stationId?: string;
+  stationName?: string;
+  placeLabel: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  countryCode?: string;
+  coords?: { lat: number; lng: number };
+  updatedBy: StationSelectionSource | "startup";
+};
+type AtlasIntelligenceScope = "current-location" | "station-destination";
+
+type AtlasContextState = {
+  userLocation: AtlasUserLocationState;
+  activeStationDestination: ActiveStationDestinationState;
+  setUserLocation: (location: AtlasLocationState | ((current: AtlasUserLocationState) => AtlasLocationState)) => void;
+  setActiveStationDestinationFromStation: (station: Station, source?: StationSelectionSource) => void;
+};
+
 type AtlasDestination = { label: string; city?: string; country?: string; lat: number; lng: number };
 type AtlasRouteSummary = { distanceKm: number; durationMin: number; provider: string };
 
@@ -499,6 +522,38 @@ const initialAtlasLocationState: AtlasLocationState = {
   status: "idle",
   placeLabel: "Location off",
 };
+
+const initialActiveStationDestinationState: ActiveStationDestinationState = {
+  context: "station-destination",
+  placeLabel: "No station destination yet",
+  updatedBy: "startup",
+};
+
+function stationDestinationState(station: Station, source: StationSelectionSource = "manual"): ActiveStationDestinationState {
+  const geo = geotruth(station);
+  return {
+    context: "station-destination",
+    stationId: station.station_uuid || station.id,
+    stationName: station.name,
+    placeLabel: [station.city || station.state, station.country || countryNameForCode(station.country_code)].filter(Boolean).join(", ") || destinationLabel(station),
+    city: station.city || undefined,
+    state: station.state || undefined,
+    country: station.country || countryNameForCode(station.country_code),
+    countryCode: station.country_code || undefined,
+    coords: geo.lat !== null && geo.lng !== null ? { lat: geo.lat, lng: geo.lng } : undefined,
+    updatedBy: source,
+  };
+}
+
+const useAtlasContext = create<AtlasContextState>((set) => ({
+  userLocation: { ...initialAtlasLocationState, context: "current-location" },
+  activeStationDestination: initialActiveStationDestinationState,
+  setUserLocation: (location) => set((state) => {
+    const next = typeof location === "function" ? location(state.userLocation) : location;
+    return { userLocation: { ...next, context: "current-location" } };
+  }),
+  setActiveStationDestinationFromStation: (station, source = "manual") => set({ activeStationDestination: stationDestinationState(station, source) }),
+}));
 
 function formatOpenMeteoWeather(code?: number) {
   if (code === undefined) return "Live weather pending";
@@ -545,7 +600,8 @@ async function enrichAtlasLocation(lat: number, lng: number, signal?: AbortSigna
 }
 
 function useAtlasLocation() {
-  const [location, setLocation] = useState<AtlasLocationState>(initialAtlasLocationState);
+  const location = useAtlasContext((state) => state.userLocation);
+  const setLocation = useAtlasContext((state) => state.setUserLocation);
   const requestLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
       setLocation({ status: "error", placeLabel: "Location unavailable", error: "This browser does not support location." });
@@ -568,7 +624,7 @@ function useAtlasLocation() {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 120000 },
     );
     return () => controller.abort();
-  }, []);
+  }, [setLocation]);
   useEffect(() => {
     if (typeof navigator === "undefined" || !("permissions" in navigator)) return;
     let cancelled = false;
@@ -614,14 +670,16 @@ function nearbyStationsForLocation(stations: Station[], coords?: { lat: number; 
 
 function AtlasLocationPill({ stations, current, mobile = false }: { stations: Station[]; current: Station; mobile?: boolean }) {
   const { location, requestLocation } = useAtlasLocation();
+  const activeStationDestination = useAtlasContext((state) => state.activeStationDestination);
   const [collapsed, setCollapsed] = useState(false);
+  const [intelligenceScope, setIntelligenceScope] = useState<AtlasIntelligenceScope>("current-location");
   const [destinationQuery, setDestinationQuery] = useState("");
   const [destinationResults, setDestinationResults] = useState<AtlasDestination[]>([]);
   const [destination, setDestination] = useState<AtlasDestination | null>(null);
   const [route, setRoute] = useState<AtlasRouteSummary | null>(null);
   const [routeStatus, setRouteStatus] = useState<"idle" | "searching" | "routing" | "fallback">("idle");
   const nearby = useMemo(() => nearbyStationsForLocation(stations, location.coords, location.countryCode), [location.coords, location.countryCode, stations]);
-  const destinationStations = useMemo(() => nearbyStationsForLocation(stations, destination ? { lat: destination.lat, lng: destination.lng } : undefined, undefined), [destination, stations]);
+  const destinationStations = useMemo(() => nearbyStationsForLocation(stations, destination ? { lat: destination.lat, lng: destination.lng } : activeStationDestination.coords, destination ? undefined : activeStationDestination.countryCode), [activeStationDestination.coords, activeStationDestination.countryCode, destination, stations]);
   const isReady = location.status === "ready";
   const canCollapse = isReady || location.status === "denied" || location.status === "error";
   useEffect(() => { if (!canCollapse) return; const timeout = window.setTimeout(() => setCollapsed(true), 1800); return () => window.clearTimeout(timeout); }, [canCollapse, location.placeLabel]);
@@ -642,6 +700,9 @@ function AtlasLocationPill({ stations, current, mobile = false }: { stations: St
   }, [destination, location.coords]);
   const originLabel = isReady ? `My Location · ${location.placeLabel}` : location.status === "denied" ? "Manual origin · location blocked" : "My Location";
   const chipLabel = isReady ? `Atlas Drive · ${location.city || location.placeLabel}` : "Atlas Drive · Use my location";
+  const scopeLabel = intelligenceScope === "current-location" ? "Current Location Intelligence" : "Station Destination Intelligence";
+  const scopeDetail = intelligenceScope === "current-location" ? (isReady ? location.placeLabel : "Location permission not available; station destination is preserved.") : activeStationDestination.placeLabel;
+  const visibleStations = intelligenceScope === "current-location" && !destination ? nearby : destinationStations;
   const tuneDestination = () => { const station = destinationStations[0]?.station; if (station) setCurrentStationAndDestination(station, "atlas-drive"); };
   return (
     <div className={`pointer-events-auto border border-white/10 bg-slate-950/72 text-ivory shadow-2xl backdrop-blur-2xl transition-all ${mobile ? "fixed bottom-[calc(env(safe-area-inset-bottom)+104px)] left-3 z-[57] w-[min(23rem,calc(100vw-1.5rem))] rounded-[1.35rem] p-2.5" : "w-[min(380px,calc(100vw-3rem))] rounded-[1.5rem] p-3"}`}>
@@ -653,12 +714,16 @@ function AtlasLocationPill({ stations, current, mobile = false }: { stations: St
         </button>
         <button type="button" onClick={requestLocation} className="grid size-8 shrink-0 place-items-center rounded-full border border-radio/25 bg-radio/10 text-radio transition hover:bg-radio hover:text-midnight" aria-label="Use current location"><Navigation className={`size-3.5 ${location.status === "requesting" ? "animate-pulse" : ""}`} /></button>
       </div>
-      {location.error && !collapsed ? <p className="mt-2 text-xs text-gold/85">{location.error} {location.status === "denied" ? "Enable location in browser settings or search a destination manually." : null}</p> : null}
+      {location.error && !collapsed ? <p className="mt-2 text-xs text-gold/85">{location.error} {location.status === "denied" ? "Enable location in browser settings or search a destination manually. Station destination will not be overwritten." : null}</p> : null}
       {!collapsed ? <div className="mt-2 grid gap-2">
-        <label className="rounded-2xl border border-white/8 bg-white/[0.05] px-3 py-2 text-left"><span className="block text-[9px] uppercase tracking-[0.18em] text-ivory/45">Destination</span><input value={destinationQuery} onChange={(event) => { setDestinationQuery(event.target.value); setDestination(null); setRoute(null); if (event.target.value.trim().length < 3) setDestinationResults([]); }} onFocus={() => setCollapsed(false)} placeholder="Where are you going?" className="mt-1 w-full bg-transparent text-sm font-semibold text-white outline-none placeholder:text-ivory/35" /></label>
+        <div className="grid grid-cols-2 gap-1 rounded-2xl border border-white/8 bg-white/[0.04] p-1" role="tablist" aria-label="Intelligence context">
+          {(["current-location", "station-destination"] as const).map((scope) => <button key={scope} type="button" onClick={() => setIntelligenceScope(scope)} role="tab" className={`rounded-xl px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] transition ${intelligenceScope === scope ? "bg-radio text-midnight" : "text-ivory/55 hover:bg-white/8"}`} aria-selected={intelligenceScope === scope}>{scope === "current-location" ? "Current Location" : "Station Destination"}</button>)}
+        </div>
+        <div className="rounded-2xl border border-white/8 bg-white/[0.045] px-3 py-2"><p className="text-[9px] font-bold uppercase tracking-[0.18em] text-radio/80">{scopeLabel}</p><p className="mt-1 text-[11px] text-ivory/70">{scopeDetail}</p></div>
+        <label className="rounded-2xl border border-white/8 bg-white/[0.05] px-3 py-2 text-left"><span className="block text-[9px] uppercase tracking-[0.18em] text-ivory/45">Manual destination search</span><input value={destinationQuery} onChange={(event) => { setDestinationQuery(event.target.value); setDestination(null); setRoute(null); if (event.target.value.trim().length < 3) setDestinationResults([]); }} onFocus={() => setCollapsed(false)} placeholder="Where are you going?" className="mt-1 w-full bg-transparent text-sm font-semibold text-white outline-none placeholder:text-ivory/35" /></label>
         {destinationResults.length && !destination ? <div className="grid max-h-36 gap-1 overflow-y-auto">{destinationResults.map((result) => <button key={`${result.lat}-${result.lng}`} type="button" onClick={() => { setDestination(result); setDestinationQuery(result.city || result.label); setDestinationResults([]); }} className="rounded-xl bg-white/[0.06] px-3 py-2 text-left text-[11px] text-ivory/75 hover:bg-radio/10"><b className="block truncate text-white">{result.city || result.country || "Destination"}</b><span className="line-clamp-1">{result.label}</span></button>)}</div> : null}
         {destination ? <div className="rounded-2xl border border-radio/15 bg-radio/10 p-3 text-[11px]"><b className="block text-white">{destination.city || destination.country || "Destination selected"}</b><span className="text-ivory/65">{route ? `${route.distanceKm.toLocaleString()} km · ${route.durationMin} min · ${route.provider}` : routeStatus === "routing" ? "Calculating free route…" : "Route unavailable; tuning destination signals."}</span><div className="mt-2 flex gap-2"><button type="button" onClick={tuneDestination} disabled={!destinationStations.length} className="rounded-full bg-radio px-3 py-1.5 font-semibold text-midnight disabled:opacity-45">Tune destination</button><button type="button" className="rounded-full border border-white/10 px-3 py-1.5 text-ivory/75">Preview route</button></div></div> : null}
-        {(destination ? destinationStations : nearby).map(({ station, distance }) => <button key={station.id} type="button" onClick={() => setCurrentStationAndDestination(station, destination ? "atlas-drive" : "auto")} className="flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.05] px-2.5 py-1.5 text-left transition hover:border-radio/35 hover:bg-radio/10"><span className="min-w-0"><b className="block truncate text-[11px] text-white">{station.name}</b><span className="block truncate text-[10px] text-ivory/55">{[station.city || station.state, station.country].filter(Boolean).join(" · ")} {distance !== null ? `· ${distance.toLocaleString()} km` : "· regional signal"}</span></span><Radio className="size-3.5 shrink-0 text-gold" /></button>)}
+        {visibleStations.map(({ station, distance }) => <button key={station.id} type="button" onClick={() => setCurrentStationAndDestination(station, destination || intelligenceScope === "station-destination" ? "atlas-drive" : "auto")} className="flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.05] px-2.5 py-1.5 text-left transition hover:border-radio/35 hover:bg-radio/10"><span className="min-w-0"><b className="block truncate text-[11px] text-white">{station.name}</b><span className="block truncate text-[10px] text-ivory/55">{[station.city || station.state, station.country].filter(Boolean).join(" · ")} {distance !== null ? `· ${distance.toLocaleString()} km` : "· regional signal"}</span></span><Radio className="size-3.5 shrink-0 text-gold" /></button>)}
       </div> : null}
     </div>
   );
@@ -986,7 +1051,7 @@ function StationIntelligencePanel({ station, stations, inventoryStats, setQuery 
         </div>
         <StreamHealthBadge station={station} />
       </div>
-      <DailyFlightPanel stations={stations} inventoryStats={inventoryStats} />
+      <DailyFlightPanel stations={stations} inventoryStats={inventoryStats} activeStation={station} />
       <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={[station.city || station.state, station.country].filter(Boolean).join(", ")} isPlaying={playing || status === "buffering"} />
       <NowPlayingEnrichmentCard station={station} />
       <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
@@ -3333,19 +3398,20 @@ function DailyPassportInsight({ station, stationCount, countScope = "indexed" }:
   </div>;
 }
 
-function DailyFlightPanel({ stations, inventoryStats }: { stations: Station[]; inventoryStats?: StationInventoryStats }) {
+function DailyFlightPanel({ stations, inventoryStats, activeStation }: { stations: Station[]; inventoryStats?: StationInventoryStats; activeStation?: Station }) {
   const daily = useMemo(() => {
+    if (activeStation) return activeStation;
     const today = new Date().toISOString().slice(0, 10);
     const seed = [...today].reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return stations[seed % Math.max(1, stations.length)];
-  }, [stations]);
+  }, [activeStation, stations]);
   const stationCount = daily?.country_code ? inventoryStats?.countryCounts[daily.country_code] : undefined;
   const stationCountScope = stationCount ? "indexed" : "loaded";
   const resolvedStationCount = stationCount ?? (daily?.country_code ? stations.filter((item) => item.country_code === daily.country_code).length : undefined);
   if (!daily) return null;
   return <section className="overflow-hidden rounded-[2rem] border border-white/25 bg-[linear-gradient(145deg,rgba(243,234,210,0.96),rgba(214,177,93,0.24)_50%,rgba(6,18,32,0.18))] p-3 text-[#2f2618] shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-5">
     <p className="font-serif text-xs font-black uppercase tracking-[0.22em] text-[#8a6b22]">Daily Passport™</p>
-    <h3 className="mt-1 font-serif text-[26px] font-black leading-tight md:text-[28px]">Today’s Destination Intelligence</h3>
+    <h3 className="mt-1 font-serif text-[26px] font-black leading-tight md:text-[28px]">Station Destination Intelligence</h3>
     <p className="mt-2 flex min-w-0 items-center gap-2 font-serif text-base font-bold"><span className="min-w-0 truncate">{destinationLabel(daily)}</span><span className="shrink-0 text-[16px] leading-none" aria-label={daily.country_code ? `${daily.country_code} flag` : "Global flag"}>{flagFor(daily.country_code)}</span></p>
     <p className="truncate font-serif text-sm text-[#594b35]">{getPrimaryGenre(daily)} · {daily.name}</p>
     <DailyPassportInsight station={daily} stationCount={resolvedStationCount} countScope={stationCountScope} />
@@ -4037,7 +4103,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         </b>
       </div>
       <div className="absolute inset-0 z-0">
-        <div className="hidden"><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div>
+        <div className="hidden"><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={current} /></div>
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-30 rounded-[2rem] border border-radio/30 bg-slate-950/55 px-4 py-3 text-left text-sm font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) closeDesktopDrawer(); }}>
           {globeFallbackReason || desktopAtlasView === "map" ? (
@@ -4103,7 +4169,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
           {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
-          {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} /></div> : null}
+          {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={current} /></div> : null}
           {desktopMode === "History" ? <div className="mt-5"><RecentlyVisitedPanel /></div> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station, candidates) => { setScopedStationAndDestination(station, "manual", candidates); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} compact /> : null}
           {selectedCountry ? (
