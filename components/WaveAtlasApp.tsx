@@ -58,12 +58,11 @@ const BlueMarbleGlobe = dynamic(() => import("@/components/BlueMarbleGlobe"), {
 });
 import { getAmbientTheme } from "@/lib/world-engine/ambient-theme";
 import { buildAtmosphereLine, buildPlaceDescriptor, buildPlaceLabel } from "@/lib/world-engine/place-labels";
-import { createArrivalDestination, type ArrivalDestination } from "@/lib/discovery/arrival-engine";
+import type { ArrivalDestination } from "@/lib/discovery/arrival-engine";
 import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalFeature } from "@/lib/signal-constellations";
 
 import { destinationLabel, persistArrival, readArrivalHistory, stationGenre } from "@/lib/discovery/history";
-import { pickFallbackStation } from "@/lib/discovery/station-picker";
-import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQueue, getAdaptiveBufferPolicy, getStationStreamUrl, markStationFailure, markStationSuccess, nextFastConnectCandidate, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
+import { FAST_CONNECT_COPY, FAST_CONNECT_PARALLEL_CANDIDATES, buildFastConnectQueue, getAdaptiveBufferPolicy, getStationStreamUrl, markStationFailure, markStationSuccess, stationKey, type SignalFailureType } from "@/lib/fast-connect-engine";
 import { localTimeForStation, stationTimeCopy, teleportCopy } from "@/lib/smart-time-copy";
 import { useNavigationEngine, type NavigationSelectionSource } from "@/lib/navigation-engine";
 import { getSpeechRecognitionConstructor, parseVoiceCommand, type BrowserSpeechRecognition, type VoiceCommandIntent } from "@/lib/voice-command-engine";
@@ -139,6 +138,42 @@ type PlaybackStatus =
   | "blocked"
   | "failed";
 type StationSelectionSource = NavigationSelectionSource;
+
+type StartupPreferences = {
+  resumeLastStation: boolean;
+  homeStationStartup: boolean;
+  homeStationId: string | null;
+  autoplayAfterSearch: boolean;
+  autoplayNearbyOnLaunch: boolean;
+};
+
+const STARTUP_PREFERENCES_KEY = "waveatlas:startup-preferences";
+const LAST_STATION_ID_KEY = "waveatlas:last-station-id";
+const defaultStartupPreferences: StartupPreferences = { resumeLastStation: false, homeStationStartup: false, homeStationId: null, autoplayAfterSearch: false, autoplayNearbyOnLaunch: false };
+
+function readStartupPreferences(): StartupPreferences {
+  if (typeof window === "undefined") return defaultStartupPreferences;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(STARTUP_PREFERENCES_KEY) || "{}");
+    return { ...defaultStartupPreferences, ...parsed, homeStationId: typeof parsed.homeStationId === "string" ? parsed.homeStationId : null };
+  } catch {
+    return defaultStartupPreferences;
+  }
+}
+
+function persistStartupPreferences(preferences: StartupPreferences) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STARTUP_PREFERENCES_KEY, JSON.stringify(preferences));
+}
+
+function stationPersistentId(station: Station) {
+  return station.station_uuid || station.id;
+}
+
+function findStationByPersistentId(stations: Station[], id?: string | null) {
+  if (!id) return undefined;
+  return stations.find((station) => station.station_uuid === id || station.id === id);
+}
 
 function useWaveAtlasLayoutDebug(enabled: boolean) {
   useEffect(() => {
@@ -1142,6 +1177,27 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
   </motion.div> : null}</AnimatePresence>;
 }
 
+function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch }: { onExploreNearby: () => void; onWander: () => void; onSearch: () => void; onVoiceSearch: () => void }) {
+  const actions = [
+    [Navigation, "Explore Nearby", onExploreNearby],
+    [Compass, "Wander", onWander],
+    [Search, "Search", onSearch],
+    [Mic, "Voice Search", onVoiceSearch],
+    [Newspaper, "Editorial Picks", onSearch],
+  ] as const;
+  return <div className="grid h-full min-h-[100dvh] place-items-center overflow-hidden bg-[radial-gradient(circle_at_50%_35%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_52%,#031713)] px-5 text-center text-ivory">
+    <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] [background-size:56px_56px]" />
+    <div className="relative max-w-3xl rounded-[2rem] border border-white/10 bg-slate-950/45 p-6 shadow-[0_28px_90px_rgba(0,0,0,.45)] backdrop-blur-2xl sm:p-8">
+      <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-radio">Empty Atlas</p>
+      <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.04em] text-white sm:text-6xl">The world is waiting.</h1>
+      <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-ivory/68">Search, wander, or explore nearby to begin your next listening journey.</p>
+      <div className="mt-7 flex flex-wrap justify-center gap-3">
+        {actions.map(([Icon, label, action], index) => { const I = Icon as typeof Search; return <button key={label} type="button" onClick={action} className={`rounded-full px-5 py-3 text-sm font-semibold transition ${index === 0 ? "bg-radio text-midnight shadow-[0_0_26px_rgba(54,245,162,.28)]" : "border border-white/12 bg-white/[0.05] text-ivory/78 hover:border-radio/35 hover:text-radio"}`}><I className="mr-2 inline size-4" />{label}</button>; })}
+      </div>
+    </div>
+  </div>;
+}
+
 function AudioEngine({ stations }: { stations: Station[] }) {
   const { current, status, volume, userActivated, stationSelectionSource, scopedSearchSessionId, setStatus } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -1177,7 +1233,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     const failedContinent = stationContinent(failed);
     const isUnattempted = (station: Station) => !attempted.current.includes(stationKey(station)) && !attempted.current.includes(getStationStreamUrl(station));
     const queueFallback = state.teleportQueue.find(isUnattempted);
-    const fallback = queueFallback ?? (hasScopedQueue ? undefined : nextFastConnectCandidate(stations, failed, attempted.current) ?? pickFallbackStation(stations, failed, readArrivalHistory()));
+    const fallback = queueFallback;
     if (fallback) {
       const reason = errorType === "startup_timeout" || errorType === "waiting" || errorType === "stalled" ? "weak_signal" : "fallback";
       debugPlayback("fallback selected", { station: failed.name, country: failed.country, source: failed.curation_source || failed.curation_tier || "radio_browser", stationSelectionSource: state.stationSelectionSource, skipReason: errorType, fallbackStation: fallback.name });
@@ -1194,9 +1250,9 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       return true;
     }
     if (hasScopedQueue) state.clearScopedSearchSession();
-    setStatus("failed", hasScopedQueue ? `No playable stations found for ${scopedQueueLabel(failed)}.` : FAST_CONNECT_COPY.failed);
+    setStatus("failed", hasScopedQueue ? "No playable station was found in this result set. Try another location, genre, or journey." : "No playable station was found in this result set. Try another location, genre, or journey.");
     return false;
-  }, [setStatus, stations]);
+  }, [setStatus]);
 
   useEffect(() => {
     if (!current) return;
@@ -3044,7 +3100,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel} whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) { playPremiumTeleportClick(); onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest, onVoiceIntent, onVoiceFeedback }: { stations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number; onVoiceIntent: (intent: VoiceCommandIntent) => void; onVoiceFeedback: (message: string) => void }) {
+function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest, onVoiceIntent, onVoiceFeedback, startupPreferences, onStartupPreferencesChange }: { stations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number; onVoiceIntent: (intent: VoiceCommandIntent) => void; onVoiceFeedback: (message: string) => void; startupPreferences: StartupPreferences; onStartupPreferencesChange: (preferences: StartupPreferences) => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [atlasView, setAtlasView] = useState<AtlasViewMode>(getInitialAtlasView);
@@ -3125,7 +3181,7 @@ function MobileAtlasShell({ stations, current, inventoryStats, query, setQuery, 
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
-    {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact atlasView={selectedView} onChooseAtlasView={chooseAtlasView} atlasViewTransitioning={atlasTransition.transitionLocked} globeFallbackReason={mobileGlobeFallbackReason} basemap={basemap} onBasemapChange={setBasemap} globeBasemap={globeBasemap} onGlobeBasemapChange={(value) => { setGlobeBasemap(value); if (selectedView !== "globe" || mobileGlobeFallbackReason) atlasTransition.retryGlobe("globe style selection", transitionContext); }} atlasDrive={<AtlasLocationPill stations={stations} current={current} />} onClose={() => setMode("Atlas")} /></div> : null}
+    {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact atlasView={selectedView} onChooseAtlasView={chooseAtlasView} atlasViewTransitioning={atlasTransition.transitionLocked} globeFallbackReason={mobileGlobeFallbackReason} basemap={basemap} onBasemapChange={setBasemap} globeBasemap={globeBasemap} onGlobeBasemapChange={(value) => { setGlobeBasemap(value); if (selectedView !== "globe" || mobileGlobeFallbackReason) atlasTransition.retryGlobe("globe style selection", transitionContext); }} atlasDrive={<AtlasLocationPill stations={stations} current={current} />} onClose={() => setMode("Atlas")} startupPreferences={startupPreferences} onStartupPreferencesChange={onStartupPreferencesChange} activeStation={current} /></div> : null}
     {mode === "Add Signal" ? (
       <div className="pointer-events-auto fixed inset-0 z-[999] flex h-[100dvh] items-start justify-center overflow-y-auto overscroll-contain bg-black/45 px-3 pb-[calc(140px_+_env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))] backdrop-blur-[10px]">
         <AddYourSignalPanel compact onCancel={() => setMode("Atlas")} />
@@ -3158,9 +3214,12 @@ type UtilityLinksPanelProps = {
   onGlobeBasemapChange?: (value: GlobeBasemapKey) => void;
   atlasDrive?: React.ReactNode;
   onClose?: () => void;
+  startupPreferences?: StartupPreferences;
+  onStartupPreferencesChange?: (preferences: StartupPreferences) => void;
+  activeStation?: Station;
 };
 
-function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atlasViewTransitioning = false, globeFallbackReason = "", basemap, onBasemapChange, globeBasemap, onGlobeBasemapChange, atlasDrive, onClose }: UtilityLinksPanelProps) {
+function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atlasViewTransitioning = false, globeFallbackReason = "", basemap, onBasemapChange, globeBasemap, onGlobeBasemapChange, atlasDrive, onClose, startupPreferences, onStartupPreferencesChange, activeStation }: UtilityLinksPanelProps) {
   const links = [
     ["Demo", "/demo", "Learn the product in minutes."],
     ["About", "/about", "Mission, indexing, and ownership."],
@@ -3176,6 +3235,21 @@ function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atla
       </div>
       {onClose ? <button type="button" onClick={onClose} className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-ivory/70 transition hover:bg-white/10 hover:text-white" aria-label="Close settings"><X className="size-4" /></button> : null}
     </div>
+
+
+
+    {startupPreferences && onStartupPreferencesChange ? <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
+      <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Startup behavior</p>
+      <div className="mt-2 grid gap-2">
+        <button type="button" onClick={() => onStartupPreferencesChange({ ...startupPreferences, resumeLastStation: !startupPreferences.resumeLastStation })} className={`rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${startupPreferences.resumeLastStation ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>Resume Last Station · {startupPreferences.resumeLastStation ? "On" : "Off"}</button>
+        <button type="button" onClick={() => onStartupPreferencesChange({ ...startupPreferences, homeStationStartup: !startupPreferences.homeStationStartup })} className={`rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${startupPreferences.homeStationStartup ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>Home Station startup · {startupPreferences.homeStationStartup ? "On" : "Off"}</button>
+        <button type="button" onClick={() => onStartupPreferencesChange({ ...startupPreferences, autoplayAfterSearch: !startupPreferences.autoplayAfterSearch })} className={`rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${startupPreferences.autoplayAfterSearch ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>Autoplay after search · {startupPreferences.autoplayAfterSearch ? "On" : "Off"}</button>
+        <button type="button" onClick={() => onStartupPreferencesChange({ ...startupPreferences, autoplayNearbyOnLaunch: !startupPreferences.autoplayNearbyOnLaunch })} className={`rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${startupPreferences.autoplayNearbyOnLaunch ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>Autoplay nearby on launch · {startupPreferences.autoplayNearbyOnLaunch ? "On" : "Off"}</button>
+        <button type="button" disabled={!activeStation} onClick={() => activeStation && onStartupPreferencesChange({ ...startupPreferences, homeStationId: stationPersistentId(activeStation), homeStationStartup: true })} className="rounded-2xl bg-white/[0.05] px-3 py-3 text-left text-sm font-semibold text-ivory/75 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45">Set current as Home Station</button>
+        <button type="button" onClick={() => onStartupPreferencesChange({ ...startupPreferences, homeStationId: null, homeStationStartup: false })} className="rounded-2xl bg-white/[0.05] px-3 py-3 text-left text-sm font-semibold text-ivory/75 transition hover:bg-white/10">Clear Home Station</button>
+      </div>
+      <p className="mt-2 px-1 text-[11px] leading-5 text-ivory/55">By default WaveAtlas opens to discovery with no station selected. Home Station takes precedence over Resume Last Station.</p>
+    </div> : null}
 
     {onChooseAtlasView ? <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
       <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Atlas view</p>
@@ -3649,8 +3723,10 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const replacementReason = usePlayer((s) => s.replacementReason);
   const [splashVisible, setSplashVisible] = useState(() => typeof window !== "undefined" && window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) !== "true");
   const [splashComplete, setSplashComplete] = useState(() => typeof window === "undefined" || window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) === "true");
+  const [startupPreferences, setStartupPreferences] = useState<StartupPreferences>(readStartupPreferences);
   const [startupPreview] = useState(() => stations[Math.floor(Math.random() * Math.max(1, stations.length))]);
-  const current = usePlayer((s) => s.current) ?? arrival?.station ?? startupPreview ?? stationPool[0] ?? stations[0];
+  const activeStation = usePlayer((s) => s.current);
+  const current = activeStation ?? startupPreview ?? stationPool[0] ?? stations[0];
   const [query, setQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<CountryResult | null>(null);
   const [activeTag, setActiveTag] = useState("");
@@ -3740,9 +3816,10 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   }, [arrival, arrivalStation, hasCompletedArrival]);
 
   useEffect(() => {
-    if (!current || typeof window === "undefined") return;
-    persistArrival(current, stationContinent(current), window.localStorage);
-  }, [current]);
+    if (!activeStation || typeof window === "undefined") return;
+    window.localStorage.setItem(LAST_STATION_ID_KEY, stationPersistentId(activeStation));
+    persistArrival(activeStation, stationContinent(activeStation), window.localStorage);
+  }, [activeStation]);
 
 
   useEffect(() => {
@@ -3753,21 +3830,12 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   }, [current, stationPool]);
 
   useEffect(() => {
-    if (hasCompletedArrival || !splashComplete || deepLinkUuid || arrival || !stationPool.length) return;
-    const destination = createArrivalDestination(stationPool, window.localStorage);
-    if (!destination) return;
-    const startupQueue = buildFastConnectQueue(stationPool, destination.station, FAST_CONNECT_PARALLEL_CANDIDATES - 1);
-    usePlayer.getState().setArrivalStation(destination.station, startupQueue);
-    usePlayer.getState().prepareStation(destination.station);
-    let timer: number | undefined;
-    window.queueMicrotask(() => {
-      if (readHasCompletedArrival()) return;
-      setArrival(destination);
-      setArrivalVisible(true);
-      timer = window.setTimeout(completeArrivalFlow, 3000);
-    });
-    return () => { if (timer) window.clearTimeout(timer); };
-  }, [arrival, completeArrivalFlow, deepLinkUuid, hasCompletedArrival, splashComplete, stationPool]);
+    if (!splashComplete || deepLinkUuid || activeStation || !stationPool.length) return;
+    const homeStation = startupPreferences.homeStationStartup ? findStationByPersistentId(stationPool, startupPreferences.homeStationId) : undefined;
+    const resumedStation = startupPreferences.resumeLastStation ? findStationByPersistentId(stationPool, window.localStorage.getItem(LAST_STATION_ID_KEY)) : undefined;
+    const startupStation = homeStation ?? resumedStation;
+    if (startupStation) setCurrentStationAndDestination(startupStation, "startup");
+  }, [activeStation, deepLinkUuid, splashComplete, startupPreferences, stationPool]);
 
   useEffect(() => {
     const stationUuid = deepLinkUuid;
@@ -3793,8 +3861,6 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        const fallback = initialStationPoolRef.current[0];
-        if (fallback) usePlayer.getState().prepareStation(fallback, "deeplink");
         setDeepLinkStatus("unavailable");
       });
     return () => controller.abort();
@@ -3816,10 +3882,13 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       debugCountryClick("candidates", { apiRequestUrl: requestUrl, candidateCount: sameCountryStations.length, selectedStation: sameCountryStations[0]?.name ?? null });
       setStationPool((prev) => nextOffset ? [...prev, ...sameCountryStations] : sameCountryStations);
       setOffset(nextOffset + sameCountryStations.length);
-      if (!nextOffset && sameCountryStations[0]) {
+      if (!nextOffset && sameCountryStations[0] && startupPreferences.autoplayAfterSearch) {
         playFirstSearchCandidate(sameCountryStations, "auto", country.name);
         setCountrySignalMessage(`Loading first playable station from ${country.name}…`);
         debugCountryClick("playback", { selectedStation: sameCountryStations[0], playbackResult: "search-session-started" });
+      } else if (!nextOffset && sameCountryStations[0]) {
+        setCountrySignalMessage(`Found ${sameCountryStations.length.toLocaleString()} ${country.name} signals. Choose one to begin.`);
+        debugCountryClick("playback", { selectedStation: null, playbackResult: "autoplay-disabled" });
       } else if (!nextOffset) {
         setCountrySignalMessage("No live signal found here yet. Try Teleport or Add Your Signal.");
         usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station.");
@@ -3832,7 +3901,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     } finally {
       setLoadingCountry(false);
     }
-  }, [activeTag]);
+  }, [activeTag, startupPreferences.autoplayAfterSearch]);
   const centerAppAfterQuery = useCallback(() => {
     window.requestAnimationFrame(() => {
       document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, destination..."]')?.blur();
@@ -4000,7 +4069,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         void resolveVoiceSearchIntent(intent);
       } else {
         const player = usePlayer.getState();
-        if (!player.current) setCurrentStationAndDestination(current);
+        if (!player.current) { showVoiceFeedback("Search or choose a station to begin."); return; }
         if (!player.playing) player.toggle();
         clearVoiceFeedback();
       }
@@ -4014,7 +4083,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     }
     if (intent.type === "resume") {
       const player = usePlayer.getState();
-      if (!player.current) setCurrentStationAndDestination(current);
+      if (!player.current) { showVoiceFeedback("Search or choose a station to begin."); return; }
       if (!player.playing) player.toggle();
       clearVoiceFeedback();
       return;
@@ -4046,7 +4115,28 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       setBriefOpen(false);
       showVoiceFeedback("Opened settings.");
     }
-  }, [chooseDesktopAtlasView, clearVoiceFeedback, current, resolveVoiceSearchIntent, runDesktopTeleport, setPlayerVolume, showVoiceFeedback]);
+  }, [chooseDesktopAtlasView, clearVoiceFeedback, resolveVoiceSearchIntent, runDesktopTeleport, setPlayerVolume, showVoiceFeedback]);
+
+  const updateStartupPreferences = useCallback((preferences: StartupPreferences) => {
+    setStartupPreferences(preferences);
+    persistStartupPreferences(preferences);
+  }, []);
+
+  const focusSearchFromEmpty = useCallback(() => {
+    setDesktopMode("Atlas");
+    setDesktopDrawerCollapsed(false);
+    window.requestAnimationFrame(() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, destination..."]')?.focus());
+  }, []);
+
+  const exploreNearbyFromEmpty = useCallback(() => {
+    setDesktopMode("Explore");
+    setDesktopDrawerCollapsed(false);
+  }, []);
+
+  const wanderFromEmpty = useCallback(() => {
+    setWandererActive(true);
+    runWandererHop();
+  }, [runWandererHop]);
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
@@ -4092,10 +4182,10 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       <AudioEngine stations={stationPool} />
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
-      {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Opening the main player with a live fallback instead.`}</p></div> : null}
+      {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Return to discovery or search for another station.`}</p></div> : null}
       <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} /></div>
       {voiceFeedback ? <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+118px)] z-[61] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-radio/20 bg-slate-950/86 px-3 py-2 text-center text-xs font-medium text-radio shadow-2xl backdrop-blur-xl md:hidden" role="status" aria-live="polite">{voiceFeedback}</div> : null}
-      <MobileAtlasShell stations={stationPool} current={current} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} />
+      {activeStation ? <MobileAtlasShell stations={stationPool} current={activeStation} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} /> : <div className="md:hidden"><EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={() => setVoiceSearchOverlayRequest((request) => request + 1)} /></div>}
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
       <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
@@ -4103,17 +4193,17 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         </b>
       </div>
       <div className="absolute inset-0 z-0">
-        <div className="hidden"><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={current} /></div>
+        <div className="hidden"><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={activeStation} /></div>
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-30 rounded-[2rem] border border-radio/30 bg-slate-950/55 px-4 py-3 text-left text-sm font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) closeDesktopDrawer(); }}>
-          {globeFallbackReason || desktopAtlasView === "map" ? (
-            <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={activeDesktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
+          {!activeStation ? <EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={() => setVoiceSearchOverlayRequest((request) => request + 1)} /> : globeFallbackReason || desktopAtlasView === "map" ? (
+            <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={activeStation} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={activeDesktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
           ) : (
-            <AtlasViewErrorBoundary key={`desktop-globe-${current.station_uuid || current.id}-${desktopTransition.state.transitionVersion}-${voiceFocusNonce}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
+            <AtlasViewErrorBoundary key={`desktop-globe-${activeStation.station_uuid || activeStation.id}-${desktopTransition.state.transitionVersion}-${voiceFocusNonce}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={activeStation} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
           )}
         </div>
         {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
-        <SelectedStationTheater station={current} />
+        {activeStation ? <SelectedStationTheater station={activeStation} /> : null}
       </div>
       <section className="pointer-events-none fixed left-1/2 top-6 z-50 w-[min(560px,calc(100vw-3rem))] -translate-x-1/2">
         <div className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/40 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl">
@@ -4167,7 +4257,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         </div>
         <div className={`${desktopDrawerOpen ? "block" : "hidden"} atlas-drawer-scroll min-h-0 flex-1 overflow-y-auto pr-1`}>
           {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
-          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={<AtlasLocationPill stations={stationPool} current={current} />} /></div> : null}
+          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={activeStation ? <AtlasLocationPill stations={stationPool} current={activeStation} /> : undefined} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} activeStation={activeStation} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={current} /></div> : null}
           {desktopMode === "History" ? <div className="mt-5"><RecentlyVisitedPanel /></div> : null}
@@ -4200,9 +4290,9 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </aside> : null}
-      <NewspaperBrief station={current} stations={stationPool} inventoryStats={inventoryStats} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} />
-      <AtlasToast station={current} />
-      <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid w-fit max-w-[min(920px,calc(100vw-3rem))] pointer-events-auto grid-cols-[minmax(280px,360px)_auto] gap-3 rounded-[2rem] border border-white/25 bg-[rgba(3,9,18,0.96)] p-2 text-white shadow-[0_28px_95px_rgba(0,0,0,.70),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)] xl:bottom-8">
+      {activeStation ? <NewspaperBrief station={activeStation} stations={stationPool} inventoryStats={inventoryStats} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} /> : null}
+      {activeStation ? <AtlasToast station={activeStation} /> : null}
+      {activeStation ? <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid w-fit max-w-[min(920px,calc(100vw-3rem))] pointer-events-auto grid-cols-[minmax(280px,360px)_auto] gap-3 rounded-[2rem] border border-white/25 bg-[rgba(3,9,18,0.96)] p-2 text-white shadow-[0_28px_95px_rgba(0,0,0,.70),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)] xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
             onClick={() => {
@@ -4226,7 +4316,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         <nav className="pointer-events-auto grid grid-cols-3 gap-1 rounded-full border border-white/20 bg-slate-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" aria-label="Primary desktop actions">
           {([[Newspaper,"Brief"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (value === "Teleport") { runDesktopTeleport(); } else if (value === "Brief") { setDesktopMode("Atlas"); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${((value === "Brief" && briefOpen) || desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</motion.button></div>; })}
         </nav>
-      </div>
+      </div> : null}
     </main>
     </>
   );
