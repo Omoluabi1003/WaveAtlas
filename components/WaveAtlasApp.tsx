@@ -1313,14 +1313,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       debugTeleport("fast-connect fallback", { failed: failed.name, failedContinent, replacement: fallback.name, replacementContinent: stationContinent(fallback), reason, usedTeleportQueue: Boolean(queueFallback), ignoredArrivalContext: Boolean(state.arrivalStation) });
       setStatus("buffering", state.stationSelectionSource === "wanderer" ? "Finding a playable station..." : queueFallback ? `Trying next station in ${scopedQueueLabel(fallback)}…` : FAST_CONNECT_COPY.retrying);
       if (state.stationSelectionSource === "wanderer") debugWanderer("failed candidate", { failedCandidate: failed.name, errorType, detail, nextCandidate: fallback.name, remainingCandidates: state.teleportQueue.length - 1 });
-      if (queueFallback) {
-        setCurrentStationAndDestination(fallback, state.stationSelectionSource, state.teleportQueue.filter((station) => stationKey(station) !== stationKey(fallback)));
-      } else if (state.arrivalStation && stationKey(state.arrivalStation) === stationKey(failed)) {
-        state.replaceStartupStation(failed, fallback, reason);
-        setCurrentStationAndDestination(fallback, "fallback");
-      } else {
-        setCurrentStationAndDestination(fallback, "fallback");
-      }
+      setCurrentStationAndDestination(fallback, state.stationSelectionSource, state.teleportQueue.filter((station) => stationKey(station) !== stationKey(fallback)));
       return true;
     }
     if (hasScopedQueue) state.clearScopedSearchSession();
@@ -3927,12 +3920,11 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   }, [current, stationPool]);
 
   useEffect(() => {
+    // Intent-first startup: a fresh launch must keep the Atlas empty and silent.
+    // Saved home/resume preferences remain persisted for settings, but they must not
+    // auto-select a station before the listener explicitly chooses a journey.
     if (!splashComplete || deepLinkUuid || activeStation || !stationPool.length) return;
-    const homeStation = startupPreferences.homeStationStartup ? findStationByPersistentId(stationPool, startupPreferences.homeStationId) : undefined;
-    const resumedStation = startupPreferences.resumeLastStation ? findStationByPersistentId(stationPool, window.localStorage.getItem(LAST_STATION_ID_KEY)) : undefined;
-    const startupStation = homeStation ?? resumedStation;
-    if (startupStation) setCurrentStationAndDestination(startupStation, "startup");
-  }, [activeStation, deepLinkUuid, splashComplete, startupPreferences, stationPool]);
+  }, [activeStation, deepLinkUuid, splashComplete, stationPool.length]);
 
   useEffect(() => {
     const stationUuid = deepLinkUuid;
