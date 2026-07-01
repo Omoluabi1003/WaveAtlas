@@ -4,7 +4,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:geoaudio": "npx tsx tests/geoaudio-catalog.regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",
