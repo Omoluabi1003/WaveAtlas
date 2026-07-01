@@ -1245,7 +1245,9 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
   </motion.div> : null}</AnimatePresence>;
 }
 
-function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch, onEditorialPicks }: { onExploreNearby: () => void | Promise<void>; onWander: () => void | Promise<void>; onSearch: () => void | Promise<void>; onVoiceSearch: () => void | Promise<void>; onEditorialPicks: () => void | Promise<void> }) {
+type EmptyAtlasActionHandler = () => void | string | Promise<void | string>;
+
+function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch, onEditorialPicks }: { onExploreNearby: EmptyAtlasActionHandler; onWander: EmptyAtlasActionHandler; onSearch: EmptyAtlasActionHandler; onVoiceSearch: EmptyAtlasActionHandler; onEditorialPicks: EmptyAtlasActionHandler }) {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const loadingTimer = useRef<number | null>(null);
@@ -1257,16 +1259,17 @@ function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch, o
     [Newspaper, "Editorial Picks", onEditorialPicks],
   ] as const;
   const actionPendingRef = useRef(false);
-  const runAction = useCallback((label: string, action: () => void | Promise<void>) => {
+  const runAction = useCallback((label: string, action: EmptyAtlasActionHandler) => {
     if (actionPendingRef.current) return;
     actionPendingRef.current = true;
-    setActionMessage(null);
+    if (process.env.NODE_ENV === "development") console.debug(`[EmptyAtlas] ${label} CTA tapped`);
+    setActionMessage(`${label} requested…`);
     if (loadingTimer.current) window.clearTimeout(loadingTimer.current);
     loadingTimer.current = window.setTimeout(() => setPendingAction(label), 200);
     Promise.resolve()
       .then(action)
-      .then(() => {
-        setActionMessage(`${label} is ready. If nothing changed, try again or use Search to start exploring.`);
+      .then((message) => {
+        setActionMessage(message || `${label} is ready. If nothing changed, try again or use Search to start exploring.`);
       })
       .catch((error) => {
         setActionMessage(`${label} is temporarily unavailable. Please try Search or Wander instead.`);
@@ -4313,23 +4316,39 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const exploreNearbyFromEmpty = useCallback(() => {
     setDesktopMode("Explore");
     setDesktopDrawerCollapsed(false);
-  }, []);
+    setBriefOpen(false);
+    const anchor = usePlayer.getState().current ?? current;
+    if (anchor) {
+      void resolveTeleportDestination(stations, anchor)
+        .then(({ station, queue }) => {
+          setStationPool((prev) => uniqueStationCandidates([station, ...queue, ...prev]));
+          setCountrySignalMessage(`Nearby discovery found ${station.name} in ${station.country}. Choose a signal to begin.`);
+        })
+        .catch(() => setCountrySignalMessage("Nearby discovery is unavailable right now. Search or Wander can still start the Atlas."));
+    }
+    return "Opening nearby discovery. Fresh local signals will appear as soon as they are found.";
+  }, [current, stations]);
 
   const wanderFromEmpty = useCallback(() => {
     setWandererActive(true);
+    const version = startWandererDiscovery(stations);
     usePlayer.getState().setStatus("buffering", "Finding a playable station...");
-  }, []);
+    return version ? "Wanderer Mode started. Finding a playable global signal…" : "Wanderer Mode is unavailable because no playable signals were found. Try Search.";
+  }, [stations]);
 
   const voiceSearchFromEmpty = useCallback(() => {
     setDesktopMode("Atlas");
     setDesktopDrawerCollapsed(false);
     window.dispatchEvent(new Event("waveatlas:voice-search"));
+    if (!getSpeechRecognitionConstructor()) return "Voice Search is not available in this browser. The Atlas search drawer is open for manual search.";
+    return "Voice Search requested. If your browser asks, allow microphone access to continue.";
   }, []);
 
   const editorialPicksFromEmpty = useCallback(() => {
     setDesktopMode("Brief");
     setDesktopDrawerCollapsed(false);
     setBriefOpen(true);
+    return "Opening Daily Passport editorial picks.";
   }, []);
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
