@@ -18,13 +18,31 @@ const auditRows = auditGeoAudioCatalog();
 assert.equal(auditRows.length, journeyCatalog.reduce((count, journey) => count + journey.tracks.length, 0), 'catalog audit should emit one row per displayed GeoAudio track');
 assert.deepEqual(auditRows.filter((row) => row.duplicateReason), [], 'catalog audit should report no duplicate suppression risks in canonical journeys');
 
+const sunoAuditRows = auditRows.filter((row) => row.originalSunoUrl);
+assert.ok(sunoAuditRows.length > 0, 'catalog-wide audit should include every Suno-origin track');
+assert.deepEqual(sunoAuditRows.filter((row) => row.status !== 'resolved'), [], 'every Suno-origin audit row should be resolved by exact manifest URL');
+for (const row of sunoAuditRows) {
+  assert.ok(row.album, 'Suno audit row should include album');
+  assert.ok(row.journey, 'Suno audit row should include journey');
+  assert.ok(row.title, 'Suno audit row should include title');
+  assert.match(row.originalSunoUrl ?? '', /^https:\/\/cdn1\.suno\.ai\//i, 'Suno audit row should preserve originalSunoUrl');
+  assert.ok(row.manifestPath?.startsWith('data/suno-assets/'), 'Suno audit row should include manifestPath');
+  assert.equal(row.finalAudioUrl, `https://omoluabi1003.github.io/Ariyo-AI/${row.manifestPath}`, 'Suno audit row finalAudioUrl should match the exact manifest asset');
+}
+
 for (const journey of journeyCatalog) {
   assert.ok(journey.journeyId.endsWith('-journey'), `${journey.albumId} should expose a stable journeyId`);
   journey.tracks.forEach((track, index) => {
     assert.equal(track.orderIndex, index + 1, `${track.trackId} should have contiguous 1-based orderIndex`);
     assert.equal(track.title, normalizeJourneyTrackTitle(track.title), `${track.trackId} should use normalized product-ready title casing`);
-    assert.equal(track.audioUrl, track.sourceUrl, `${track.trackId} should keep the Ariyo GitHub Pages MP3 as the playable URL unless WaveAtlas serves a verified local asset`);
-    assert.ok(/^https:\/\/omoluabi1003\.github\.io\/Ariyo-AI\//i.test(track.audioUrl), `${track.trackId} should play the original Ariyo GitHub Pages URL`);
+    assert.equal(track.audioUrl, track.sourceUrl, `${track.trackId} should keep the manifest-mapped Ariyo GitHub Pages MP3 as the playable URL unless WaveAtlas serves a verified WaveAtlas local asset`);
+    assert.ok(/^https:\/\/omoluabi1003\.github\.io\/Ariyo-AI\//i.test(track.audioUrl), `${track.trackId} should play an Ariyo GitHub Pages URL`);
+    if (track.originalSunoUrl) {
+      assert.match(track.originalSunoUrl, /^https:\/\/cdn1\.suno\.ai\//i, `${track.trackId} should preserve the original Suno URL only as provenance`);
+      assert.ok(track.sunoManifestPath, `${track.trackId} should include the exact Suno manifest path used for resolution`);
+      assert.equal(track.audioUrl, `https://omoluabi1003.github.io/Ariyo-AI/${track.sunoManifestPath}`, `${track.trackId} should play the exact manifest-mapped Ariyo local asset`);
+      assert.notEqual(track.audioUrl, track.originalSunoUrl, `${track.trackId} must not play the original Suno CDN URL`);
+    }
     assert.ok(/^https?:\/\//i.test(track.sourceUrl), `${track.trackId} should preserve source URL only as catalog provenance`);
     assert.equal(track.journeyId, journey.journeyId, `${track.trackId} should point back to its journey`);
     assert.equal(track.sourceAlbum, journey.sourceAlbum, `${track.trackId} should preserve source album`);
@@ -82,6 +100,28 @@ const syntheticIssues = validateJourneyCatalog([
 assert.ok(syntheticIssues.some((issue) => issue.message.includes('Synthetic local playback path')), 'validation should reject unverified synthetic local playback paths');
 assert.ok(!syntheticIssues.some((issue) => issue.message.includes('Duplicate asset')), 'validation should not dedupe or flag duplicate unverified synthetic local assets');
 assert.ok(syntheticIssues.some((issue) => issue.message.includes('Expected orderIndex 2')), 'validation should detect skipped orderIndex values');
+
+const guessedSunoIssues = validateJourneyCatalog([
+  {
+    journeyId: 'guessed-suno-journey',
+    albumId: 'guessed-suno-album',
+    title: 'Guessed Suno',
+    subtitle: 'Test',
+    description: 'Test journey',
+    language: 'English',
+    region: 'Test',
+    country: 'Test',
+    city: 'Test',
+    genre: 'GeoAudio',
+    mood: 'Curated',
+    sourceAlbum: 'Guessed Suno',
+    attribution: 'Ariyo AI Studio / Omoluabi Productions',
+    tracks: [
+      { journeyId: 'guessed-suno-journey', albumId: 'guessed-suno-album', trackId: 'guessed-suno-track-1', title: 'Covenant Of Isolation', subtitle: 'Test', description: 'Test', audioUrl: 'https://omoluabi1003.github.io/Ariyo-AI/Covenant%20Of%20Isolation.mp3', sourceUrl: 'https://omoluabi1003.github.io/Ariyo-AI/Covenant%20Of%20Isolation.mp3', originalSunoUrl: 'https://cdn1.suno.ai/7578528b-34c1-492c-9e97-df93216f0cc2.mp3', language: 'English', region: 'Test', country: 'Test', city: 'Test', genre: 'GeoAudio', mood: 'Curated', orderIndex: 1, sourceAlbum: 'Guessed Suno', attribution: 'Ariyo AI Studio' },
+    ],
+  },
+]);
+assert.ok(guessedSunoIssues.some((issue) => issue.message.includes('must play the exact manifest asset')), 'validation should fail Suno-origin playback mapped by title or filename guesswork');
 
 assert.equal(normalizeJourneyTrackTitle('working-on myself (live version)'), 'Working on Myself (Live Version)', 'title normalization should clean punctuation, parentheses, minor words, and version suffixes');
 
