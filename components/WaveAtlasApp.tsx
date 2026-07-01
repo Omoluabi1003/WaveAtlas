@@ -31,6 +31,7 @@ import {
   VolumeX,
   X,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
@@ -46,6 +47,20 @@ import { ActiveStationBeacon } from "@/components/ActiveStationBeacon";
 import { RadioDNA } from "@/components/RadioDNA";
 import { WorldContextPanel } from "@/components/WorldContextPanel";
 import type { WorldContext } from "@/lib/world-engine/types";
+
+function selectGeoAudioQueueItem(channel: Station, itemIndex: number) {
+  const item = channel.geoAudio?.tracks[itemIndex];
+  if (!item || !/^https?:\/\//i.test(item.url)) return false;
+  setCurrentStationAndDestination({
+    ...channel,
+    id: `${channel.station_uuid}-track-${itemIndex + 1}`,
+    url: item.url,
+    url_resolved: item.url,
+    name: `${channel.geoAudio?.albumTitle ?? channel.name} GeoAudio Channel — ${item.title}`,
+    geoAudio: channel.geoAudio ? { ...channel.geoAudio, highlightedQueueItemId: `${channel.station_uuid}-track-${itemIndex + 1}` } : channel.geoAudio,
+  }, "manual", [channel]);
+  return true;
+}
 
 const BlueMarbleGlobe = dynamic(() => import("@/components/BlueMarbleGlobe"), {
   ssr: false,
@@ -1290,7 +1305,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     }
     const nextTrack = tracks[nextIndex];
     setStatus("buffering", reason === "ended" ? `Playing next ${albumStation.geoAudio?.albumTitle ?? "GeoAudio"} track…` : "Skipping to the next GeoAudio track…");
-    setCurrentStationAndDestination({ ...albumStation, id: `${albumStation.station_uuid}-track-${nextIndex + 1}`, url: nextTrack.url, url_resolved: nextTrack.url, name: `${albumStation.geoAudio?.albumTitle ?? albumStation.name} GeoAudio Channel — ${nextTrack.title}` }, "manual", [albumStation]);
+    setCurrentStationAndDestination({ ...albumStation, id: `${albumStation.station_uuid}-track-${nextIndex + 1}`, url: nextTrack.url, url_resolved: nextTrack.url, name: `${albumStation.geoAudio?.albumTitle ?? albumStation.name} GeoAudio Channel — ${nextTrack.title}`, geoAudio: albumStation.geoAudio ? { ...albumStation.geoAudio, highlightedQueueItemId: `${albumStation.station_uuid}-track-${nextIndex + 1}` } : albumStation.geoAudio }, "manual", [albumStation]);
     return true;
   }, [setStatus]);
 
@@ -2756,8 +2771,34 @@ function SearchResultStationCard({ station, onSelect }: { station: Station; onSe
   const location = [station.state || station.city, station.country].filter(Boolean).join(" · ");
   const isGeoAudio = station.sourceType === "geoaudio";
   const showCampusAtlasBadge = process.env.NODE_ENV === "development" && station.curation_source === "campus-atlas";
-  return <button onClick={() => onSelect(station)} className="mb-3 w-full rounded-[18px] border border-white/[0.08] bg-[rgba(20,28,42,0.82)] p-4 text-left shadow-lg transition active:scale-[0.99] hover:border-gold/50 hover:bg-[rgba(28,38,58,0.9)]"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><b className="block truncate text-base font-medium text-[#F8FAFC]">{station.name}</b><p className="mt-1 text-xs font-medium text-white/[0.72]">{location || "Global"} · {isGeoAudio ? station.geoAudio?.albumTitle ?? "GeoAudio album" : station.language || "Unknown language"}</p>{isGeoAudio && station.geoAudio ? <p className="mt-1 text-[11px] font-medium text-gold/80">Provider/producer: {station.geoAudio.provider} · Studio: {station.geoAudio.studio}</p> : null}</div><span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-medium ${isGeoAudio ? "bg-gold/15 text-gold" : "bg-emerald-500/15 text-emerald-300"}`}>{isGeoAudio ? "GeoAudio Channel" : <><span className={`mr-1 inline-block size-2 rounded-full ${health.dot}`} />{health.label}</>}</span></div><div className="mt-3 flex flex-wrap gap-2">{showCampusAtlasBadge ? <span className="rounded-full border border-sky-300/25 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold text-sky-200">campus-atlas</span> : null}<span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.codec || "Unknown codec"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{isGeoAudio ? "First track ready" : station.bitrate ? `${station.bitrate} kbps` : "Live stream"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.country_code}</span>{station.tags.slice(0, 2).map((tag) => <span key={tag} className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{tag}</span>)}</div></button>;
+  const highlightedTrack = station.geoAudio?.highlightedQueueItemId ? station.geoAudio.tracks[Number(station.geoAudio.highlightedQueueItemId.split("-track-")[1]) - 1]?.title : undefined;
+  return <button onClick={() => { const highlightedIndex = station.geoAudio?.highlightedQueueItemId ? Number(station.geoAudio.highlightedQueueItemId.split("-track-")[1]) - 1 : -1; if (station.sourceType === "geoaudio" && highlightedIndex >= 0 && selectGeoAudioQueueItem(station, highlightedIndex)) return; onSelect(station); }} className="mb-3 w-full rounded-[18px] border border-white/[0.08] bg-[rgba(20,28,42,0.82)] p-4 text-left shadow-lg transition active:scale-[0.99] hover:border-gold/50 hover:bg-[rgba(28,38,58,0.9)]"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><b className="block truncate text-base font-medium text-[#F8FAFC]">{station.name}</b><p className="mt-1 text-xs font-medium text-white/[0.72]">{location || "Global"} · {isGeoAudio ? station.geoAudio?.albumTitle ?? "GeoAudio album" : station.language || "Unknown language"}</p>{isGeoAudio && station.geoAudio ? <p className="mt-1 text-[11px] font-medium text-gold/80">Provider/producer: {station.geoAudio.provider} · Studio: {station.geoAudio.studio}</p> : null}</div><span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-medium ${isGeoAudio ? "bg-gold/15 text-gold" : "bg-emerald-500/15 text-emerald-300"}`}>{isGeoAudio ? "GeoAudio Channel" : <><span className={`mr-1 inline-block size-2 rounded-full ${health.dot}`} />{health.label}</>}</span></div><div className="mt-3 flex flex-wrap gap-2">{showCampusAtlasBadge ? <span className="rounded-full border border-sky-300/25 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold text-sky-200">campus-atlas</span> : null}<span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.codec || "Unknown codec"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{isGeoAudio ? "First track ready" : station.bitrate ? `${station.bitrate} kbps` : "Live stream"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.country_code}</span>{highlightedTrack ? <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] font-semibold text-gold">Matched: {highlightedTrack}</span> : null}{station.tags.slice(0, 2).map((tag) => <span key={tag} className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{tag}</span>)}</div></button>;
 }
+function GeoAudioChannelInspector({ station }: { station: Station }) {
+  const [open, setOpen] = useState(true);
+  if (station.sourceType !== "geoaudio" || !station.geoAudio) return null;
+  const activeUrl = getStationStreamUrl(station);
+  const activeIndex = station.geoAudio.tracks.findIndex((track) => track.url === activeUrl);
+  const queueLabel = station.geoAudio.queueLabel || "Journey";
+  return <section className="fixed right-6 bottom-28 z-[69] hidden w-[360px] rounded-[2rem] border border-gold/25 bg-slate-950/92 p-4 text-white shadow-2xl backdrop-blur-2xl xl:block">
+    <div className="flex gap-3">
+      {station.geoAudio.coverArtUrl ? <Image src={station.geoAudio.coverArtUrl} alt={`${station.geoAudio.albumTitle} artwork`} width={72} height={72} className="size-[72px] rounded-2xl object-cover" unoptimized /> : null}
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gold">GeoAudio Channel</p>
+        <h3 className="mt-1 truncate font-display text-lg font-bold">{station.geoAudio.albumTitle}</h3>
+        <p className="text-xs text-ivory/70">{station.geoAudio.provider} · {station.geoAudio.producer}</p>
+        <p className="text-xs text-ivory/70">Studio: {station.geoAudio.studio}</p>
+      </div>
+    </div>
+    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-ivory/72">
+      <span className="rounded-2xl bg-white/[0.06] px-3 py-2">Anchor: Florida</span>
+      <span className="rounded-2xl bg-white/[0.06] px-3 py-2">Tracks: {station.geoAudio.trackCount ?? station.geoAudio.tracks.length}</span>
+    </div>
+    <button type="button" onClick={() => setOpen((value) => !value)} className="mt-3 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left text-sm font-semibold text-ivory">{queueLabel}<span className="text-xs text-gold">{open ? "Hide" : "Expand"} <ChevronDown className="inline size-3" /></span></button>
+    {open ? <div className="mt-2 max-h-56 space-y-1 overflow-y-auto pr-1">{station.geoAudio.tracks.map((track, index) => { const active = index === activeIndex || station.geoAudio?.highlightedQueueItemId === `${station.station_uuid}-track-${index + 1}`; return <button key={`${track.title}-${index}`} type="button" onClick={() => selectGeoAudioQueueItem(station, index)} className={`w-full rounded-xl px-3 py-2 text-left text-xs transition ${active ? "bg-gold/15 text-gold" : "bg-white/[0.04] text-ivory/76 hover:bg-white/[0.08]"}`}><span className="mr-2 opacity-60">{index + 1}.</span>{track.title}</button>; })}</div> : null}
+  </section>;
+}
+
 function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelect, setQuery, compact = false }: { query: string; stations: Station[]; onStationSelect: (station: Station, candidates: Station[]) => void; onCountrySelect: (country: CountryResult) => void; setQuery: (q: string) => void; compact?: boolean }) {
   const [remoteStations, setRemoteStations] = useState<Station[]>([]);
   const [countries, setCountries] = useState<CountryResult[]>([]);
@@ -4415,6 +4456,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       </aside> : null}
       {activeStation ? <NewspaperBrief station={activeStation} stations={stationPool} inventoryStats={inventoryStats} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} /> : null}
       {activeStation ? <AtlasToast station={activeStation} /> : null}
+      {activeStation ? <GeoAudioChannelInspector station={activeStation} /> : null}
       {activeStation ? <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid w-fit max-w-[min(920px,calc(100vw-3rem))] pointer-events-auto grid-cols-[minmax(280px,360px)_auto] gap-3 rounded-[2rem] border border-white/25 bg-[rgba(3,9,18,0.96)] p-2 text-white shadow-[0_28px_95px_rgba(0,0,0,.70),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)] xl:bottom-8">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
