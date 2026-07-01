@@ -115,7 +115,9 @@ export function isVerifiedNigerianStation(station: Station) {
   );
 }
 function isGeoAudioStation(station: Station) { return station.sourceType === 'geoaudio'; }
-export function matchesGeoAudioIntent(rawQuery = '') { const q = rawQuery.trim().toLowerCase(); if (!q) return false; return ['omoluabi productions','ariyo ai studio','kindness','officialpaulinspires','officialpaulinspires spoken word series','geoaudio','geo audio','producer','studio','album','track','a very good bad guy','dem wan shut me up','efcc','me after you','the blessing in staying away','parking lot therapy','when a good man walks away','disrupted career','naija hits','street sense','needs','holy vibes only','terms of agreement','back2basics','omoluabi production catalogue'].some((term) => q.includes(term)); }
+const staticGeoAudioIntentTerms = ['omoluabi productions', 'ariyo ai studio', 'geoaudio', 'geo audio', 'producer', 'studio', 'album', 'track'];
+function geoAudioCatalogTerms() { return ariyoGeoAudioChannels.flatMap((channel) => [channel.geoAudio?.albumTitle, ...(channel.geoAudio?.tracks.map((track) => track.title) ?? [])]).filter((term): term is string => Boolean(term?.trim())).map((term) => term.toLowerCase()); }
+export function matchesGeoAudioIntent(rawQuery = '') { const q = rawQuery.trim().toLowerCase(); if (!q) return false; return [...staticGeoAudioIntentTerms, ...geoAudioCatalogTerms()].some((term) => q.includes(term) || term.includes(q)); }
 function geoAudioSeedsForParams(params: Record<string,string|undefined> = {}) { const intent = params.includeGeoAudio === 'true' || matchesGeoAudioIntent(params.name || params.q || params.tag || ''); return intent ? ariyoGeoAudioChannels.filter((station) => seedMatchesParams(station, params)) : []; }
 function nonGeoAudioSeeds() { return [...ariyoSeedStations, ...campusAtlasStations]; }
 function isAriyoSeed(station: Station) { return station.tags.some((tag) => tag.toLowerCase() === 'ariyo-ai-seed'); }

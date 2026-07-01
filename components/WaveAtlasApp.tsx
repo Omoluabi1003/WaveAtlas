@@ -1278,19 +1278,16 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   const skipTimestamps = useRef<number[]>([]);
   const currentKey = current ? stationKey(current) : "";
   const scopedAttemptSession = useRef(0);
-  const geoAudioTrackIndex = useRef(0);
-
   const playNextGeoAudioTrack = useCallback((albumStation: Station, reason = "next_track") => {
     const tracks = albumStation.geoAudio?.tracks.filter((track) => /^https?:\/\//i.test(track.url)) ?? [];
-    if (albumStation.sourceType !== "geoaudio" || tracks.length <= 1) return false;
+    if (albumStation.sourceType !== "geoaudio" || tracks.length < 1) return false;
     const currentUrl = getStationStreamUrl(albumStation);
-    const currentIndex = Math.max(0, tracks.findIndex((track) => track.url === currentUrl || track.url === albumStation.url));
-    const nextIndex = currentIndex + 1;
+    const currentIndex = tracks.findIndex((track) => track.url === currentUrl || track.url === albumStation.url);
+    const nextIndex = currentIndex === -1 ? 0 : currentIndex + 1;
     if (nextIndex >= tracks.length) {
       setStatus("paused", `${albumStation.geoAudio?.albumTitle ?? "GeoAudio album"} finished.`);
       return true;
     }
-    geoAudioTrackIndex.current = nextIndex;
     const nextTrack = tracks[nextIndex];
     setStatus("buffering", reason === "ended" ? `Playing next ${albumStation.geoAudio?.albumTitle ?? "GeoAudio"} track…` : "Skipping to the next GeoAudio track…");
     setCurrentStationAndDestination({ ...albumStation, id: `${albumStation.station_uuid}-track-${nextIndex + 1}`, url: nextTrack.url, url_resolved: nextTrack.url, name: `${albumStation.geoAudio?.albumTitle ?? albumStation.name} GeoAudio Channel — ${nextTrack.title}` }, "manual", [albumStation]);
@@ -1360,7 +1357,6 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       scopedAttemptSession.current = 0;
       attempted.current = [stationKey(current)];
     }
-    if (current.sourceType === "geoaudio") geoAudioTrackIndex.current = Math.max(0, current.geoAudio?.tracks.findIndex((track) => track.url === getStationStreamUrl(current)) ?? 0);
     if (queue.length > 1) setStatus("buffering", state.stationSelectionSource === "manual" ? "Holding the selected signal…" : getAdaptiveBufferPolicy(current).message);
   }, [currentKey, current, scopedSearchSessionId, setStatus, stations]);
 
