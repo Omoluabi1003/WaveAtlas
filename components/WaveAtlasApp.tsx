@@ -448,6 +448,96 @@ function isCurrentStationSelection(version: number) {
   return version === stationSelectionVersion;
 }
 
+
+const CLOSER_STATION_PROMPT_COOLDOWN_MS = 15 * 60_000;
+const CLOSER_STATION_PROMPT_DISMISS_MS = 9_000;
+const SIGNIFICANT_LOCATION_CHANGE_KM = 25;
+const MEANINGFULLY_CLOSER_MIN_DELTA_KM = 35;
+const MEANINGFULLY_CLOSER_RATIO = 0.72;
+
+type NearbyDiscoveryScope = "Current Location" | "City" | "County" | "State/Province" | "Country" | "Continent" | "Worldwide";
+type UserGeoPoint = { lat: number; lng: number };
+type NearbyDiscoveryResult = { station: Station; queue: Station[]; scope: NearbyDiscoveryScope; userLocation?: UserGeoPoint };
+type CloserStationPromptState = { station: Station; queue: Station[]; message: string; userLocation: UserGeoPoint; createdAt: number };
+
+type NearbyApiCandidate = { station: Station; distanceKm?: number };
+
+function locationDistanceKm(a: UserGeoPoint, b: UserGeoPoint) {
+  const toRad = (value: number) => value * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function stationDistanceFromUser(station: Station, userLocation: UserGeoPoint) {
+  const geo = geotruth(station);
+  if (!Number.isFinite(geo.lat) || !Number.isFinite(geo.lng)) return Number.POSITIVE_INFINITY;
+  return locationDistanceKm(userLocation, { lat: geo.lat as number, lng: geo.lng as number });
+}
+
+function isMeaningfullyCloserStation(candidate: Station, current: Station, userLocation: UserGeoPoint) {
+  if (stationKey(candidate) === stationKey(current) || !getStationStreamUrl(candidate)) return false;
+  if (candidate.sourceType === "geoaudio" || current.sourceType === "geoaudio") return false;
+  const currentKm = stationDistanceFromUser(current, userLocation);
+  const candidateKm = stationDistanceFromUser(candidate, userLocation);
+  if (!Number.isFinite(currentKm) || !Number.isFinite(candidateKm)) return false;
+  if (candidateKm < 15 && currentKm - candidateKm >= 5) return true;
+  return currentKm - candidateKm >= MEANINGFULLY_CLOSER_MIN_DELTA_KM && candidateKm <= currentKm * MEANINGFULLY_CLOSER_RATIO;
+}
+
+function closerStationPromptMessage(station: Station) {
+  const place = station.city || station.state || station.country;
+  return place ? `Found a verified station in ${place}. Switch?` : "A closer local station is available. Switch?";
+}
+
+function getBrowserLocation(timeoutMs = 2500): Promise<UserGeoPoint | undefined> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) return Promise.resolve(undefined);
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (point?: UserGeoPoint) => { if (!settled) { settled = true; resolve(point); } };
+    const timer = window.setTimeout(() => done(undefined), timeoutMs);
+    navigator.geolocation.getCurrentPosition(
+      (position) => { window.clearTimeout(timer); done({ lat: position.coords.latitude, lng: position.coords.longitude }); },
+      () => { window.clearTimeout(timer); done(undefined); },
+      { enableHighAccuracy: false, maximumAge: 5 * 60_000, timeout: timeoutMs },
+    );
+  });
+}
+
+async function fetchNearbyScope(scope: NearbyDiscoveryScope, userLocation?: UserGeoPoint) {
+  const params = new URLSearchParams({ limit: scope === "Worldwide" ? "24" : "12" });
+  const zoomByScope: Record<Exclude<NearbyDiscoveryScope, "Worldwide">, string> = {
+    "Current Location": "10",
+    City: "8",
+    County: "6",
+    "State/Province": "4",
+    Country: "3",
+    Continent: "2",
+  };
+  if (scope === "Worldwide" || !userLocation) params.set("global", "true");
+  else { params.set("lat", String(userLocation.lat)); params.set("lng", String(userLocation.lng)); params.set("zoom", zoomByScope[scope]); }
+  const response = await fetch(`/api/stations/nearby?${params.toString()}`);
+  if (!response.ok) throw new Error(`Nearby ${scope} failed`);
+  const data = await response.json() as { candidates?: NearbyApiCandidate[] };
+  return uniqueStationCandidates((data.candidates ?? []).map((candidate) => candidate.station).filter((station) => getStationStreamUrl(station) && station.sourceType !== "geoaudio"));
+}
+
+async function startNearbyTimeToFirstAudioDiscovery(seedStations: Station[], anchor?: Station): Promise<NearbyDiscoveryResult> {
+  const userLocation = await getBrowserLocation();
+  const scopes: NearbyDiscoveryScope[] = ["Current Location", "City", "County", "State/Province", "Country", "Continent", "Worldwide"];
+  for (const scope of scopes) {
+    const scoped = scope === "Worldwide" && seedStations.length
+      ? uniqueStationCandidates([...await fetchNearbyScope(scope, userLocation).catch(() => []), ...seedStations]).filter((station) => getStationStreamUrl(station) && station.sourceType !== "geoaudio")
+      : await fetchNearbyScope(scope, userLocation).catch(() => []);
+    const queue = uniqueStationCandidates(scoped.filter((station) => !anchor || stationKey(station) !== stationKey(anchor)));
+    if (queue.length) return { station: queue[0], queue, scope, userLocation };
+  }
+  throw new Error("No nearby playable candidates found");
+}
+
 function readHasCompletedArrival() {
   return typeof window !== "undefined" && window.sessionStorage.getItem(ARRIVAL_COMPLETED_SESSION_KEY) === "true";
 }
@@ -1558,6 +1648,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       if (startupArrivalStation && stationKey(startupArrivalStation) === stationKey(current)) markArrivalCompleted();
       usePlayer.getState().clearArrivalContext();
       debugTeleport("final station playing", { station: current.name, country: current.country_code, continent: stationContinent(current) });
+      window.dispatchEvent(new CustomEvent("waveatlas:station-playing", { detail: { station: current, source: selectionSource } }));
       if (selectionSource === "wanderer") {
         debugWanderer("final", { selectedStation: current.name, finalPlaybackState: "playing" });
         wandererResolving = false;
@@ -3945,6 +4036,9 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     return /^[a-z0-9-]{8,80}$/i.test(value) ? value : "";
   });
   const initialStationPoolRef = useRef(stationPool);
+  const [closerStationPrompt, setCloserStationPrompt] = useState<CloserStationPromptState | null>(null);
+  const closerPromptTimerRef = useRef<number | null>(null);
+  const closerPromptLastShownRef = useRef<{ at: number; location?: UserGeoPoint } | null>(null);
 
   const clearVoiceFeedback = useCallback(() => {
     if (voiceFeedbackTimerRef.current !== null) {
@@ -3972,7 +4066,50 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
 
   useEffect(() => () => {
     if (voiceFeedbackTimerRef.current !== null) window.clearTimeout(voiceFeedbackTimerRef.current);
+    if (closerPromptTimerRef.current !== null) window.clearTimeout(closerPromptTimerRef.current);
   }, []);
+
+  const dismissCloserStationPrompt = useCallback(() => {
+    if (closerPromptTimerRef.current !== null) {
+      window.clearTimeout(closerPromptTimerRef.current);
+      closerPromptTimerRef.current = null;
+    }
+    setCloserStationPrompt(null);
+  }, []);
+
+  const showCloserStationPrompt = useCallback((prompt: CloserStationPromptState) => {
+    if (closerPromptTimerRef.current !== null) window.clearTimeout(closerPromptTimerRef.current);
+    closerPromptLastShownRef.current = { at: Date.now(), location: prompt.userLocation };
+    setCloserStationPrompt(prompt);
+    closerPromptTimerRef.current = window.setTimeout(() => {
+      closerPromptTimerRef.current = null;
+      setCloserStationPrompt(null);
+    }, CLOSER_STATION_PROMPT_DISMISS_MS);
+  }, []);
+
+  useEffect(() => {
+    const onStationPlaying = (event: Event) => {
+      const detail = (event as CustomEvent<{ station?: Station; source?: StationSelectionSource }>).detail;
+      const playingStation = detail?.station;
+      const source = detail?.source;
+      if (!playingStation || (source !== "nearby" && source !== "wanderer")) return;
+      void (async () => {
+        const userLocation = await getBrowserLocation(1200);
+        if (!userLocation) return;
+        const lastShown = closerPromptLastShownRef.current;
+        if (lastShown && Date.now() - lastShown.at < CLOSER_STATION_PROMPT_COOLDOWN_MS) {
+          const movedKm = lastShown.location ? locationDistanceKm(lastShown.location, userLocation) : 0;
+          if (movedKm < SIGNIFICANT_LOCATION_CHANGE_KM) return;
+        }
+        const discovered = await fetchNearbyScope("Current Location", userLocation).catch(() => []);
+        const closer = discovered.find((station) => isMeaningfullyCloserStation(station, usePlayer.getState().current ?? playingStation, userLocation));
+        if (!closer) return;
+        showCloserStationPrompt({ station: closer, queue: uniqueStationCandidates([closer, ...discovered]), message: closerStationPromptMessage(closer), userLocation, createdAt: Date.now() });
+      })();
+    };
+    window.addEventListener("waveatlas:station-playing", onStationPlaying);
+    return () => window.removeEventListener("waveatlas:station-playing", onStationPlaying);
+  }, [showCloserStationPrompt]);
 
   const completeArrivalFlow = useCallback(() => {
     markArrivalCompleted();
@@ -4317,17 +4454,29 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     setDesktopMode("Explore");
     setDesktopDrawerCollapsed(false);
     setBriefOpen(false);
+    dismissCloserStationPrompt();
+    usePlayer.getState().setStatus("buffering", "Finding the fastest nearby live signal…");
     const anchor = usePlayer.getState().current ?? current;
-    if (anchor) {
-      void resolveTeleportDestination(stations, anchor)
-        .then(({ station, queue }) => {
+    void startNearbyTimeToFirstAudioDiscovery(stations, anchor)
+      .then(({ station, queue, scope }) => {
+        setStationPool((prev) => uniqueStationCandidates([station, ...queue, ...prev]));
+        setCurrentStationAndDestination(station, "nearby", queue);
+        setCountrySignalMessage(`Trying ${station.name} from ${scope}. WaveAtlas will keep checking for a closer playable local station.`);
+      })
+      .catch(() => {
+        const fallbackQueue = buildWandererCandidateQueue(stations);
+        if (fallbackQueue.length) {
+          const [station, ...queue] = fallbackQueue;
           setStationPool((prev) => uniqueStationCandidates([station, ...queue, ...prev]));
-          setCountrySignalMessage(`Nearby discovery found ${station.name} in ${station.country}. Choose a signal to begin.`);
-        })
-        .catch(() => setCountrySignalMessage("Nearby discovery is unavailable right now. Search or Wander can still start the Atlas."));
-    }
-    return "Opening nearby discovery. Fresh local signals will appear as soon as they are found.";
-  }, [current, stations]);
+          setCurrentStationAndDestination(station, "nearby", fallbackQueue);
+          setCountrySignalMessage("Nearby discovery fell back to the fastest available global signal while local discovery continues.");
+        } else {
+          usePlayer.getState().setStatus("failed", "Nearby discovery is unavailable right now. Search or Wander can still start the Atlas.");
+          setCountrySignalMessage("Nearby discovery is unavailable right now. Search or Wander can still start the Atlas.");
+        }
+      });
+    return "Finding the fastest nearby live signal now. Audio will start as soon as the first playable station responds.";
+  }, [current, dismissCloserStationPrompt, stations]);
 
   const wanderFromEmpty = useCallback(() => {
     setWandererActive(true);
@@ -4398,6 +4547,16 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Return to discovery or search for another station.`}</p></div> : null}
       <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} /></div>
       {voiceFeedback ? <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+118px)] z-[61] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-radio/20 bg-slate-950/86 px-3 py-2 text-center text-xs font-medium text-radio shadow-2xl backdrop-blur-xl md:hidden" role="status" aria-live="polite">{voiceFeedback}</div> : null}
+      <AnimatePresence>
+        {closerStationPrompt ? <motion.div initial={{ opacity: 0, y: -14, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: -10, x: "-50%" }} className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+72px)] z-[82] w-[min(92vw,26rem)] rounded-3xl border border-radio/25 bg-slate-950/92 p-4 text-ivory shadow-2xl backdrop-blur-2xl" role="dialog" aria-live="polite" aria-label="Closer local station available">
+          <p className="text-sm font-semibold text-white">{closerStationPrompt.message}</p>
+          <p className="mt-1 text-xs text-ivory/65">{closerStationPrompt.station.name} · {closerStationPrompt.station.country}</p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => { const prompt = closerStationPrompt; dismissCloserStationPrompt(); setStationPool((prev) => uniqueStationCandidates([prompt.station, ...prompt.queue, ...prev])); setCurrentStationAndDestination(prompt.station, "nearby", prompt.queue); }} className="flex-1 rounded-full bg-radio px-4 py-2 text-sm font-bold text-midnight">Switch</button>
+            <button type="button" onClick={dismissCloserStationPrompt} className="flex-1 rounded-full border border-white/12 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-ivory/80">Stay</button>
+          </div>
+        </motion.div> : null}
+      </AnimatePresence>
       {activeStation ? <MobileAtlasShell stations={stationPool} allStations={stations} current={activeStation} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} /> : <div className="md:hidden"><EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /></div>}
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
       <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">

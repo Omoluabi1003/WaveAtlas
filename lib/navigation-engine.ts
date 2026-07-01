@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import type { Station } from "@/lib/stations";
 
-export type NavigationSelectionSource = "manual" | "voice" | "startup" | "teleport" | "fallback" | "wanderer" | "deeplink" | "auto" | "atlas-drive";
-export type NavigationCameraReason = "station-selected" | "teleport" | "wanderer" | "candidate-lock" | "startup" | "fallback" | "deeplink" | "auto" | "atlas-drive";
+export type NavigationSelectionSource = "manual" | "voice" | "startup" | "teleport" | "fallback" | "wanderer" | "deeplink" | "auto" | "atlas-drive" | "nearby";
+export type NavigationCameraReason = "station-selected" | "teleport" | "wanderer" | "candidate-lock" | "startup" | "fallback" | "deeplink" | "auto" | "atlas-drive" | "nearby";
 export type NavigationBeaconState = "idle" | "traveling" | "arrived";
 
 export type NavigationCameraIntent = {
@@ -44,7 +44,7 @@ function stationIdentity(station: Station) {
 }
 
 function cameraReasonForSource(source: NavigationSelectionSource): NavigationCameraReason {
-  if (source === "teleport" || source === "wanderer" || source === "fallback" || source === "deeplink" || source === "auto" || source === "atlas-drive" || source === "startup") return source;
+  if (source === "teleport" || source === "wanderer" || source === "fallback" || source === "deeplink" || source === "auto" || source === "atlas-drive" || source === "nearby" || source === "startup") return source;
   return "station-selected";
 }
 
