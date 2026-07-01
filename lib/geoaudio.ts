@@ -6,6 +6,7 @@ export type GeoAudioAlbum = { id: string; title: string; subtitle?: string; desc
 export type JourneyCatalogTrack = { journeyId: string; albumId: string; trackId: string; title: string; subtitle: string; description: string; audioUrl: string; sourceUrl: string; localAssetPath?: string; originalSunoUrl?: string; duration?: string; language: string; region: string; country: string; city: string; genre: string; mood: string; orderIndex: number; sourceAlbum: string; attribution: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; };
 export type JourneyCatalogEntry = Omit<JourneyCatalogTrack, 'trackId' | 'audioUrl' | 'sourceUrl' | 'localAssetPath' | 'originalSunoUrl' | 'duration' | 'orderIndex' | 'checksum' | 'contentHash' | 'repriseOfTrackId' | 'alternateVersionOfTrackId'> & { tracks: JourneyCatalogTrack[]; coverArtUrl?: string; homepage?: string; };
 export type GeoAudioCatalogValidationIssue = { severity: 'warning' | 'error'; journeyId: string; trackId?: string; message: string; };
+export type GeoAudioCatalogAuditRow = { journeyId: string; title: string; sourceUrl: string; audioUrl: string; localAssetPath?: string; normalizedFilename: string; orderIndex: number; duplicateReason?: string; titleFilenameMatch: boolean; };
 
 const GEOAUDIO_SEED_CHECKED_AT = '2026-07-01T00:00:00.000Z';
 const ARIYO_AI_ORIGIN = 'https://omoluabi1003.github.io/Ariyo-AI';
@@ -392,7 +393,7 @@ function audioUrlKey(url: string) {
   return decodeURIComponent(url.trim()).toLowerCase();
 }
 
-function normalizedFilenameKey(url: string) {
+export function normalizedGeoAudioFilenameKey(url: string) {
   const pathname = url.split('?')[0].split('#')[0];
   const filename = decodeURIComponent(pathname.slice(pathname.lastIndexOf('/') + 1)).replace(/\.[a-z0-9]+$/i, '');
   return normalizeName(filename);
@@ -405,8 +406,14 @@ const SERVED_GEOAUDIO_LOCAL_ASSETS = new Set<string>([
 
 function inferredLocalAssetPathForTrack(track: GeoAudioTrack) {
   if (track.localAssetPath) return track.localAssetPath;
-  const filename = decodeURIComponent(track.url.split('?')[0].split('#')[0].slice(track.url.lastIndexOf('/') + 1));
-  return `/geoaudio/ariyo/${filename.replace(/^data\/omoluabi\//, '')}`;
+  const pathname = track.url.split('?')[0].split('#')[0];
+  const filename = decodeURIComponent(pathname.slice(pathname.lastIndexOf('/') + 1));
+  return `/geoaudio/ariyo/${filename}`;
+}
+
+function verifiedLocalAssetPathForTrack(track: GeoAudioTrack) {
+  const localAssetPath = inferredLocalAssetPathForTrack(track);
+  return localAssetPath && SERVED_GEOAUDIO_LOCAL_ASSETS.has(localAssetPath) ? localAssetPath : undefined;
 }
 
 function isAriyoGithubPagesUrl(url: string) {
@@ -414,23 +421,22 @@ function isAriyoGithubPagesUrl(url: string) {
 }
 
 export function resolveGeoAudioPlaybackUrl(track: GeoAudioTrack) {
-  const localAssetPath = inferredLocalAssetPathForTrack(track);
-  if (localAssetPath && SERVED_GEOAUDIO_LOCAL_ASSETS.has(localAssetPath)) return localAssetPath;
+  const localAssetPath = verifiedLocalAssetPathForTrack(track);
+  if (localAssetPath) return localAssetPath;
   if (/^https:\/\//i.test(track.url) && isAriyoGithubPagesUrl(track.url)) return track.url;
   return track.url;
 }
 
-function trackDedupKeys(track: GeoAudioTrack, title = track.title) {
-  const localAssetPath = inferredLocalAssetPathForTrack(track);
+function trackDedupKeys(track: GeoAudioTrack) {
+  const verifiedLocalAssetPath = verifiedLocalAssetPathForTrack(track);
   return [
-    localAssetPath && `asset:${audioUrlKey(localAssetPath)}`,
-    track.originalSunoUrl && `suno:${audioUrlKey(track.originalSunoUrl)}`,
     track.url && `source:${audioUrlKey(track.url)}`,
-    track.url && `file:${normalizedFilenameKey(track.url)}`,
-    localAssetPath && `file:${normalizedFilenameKey(localAssetPath)}`,
+    track.url && `source-file:${normalizedGeoAudioFilenameKey(track.url)}`,
+    verifiedLocalAssetPath && `asset:${audioUrlKey(verifiedLocalAssetPath)}`,
+    verifiedLocalAssetPath && `asset-file:${normalizedGeoAudioFilenameKey(verifiedLocalAssetPath)}`,
+    track.originalSunoUrl && `suno:${audioUrlKey(track.originalSunoUrl)}`,
     track.checksum && `checksum:${track.checksum.toLowerCase()}`,
     track.contentHash && `hash:${track.contentHash.toLowerCase()}`,
-    title && `title:${normalizeName(title)}`,
   ].filter((key): key is string => Boolean(key));
 }
 
@@ -449,12 +455,12 @@ export function buildJourneyCatalog(albums: GeoAudioAlbum[] = ariyoGeoAudioAlbum
     const seen = new Set<string>();
     const tracks = album.tracks.reduce<JourneyCatalogTrack[]>((items, sourceTrack) => {
       const title = normalizeJourneyTrackTitle(sourceTrack.title);
-      const keys = trackDedupKeys(sourceTrack, title);
+      const keys = trackDedupKeys(sourceTrack);
       if (!isIntentionalAlternate(sourceTrack) && keys.some((key) => seen.has(key))) return items;
       keys.forEach((key) => seen.add(key));
       const orderIndex = items.length + 1;
       const trackId = `${album.id}-track-${orderIndex}`;
-      const localAssetPath = inferredLocalAssetPathForTrack(sourceTrack);
+      const localAssetPath = verifiedLocalAssetPathForTrack(sourceTrack);
       const audioUrl = resolveGeoAudioPlaybackUrl(sourceTrack);
       items.push({
         journeyId,
@@ -488,6 +494,41 @@ export function buildJourneyCatalog(albums: GeoAudioAlbum[] = ariyoGeoAudioAlbum
   });
 }
 
+function duplicateReasonForKey(key: string, existing: JourneyCatalogTrack) {
+  const [kind] = key.split(':');
+  return `duplicate ${kind} reference also used by ${existing.trackId}`;
+}
+
+export function auditGeoAudioCatalog(catalog: JourneyCatalogEntry[] = journeyCatalog): GeoAudioCatalogAuditRow[] {
+  return catalog.flatMap((journey) => {
+    const seen = new Map<string, JourneyCatalogTrack>();
+    return journey.tracks.map((track) => {
+      const dedupeKeys = [
+        track.sourceUrl && `source:${audioUrlKey(track.sourceUrl)}`,
+        track.sourceUrl && `source-file:${normalizedGeoAudioFilenameKey(track.sourceUrl)}`,
+        track.localAssetPath && SERVED_GEOAUDIO_LOCAL_ASSETS.has(track.localAssetPath) && `asset:${audioUrlKey(track.localAssetPath)}`,
+        track.localAssetPath && SERVED_GEOAUDIO_LOCAL_ASSETS.has(track.localAssetPath) && `asset-file:${normalizedGeoAudioFilenameKey(track.localAssetPath)}`,
+        track.originalSunoUrl && `suno:${audioUrlKey(track.originalSunoUrl)}`,
+        track.checksum && `checksum:${track.checksum.toLowerCase()}`,
+        track.contentHash && `hash:${track.contentHash.toLowerCase()}`,
+      ].filter((key): key is string => Boolean(key));
+      const duplicateReason = dedupeKeys.map((key) => {
+        const existing = seen.get(key);
+        return existing && !isIntentionalAlternate(track) ? duplicateReasonForKey(key, existing) : undefined;
+      }).find(Boolean);
+      dedupeKeys.forEach((key) => {
+        if (!seen.has(key)) seen.set(key, track);
+      });
+      const normalizedFilename = normalizedGeoAudioFilenameKey(track.sourceUrl);
+      return { journeyId: journey.journeyId, title: track.title, sourceUrl: track.sourceUrl, audioUrl: track.audioUrl, localAssetPath: track.localAssetPath, normalizedFilename, orderIndex: track.orderIndex, duplicateReason, titleFilenameMatch: normalizeName(track.title) === normalizedFilename };
+    });
+  });
+}
+
+export function geoAudioCatalogMismatchReport(catalog: JourneyCatalogEntry[] = journeyCatalog) {
+  return auditGeoAudioCatalog(catalog).filter((row) => !row.titleFilenameMatch);
+}
+
 export function validateJourneyCatalog(catalog: JourneyCatalogEntry[] = journeyCatalog) {
   const issues: GeoAudioCatalogValidationIssue[] = [];
   for (const journey of catalog) {
@@ -499,19 +540,22 @@ export function validateJourneyCatalog(catalog: JourneyCatalogEntry[] = journeyC
       if (!/^https?:\/\//i.test(track.audioUrl) && !track.audioUrl.startsWith('/')) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: 'Playback audioUrl must be an absolute HTTPS URL or a served WaveAtlas asset path.' });
       if (track.audioUrl.startsWith('/geoaudio/ariyo/') && !SERVED_GEOAUDIO_LOCAL_ASSETS.has(track.audioUrl)) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Synthetic local playback path "${track.audioUrl}" is not a verified served WaveAtlas asset.` });
       if (track.localAssetPath && !track.localAssetPath.startsWith('/geoaudio/ariyo/')) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Broken local asset path "${track.localAssetPath}".` });
+
+      const normalizedTitle = normalizeName(track.title);
+      const normalizedSourceFilename = normalizedGeoAudioFilenameKey(track.sourceUrl);
+      if (isAriyoGithubPagesUrl(track.sourceUrl) && normalizedTitle !== normalizedSourceFilename) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Track title "${track.title}" does not match source filename "${normalizedSourceFilename}".` });
       for (const key of [...new Set([
-        track.localAssetPath && `asset:${audioUrlKey(track.localAssetPath)}`,
-        track.originalSunoUrl && `suno:${audioUrlKey(track.originalSunoUrl)}`,
         track.sourceUrl && `source:${audioUrlKey(track.sourceUrl)}`,
-        track.localAssetPath && `file:${normalizedFilenameKey(track.localAssetPath)}`,
-        track.sourceUrl && `file:${normalizedFilenameKey(track.sourceUrl)}`,
+        track.sourceUrl && `source-file:${normalizedGeoAudioFilenameKey(track.sourceUrl)}`,
+        track.localAssetPath && SERVED_GEOAUDIO_LOCAL_ASSETS.has(track.localAssetPath) && `asset:${audioUrlKey(track.localAssetPath)}`,
+        track.localAssetPath && SERVED_GEOAUDIO_LOCAL_ASSETS.has(track.localAssetPath) && `asset-file:${normalizedGeoAudioFilenameKey(track.localAssetPath)}`,
+        track.originalSunoUrl && `suno:${audioUrlKey(track.originalSunoUrl)}`,
         track.checksum && `checksum:${track.checksum.toLowerCase()}`,
         track.contentHash && `hash:${track.contentHash.toLowerCase()}`,
-        `title:${normalizeName(track.title)}`,
       ].filter((value): value is string => Boolean(value)))]) {
         if (!key) continue;
         const existing = seen.get(key);
-        if (existing && !isIntentionalAlternate(track)) issues.push({ severity: key.startsWith('title:') ? 'warning' : 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Duplicate ${key.split(':')[0]} reference also used by ${existing.trackId}.` });
+        if (existing && !isIntentionalAlternate(track)) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Duplicate ${key.split(':')[0]} reference also used by ${existing.trackId}.` });
         else seen.set(key, track);
       }
     });

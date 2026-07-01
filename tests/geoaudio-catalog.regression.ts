@@ -6,11 +6,17 @@ import {
   normalizeJourneyTrackTitle,
   resolveGeoAudioPlaybackUrl,
   validateJourneyCatalog,
+  auditGeoAudioCatalog,
+  geoAudioCatalogMismatchReport,
   validateJourneyPlaybackUrls,
 } from '../lib/geoaudio';
 
 const issues = validateJourneyCatalog(journeyCatalog);
-assert.deepEqual(issues.filter((issue) => issue.severity === 'error'), [], 'canonical journey catalog must not contain duplicate audio references or order errors');
+assert.deepEqual(issues.filter((issue) => issue.severity === 'error'), [], 'canonical journey catalog must not contain duplicate audio references, title/source filename mismatches, or order errors');
+assert.deepEqual(geoAudioCatalogMismatchReport(), [], 'canonical journey catalog must not contain title/source filename mismatches');
+const auditRows = auditGeoAudioCatalog();
+assert.equal(auditRows.length, journeyCatalog.reduce((count, journey) => count + journey.tracks.length, 0), 'catalog audit should emit one row per displayed GeoAudio track');
+assert.deepEqual(auditRows.filter((row) => row.duplicateReason), [], 'catalog audit should report no duplicate suppression risks in canonical journeys');
 
 for (const journey of journeyCatalog) {
   assert.ok(journey.journeyId.endsWith('-journey'), `${journey.albumId} should expose a stable journeyId`);
@@ -40,6 +46,16 @@ for (const channel of ariyoGeoAudioChannels) {
     journey.tracks.map((track) => track.title),
     `${channel.id} playback queue should consume canonical manifest titles`,
   );
+  assert.deepEqual(
+    channel.geoAudio?.tracks.map((track) => track.url),
+    journey.tracks.map((track) => track.audioUrl),
+    `${channel.id} manual track selection should use canonical JourneyCatalogTrack.audioUrl values`,
+  );
+  assert.deepEqual(
+    channel.channel?.queue.items.map((item) => item.url),
+    journey.tracks.map((track) => track.audioUrl),
+    `${channel.id} auto-next queue should use the same canonical JourneyCatalogTrack.audioUrl values`,
+  );
 }
 
 const syntheticIssues = validateJourneyCatalog([
@@ -64,7 +80,7 @@ const syntheticIssues = validateJourneyCatalog([
   },
 ]);
 assert.ok(syntheticIssues.some((issue) => issue.message.includes('Synthetic local playback path')), 'validation should reject unverified synthetic local playback paths');
-assert.ok(syntheticIssues.some((issue) => issue.message.includes('Duplicate asset')), 'validation should detect duplicate resolved local assets');
+assert.ok(!syntheticIssues.some((issue) => issue.message.includes('Duplicate asset')), 'validation should not dedupe or flag duplicate unverified synthetic local assets');
 assert.ok(syntheticIssues.some((issue) => issue.message.includes('Expected orderIndex 2')), 'validation should detect skipped orderIndex values');
 
 assert.equal(normalizeJourneyTrackTitle('working-on myself (live version)'), 'Working on Myself (Live Version)', 'title normalization should clean punctuation, parentheses, minor words, and version suffixes');
@@ -89,7 +105,7 @@ const alternateCatalog = buildJourneyCatalog([
     ],
   },
 ]);
-assert.equal(alternateCatalog[0].tracks.length, 2, 'intentional live/versioned alternates may share a resolved asset when explicitly labeled');
+assert.equal(alternateCatalog[0].tracks.length, 2, 'intentional live/versioned alternates remain listed without relying on unverified local asset dedupe');
 
 
 const playableSource = 'https://omoluabi1003.github.io/Ariyo-AI/Test%20Track.mp3';
