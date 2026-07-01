@@ -49,16 +49,9 @@ import { WorldContextPanel } from "@/components/WorldContextPanel";
 import type { WorldContext } from "@/lib/world-engine/types";
 
 function selectGeoAudioQueueItem(channel: Station, itemIndex: number) {
-  const item = channel.geoAudio?.tracks[itemIndex];
-  if (!item || !/^https?:\/\//i.test(item.url)) return false;
-  setCurrentStationAndDestination({
-    ...channel,
-    id: `${channel.station_uuid}-track-${itemIndex + 1}`,
-    url: item.url,
-    url_resolved: item.url,
-    name: `${channel.geoAudio?.albumTitle ?? channel.name} GeoAudio Channel — ${item.title}`,
-    geoAudio: channel.geoAudio ? { ...channel.geoAudio, highlightedQueueItemId: `${channel.station_uuid}-track-${itemIndex + 1}` } : channel.geoAudio,
-  }, "manual", [channel]);
+  const selected = buildGeoAudioTrackStation(channel, itemIndex);
+  if (!selected) return false;
+  setCurrentStationAndDestination(selected, "manual", [channel]);
   return true;
 }
 
@@ -85,6 +78,61 @@ import { LiveTrackMetadataEngine, type LiveTrackMetadataState } from "@/lib/live
 
 
 type BrowserAudioContextConstructor = typeof AudioContext;
+
+function OverflowMarquee({ text, className = "" }: { text: string; className?: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const textRef = useRef<HTMLSpanElement | null>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  const [distance, setDistance] = useState(0);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const textNode = textRef.current;
+    if (!container || !textNode) return;
+    const measure = () => { const overflow = Math.max(0, textNode.scrollWidth - container.clientWidth); setOverflowing(overflow > 1); setDistance(overflow); };
+    measure();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : undefined;
+    observer?.observe(container);
+    observer?.observe(textNode);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [text]);
+
+  return <div ref={containerRef} className={`waveatlas-marquee ${overflowing ? "is-overflowing" : ""} ${className}`} style={{ "--marquee-distance": `${distance}px` } as React.CSSProperties} title={text} aria-label={text}><span ref={textRef} className="waveatlas-marquee__content">{text}</span></div>;
+}
+
+function geoAudioTrackId(station: Station, itemIndex: number) {
+  return `${station.station_uuid}-track-${itemIndex + 1}`;
+}
+
+function buildGeoAudioTrackStation(channel: Station, itemIndex: number): Station | undefined {
+  const item = channel.geoAudio?.tracks[itemIndex];
+  if (!item || !/^https?:\/\//i.test(item.url)) return undefined;
+  const journeyId = channel.geoAudio?.queueId ?? channel.channel?.queue.id ?? `${channel.station_uuid}-journey`;
+  const trackId = geoAudioTrackId(channel, itemIndex);
+  const nextTrack = channel.geoAudio?.tracks.slice(itemIndex + 1).find((track) => /^https?:\/\//i.test(track.url));
+  const nextIndex = nextTrack && channel.geoAudio ? channel.geoAudio.tracks.indexOf(nextTrack) : -1;
+  return {
+    ...channel,
+    id: trackId,
+    url: item.url,
+    url_resolved: item.url,
+    name: channel.geoAudio?.albumTitle ?? channel.name,
+    geoAudio: channel.geoAudio ? {
+      ...channel.geoAudio,
+      currentJourneyId: journeyId,
+      currentTrackId: trackId,
+      currentTrackTitle: item.title,
+      trackIndex: itemIndex,
+      nextTrackId: nextIndex >= 0 ? geoAudioTrackId(channel, nextIndex) : undefined,
+      queueLength: channel.geoAudio.tracks.length,
+      highlightedQueueItemId: trackId,
+    } : channel.geoAudio,
+  };
+}
 
 function playPremiumTeleportClick() {
   if (typeof window === "undefined") return;
@@ -278,6 +326,7 @@ type PlayerState = {
   toggle: () => void;
   setVolume: (n: number) => void;
   setStatus: (s: PlaybackStatus, error?: string) => void;
+  stopPlayback: (message?: string) => void;
 };
 
 const usePlayer = create<PlayerState>((set) => ({
@@ -338,6 +387,7 @@ const usePlayer = create<PlayerState>((set) => ({
           };
     }),
   setVolume: (volume) => set({ volume }),
+  stopPlayback: (message) => set({ playing: false, status: "paused", error: message }),
   setStatus: (status, error) =>
     set({ status, error, playing: status === "playing" }),
 }));
@@ -1414,7 +1464,7 @@ function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch, o
 }
 
 function AudioEngine({ stations }: { stations: Station[] }) {
-  const { current, status, volume, userActivated, stationSelectionSource, scopedSearchSessionId, setStatus } = usePlayer();
+  const { current, status, volume, userActivated, stationSelectionSource, scopedSearchSessionId, setStatus, stopPlayback } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
   const attempted = useRef<string[]>([]);
   const skipTimestamps = useRef<number[]>([]);
@@ -1435,17 +1485,21 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       setStatus("failed", "This GeoAudio Journey is temporarily unavailable.");
       return true;
     }
-    const currentIndex = tracks.findIndex((track) => track.url === currentUrl || track.url === albumStation.url);
-    const eligibleTracks = tracks.length > 1 && currentIndex >= 0 ? tracks.filter((_, index) => index !== currentIndex) : tracks;
-    const nextTrack = eligibleTracks[Math.floor(Math.random() * eligibleTracks.length)];
-    if (!nextTrack || (reason === "failed_track" && nextTrack.url === currentUrl)) {
+    const currentIndex = tracks.findIndex((track) => track.url === currentUrl || track.url === albumStation.url || geoAudioTrackId(albumStation, track.index) === albumStation.geoAudio?.currentTrackId);
+    const nextTrack = reason === "failed_track" ? tracks.find((track) => track.index > (currentIndex >= 0 ? tracks[currentIndex].index : -1)) ?? tracks.find((track) => track.url !== currentUrl) : tracks.find((track) => track.index > (currentIndex >= 0 ? tracks[currentIndex].index : -1));
+    if (!nextTrack) {
+      stopPlayback(`${albumStation.geoAudio?.albumTitle ?? "GeoAudio"} journey complete.`);
+      return true;
+    }
+    const nextStation = buildGeoAudioTrackStation(albumStation, nextTrack.index);
+    if (!nextStation) {
       setStatus("failed", "This GeoAudio Journey is temporarily unavailable.");
       return true;
     }
-    setStatus("buffering", reason === "ended" ? `Shuffling ${albumStation.geoAudio?.albumTitle ?? "GeoAudio"} journey…` : "Skipping to another GeoAudio journey track…");
-    setCurrentStationAndDestination({ ...albumStation, id: `${albumStation.station_uuid}-track-${nextTrack.index + 1}`, url: nextTrack.url, url_resolved: nextTrack.url, name: `${albumStation.geoAudio?.albumTitle ?? albumStation.name} GeoAudio Channel — ${nextTrack.title}`, geoAudio: albumStation.geoAudio ? { ...albumStation.geoAudio, highlightedQueueItemId: `${albumStation.station_uuid}-track-${nextTrack.index + 1}` } : albumStation.geoAudio }, "manual", [albumStation]);
+    setStatus("buffering", reason === "ended" ? `Advancing ${albumStation.geoAudio?.albumTitle ?? "GeoAudio"} journey…` : "Skipping to the next GeoAudio journey track…");
+    setCurrentStationAndDestination(nextStation, "manual", [albumStation]);
     return true;
-  }, [setStatus]);
+  }, [setStatus, stopPlayback]);
 
   const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
     const hardFailure = ["audio_error", "network_error", "unsupported_media", "autoplay_blocked", "missing_url", "abort", "playback_error"].includes(errorType);
@@ -4713,8 +4767,8 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
             {playerPlaying ? <Pause /> : <Play />}
           </button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]">{current.name}</p>
-            <p className="truncate text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]">{getPrimaryGenre(current)} · {current.curation_source || current.curation_tier || "Radio Browser"}</p>
+            <OverflowMarquee text={current.name} className="text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" />
+            <OverflowMarquee text={current.sourceType === "geoaudio" && current.geoAudio?.currentTrackTitle ? current.geoAudio.currentTrackTitle : `${getPrimaryGenre(current)} · ${current.curation_source || current.curation_tier || "Radio Browser"}`} className="text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]" />
           </div>
           <button type="button" onClick={() => setPlayerVolume(playerVolume > 0 ? 0 : 1)} className="ml-auto grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-ivory/78 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={playerVolume > 0 ? "Mute player" : "Unmute player"}>
             {playerVolume > 0 ? <Volume2 className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /> : <VolumeX className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" />}
