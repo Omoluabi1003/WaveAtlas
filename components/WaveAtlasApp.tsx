@@ -1278,11 +1278,30 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   const skipTimestamps = useRef<number[]>([]);
   const currentKey = current ? stationKey(current) : "";
   const scopedAttemptSession = useRef(0);
+  const geoAudioTrackIndex = useRef(0);
+
+  const playNextGeoAudioTrack = useCallback((albumStation: Station, reason = "next_track") => {
+    const tracks = albumStation.geoAudio?.tracks.filter((track) => /^https?:\/\//i.test(track.url)) ?? [];
+    if (albumStation.sourceType !== "geoaudio" || tracks.length <= 1) return false;
+    const currentUrl = getStationStreamUrl(albumStation);
+    const currentIndex = Math.max(0, tracks.findIndex((track) => track.url === currentUrl || track.url === albumStation.url));
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= tracks.length) {
+      setStatus("paused", `${albumStation.geoAudio?.albumTitle ?? "GeoAudio album"} finished.`);
+      return true;
+    }
+    geoAudioTrackIndex.current = nextIndex;
+    const nextTrack = tracks[nextIndex];
+    setStatus("buffering", reason === "ended" ? `Playing next ${albumStation.geoAudio?.albumTitle ?? "GeoAudio"} track…` : "Skipping to the next GeoAudio track…");
+    setCurrentStationAndDestination({ ...albumStation, id: `${albumStation.station_uuid}-track-${nextIndex + 1}`, url: nextTrack.url, url_resolved: nextTrack.url, name: `${albumStation.geoAudio?.albumTitle ?? albumStation.name} GeoAudio Channel — ${nextTrack.title}` }, "manual", [albumStation]);
+    return true;
+  }, [setStatus]);
 
   const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
     const hardFailure = ["audio_error", "network_error", "unsupported_media", "autoplay_blocked", "missing_url", "abort", "playback_error"].includes(errorType);
     const state = usePlayer.getState();
     const hasScopedQueue = state.scopedSearchSessionId > 0;
+    if (failed.sourceType === "geoaudio" && playNextGeoAudioTrack(failed, "failed_track")) return true;
     const now = Date.now();
     skipTimestamps.current = skipTimestamps.current.filter((timestamp) => now - timestamp < 20000);
     if (!hasScopedQueue && !hardFailure && skipTimestamps.current.length >= 2) {
@@ -1325,7 +1344,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       setStatus("failed", hasScopedQueue ? "No playable station was found in this result set. Try another location, genre, or journey." : "No playable station was found in this result set. Try another location, genre, or journey.");
     }
     return false;
-  }, [setStatus]);
+  }, [setStatus, playNextGeoAudioTrack]);
 
   useEffect(() => {
     if (!current) return;
@@ -1341,6 +1360,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       scopedAttemptSession.current = 0;
       attempted.current = [stationKey(current)];
     }
+    if (current.sourceType === "geoaudio") geoAudioTrackIndex.current = Math.max(0, current.geoAudio?.tracks.findIndex((track) => track.url === getStationStreamUrl(current)) ?? 0);
     if (queue.length > 1) setStatus("buffering", state.stationSelectionSource === "manual" ? "Holding the selected signal…" : getAdaptiveBufferPolicy(current).message);
   }, [currentKey, current, scopedSearchSessionId, setStatus, stations]);
 
@@ -1526,6 +1546,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       scheduleBufferTimer(readyStateAtEvent <= lastReadyState && stalledEvents > 2 ? "stalled" : "buffer_timeout");
     };
     const onAbort = () => { logAudioEvent("abort"); fail("abort", "Audio request was aborted."); };
+    const onEnded = () => { logAudioEvent("ended"); if (current.sourceType === "geoaudio") playNextGeoAudioTrack(current, "ended"); };
     scheduleStartupTimer();
 
     element.addEventListener("loadedmetadata", onLoadedMetadata);
@@ -1536,6 +1557,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     element.addEventListener("waiting", onWaiting);
     element.addEventListener("stalled", onStalled);
     element.addEventListener("abort", onAbort);
+    element.addEventListener("ended", onEnded);
 
     const playSelectedStream = async () => {
       try {
@@ -1574,8 +1596,9 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       element.removeEventListener("waiting", onWaiting);
       element.removeEventListener("stalled", onStalled);
       element.removeEventListener("abort", onAbort);
+      element.removeEventListener("ended", onEnded);
     };
-  }, [current, currentKey, status, userActivated, stationSelectionSource, setStatus, volume, stations, skipToNextCandidate]);
+  }, [current, currentKey, status, userActivated, stationSelectionSource, setStatus, volume, stations, skipToNextCandidate, playNextGeoAudioTrack]);
 
   useEffect(() => {
     const element = audio.current;
