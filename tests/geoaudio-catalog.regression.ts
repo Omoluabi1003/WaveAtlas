@@ -4,7 +4,9 @@ import {
   buildJourneyCatalog,
   journeyCatalog,
   normalizeJourneyTrackTitle,
+  resolveGeoAudioPlaybackUrl,
   validateJourneyCatalog,
+  validateJourneyPlaybackUrls,
 } from '../lib/geoaudio';
 
 const issues = validateJourneyCatalog(journeyCatalog);
@@ -15,8 +17,8 @@ for (const journey of journeyCatalog) {
   journey.tracks.forEach((track, index) => {
     assert.equal(track.orderIndex, index + 1, `${track.trackId} should have contiguous 1-based orderIndex`);
     assert.equal(track.title, normalizeJourneyTrackTitle(track.title), `${track.trackId} should use normalized product-ready title casing`);
-    assert.ok(track.audioUrl.startsWith('/geoaudio/ariyo/'), `${track.trackId} should resolve playback to a local WaveAtlas asset`);
-    assert.ok(!/^https?:\/\//i.test(track.audioUrl), `${track.trackId} should not expose decayed Suno/Ariyo CDN URLs to playback`);
+    assert.equal(track.audioUrl, track.sourceUrl, `${track.trackId} should keep the Ariyo GitHub Pages MP3 as the playable URL unless WaveAtlas serves a verified local asset`);
+    assert.ok(/^https:\/\/omoluabi1003\.github\.io\/Ariyo-AI\//i.test(track.audioUrl), `${track.trackId} should play the original Ariyo GitHub Pages URL`);
     assert.ok(/^https?:\/\//i.test(track.sourceUrl), `${track.trackId} should preserve source URL only as catalog provenance`);
     assert.equal(track.journeyId, journey.journeyId, `${track.trackId} should point back to its journey`);
     assert.equal(track.sourceAlbum, journey.sourceAlbum, `${track.trackId} should preserve source album`);
@@ -61,6 +63,7 @@ const syntheticIssues = validateJourneyCatalog([
     ],
   },
 ]);
+assert.ok(syntheticIssues.some((issue) => issue.message.includes('Synthetic local playback path')), 'validation should reject unverified synthetic local playback paths');
 assert.ok(syntheticIssues.some((issue) => issue.message.includes('Duplicate asset')), 'validation should detect duplicate resolved local assets');
 assert.ok(syntheticIssues.some((issue) => issue.message.includes('Expected orderIndex 2')), 'validation should detect skipped orderIndex values');
 
@@ -87,3 +90,25 @@ const alternateCatalog = buildJourneyCatalog([
   },
 ]);
 assert.equal(alternateCatalog[0].tracks.length, 2, 'intentional live/versioned alternates may share a resolved asset when explicitly labeled');
+
+
+const playableSource = 'https://omoluabi1003.github.io/Ariyo-AI/Test%20Track.mp3';
+assert.equal(
+  resolveGeoAudioPlaybackUrl({ title: 'Test Track', url: playableSource }),
+  playableSource,
+  'Ariyo GitHub Pages MP3 URLs must remain final playback URLs when no verified local asset exists',
+);
+
+async function runPlaybackValidationRegression() {
+  const playbackProbeResults = await validateJourneyPlaybackUrls(journeyCatalog, {
+    fetchImpl: (async (url: string | URL | Request, init?: RequestInit) => {
+      assert.equal(init?.method, 'HEAD', 'build-time playback validation should HEAD-check remote journey tracks');
+      assert.ok(String(url).startsWith('https://omoluabi1003.github.io/Ariyo-AI/'), 'validation should probe playable Ariyo source URLs');
+      return new Response(null, { status: 200 });
+    }) as typeof fetch,
+  });
+  assert.equal(playbackProbeResults.length, journeyCatalog.length, 'validation should probe at least one track per journey');
+  assert.deepEqual(playbackProbeResults.filter((result) => !result.ok), [], 'mocked Ariyo HEAD checks should pass');
+}
+
+void runPlaybackValidationRegression();

@@ -3,7 +3,7 @@ import type { Station } from './stations';
 
 export type GeoAudioTrack = { title: string; url: string; duration?: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; localAssetPath?: string; originalSunoUrl?: string; };
 export type GeoAudioAlbum = { id: string; title: string; subtitle?: string; description?: string; artist: string; provider: string; producer: string; studio: string; city: string; state: string; country: string; countryCode: string; latitude: number; longitude: number; homepage?: string; coverArtUrl?: string; language?: string; region?: string; genre?: string; mood?: string; tracks: GeoAudioTrack[]; };
-export type JourneyCatalogTrack = { journeyId: string; albumId: string; trackId: string; title: string; subtitle: string; description: string; audioUrl: string; sourceUrl: string; localAssetPath: string; originalSunoUrl?: string; duration?: string; language: string; region: string; country: string; city: string; genre: string; mood: string; orderIndex: number; sourceAlbum: string; attribution: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; };
+export type JourneyCatalogTrack = { journeyId: string; albumId: string; trackId: string; title: string; subtitle: string; description: string; audioUrl: string; sourceUrl: string; localAssetPath?: string; originalSunoUrl?: string; duration?: string; language: string; region: string; country: string; city: string; genre: string; mood: string; orderIndex: number; sourceAlbum: string; attribution: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; };
 export type JourneyCatalogEntry = Omit<JourneyCatalogTrack, 'trackId' | 'audioUrl' | 'sourceUrl' | 'localAssetPath' | 'originalSunoUrl' | 'duration' | 'orderIndex' | 'checksum' | 'contentHash' | 'repriseOfTrackId' | 'alternateVersionOfTrackId'> & { tracks: JourneyCatalogTrack[]; coverArtUrl?: string; homepage?: string; };
 export type GeoAudioCatalogValidationIssue = { severity: 'warning' | 'error'; journeyId: string; trackId?: string; message: string; };
 
@@ -398,14 +398,30 @@ function normalizedFilenameKey(url: string) {
   return normalizeName(filename);
 }
 
-function localAssetPathForTrack(track: GeoAudioTrack) {
+const SERVED_GEOAUDIO_LOCAL_ASSETS = new Set<string>([
+  // Add public/geoaudio/ariyo/*.mp3 entries here only after the files are committed
+  // and served by WaveAtlas. Unlisted synthetic paths must not become playback URLs.
+]);
+
+function inferredLocalAssetPathForTrack(track: GeoAudioTrack) {
   if (track.localAssetPath) return track.localAssetPath;
   const filename = decodeURIComponent(track.url.split('?')[0].split('#')[0].slice(track.url.lastIndexOf('/') + 1));
   return `/geoaudio/ariyo/${filename.replace(/^data\/omoluabi\//, '')}`;
 }
 
+function isAriyoGithubPagesUrl(url: string) {
+  return url.startsWith(`${ARIYO_AI_ORIGIN}/`);
+}
+
+export function resolveGeoAudioPlaybackUrl(track: GeoAudioTrack) {
+  const localAssetPath = inferredLocalAssetPathForTrack(track);
+  if (localAssetPath && SERVED_GEOAUDIO_LOCAL_ASSETS.has(localAssetPath)) return localAssetPath;
+  if (/^https:\/\//i.test(track.url) && isAriyoGithubPagesUrl(track.url)) return track.url;
+  return track.url;
+}
+
 function trackDedupKeys(track: GeoAudioTrack, title = track.title) {
-  const localAssetPath = localAssetPathForTrack(track);
+  const localAssetPath = inferredLocalAssetPathForTrack(track);
   return [
     localAssetPath && `asset:${audioUrlKey(localAssetPath)}`,
     track.originalSunoUrl && `suno:${audioUrlKey(track.originalSunoUrl)}`,
@@ -438,7 +454,8 @@ export function buildJourneyCatalog(albums: GeoAudioAlbum[] = ariyoGeoAudioAlbum
       keys.forEach((key) => seen.add(key));
       const orderIndex = items.length + 1;
       const trackId = `${album.id}-track-${orderIndex}`;
-      const localAssetPath = localAssetPathForTrack(sourceTrack);
+      const localAssetPath = inferredLocalAssetPathForTrack(sourceTrack);
+      const audioUrl = resolveGeoAudioPlaybackUrl(sourceTrack);
       items.push({
         journeyId,
         albumId: album.id,
@@ -446,7 +463,7 @@ export function buildJourneyCatalog(albums: GeoAudioAlbum[] = ariyoGeoAudioAlbum
         title,
         subtitle: album.subtitle ?? `${album.city}, ${album.country}`,
         description: album.description ?? `${album.title} is an Ariyo AI Studio GeoAudio journey curated for WaveAtlas playback.`,
-        audioUrl: localAssetPath,
+        audioUrl,
         sourceUrl: sourceTrack.url,
         localAssetPath,
         originalSunoUrl: sourceTrack.originalSunoUrl,
@@ -479,14 +496,14 @@ export function validateJourneyCatalog(catalog: JourneyCatalogEntry[] = journeyC
       if (track.orderIndex !== index + 1) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Expected orderIndex ${index + 1}, received ${track.orderIndex}.` });
       const canonicalTitle = normalizeJourneyTrackTitle(track.title);
       if (track.title !== canonicalTitle) issues.push({ severity: 'warning', journeyId: journey.journeyId, trackId: track.trackId, message: `Track title should be normalized as "${canonicalTitle}".` });
-      if (/^https?:\/\//i.test(track.audioUrl)) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: 'Playback audioUrl must resolve to a local WaveAtlas asset.' });
-      if (!track.localAssetPath || track.audioUrl !== track.localAssetPath) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: 'Missing local asset mapping for playable track.' });
+      if (!/^https?:\/\//i.test(track.audioUrl) && !track.audioUrl.startsWith('/')) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: 'Playback audioUrl must be an absolute HTTPS URL or a served WaveAtlas asset path.' });
+      if (track.audioUrl.startsWith('/geoaudio/ariyo/') && !SERVED_GEOAUDIO_LOCAL_ASSETS.has(track.audioUrl)) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Synthetic local playback path "${track.audioUrl}" is not a verified served WaveAtlas asset.` });
       if (track.localAssetPath && !track.localAssetPath.startsWith('/geoaudio/ariyo/')) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Broken local asset path "${track.localAssetPath}".` });
       for (const key of [...new Set([
-        `asset:${audioUrlKey(track.localAssetPath)}`,
+        track.localAssetPath && `asset:${audioUrlKey(track.localAssetPath)}`,
         track.originalSunoUrl && `suno:${audioUrlKey(track.originalSunoUrl)}`,
         track.sourceUrl && `source:${audioUrlKey(track.sourceUrl)}`,
-        `file:${normalizedFilenameKey(track.localAssetPath)}`,
+        track.localAssetPath && `file:${normalizedFilenameKey(track.localAssetPath)}`,
         track.sourceUrl && `file:${normalizedFilenameKey(track.sourceUrl)}`,
         track.checksum && `checksum:${track.checksum.toLowerCase()}`,
         track.contentHash && `hash:${track.contentHash.toLowerCase()}`,
@@ -500,6 +517,28 @@ export function validateJourneyCatalog(catalog: JourneyCatalogEntry[] = journeyC
     });
   }
   return issues;
+}
+
+
+export type GeoAudioPlaybackValidationResult = { journeyId: string; trackId: string; audioUrl: string; ok: boolean; status?: number; error?: string; };
+
+export async function validateJourneyPlaybackUrls(catalog: JourneyCatalogEntry[] = journeyCatalog, options: { fetchImpl?: typeof fetch; tracksPerJourney?: number } = {}): Promise<GeoAudioPlaybackValidationResult[]> {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  if (!fetchImpl) return catalog.flatMap((journey) => journey.tracks.slice(0, options.tracksPerJourney ?? 1).map((track) => ({ journeyId: journey.journeyId, trackId: track.trackId, audioUrl: track.audioUrl, ok: false, error: 'fetch is unavailable in this runtime' })));
+  const tracksPerJourney = Math.max(1, options.tracksPerJourney ?? 1);
+  const probes = catalog.flatMap((journey) => journey.tracks.slice(0, tracksPerJourney).map(async (track) => {
+    try {
+      if (track.audioUrl.startsWith('/')) {
+        const ok = track.audioUrl.startsWith('/geoaudio/ariyo/') && SERVED_GEOAUDIO_LOCAL_ASSETS.has(track.audioUrl);
+        return { journeyId: journey.journeyId, trackId: track.trackId, audioUrl: track.audioUrl, ok, error: ok ? undefined : 'local playback path is not listed as a verified served WaveAtlas asset' };
+      }
+      const response = await fetchImpl(track.audioUrl, { method: 'HEAD' });
+      return { journeyId: journey.journeyId, trackId: track.trackId, audioUrl: track.audioUrl, ok: response.ok, status: response.status };
+    } catch (error) {
+      return { journeyId: journey.journeyId, trackId: track.trackId, audioUrl: track.audioUrl, ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }));
+  return Promise.all(probes);
 }
 
 function uniqueTags(tags: string[]) {
