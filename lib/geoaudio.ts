@@ -1,17 +1,33 @@
 import { ChannelType, geoAudioCapabilities, type Channel, type Queue } from './channel-framework';
 import type { Station } from './stations';
 
-export type GeoAudioTrack = { title: string; url: string; duration?: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; localAssetPath?: string; originalSunoUrl?: string; };
+export type GeoAudioTrack = { title: string; url: string; duration?: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; localAssetPath?: string; originalSunoUrl?: string; sunoManifestPath?: string; };
 export type GeoAudioAlbum = { id: string; title: string; subtitle?: string; description?: string; artist: string; provider: string; producer: string; studio: string; city: string; state: string; country: string; countryCode: string; latitude: number; longitude: number; homepage?: string; coverArtUrl?: string; language?: string; region?: string; genre?: string; mood?: string; tracks: GeoAudioTrack[]; };
-export type JourneyCatalogTrack = { journeyId: string; albumId: string; trackId: string; title: string; subtitle: string; description: string; audioUrl: string; sourceUrl: string; localAssetPath?: string; originalSunoUrl?: string; duration?: string; language: string; region: string; country: string; city: string; genre: string; mood: string; orderIndex: number; sourceAlbum: string; attribution: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; };
-export type JourneyCatalogEntry = Omit<JourneyCatalogTrack, 'trackId' | 'audioUrl' | 'sourceUrl' | 'localAssetPath' | 'originalSunoUrl' | 'duration' | 'orderIndex' | 'checksum' | 'contentHash' | 'repriseOfTrackId' | 'alternateVersionOfTrackId'> & { tracks: JourneyCatalogTrack[]; coverArtUrl?: string; homepage?: string; };
+export type JourneyCatalogTrack = { journeyId: string; albumId: string; trackId: string; title: string; subtitle: string; description: string; audioUrl: string; sourceUrl: string; localAssetPath?: string; originalSunoUrl?: string; sunoManifestPath?: string; duration?: string; language: string; region: string; country: string; city: string; genre: string; mood: string; orderIndex: number; sourceAlbum: string; attribution: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; };
+export type JourneyCatalogEntry = Omit<JourneyCatalogTrack, 'trackId' | 'audioUrl' | 'sourceUrl' | 'localAssetPath' | 'originalSunoUrl' | 'sunoManifestPath' | 'duration' | 'orderIndex' | 'checksum' | 'contentHash' | 'repriseOfTrackId' | 'alternateVersionOfTrackId'> & { tracks: JourneyCatalogTrack[]; coverArtUrl?: string; homepage?: string; };
 export type GeoAudioCatalogValidationIssue = { severity: 'warning' | 'error'; journeyId: string; trackId?: string; message: string; };
-export type GeoAudioCatalogAuditRow = { journeyId: string; title: string; sourceUrl: string; audioUrl: string; localAssetPath?: string; normalizedFilename: string; orderIndex: number; duplicateReason?: string; titleFilenameMatch: boolean; };
+export type GeoAudioCatalogAuditRow = { album: string; journey: string; journeyId: string; title: string; originalSunoUrl?: string; manifestPath?: string; finalAudioUrl: string; status: 'resolved' | 'unresolved' | 'not-suno'; sourceUrl: string; audioUrl: string; localAssetPath?: string; normalizedFilename: string; orderIndex: number; duplicateReason?: string; titleFilenameMatch: boolean; };
 
 const GEOAUDIO_SEED_CHECKED_AT = '2026-07-01T00:00:00.000Z';
 const ARIYO_AI_ORIGIN = 'https://omoluabi1003.github.io/Ariyo-AI';
 const FLORIDA_ANCHOR = { city: 'Florida', state: 'Florida', country: 'United States', countryCode: 'US', latitude: 28.5383, longitude: -81.3792 };
 const ariyoUrl = (path: string) => `${ARIYO_AI_ORIGIN}/${path.split('/').map(encodeURIComponent).join('/')}`;
+
+const ARIYO_SUNO_MANIFEST_PATH = 'data/suno-manifest.json';
+const ARIYO_SUNO_MANIFEST_URL = ariyoUrl(ARIYO_SUNO_MANIFEST_PATH);
+const ARIYO_SUNO_URL_TO_LOCAL_ASSET: Record<string, string> = {
+  'https://cdn1.suno.ai/7578528b-34c1-492c-9e97-df93216f0cc2.mp3': 'data/suno-assets/7578528b-34c1-492c-9e97-df93216f0cc2.mp3',
+  'https://cdn1.suno.ai/891af5b2-b1fe-4db2-9c99-e1b1a15697a2.mp3': 'data/suno-assets/891af5b2-b1fe-4db2-9c99-e1b1a15697a2.mp3',
+  'https://cdn1.suno.ai/017e178e-3478-485f-b844-aa72b327e2a6.mp3': 'data/suno-assets/017e178e-3478-485f-b844-aa72b327e2a6.mp3',
+  'https://cdn1.suno.ai/b35932ed-2188-4780-a919-f5327317915b.mp3': 'data/suno-assets/b35932ed-2188-4780-a919-f5327317915b.mp3',
+  'https://cdn1.suno.ai/471dc968-d463-435c-8c3d-85f0d4556d8f.mp3': 'data/suno-assets/471dc968-d463-435c-8c3d-85f0d4556d8f.mp3',
+  'https://cdn1.suno.ai/4f81332a-d833-4dc9-9763-7db0dfde3610.mp3': 'data/suno-assets/4f81332a-d833-4dc9-9763-7db0dfde3610.mp3',
+};
+
+function sunoTrack(title: string, originalSunoUrl: keyof typeof ARIYO_SUNO_URL_TO_LOCAL_ASSET): GeoAudioTrack {
+  const manifestPath = ARIYO_SUNO_URL_TO_LOCAL_ASSET[originalSunoUrl];
+  return { title, url: ariyoUrl(manifestPath), localAssetPath: ariyoUrl(manifestPath), originalSunoUrl, sunoManifestPath: manifestPath };
+}
 
 export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
   {
@@ -37,7 +53,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'Bread Crumb Effect', url: ariyoUrl('Bread Crumb Effect.mp3') },
       { title: 'Built Like This', url: ariyoUrl('Built Like This.mp3') },
       { title: 'Comfort Zone', url: ariyoUrl('Comfort Zone.mp3') },
-      { title: 'Covenant Of Isolation', url: ariyoUrl('Covenant Of Isolation.mp3') },
+      sunoTrack('Covenant Of Isolation', 'https://cdn1.suno.ai/7578528b-34c1-492c-9e97-df93216f0cc2.mp3'),
       { title: 'Dad Is Missing', url: ariyoUrl('Dad Is Missing.mp3') },
       { title: 'Dem Wan Shut Me Up', url: ariyoUrl('Dem Wan Shut Me Up.mp3') },
       { title: 'Destiny No Dey Wait', url: ariyoUrl('Destiny No Dey Wait.mp3') },
@@ -65,7 +81,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'Habatically', url: ariyoUrl('Habatically.mp3') },
       { title: 'Hail Mary', url: ariyoUrl('Hail Mary.mp3') },
       { title: 'Haters', url: ariyoUrl('Haters.mp3') },
-      { title: 'Her Daughters Father', url: ariyoUrl('Her Daughters Father.mp3') },
+      sunoTrack('Her Daughters Father', 'https://cdn1.suno.ai/b35932ed-2188-4780-a919-f5327317915b.mp3'),
       { title: 'Holy Vibes Only', url: ariyoUrl('Holy Vibes Only.mp3') },
       { title: 'Home Becomes Peace', url: ariyoUrl('Home Becomes Peace.mp3') },
       { title: 'Kindness (Remastered)', url: ariyoUrl('Kindness (Remastered).mp3') },
@@ -74,7 +90,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'Mic No Be For Waist', url: ariyoUrl('Mic No Be For Waist.mp3') },
       { title: 'Midas Touch', url: ariyoUrl('Midas Touch.mp3') },
       { title: 'Midnight Maybe', url: ariyoUrl('Midnight Maybe.mp3') },
-      { title: 'Moores Law', url: ariyoUrl('Moores Law.mp3') },
+      sunoTrack('Moores Law', 'https://cdn1.suno.ai/891af5b2-b1fe-4db2-9c99-e1b1a15697a2.mp3'),
       { title: 'Multi choice palava', url: ariyoUrl('Multi choice palava.mp3') },
       { title: 'Mummy I Love You Ft. Steady', url: ariyoUrl('Mummy I Love You Ft. Steady.mp3') },
       { title: 'Na My Turn', url: ariyoUrl('Na My Turn.mp3') },
@@ -92,7 +108,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'One Position', url: ariyoUrl('One Position.mp3') },
       { title: 'Party No Go Stop (Instrumental)', url: ariyoUrl('Party No Go Stop (Instrumental).mp3') },
       { title: 'Party No Go Stop', url: ariyoUrl('Party No Go Stop.mp3') },
-      { title: 'Pass The Baton', url: ariyoUrl('Pass The Baton.mp3') },
+      sunoTrack('Pass The Baton', 'https://cdn1.suno.ai/471dc968-d463-435c-8c3d-85f0d4556d8f.mp3'),
       { title: 'Pastor Or Hustler', url: ariyoUrl('Pastor Or Hustler.mp3') },
       { title: 'Pepper 4 Body', url: ariyoUrl('Pepper 4 Body.mp3') },
       { title: 'Pigeonhole Gbedu', url: ariyoUrl('Pigeonhole Gbedu.mp3') },
@@ -144,7 +160,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'Subsidy', url: ariyoUrl('Subsidy.mp3') },
       { title: 'Take The Risk', url: ariyoUrl('Take The Risk.mp3') },
       { title: 'Talk Wey Bend (Obfuscation)', url: ariyoUrl('Talk Wey Bend (Obfuscation).mp3') },
-      { title: 'Tears Of Love', url: ariyoUrl('Tears Of Love.mp3') },
+      sunoTrack('Tears Of Love', 'https://cdn1.suno.ai/017e178e-3478-485f-b844-aa72b327e2a6.mp3'),
       { title: 'The Distance', url: ariyoUrl('The Distance.mp3') },
       { title: 'TikTok', url: ariyoUrl('TikTok.mp3') },
       { title: 'Ubuntu', url: ariyoUrl('Ubuntu.mp3') },
@@ -170,7 +186,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'We Are Not Doing That', url: ariyoUrl('We Are Not Doing That.mp3') },
       { title: 'Wisdom Moves', url: ariyoUrl('Wisdom Moves.mp3') },
       { title: 'Woman Who Hates Correction', url: ariyoUrl('Woman Who Hates Correction.mp3') },
-      { title: 'Wonders Breeze', url: ariyoUrl('Wonders Breeze.mp3') },
+      sunoTrack('Wonders Breeze', 'https://cdn1.suno.ai/4f81332a-d833-4dc9-9763-7db0dfde3610.mp3'),
       { title: 'Working on myself', url: ariyoUrl('Working on myself.mp3') },
       { title: 'as-far-as-your-mind-can-see', url: ariyoUrl('data/omoluabi/as-far-as-your-mind-can-see.mp3') },
       { title: 'boda-yen', url: ariyoUrl('data/omoluabi/boda-yen.mp3') },
@@ -204,11 +220,11 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
     homepage: 'https://omoluabi1003.github.io/Ariyo-AI/',
     coverArtUrl: ariyoUrl('icons/Ariyo.png'),
     tracks: [
-      { title: 'Covenant Of Isolation', url: ariyoUrl('Covenant Of Isolation.mp3') },
-      { title: 'Moores Law', url: ariyoUrl('Moores Law.mp3') },
-      { title: 'Tears Of Love', url: ariyoUrl('Tears Of Love.mp3') },
-      { title: 'Her Daughters Father', url: ariyoUrl('Her Daughters Father.mp3') },
-      { title: 'Pass The Baton', url: ariyoUrl('Pass The Baton.mp3') },
+      sunoTrack('Covenant Of Isolation', 'https://cdn1.suno.ai/7578528b-34c1-492c-9e97-df93216f0cc2.mp3'),
+      sunoTrack('Moores Law', 'https://cdn1.suno.ai/891af5b2-b1fe-4db2-9c99-e1b1a15697a2.mp3'),
+      sunoTrack('Tears Of Love', 'https://cdn1.suno.ai/017e178e-3478-485f-b844-aa72b327e2a6.mp3'),
+      sunoTrack('Her Daughters Father', 'https://cdn1.suno.ai/b35932ed-2188-4780-a919-f5327317915b.mp3'),
+      sunoTrack('Pass The Baton', 'https://cdn1.suno.ai/471dc968-d463-435c-8c3d-85f0d4556d8f.mp3'),
       { title: 'udo-don-cost', url: ariyoUrl('data/omoluabi/udo-don-cost.mp3') },
       { title: 'A Very Good Bad Guy v3', url: ariyoUrl('A Very Good Bad Guy v3.mp3') },
       { title: 'A Wa Good Gan', url: ariyoUrl('A Wa Good Gan.mp3') },
@@ -235,7 +251,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'Bread Crumb Effect', url: ariyoUrl('Bread Crumb Effect.mp3') },
       { title: 'Built Like This', url: ariyoUrl('Built Like This.mp3') },
       { title: 'Comfort Zone', url: ariyoUrl('Comfort Zone.mp3') },
-      { title: 'Covenant Of Isolation', url: ariyoUrl('Covenant Of Isolation.mp3') },
+      sunoTrack('Covenant Of Isolation', 'https://cdn1.suno.ai/7578528b-34c1-492c-9e97-df93216f0cc2.mp3'),
       { title: 'Dad Is Missing', url: ariyoUrl('Dad Is Missing.mp3') },
       { title: 'Dem Wan Shut Me Up', url: ariyoUrl('Dem Wan Shut Me Up.mp3') },
       { title: 'Destiny No Dey Wait', url: ariyoUrl('Destiny No Dey Wait.mp3') },
@@ -289,7 +305,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'Habatically', url: ariyoUrl('Habatically.mp3') },
       { title: 'Hail Mary', url: ariyoUrl('Hail Mary.mp3') },
       { title: 'Haters', url: ariyoUrl('Haters.mp3') },
-      { title: 'Her Daughters Father', url: ariyoUrl('Her Daughters Father.mp3') },
+      sunoTrack('Her Daughters Father', 'https://cdn1.suno.ai/b35932ed-2188-4780-a919-f5327317915b.mp3'),
       { title: 'Holy Vibes Only', url: ariyoUrl('Holy Vibes Only.mp3') },
       { title: 'Home Becomes Peace', url: ariyoUrl('Home Becomes Peace.mp3') },
       { title: 'Kindness (Remastered)', url: ariyoUrl('Kindness (Remastered).mp3') },
@@ -298,7 +314,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'Mic No Be For Waist', url: ariyoUrl('Mic No Be For Waist.mp3') },
       { title: 'Midas Touch', url: ariyoUrl('Midas Touch.mp3') },
       { title: 'Midnight Maybe', url: ariyoUrl('Midnight Maybe.mp3') },
-      { title: 'Moores Law', url: ariyoUrl('Moores Law.mp3') },
+      sunoTrack('Moores Law', 'https://cdn1.suno.ai/891af5b2-b1fe-4db2-9c99-e1b1a15697a2.mp3'),
       { title: 'Multi choice palava', url: ariyoUrl('Multi choice palava.mp3') },
       { title: 'Mummy I Love You Ft. Steady', url: ariyoUrl('Mummy I Love You Ft. Steady.mp3') },
       { title: 'Na My Turn', url: ariyoUrl('Na My Turn.mp3') },
@@ -329,7 +345,7 @@ export const ariyoGeoAudioAlbums: GeoAudioAlbum[] = [
       { title: 'One Position', url: ariyoUrl('One Position.mp3') },
       { title: 'Party No Go Stop (Instrumental)', url: ariyoUrl('Party No Go Stop (Instrumental).mp3') },
       { title: 'Party No Go Stop', url: ariyoUrl('Party No Go Stop.mp3') },
-      { title: 'Pass The Baton', url: ariyoUrl('Pass The Baton.mp3') },
+      sunoTrack('Pass The Baton', 'https://cdn1.suno.ai/471dc968-d463-435c-8c3d-85f0d4556d8f.mp3'),
       { title: 'Pastor Or Hustler', url: ariyoUrl('Pastor Or Hustler.mp3') },
       { title: 'Pepper 4 Body', url: ariyoUrl('Pepper 4 Body.mp3') },
       { title: 'Pigeonhole Gbedu', url: ariyoUrl('Pigeonhole Gbedu.mp3') },
@@ -473,6 +489,7 @@ export function buildJourneyCatalog(albums: GeoAudioAlbum[] = ariyoGeoAudioAlbum
         sourceUrl: sourceTrack.url,
         localAssetPath,
         originalSunoUrl: sourceTrack.originalSunoUrl,
+        sunoManifestPath: sourceTrack.sunoManifestPath,
         duration: sourceTrack.duration,
         language: album.language ?? 'English',
         region: album.region ?? album.state,
@@ -520,7 +537,7 @@ export function auditGeoAudioCatalog(catalog: JourneyCatalogEntry[] = journeyCat
         if (!seen.has(key)) seen.set(key, track);
       });
       const normalizedFilename = normalizedGeoAudioFilenameKey(track.sourceUrl);
-      return { journeyId: journey.journeyId, title: track.title, sourceUrl: track.sourceUrl, audioUrl: track.audioUrl, localAssetPath: track.localAssetPath, normalizedFilename, orderIndex: track.orderIndex, duplicateReason, titleFilenameMatch: normalizeName(track.title) === normalizedFilename };
+      return { album: journey.sourceAlbum, journey: journey.title, journeyId: journey.journeyId, title: track.title, originalSunoUrl: track.originalSunoUrl, manifestPath: track.sunoManifestPath, finalAudioUrl: track.audioUrl, status: track.originalSunoUrl ? (track.sunoManifestPath ? 'resolved' : 'unresolved') : 'not-suno', sourceUrl: track.sourceUrl, audioUrl: track.audioUrl, localAssetPath: track.localAssetPath, normalizedFilename, orderIndex: track.orderIndex, duplicateReason, titleFilenameMatch: track.originalSunoUrl ? true : normalizeName(track.title) === normalizedFilename };
     });
   });
 }
@@ -539,11 +556,16 @@ export function validateJourneyCatalog(catalog: JourneyCatalogEntry[] = journeyC
       if (track.title !== canonicalTitle) issues.push({ severity: 'warning', journeyId: journey.journeyId, trackId: track.trackId, message: `Track title should be normalized as "${canonicalTitle}".` });
       if (!/^https?:\/\//i.test(track.audioUrl) && !track.audioUrl.startsWith('/')) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: 'Playback audioUrl must be an absolute HTTPS URL or a served WaveAtlas asset path.' });
       if (track.audioUrl.startsWith('/geoaudio/ariyo/') && !SERVED_GEOAUDIO_LOCAL_ASSETS.has(track.audioUrl)) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Synthetic local playback path "${track.audioUrl}" is not a verified served WaveAtlas asset.` });
-      if (track.localAssetPath && !track.localAssetPath.startsWith('/geoaudio/ariyo/')) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Broken local asset path "${track.localAssetPath}".` });
+      if (track.localAssetPath && !track.localAssetPath.startsWith('/geoaudio/ariyo/') && !isAriyoGithubPagesUrl(track.localAssetPath)) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Broken local asset path "${track.localAssetPath}".` });
+      if (track.originalSunoUrl) {
+        const manifestPath = ARIYO_SUNO_URL_TO_LOCAL_ASSET[track.originalSunoUrl];
+        if (!manifestPath) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Unresolved Suno URL "${track.originalSunoUrl}" is missing from ${ARIYO_SUNO_MANIFEST_URL}.` });
+        else if (track.sunoManifestPath !== manifestPath || track.audioUrl !== ariyoUrl(manifestPath)) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Suno URL "${track.originalSunoUrl}" must play the exact manifest asset "${manifestPath}" from ${ARIYO_SUNO_MANIFEST_URL}.` });
+      }
 
       const normalizedTitle = normalizeName(track.title);
       const normalizedSourceFilename = normalizedGeoAudioFilenameKey(track.sourceUrl);
-      if (isAriyoGithubPagesUrl(track.sourceUrl) && normalizedTitle !== normalizedSourceFilename) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Track title "${track.title}" does not match source filename "${normalizedSourceFilename}".` });
+      if (!track.originalSunoUrl && isAriyoGithubPagesUrl(track.sourceUrl) && normalizedTitle !== normalizedSourceFilename) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Track title "${track.title}" does not match source filename "${normalizedSourceFilename}".` });
       for (const key of [...new Set([
         track.sourceUrl && `source:${audioUrlKey(track.sourceUrl)}`,
         track.sourceUrl && `source-file:${normalizedGeoAudioFilenameKey(track.sourceUrl)}`,
