@@ -1,3 +1,4 @@
+import { ChannelType, geoAudioCapabilities, type Channel, type Queue } from './channel-framework';
 import type { Station } from './stations';
 
 export type GeoAudioTrack = { title: string; url: string; duration?: string; };
@@ -357,8 +358,31 @@ function uniqueTags(tags: string[]) {
   return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
 }
 
+function ariyoQueueForAlbum(album: GeoAudioAlbum): Queue {
+  return {
+    id: `${album.id}-journey`,
+    label: 'Journey',
+    items: album.tracks.map((track, index) => ({ id: `${album.id}-track-${index + 1}`, title: track.title, url: track.url, duration: track.duration, index, playable: /^https?:\/\//i.test(track.url) })),
+  };
+}
+
+function ariyoChannelForAlbum(album: GeoAudioAlbum): Channel {
+  const queue = ariyoQueueForAlbum(album);
+  const playable = queue.items.some((item) => item.playable);
+  return {
+    id: album.id,
+    type: ChannelType.GEOAUDIO,
+    title: album.title,
+    provider: { id: 'omoluabi-productions', name: album.provider, producer: album.producer, studio: album.studio, homepage: album.homepage },
+    queue,
+    capabilities: geoAudioCapabilities(playable),
+    unavailableReason: playable ? undefined : 'Ariyo GeoAudio album has no playable track URL.',
+  };
+}
+
 export function adaptAriyoAlbumToGeoAudioChannel(album: GeoAudioAlbum): Station {
-  const firstPlayableTrack = album.tracks.find((track) => /^https?:\/\//i.test(track.url));
+  const channel = ariyoChannelForAlbum(album);
+  const firstPlayableTrack = channel.queue.items.find((track) => track.playable);
   const tags = uniqueTags([
     'geoaudio',
     'GeoAudio Channel',
@@ -411,6 +435,9 @@ export function adaptAriyoAlbumToGeoAudioChannel(album: GeoAudioAlbum): Station 
     validation_status: firstPlayableTrack ? 'verified' : 'needs_review',
     validation_reason: firstPlayableTrack ? `Local WaveAtlas GeoAudio seed from Ariyo-AI data/albums.json. Provider/producer: ${album.provider}. Studio: ${album.studio}. Geographic anchor: ${album.city}, ${album.country}.` : 'Ariyo GeoAudio album has no playable track URL in Ariyo-AI data/albums.json.',
     sourceType: 'geoaudio',
+    channelType: ChannelType.GEOAUDIO,
+    channel,
+    capabilities: channel.capabilities,
     geoAudio: {
       albumTitle: album.title,
       artist: album.artist,
@@ -418,8 +445,11 @@ export function adaptAriyoAlbumToGeoAudioChannel(album: GeoAudioAlbum): Station 
       producer: album.producer,
       studio: album.studio,
       coverArtUrl: album.coverArtUrl,
-      trackCount: album.tracks.length,
-      tracks: album.tracks,
+      trackCount: channel.queue.items.length,
+      queueId: channel.queue.id,
+      queueLabel: channel.queue.label,
+      highlightedQueueItemId: undefined,
+      tracks: channel.queue.items.map(({ title, url, duration }) => ({ title, url, duration })),
     },
   };
 }
