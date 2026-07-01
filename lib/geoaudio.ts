@@ -81,7 +81,6 @@ export function adaptAriyoAlbumToGeoAudioChannel(album: GeoAudioAlbum): Station 
     `provider: ${album.provider}`,
     `producer: ${album.producer}`,
     `studio: ${album.studio}`,
-    'OfficialPaulInspires',
     album.title,
     album.artist,
     album.provider,
