@@ -406,6 +406,27 @@ function debugWanderer(label: string, payload: Record<string, unknown>) {
 
 let stationSelectionVersion = 0;
 let wandererResolving = false;
+type PlaybackRequestSource = StationSelectionSource | "search" | "discovery";
+type PlaybackRequest = { id: number; source: PlaybackRequestSource; controller: AbortController; startedAt: number };
+class PlaybackRequestManager {
+  private active: PlaybackRequest | null = null;
+  begin(source: PlaybackRequestSource) {
+    this.active?.controller.abort();
+    const request: PlaybackRequest = { id: (this.active?.id ?? 0) + 1, source, controller: new AbortController(), startedAt: Date.now() };
+    this.active = request;
+    debugPlayback("request started", { requestId: request.id, source });
+    return request;
+  }
+  isActive(request?: Pick<PlaybackRequest, "id"> | number | null) {
+    const id = typeof request === "number" ? request : request?.id;
+    return Boolean(id && this.active?.id === id && !this.active.controller.signal.aborted);
+  }
+  signal(request: PlaybackRequest) { return request.controller.signal; }
+  ignoreStale(request: Pick<PlaybackRequest, "id" | "source">, detail: Record<string, unknown> = {}) {
+    debugPlayback("ignored stale request", { requestId: request.id, source: request.source, activeRequestId: this.active?.id ?? null, ...detail });
+  }
+}
+const playbackRequests = new PlaybackRequestManager();
 let teleportPoolCache: { anchorKey: string; stations: Station[]; expires: number } | null = null;
 let activeTeleportController: AbortController | null = null;
 const TELEPORT_POOL_TTL_MS = 45_000;
@@ -428,7 +449,8 @@ function warnIfStationGeoConflicts(station: Station, geo: GeoPoint) {
   }
 }
 
-function setCurrentStationAndDestination(station: Station, source: StationSelectionSource = "manual", queue: Station[] = []) {
+function setCurrentStationAndDestination(station: Station, source: StationSelectionSource = "manual", queue: Station[] = [], request?: PlaybackRequest) {
+  if (request && !playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { station: station.name, mutation: "setCurrentStationAndDestination" }); return undefined; }
   const version = ++stationSelectionVersion;
   debugGlobeStationSelection(station, source, version);
   warnIfStationGeoConflicts(station, geotruth(station));
@@ -462,13 +484,15 @@ type CloserStationPromptState = { station: Station; queue: Station[]; message: s
 
 type NearbyApiCandidate = { station: Station; distanceKm?: number };
 
+function clampUnit(value: number) { return Math.min(1, Math.max(0, value)); }
+
 function locationDistanceKm(a: UserGeoPoint, b: UserGeoPoint) {
   const toRad = (value: number) => value * Math.PI / 180;
   const dLat = toRad(b.lat - a.lat);
   const dLng = toRad(b.lng - a.lng);
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const h = clampUnit(Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2);
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
@@ -507,7 +531,7 @@ function getBrowserLocation(timeoutMs = 2500): Promise<UserGeoPoint | undefined>
   });
 }
 
-async function fetchNearbyScope(scope: NearbyDiscoveryScope, userLocation?: UserGeoPoint) {
+async function fetchNearbyScope(scope: NearbyDiscoveryScope, userLocation?: UserGeoPoint, signal?: AbortSignal) {
   const params = new URLSearchParams({ limit: scope === "Worldwide" ? "24" : "12" });
   const zoomByScope: Record<Exclude<NearbyDiscoveryScope, "Worldwide">, string> = {
     "Current Location": "10",
@@ -519,19 +543,22 @@ async function fetchNearbyScope(scope: NearbyDiscoveryScope, userLocation?: User
   };
   if (scope === "Worldwide" || !userLocation) params.set("global", "true");
   else { params.set("lat", String(userLocation.lat)); params.set("lng", String(userLocation.lng)); params.set("zoom", zoomByScope[scope]); }
-  const response = await fetch(`/api/stations/nearby?${params.toString()}`);
+  const timeoutSignal = AbortSignal.timeout(4500);
+  const signals = [timeoutSignal, ...(signal ? [signal] : [])];
+  const response = await fetch(`/api/stations/nearby?${params.toString()}`, { signal: AbortSignal.any(signals) });
   if (!response.ok) throw new Error(`Nearby ${scope} failed`);
   const data = await response.json() as { candidates?: NearbyApiCandidate[] };
   return uniqueStationCandidates((data.candidates ?? []).map((candidate) => candidate.station).filter((station) => getStationStreamUrl(station) && station.sourceType !== "geoaudio"));
 }
 
-async function startNearbyTimeToFirstAudioDiscovery(seedStations: Station[], anchor?: Station): Promise<NearbyDiscoveryResult> {
+async function startNearbyTimeToFirstAudioDiscovery(seedStations: Station[], anchor: Station | undefined, request: PlaybackRequest): Promise<NearbyDiscoveryResult> {
   const userLocation = await getBrowserLocation();
-  const scopes: NearbyDiscoveryScope[] = ["Current Location", "City", "County", "State/Province", "Country", "Continent", "Worldwide"];
+  if (!playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "geolocation" }); throw new DOMException("Stale playback request", "AbortError"); }
+  const scopes: NearbyDiscoveryScope[] = userLocation ? ["Current Location", "City", "County", "State/Province", "Country", "Continent", "Worldwide"] : ["Worldwide"];
   for (const scope of scopes) {
     const scoped = scope === "Worldwide" && seedStations.length
-      ? uniqueStationCandidates([...await fetchNearbyScope(scope, userLocation).catch(() => []), ...seedStations]).filter((station) => getStationStreamUrl(station) && station.sourceType !== "geoaudio")
-      : await fetchNearbyScope(scope, userLocation).catch(() => []);
+      ? uniqueStationCandidates([...await fetchNearbyScope(scope, userLocation, playbackRequests.signal(request)).catch(() => []), ...seedStations]).filter((station) => getStationStreamUrl(station) && station.sourceType !== "geoaudio")
+      : await fetchNearbyScope(scope, userLocation, playbackRequests.signal(request)).catch(() => []);
     const queue = uniqueStationCandidates(scoped.filter((station) => !anchor || stationKey(station) !== stationKey(anchor)));
     if (queue.length) return { station: queue[0], queue, scope, userLocation };
   }
@@ -548,8 +575,8 @@ function markArrivalCompleted() {
   window.dispatchEvent(new Event(ARRIVAL_COMPLETED_EVENT));
 }
 
-function commitTeleportStation(station: Station, queue: Station[] = []) {
-  setCurrentStationAndDestination(station, "teleport", queue);
+function commitTeleportStation(station: Station, queue: Station[] = [], request?: PlaybackRequest) {
+  setCurrentStationAndDestination(station, "teleport", queue, request);
 }
 
 function stationLocalQueueLabel(station: Station) {
@@ -591,7 +618,7 @@ function buildWandererCandidateQueue(stations: Station[], seed = Date.now()) {
   return deterministicWandererShuffle(uniqueStationCandidates(stations).filter(isValidWandererCandidate), seed);
 }
 
-function startWandererDiscovery(stations: Station[], seed = Date.now()) {
+function startWandererDiscovery(stations: Station[], seed = Date.now(), request = playbackRequests.begin("wanderer")) {
   if (wandererResolving) {
     debugWanderer("duplicate suppressed", { finalPlaybackState: usePlayer.getState().status });
     return undefined;
@@ -608,20 +635,20 @@ function startWandererDiscovery(stations: Station[], seed = Date.now()) {
   const [selected, ...fallbacks] = queue;
   usePlayer.getState().setStatus("buffering", "Finding a playable station...");
   debugWanderer("selected", { selectedStation: selected.name, queuedFallbacks: fallbacks.length });
-  return setCurrentStationAndDestination(selected, "wanderer", fallbacks);
+  return setCurrentStationAndDestination(selected, "wanderer", fallbacks, request);
 }
 
-function playFirstSearchCandidate(candidates: Station[], source: StationSelectionSource, label: string) {
+function playFirstSearchCandidate(candidates: Station[], source: StationSelectionSource, label: string, request = playbackRequests.begin(source)) {
   const scopedCandidates = uniqueStationCandidates(candidates).filter((station) => getStationStreamUrl(station));
   if (!scopedCandidates.length) {
     usePlayer.getState().setStatus("failed", `No playable stations found for ${label}.`);
     return undefined;
   }
   usePlayer.getState().startScopedSearchSession(label);
-  return setCurrentStationAndDestination(scopedCandidates[0], source, scopedCandidates);
+  return setCurrentStationAndDestination(scopedCandidates[0], source, scopedCandidates, request);
 }
 
-function setScopedStationAndDestination(station: Station, source: StationSelectionSource, candidates: Station[], label?: string) {
+function setScopedStationAndDestination(station: Station, source: StationSelectionSource, candidates: Station[], label?: string, request = playbackRequests.begin(source)) {
   const scopedCandidates = uniqueStationCandidates([station, ...candidates]).filter((candidate) => getStationStreamUrl(candidate));
   const scopedLabel = label?.trim() || stationLocalQueueLabel(station);
   if (!scopedCandidates.length) {
@@ -630,7 +657,7 @@ function setScopedStationAndDestination(station: Station, source: StationSelecti
   }
   const selected = scopedCandidates.find((candidate) => stationKey(candidate) === stationKey(station)) ?? scopedCandidates[0];
   usePlayer.getState().startScopedSearchSession(scopedLabel);
-  return setCurrentStationAndDestination(selected, source, scopedCandidates);
+  return setCurrentStationAndDestination(selected, source, scopedCandidates, request);
 }
 
 
@@ -2666,7 +2693,7 @@ function refreshTeleportPoolInBackground(anchor: Station, recent: TeleportHistor
     });
 }
 
-async function resolveTeleportDestination(stations: Station[], current: Station) {
+async function resolveTeleportDestination(stations: Station[], current: Station, signal?: AbortSignal) {
   const player = usePlayer.getState();
   const anchor = getCandidateLockAnchor(player.current ?? current, stations) ?? current;
   const arrivalStation = player.arrivalStation;
@@ -2687,7 +2714,7 @@ async function resolveTeleportDestination(stations: Station[], current: Station)
   const controller = new AbortController();
   activeTeleportController = controller;
   try {
-    const queue = await fetchTeleportPool(anchor, recent, controller.signal);
+    const queue = await fetchTeleportPool(anchor, recent, signal ?? controller.signal);
     if (activeTeleportController === controller && queue.length) teleportPoolCache = { anchorKey, stations: queue, expires: Date.now() + TELEPORT_POOL_TTL_MS };
     debugTeleport("candidates", {
       poolSize: queue.length,
@@ -3452,7 +3479,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} inventoryStats={inventoryStats} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <NewspaperBrief station={current} stations={stations} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
-    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const selectionVersion = ++stationSelectionVersion; usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current).then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) { commitTeleportStation(station, queue); handleTravel(intent); } }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const request = playbackRequests.begin("teleport"); usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current, playbackRequests.signal(request)).then(({ station, queue }) => { if (playbackRequests.isActive(request)) { commitTeleportStation(station, queue, request); handleTravel(intent); } else playbackRequests.ignoreStale(request, { stage: "mobile teleport resolved" }); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
   </section>;
 }
 
@@ -4186,7 +4213,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     return () => controller.abort();
   }, [deepLinkUuid]);
 
-  const loadCountryStations = useCallback(async (country: CountryResult, nextOffset = 0, tag = activeTag) => {
+  const loadCountryStations = useCallback(async (country: CountryResult, nextOffset = 0, tag = activeTag, request = playbackRequests.begin("search")) => {
     setLoadingCountry(true);
     setCountrySignalMessage(nextOffset ? "Finding more live signals…" : `Tuning into ${country.name}…`);
     if (!nextOffset) setStationPool([]);
@@ -4195,15 +4222,17 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     const requestUrl = `/api/stations/by-country?${params}`;
     debugCountryClick("request", { apiRequestUrl: requestUrl, resolvedCountryName: country.name, resolvedCountryCode: country.code });
     try {
-      const res = await fetch(requestUrl);
+      const res = await fetch(requestUrl, { signal: playbackRequests.signal(request) });
       if (!res.ok) throw new Error(`Country station request failed: ${res.status}`);
+      if (!playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "country fetch", country: country.code }); return; }
       const data = (await res.json()) as { stations: Station[] };
+      if (!playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "country parse", country: country.code }); return; }
       const sameCountryStations = data.stations.filter((station) => station.country_code === country.code);
       debugCountryClick("candidates", { apiRequestUrl: requestUrl, candidateCount: sameCountryStations.length, selectedStation: sameCountryStations[0]?.name ?? null });
       setStationPool((prev) => nextOffset ? [...prev, ...sameCountryStations] : sameCountryStations);
       setOffset(nextOffset + sameCountryStations.length);
       if (!nextOffset && sameCountryStations[0] && startupPreferences.autoplayAfterSearch) {
-        playFirstSearchCandidate(sameCountryStations, "auto", country.name);
+        playFirstSearchCandidate(sameCountryStations, "auto", country.name, request);
         setCountrySignalMessage(`Loading first playable station from ${country.name}…`);
         debugCountryClick("playback", { selectedStation: sameCountryStations[0], playbackResult: "search-session-started" });
       } else if (!nextOffset && sameCountryStations[0]) {
@@ -4215,11 +4244,12 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         debugCountryClick("playback", { selectedStation: null, playbackResult: "no-candidates" });
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") { playbackRequests.ignoreStale(request, { stage: "country abort", country: country.code }); return; }
       setCountrySignalMessage("No live signal found here yet. Try Teleport or Add Your Signal.");
       usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station.");
       debugCountryClick("playback", { selectedStation: null, playbackResult: "request-failed", error: error instanceof Error ? error.message : "unknown" });
     } finally {
-      setLoadingCountry(false);
+      if (playbackRequests.isActive(request)) setLoadingCountry(false);
     }
   }, [activeTag, startupPreferences.autoplayAfterSearch]);
   const centerAppAfterQuery = useCallback(() => {
@@ -4294,10 +4324,10 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     playPremiumTeleportClick();
     setDesktopTeleporting(true);
     setWandererActive(false);
-    const selectionVersion = ++stationSelectionVersion;
+    const request = playbackRequests.begin("teleport");
     usePlayer.getState().setStatus("buffering", "Teleporting…");
-    void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current)
-      .then(({ station, queue }) => { if (isCurrentStationSelection(selectionVersion)) commitTeleportStation(station, queue); })
+    void resolveTeleportDestination(stationPool, usePlayer.getState().current ?? current, playbackRequests.signal(request))
+      .then(({ station, queue }) => { if (playbackRequests.isActive(request)) commitTeleportStation(station, queue, request); else playbackRequests.ignoreStale(request, { stage: "teleport resolved" }); })
       .catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); })
       .finally(() => setDesktopTeleporting(false));
   }, [current, desktopTeleporting, stationPool]);
@@ -4311,9 +4341,9 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     clearVoiceFeedback();
   }, [clearVoiceFeedback]);
 
-  const selectVoiceStation = useCallback((station: Station, candidates: Station[] = [station], label?: string) => {
+  const selectVoiceStation = useCallback((station: Station, candidates: Station[] = [station], label?: string, request?: PlaybackRequest) => {
     clearVoiceFeedback();
-    setScopedStationAndDestination(station, "voice", candidates, label);
+    setScopedStationAndDestination(station, "voice", candidates, label, request);
     setVoiceFocusNonce((nonce) => nonce + 1);
     setStationPool((prev) => uniqueStationCandidates([station, ...candidates, ...prev]));
     setSelectedCountry(null);
@@ -4326,18 +4356,19 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     const query = intent.query?.trim();
     if (!query) return;
     const action = intent.type === "play" ? "play" : intent.action ?? "search";
+    const request = playbackRequests.begin("voice");
     const requestId = ++voiceSearchRequestRef.current;
     if (action === "search") showVoiceSearchResults(query, `Searching ${query}.`);
     else showVoiceFeedback(action === "navigate" ? `Looking for ${query}.` : `Searching ${query}.`);
     try {
       const [countryRes, stationRes] = await Promise.all([
-        fetch(`/api/countries/search?q=${encodeURIComponent(query)}`),
-        fetch(`/api/stations/search?q=${encodeURIComponent(query)}&limit=25`),
+        fetch(`/api/countries/search?q=${encodeURIComponent(query)}`, { signal: playbackRequests.signal(request) }),
+        fetch(`/api/stations/search?q=${encodeURIComponent(query)}&limit=25`, { signal: playbackRequests.signal(request) }),
       ]);
-      if (requestId !== voiceSearchRequestRef.current) return;
+      if (requestId !== voiceSearchRequestRef.current || !playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "voice fetch" }); return; }
       const countries = countryRes.ok ? ((await countryRes.json()) as { countries: CountryResult[] }).countries : [];
       const stations = stationRes.ok ? ((await stationRes.json()) as { stations: Station[] }).stations : [];
-      if (requestId !== voiceSearchRequestRef.current) return;
+      if (requestId !== voiceSearchRequestRef.current || !playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "voice parse" }); return; }
       const normalizedQuery = query.toLowerCase();
       const exactCountry = countries.find((country) => country.name.toLowerCase() === normalizedQuery || country.code.toLowerCase() === normalizedQuery);
       const exactStations = stations.filter((station) => station.name.toLowerCase() === normalizedQuery);
@@ -4354,12 +4385,12 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         return;
       }
       if ((action === "play" || action === "navigate") && singleStation) {
-        selectVoiceStation(singleStation, stations.length ? stations : [singleStation], query);
+        selectVoiceStation(singleStation, stations.length ? stations : [singleStation], query, request);
         clearVoiceFeedback();
         return;
       }
       if (action === "play" && stations.length) {
-        selectVoiceStation(stations[0], stations, query);
+        selectVoiceStation(stations[0], stations, query, request);
         clearVoiceFeedback();
         return;
       }
@@ -4375,7 +4406,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       if (!countries.length && !stations.length) showVoiceSearchResults(query, `No match found for ${query}. Showing search results.`);
       else showVoiceSearchResults(query, `Showing results for ${query}.`);
     } catch {
-      if (requestId !== voiceSearchRequestRef.current) return;
+      if (requestId !== voiceSearchRequestRef.current || !playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "voice catch" }); return; }
       showVoiceSearchResults(query, `Searching ${query}.`);
     }
   }, [clearVoiceFeedback, selectCountry, selectVoiceStation, showVoiceFeedback, showVoiceSearchResults]);
@@ -4455,20 +4486,23 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     setDesktopDrawerCollapsed(false);
     setBriefOpen(false);
     dismissCloserStationPrompt();
+    const request = playbackRequests.begin("nearby");
     usePlayer.getState().setStatus("buffering", "Finding the fastest nearby live signal…");
     const anchor = usePlayer.getState().current ?? current;
-    void startNearbyTimeToFirstAudioDiscovery(stations, anchor)
+    void startNearbyTimeToFirstAudioDiscovery(stations, anchor, request)
       .then(({ station, queue, scope }) => {
+        if (!playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "nearby resolved" }); return; }
         setStationPool((prev) => uniqueStationCandidates([station, ...queue, ...prev]));
-        setCurrentStationAndDestination(station, "nearby", queue);
+        setCurrentStationAndDestination(station, "nearby", queue, request);
         setCountrySignalMessage(`Trying ${station.name} from ${scope}. WaveAtlas will keep checking for a closer playable local station.`);
       })
-      .catch(() => {
+      .catch((error) => {
+        if (!playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "nearby fallback", error: error instanceof Error ? error.name : "unknown" }); return; }
         const fallbackQueue = buildWandererCandidateQueue(stations);
         if (fallbackQueue.length) {
           const [station, ...queue] = fallbackQueue;
           setStationPool((prev) => uniqueStationCandidates([station, ...queue, ...prev]));
-          setCurrentStationAndDestination(station, "nearby", fallbackQueue);
+          setCurrentStationAndDestination(station, "nearby", fallbackQueue, request);
           setCountrySignalMessage("Nearby discovery fell back to the fastest available global signal while local discovery continues.");
         } else {
           usePlayer.getState().setStatus("failed", "Nearby discovery is unavailable right now. Search or Wander can still start the Atlas.");
