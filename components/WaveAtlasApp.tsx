@@ -1294,18 +1294,15 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   const currentKey = current ? stationKey(current) : "";
   const scopedAttemptSession = useRef(0);
   const playNextGeoAudioTrack = useCallback((albumStation: Station, reason = "next_track") => {
-    const tracks = albumStation.geoAudio?.tracks.filter((track) => /^https?:\/\//i.test(track.url)) ?? [];
+    const tracks = albumStation.geoAudio?.tracks.map((track, index) => ({ ...track, index })).filter((track) => /^https?:\/\//i.test(track.url)) ?? [];
     if (albumStation.sourceType !== "geoaudio" || tracks.length < 1) return false;
     const currentUrl = getStationStreamUrl(albumStation);
     const currentIndex = tracks.findIndex((track) => track.url === currentUrl || track.url === albumStation.url);
-    const nextIndex = currentIndex === -1 ? 0 : currentIndex + 1;
-    if (nextIndex >= tracks.length) {
-      setStatus("paused", `${albumStation.geoAudio?.albumTitle ?? "GeoAudio album"} finished.`);
-      return true;
-    }
-    const nextTrack = tracks[nextIndex];
-    setStatus("buffering", reason === "ended" ? `Playing next ${albumStation.geoAudio?.albumTitle ?? "GeoAudio"} track…` : "Skipping to the next GeoAudio track…");
-    setCurrentStationAndDestination({ ...albumStation, id: `${albumStation.station_uuid}-track-${nextIndex + 1}`, url: nextTrack.url, url_resolved: nextTrack.url, name: `${albumStation.geoAudio?.albumTitle ?? albumStation.name} GeoAudio Channel — ${nextTrack.title}`, geoAudio: albumStation.geoAudio ? { ...albumStation.geoAudio, highlightedQueueItemId: `${albumStation.station_uuid}-track-${nextIndex + 1}` } : albumStation.geoAudio }, "manual", [albumStation]);
+    const eligibleTracks = tracks.length > 1 && currentIndex >= 0 ? tracks.filter((_, index) => index !== currentIndex) : tracks;
+    const nextTrack = eligibleTracks[Math.floor(Math.random() * eligibleTracks.length)];
+    if (!nextTrack) return false;
+    setStatus("buffering", reason === "ended" ? `Shuffling ${albumStation.geoAudio?.albumTitle ?? "GeoAudio"} journey…` : "Skipping to another GeoAudio journey track…");
+    setCurrentStationAndDestination({ ...albumStation, id: `${albumStation.station_uuid}-track-${nextTrack.index + 1}`, url: nextTrack.url, url_resolved: nextTrack.url, name: `${albumStation.geoAudio?.albumTitle ?? albumStation.name} GeoAudio Channel — ${nextTrack.title}`, geoAudio: albumStation.geoAudio ? { ...albumStation.geoAudio, highlightedQueueItemId: `${albumStation.station_uuid}-track-${nextTrack.index + 1}` } : albumStation.geoAudio }, "manual", [albumStation]);
     return true;
   }, [setStatus]);
 
@@ -2767,12 +2764,24 @@ function CountryAutocomplete({
 
 
 function SearchResultStationCard({ station, onSelect }: { station: Station; onSelect: (station: Station) => void }) {
+  const [tracksOpen, setTracksOpen] = useState(false);
+  const current = usePlayer((state) => state.current);
+  const currentUrl = current ? getStationStreamUrl(current) : "";
   const health = getStreamHealth(station);
   const location = [station.state || station.city, station.country].filter(Boolean).join(" · ");
   const isGeoAudio = station.sourceType === "geoaudio";
   const showCampusAtlasBadge = process.env.NODE_ENV === "development" && station.curation_source === "campus-atlas";
   const highlightedTrack = station.geoAudio?.highlightedQueueItemId ? station.geoAudio.tracks[Number(station.geoAudio.highlightedQueueItemId.split("-track-")[1]) - 1]?.title : undefined;
-  return <button onClick={() => { const highlightedIndex = station.geoAudio?.highlightedQueueItemId ? Number(station.geoAudio.highlightedQueueItemId.split("-track-")[1]) - 1 : -1; if (station.sourceType === "geoaudio" && highlightedIndex >= 0 && selectGeoAudioQueueItem(station, highlightedIndex)) return; onSelect(station); }} className="mb-3 w-full rounded-[18px] border border-white/[0.08] bg-[rgba(20,28,42,0.82)] p-4 text-left shadow-lg transition active:scale-[0.99] hover:border-gold/50 hover:bg-[rgba(28,38,58,0.9)]"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><b className="block truncate text-base font-medium text-[#F8FAFC]">{station.name}</b><p className="mt-1 text-xs font-medium text-white/[0.72]">{location || "Global"} · {isGeoAudio ? station.geoAudio?.albumTitle ?? "GeoAudio album" : station.language || "Unknown language"}</p>{isGeoAudio && station.geoAudio ? <p className="mt-1 text-[11px] font-medium text-gold/80">Provider/producer: {station.geoAudio.provider} · Studio: {station.geoAudio.studio}</p> : null}</div><span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-medium ${isGeoAudio ? "bg-gold/15 text-gold" : "bg-emerald-500/15 text-emerald-300"}`}>{isGeoAudio ? "GeoAudio Channel" : <><span className={`mr-1 inline-block size-2 rounded-full ${health.dot}`} />{health.label}</>}</span></div><div className="mt-3 flex flex-wrap gap-2">{showCampusAtlasBadge ? <span className="rounded-full border border-sky-300/25 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold text-sky-200">campus-atlas</span> : null}<span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.codec || "Unknown codec"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{isGeoAudio ? "First track ready" : station.bitrate ? `${station.bitrate} kbps` : "Live stream"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.country_code}</span>{highlightedTrack ? <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] font-semibold text-gold">Matched: {highlightedTrack}</span> : null}{station.tags.slice(0, 2).map((tag) => <span key={tag} className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{tag}</span>)}</div></button>;
+  const trackCount = station.geoAudio?.trackCount ?? station.geoAudio?.tracks.length ?? 0;
+  const selectStation = () => {
+    const highlightedIndex = station.geoAudio?.highlightedQueueItemId ? Number(station.geoAudio.highlightedQueueItemId.split("-track-")[1]) - 1 : -1;
+    if (station.sourceType === "geoaudio" && highlightedIndex >= 0 && selectGeoAudioQueueItem(station, highlightedIndex)) return;
+    onSelect(station);
+  };
+  return <div className="mb-3 rounded-[18px] border border-white/[0.08] bg-[rgba(20,28,42,0.82)] p-4 text-left shadow-lg transition hover:border-gold/50 hover:bg-[rgba(28,38,58,0.9)]">
+    <button type="button" onClick={selectStation} className="w-full text-left active:scale-[0.99]"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><b className="block truncate text-base font-medium text-[#F8FAFC]">{station.name}</b><p className="mt-1 text-xs font-medium text-white/[0.72]">{location || "Global"} · {isGeoAudio ? station.geoAudio?.albumTitle ?? "GeoAudio album" : station.language || "Unknown language"}</p>{isGeoAudio && station.geoAudio ? <p className="mt-1 text-[11px] font-medium text-gold/80">Provider/producer: {station.geoAudio.provider} · Studio: {station.geoAudio.studio}</p> : null}</div><span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-medium ${isGeoAudio ? "bg-gold/15 text-gold" : "bg-emerald-500/15 text-emerald-300"}`}>{isGeoAudio ? "GeoAudio Channel" : <><span className={`mr-1 inline-block size-2 rounded-full ${health.dot}`} />{health.label}</>}</span></div><div className="mt-3 flex flex-wrap gap-2">{showCampusAtlasBadge ? <span className="rounded-full border border-sky-300/25 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold text-sky-200">campus-atlas</span> : null}<span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.codec || "Unknown codec"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{isGeoAudio ? `${trackCount} tracks` : station.bitrate ? `${station.bitrate} kbps` : "Live stream"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.country_code}</span>{highlightedTrack ? <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] font-semibold text-gold">Matched: {highlightedTrack}</span> : null}{station.tags.slice(0, 2).map((tag) => <span key={tag} className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{tag}</span>)}</div></button>
+    {isGeoAudio && station.geoAudio ? <div className="mt-3 border-t border-white/10 pt-3"><button type="button" onClick={() => setTracksOpen((value) => !value)} className="flex w-full items-center justify-between rounded-2xl border border-gold/20 bg-gold/10 px-3 py-2 text-left text-xs font-bold uppercase tracking-[0.12em] text-gold"><span>{station.geoAudio.queueLabel || "Journey"} / Track List · {trackCount}</span><span>{tracksOpen ? "Hide" : "View"} <ChevronDown className="inline size-3" /></span></button>{tracksOpen ? <div className="mt-2 max-h-52 space-y-1 overflow-y-auto pr-1">{station.geoAudio.tracks.map((track, index) => { const active = (current?.station_uuid === station.station_uuid && currentUrl === track.url) || station.geoAudio?.highlightedQueueItemId === `${station.station_uuid}-track-${index + 1}`; return <button key={`${track.title}-${index}`} type="button" onClick={() => selectGeoAudioQueueItem(station, index)} className={`w-full rounded-xl px-3 py-2 text-left text-xs transition ${active ? "bg-gold/15 text-gold" : "bg-white/[0.04] text-ivory/76 hover:bg-white/[0.08]"}`}><span className="mr-2 opacity-60">{index + 1}.</span>{track.title}{/^https?:\/\//i.test(track.url) ? null : <span className="ml-2 text-rose-300/80">Unavailable</span>}</button>; })}</div> : null}</div> : null}
+  </div>;
 }
 function GeoAudioChannelInspector({ station }: { station: Station }) {
   const [open, setOpen] = useState(true);
