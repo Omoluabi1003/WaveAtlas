@@ -1,8 +1,11 @@
 import { ChannelType, geoAudioCapabilities, type Channel, type Queue } from './channel-framework';
 import type { Station } from './stations';
 
-export type GeoAudioTrack = { title: string; url: string; duration?: string; };
-export type GeoAudioAlbum = { id: string; title: string; artist: string; provider: string; producer: string; studio: string; city: string; state: string; country: string; countryCode: string; latitude: number; longitude: number; homepage?: string; coverArtUrl?: string; tracks: GeoAudioTrack[]; };
+export type GeoAudioTrack = { title: string; url: string; duration?: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; };
+export type GeoAudioAlbum = { id: string; title: string; subtitle?: string; description?: string; artist: string; provider: string; producer: string; studio: string; city: string; state: string; country: string; countryCode: string; latitude: number; longitude: number; homepage?: string; coverArtUrl?: string; language?: string; region?: string; genre?: string; mood?: string; tracks: GeoAudioTrack[]; };
+export type JourneyCatalogTrack = { journeyId: string; albumId: string; trackId: string; title: string; subtitle: string; description: string; audioUrl: string; duration?: string; language: string; region: string; country: string; city: string; genre: string; mood: string; orderIndex: number; sourceAlbum: string; attribution: string; checksum?: string; contentHash?: string; repriseOfTrackId?: string; alternateVersionOfTrackId?: string; };
+export type JourneyCatalogEntry = Omit<JourneyCatalogTrack, 'trackId' | 'audioUrl' | 'duration' | 'orderIndex' | 'checksum' | 'contentHash' | 'repriseOfTrackId' | 'alternateVersionOfTrackId'> & { tracks: JourneyCatalogTrack[]; coverArtUrl?: string; homepage?: string; };
+export type GeoAudioCatalogValidationIssue = { severity: 'warning' | 'error'; journeyId: string; trackId?: string; message: string; };
 
 const GEOAUDIO_SEED_CHECKED_AT = '2026-07-01T00:00:00.000Z';
 const ARIYO_AI_ORIGIN = 'https://omoluabi1003.github.io/Ariyo-AI';
@@ -354,15 +357,125 @@ function normalizeName(value: string) {
   return value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
+function titleCaseToken(token: string) {
+  const upper = new Set(['ai', 'efcc', 'vdm']);
+  const lower = token.toLowerCase();
+  if (/^v\d+$/i.test(token)) return lower;
+  if (upper.has(lower)) return lower.toUpperCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+export function normalizeJourneyTrackTitle(rawTitle: string) {
+  return rawTitle
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map((part) => part.includes('(') || part.includes(')') ? part : titleCaseToken(part))
+    .join(' ')
+    .replace(/\bFt\./g, 'ft.')
+    .replace(/\bOf\b/g, 'of')
+    .replace(/\bThe\b/g, 'the')
+    .replace(/\bAnd\b/g, 'and')
+    .replace(/\bIn\b/g, 'in')
+    .replace(/\bTo\b/g, 'to');
+}
+
+function audioUrlKey(url: string) {
+  return decodeURIComponent(url.trim()).toLowerCase();
+}
+
+function normalizedFilenameKey(url: string) {
+  const pathname = url.split('?')[0].split('#')[0];
+  const filename = decodeURIComponent(pathname.slice(pathname.lastIndexOf('/') + 1)).replace(/\.[a-z0-9]+$/i, '');
+  return normalizeName(filename);
+}
+
+function trackDedupKey(track: GeoAudioTrack) {
+  return audioUrlKey(track.url) || normalizedFilenameKey(track.url) || track.checksum || track.contentHash || normalizeName(track.title);
+}
+
+function isIntentionalAlternate(track: Pick<GeoAudioTrack, 'title' | 'repriseOfTrackId' | 'alternateVersionOfTrackId'>) {
+  const title = normalizeName(track.title);
+  return Boolean(track.repriseOfTrackId || track.alternateVersionOfTrackId || /\b(remaster(?:ed)?|instrumental|reprise|alternate|version|v\d+)\b/.test(title));
+}
+
+const DEFAULT_JOURNEY_GENRE = 'GeoAudio';
+const DEFAULT_JOURNEY_MOOD = 'Curated';
+const JOURNEY_ATTRIBUTION = 'Ariyo AI Studio / Omoluabi Productions, adapted for WaveAtlas GeoAudio.';
+
+export function buildJourneyCatalog(albums: GeoAudioAlbum[] = ariyoGeoAudioAlbums): JourneyCatalogEntry[] {
+  return albums.map((album) => {
+    const journeyId = `${album.id}-journey`;
+    const seen = new Map<string, GeoAudioTrack>();
+    const tracks = album.tracks.reduce<JourneyCatalogTrack[]>((items, sourceTrack) => {
+      const title = normalizeJourneyTrackTitle(sourceTrack.title);
+      const key = trackDedupKey(sourceTrack);
+      const duplicate = seen.get(key);
+      if (duplicate && !isIntentionalAlternate(sourceTrack)) return items;
+      seen.set(key, sourceTrack);
+      const orderIndex = items.length + 1;
+      const trackId = `${album.id}-track-${orderIndex}`;
+      items.push({
+        journeyId,
+        albumId: album.id,
+        trackId,
+        title,
+        subtitle: album.subtitle ?? `${album.city}, ${album.country}`,
+        description: album.description ?? `${album.title} is an Ariyo AI Studio GeoAudio journey curated for WaveAtlas playback.`,
+        audioUrl: sourceTrack.url,
+        duration: sourceTrack.duration,
+        language: album.language ?? 'English',
+        region: album.region ?? album.state,
+        country: album.country,
+        city: album.city,
+        genre: album.genre ?? DEFAULT_JOURNEY_GENRE,
+        mood: album.mood ?? DEFAULT_JOURNEY_MOOD,
+        orderIndex,
+        sourceAlbum: album.title,
+        attribution: JOURNEY_ATTRIBUTION,
+        checksum: sourceTrack.checksum,
+        contentHash: sourceTrack.contentHash,
+        repriseOfTrackId: sourceTrack.repriseOfTrackId,
+        alternateVersionOfTrackId: sourceTrack.alternateVersionOfTrackId,
+      });
+      return items;
+    }, []);
+    return { journeyId, albumId: album.id, title: album.title, subtitle: album.subtitle ?? `${album.city}, ${album.country}`, description: album.description ?? `${album.title} is an Ariyo AI Studio GeoAudio journey curated for WaveAtlas playback.`, language: album.language ?? 'English', region: album.region ?? album.state, country: album.country, city: album.city, genre: album.genre ?? DEFAULT_JOURNEY_GENRE, mood: album.mood ?? DEFAULT_JOURNEY_MOOD, sourceAlbum: album.title, attribution: JOURNEY_ATTRIBUTION, tracks, coverArtUrl: album.coverArtUrl, homepage: album.homepage };
+  });
+}
+
+export function validateJourneyCatalog(catalog: JourneyCatalogEntry[] = journeyCatalog) {
+  const issues: GeoAudioCatalogValidationIssue[] = [];
+  for (const journey of catalog) {
+    const audioKeys = new Map<string, JourneyCatalogTrack>();
+    const filenameKeys = new Map<string, JourneyCatalogTrack>();
+    const titleKeys = new Map<string, JourneyCatalogTrack>();
+    journey.tracks.forEach((track, index) => {
+      if (track.orderIndex !== index + 1) issues.push({ severity: 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Expected orderIndex ${index + 1}, received ${track.orderIndex}.` });
+      const canonicalTitle = normalizeJourneyTrackTitle(track.title);
+      if (track.title !== canonicalTitle) issues.push({ severity: 'warning', journeyId: journey.journeyId, trackId: track.trackId, message: `Track title should be normalized as "${canonicalTitle}".` });
+      for (const [key, map, label] of [[audioUrlKey(track.audioUrl), audioKeys, 'audioUrl'], [normalizedFilenameKey(track.audioUrl), filenameKeys, 'filename'], [normalizeName(track.title), titleKeys, 'title']] as const) {
+        if (!key) continue;
+        const existing = map.get(key);
+        if (existing && !isIntentionalAlternate(track)) issues.push({ severity: label === 'title' ? 'warning' : 'error', journeyId: journey.journeyId, trackId: track.trackId, message: `Duplicate ${label} reference also used by ${existing.trackId}.` });
+        else map.set(key, track);
+      }
+    });
+  }
+  return issues;
+}
+
 function uniqueTags(tags: string[]) {
   return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
 }
 
 function ariyoQueueForAlbum(album: GeoAudioAlbum): Queue {
+  const journey = journeyCatalog.find((entry) => entry.albumId === album.id) ?? buildJourneyCatalog([album])[0];
   return {
-    id: `${album.id}-journey`,
+    id: journey.journeyId,
     label: 'Journey',
-    items: album.tracks.map((track, index) => ({ id: `${album.id}-track-${index + 1}`, title: track.title, url: track.url, duration: track.duration, index, playable: /^https?:\/\//i.test(track.url) })),
+    items: journey.tracks.map((track) => ({ id: track.trackId, title: track.title, url: track.audioUrl, duration: track.duration, index: track.orderIndex - 1, playable: /^https?:\/\//i.test(track.audioUrl) })),
   };
 }
 
@@ -400,7 +513,7 @@ export function adaptAriyoAlbumToGeoAudioChannel(album: GeoAudioAlbum): Station 
     album.city,
     album.state,
     album.country,
-    ...album.tracks.map((track) => track.title),
+    ...channel.queue.items.map((track) => track.title),
   ]);
 
   return {
@@ -416,7 +529,7 @@ export function adaptAriyoAlbumToGeoAudioChannel(album: GeoAudioAlbum): Station 
     country_code: album.countryCode,
     state: album.state,
     city: album.city,
-    language: 'English',
+    language: album.language ?? 'English',
     tags,
     codec: 'MP3',
     bitrate: 320,
@@ -452,6 +565,13 @@ export function adaptAriyoAlbumToGeoAudioChannel(album: GeoAudioAlbum): Station 
       tracks: channel.queue.items.map(({ title, url, duration }) => ({ title, url, duration })),
     },
   };
+}
+
+export const journeyCatalog: JourneyCatalogEntry[] = buildJourneyCatalog();
+
+const journeyCatalogIssues = validateJourneyCatalog(journeyCatalog);
+if (journeyCatalogIssues.length && process.env.NODE_ENV !== 'production') {
+  console.warn('[geoaudio] Journey catalog validation issues', journeyCatalogIssues);
 }
 
 export const ariyoGeoAudioChannels: Station[] = ariyoGeoAudioAlbums.map(adaptAriyoAlbumToGeoAudioChannel);
