@@ -42,6 +42,7 @@ type Props = {
   previousStation?: Station;
   teleporting?: boolean;
   onCountrySelect?: (country: CountryResult) => void;
+  onStationSelect?: (station: Station, candidates: Station[], label?: string) => void;
   onFallback?: (reason: string) => void;
   onStreetZoomRequest?: (context?: { lat: number; lng: number; zoom: number; stationId?: string; reason: string }) => void;
   mobile?: boolean;
@@ -423,6 +424,42 @@ function countryNameForCode(code: string) {
   }
 }
 
+function globeDistanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const dLat = (b.lat - a.lat) * DEG;
+  const dLng = (b.lng - a.lng) * DEG;
+  const lat1 = a.lat * DEG;
+  const lat2 = b.lat * DEG;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
+}
+
+function isPlayableGlobeStation(station: Station) {
+  const streamUrl = (station.url_resolved || station.url || "").trim();
+  return Boolean(station.is_active && streamUrl && /^https?:\/\//i.test(streamUrl) && station.sourceType !== "geoaudio");
+}
+
+function stationResolvedPoint(station: Station) {
+  const geo = resolveStationGeo(station);
+  if (geo.lat === null || geo.lng === null || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lng)) return null;
+  return { lat: geo.lat, lng: geo.lng, source: geo.source, precision: geo.precision };
+}
+
+function rankStationsNearPoint(stations: Station[], point: { lat: number; lng: number }, country: CountryResult | null) {
+  const playable = stations.filter(isPlayableGlobeStation);
+  const pointRanked = playable
+    .map((station) => {
+      const geo = stationResolvedPoint(station);
+      if (!geo || geo.source === "country_centroid") return null;
+      return { station, distance: globeDistanceKm(point, geo) };
+    })
+    .filter((item): item is { station: Station; distance: number } => Boolean(item))
+    .sort((a, b) => a.distance - b.distance);
+  const nearby = pointRanked.filter((item) => item.distance <= 350);
+  if (nearby.length) return { candidates: nearby.map((item) => item.station), fallbackReason: "nearest-point" };
+  const countryPool = country ? playable.filter((station) => station.country_code?.toUpperCase() === country.code || station.country?.toLowerCase() === country.name.toLowerCase()) : [];
+  return { candidates: countryPool, fallbackReason: countryPool.length ? "country-pool" : "none" };
+}
+
 function nearestCountry(lat: number, lng: number): CountryResult | null {
   let best: { code: string; distance: number } | null = null;
   for (const [code, point] of Object.entries(isoCountryCentroids)) {
@@ -521,7 +558,7 @@ const GLOBE_STYLE_COPY: Record<GlobeBasemapKey, string> = {
   photorealistic: "Photorealistic Globe",
 };
 
-export default function BlueMarbleGlobe({ station, stations = [], previousStation, teleporting = false, onCountrySelect, onFallback, onStreetZoomRequest, mobile = false, basemap = "blueMarble", selectionVersion }: Props) {
+export default function BlueMarbleGlobe({ station, stations = [], previousStation, teleporting = false, onCountrySelect, onStationSelect, onFallback, onStreetZoomRequest, mobile = false, basemap = "photorealistic", selectionVersion }: Props) {
   const effectiveBasemap: GlobeBasemapKey = basemap;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -1000,7 +1037,14 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     const s = state.current; s.dragging = pointers.current.size > 0;
     if (Math.hypot(event.clientX - s.downX, event.clientY - s.downY) > 8) return;
     const rect = event.currentTarget.getBoundingClientRect(); const r = Math.min(rect.width, rect.height) * (mobile ? 0.46 : 0.34) * s.zoom; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY: mobile ? rect.height * 0.42 : rect.height / 2 }); if (!point) return;
-    const country = nearestCountry(point.lat, point.lng); if (country) onCountrySelect?.(country);
+    const projected = projectGlobePoint(point, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY: mobile ? rect.height * 0.42 : rect.height / 2 });
+    if (projected.z < -0.001) return;
+    const country = nearestCountry(point.lat, point.lng);
+    const ranked = rankStationsNearPoint(stations, point, country);
+    const selected = ranked.candidates[0];
+    if (process.env.NODE_ENV !== "production") console.info("[WaveAtlas globe click]", { screen: { x: event.clientX - rect.left, y: event.clientY - rect.top }, lat: point.lat, lng: point.lng, country: country?.name ?? null, candidateCount: ranked.candidates.length, selectedStation: selected?.name ?? null, fallbackReason: ranked.fallbackReason });
+    if (country) onCountrySelect?.(country);
+    if (selected) onStationSelect?.(selected, ranked.candidates, country?.name ?? "globe point");
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "wheel street/city threshold"); };
 
