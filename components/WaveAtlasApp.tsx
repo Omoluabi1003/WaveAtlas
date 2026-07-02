@@ -105,6 +105,27 @@ function OverflowMarquee({ text, className = "" }: { text: string; className?: s
   return <div ref={containerRef} className={`waveatlas-marquee ${overflowing ? "is-overflowing" : ""} ${className}`} style={{ "--marquee-distance": `${distance}px` } as React.CSSProperties} title={text} aria-label={text}><span ref={textRef} className="waveatlas-marquee__content">{text}</span></div>;
 }
 
+function playerLocationLine(station: Station) {
+  return [station.city || station.state, station.country].filter(Boolean).join(" · ") || "Global signal";
+}
+
+function playerStatusMetadata(station: Station, status: PlaybackStatus) {
+  const source = station.sourceType === "geoaudio" && station.geoAudio?.currentTrackTitle
+    ? station.geoAudio.currentTrackTitle
+    : `${getPrimaryGenre(station)} · ${station.curation_source || station.curation_tier || "Radio Browser"}`;
+  return `${source} · ${status}`;
+}
+
+function PlayerTextStack({ station, status, titleClassName = "text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]", locationClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]", metadataClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]" }: { station: Station; status: PlaybackStatus; titleClassName?: string; locationClassName?: string; metadataClassName?: string }) {
+  return (
+    <>
+      <OverflowMarquee text={station.name} className={titleClassName} />
+      <OverflowMarquee text={playerLocationLine(station)} className={locationClassName} />
+      <OverflowMarquee text={playerStatusMetadata(station, status)} className={metadataClassName} />
+    </>
+  );
+}
+
 function geoAudioTrackId(station: Station, itemIndex: number) {
   return `${station.station_uuid}-track-${itemIndex + 1}`;
 }
@@ -3406,7 +3427,7 @@ function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: (
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
   return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/30 bg-[rgba(3,9,18,0.96)] p-2.5 text-white shadow-[0_26px_90px_rgba(0,0,0,.72),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
-    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)]">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><OverflowMarquee text={`${station.city || station.state || station.country} · ${station.country}`} className="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /><OverflowMarquee text={`${getPrimaryGenre(station)} · ${station.name} · ${status}`} className="text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]" /></div><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
+    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)]">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></div><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
   </div>;
 }
 
@@ -3444,7 +3465,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel} whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) { playPremiumTeleportClick(); onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, allStations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest, onVoiceIntent, onVoiceFeedback, startupPreferences, onStartupPreferencesChange }: { stations: Station[]; allStations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number; onVoiceIntent: (intent: VoiceCommandIntent) => void; onVoiceFeedback: (message: string) => void; startupPreferences: StartupPreferences; onStartupPreferencesChange: (preferences: StartupPreferences) => void }) {
+function MobileAtlasShell({ stations, allStations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest, onVoiceIntent, onVoiceFeedback, startupPreferences, onStartupPreferencesChange, onSettingsLayerChange }: { stations: Station[]; allStations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number; onVoiceIntent: (intent: VoiceCommandIntent) => void; onVoiceFeedback: (message: string) => void; startupPreferences: StartupPreferences; onStartupPreferencesChange: (preferences: StartupPreferences) => void; onSettingsLayerChange?: (open: boolean) => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [atlasView, setAtlasView] = useState<AtlasViewMode>(getInitialAtlasView);
@@ -3458,8 +3479,13 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
   const [mapContext, setMapContext] = useState<MapTeleportContext | null>(null);
   const [transitionContext, setTransitionContext] = useState<AtlasTransitionContext | null>(null);
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
-  const mobileSearchOverlayOpen = searchOverlayOpen || (voiceSearchOverlayRequest > 0 && Boolean(query.trim()));
+  const settingsLayerOpen = mode === "Settings";
+  const mobileSearchOverlayOpen = !settingsLayerOpen && (searchOverlayOpen || (voiceSearchOverlayRequest > 0 && Boolean(query.trim())));
   const selectionVersion = usePlayer((state) => state.selectionVersion);
+  useEffect(() => {
+    onSettingsLayerChange?.(settingsLayerOpen);
+    return () => onSettingsLayerChange?.(false);
+  }, [onSettingsLayerChange, settingsLayerOpen]);
   const handleTravel = useCallback((intent: string) => {
     setWandererIntent(intent);
   }, [setWandererIntent]);
@@ -3520,7 +3546,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     )}
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
-    <MobileSearchCommandOverlay open={mobileSearchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station, candidates = [station]) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setScopedStationAndDestination(station, "manual", candidates); }, 250); }} voiceControl={<VoiceCommandButton compact active={mobileSearchOverlayOpen && mode !== "Settings"} onIntent={onVoiceIntent} onFeedback={onVoiceFeedback} />} />
+    <MobileSearchCommandOverlay open={mobileSearchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station, candidates = [station]) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setScopedStationAndDestination(station, "manual", candidates); }, 250); }} voiceControl={settingsLayerOpen ? undefined : <VoiceCommandButton compact active={mobileSearchOverlayOpen} onIntent={onVoiceIntent} onFeedback={onVoiceFeedback} />} />
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
@@ -3534,7 +3560,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} inventoryStats={inventoryStats} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <NewspaperBrief station={current} stations={stations} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
-    <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const request = playbackRequests.begin("teleport"); usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current, playbackRequests.signal(request)).then(({ station, queue }) => { if (playbackRequests.isActive(request)) { commitTeleportStation(station, queue, request); handleTravel(intent); } else playbackRequests.ignoreStale(request, { stage: "mobile teleport resolved" }); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} />
+    {!settingsLayerOpen ? <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const request = playbackRequests.begin("teleport"); usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current, playbackRequests.signal(request)).then(({ station, queue }) => { if (playbackRequests.isActive(request)) { commitTeleportStation(station, queue, request); handleTravel(intent); } else playbackRequests.ignoreStale(request, { stage: "mobile teleport resolved" }); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} /> : null}
   </section>;
 }
 
@@ -4108,6 +4134,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const [voiceFeedback, setVoiceFeedback] = useState("");
   const voiceFeedbackTimerRef = useRef<number | null>(null);
   const [voiceSearchOverlayRequest, setVoiceSearchOverlayRequest] = useState(0);
+  const [mobileSettingsLayerOpen, setMobileSettingsLayerOpen] = useState(false);
   const [voiceFocusNonce, setVoiceFocusNonce] = useState(0);
   const voiceSearchRequestRef = useRef(0);
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
@@ -4647,7 +4674,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Return to discovery or search for another station.`}</p></div> : null}
-      <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} /></div>
+      {!mobileSettingsLayerOpen ? <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} /></div> : null}
       {voiceFeedback ? <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+118px)] z-[61] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-radio/20 bg-slate-950/86 px-3 py-2 text-center text-xs font-medium text-radio shadow-2xl backdrop-blur-xl md:hidden" role="status" aria-live="polite">{voiceFeedback}</div> : null}
       <AnimatePresence>
         {closerStationPrompt ? <motion.div initial={{ opacity: 0, y: -14, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: -10, x: "-50%" }} className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+72px)] z-[82] w-[min(92vw,26rem)] rounded-3xl border border-radio/25 bg-slate-950/92 p-4 text-ivory shadow-2xl backdrop-blur-2xl" role="dialog" aria-live="polite" aria-label="Closer local station available">
@@ -4659,7 +4686,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           </div>
         </motion.div> : null}
       </AnimatePresence>
-      {activeStation ? <MobileAtlasShell stations={stationPool} allStations={stations} current={activeStation} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} /> : <div className="md:hidden"><EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /></div>}
+      {activeStation ? <MobileAtlasShell stations={stationPool} allStations={stations} current={activeStation} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} onSettingsLayerChange={setMobileSettingsLayerOpen} /> : <div className="md:hidden"><EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /></div>}
     <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
       <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
@@ -4780,8 +4807,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
             {playerPlaying ? <Pause /> : <Play />}
           </button>
           <div className="min-w-0">
-            <OverflowMarquee text={current.name} className="text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" />
-            <OverflowMarquee text={current.sourceType === "geoaudio" && current.geoAudio?.currentTrackTitle ? current.geoAudio.currentTrackTitle : `${getPrimaryGenre(current)} · ${current.curation_source || current.curation_tier || "Radio Browser"}`} className="text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]" />
+            <PlayerTextStack station={current} status={playerStatus} />
           </div>
           <button type="button" onClick={() => setPlayerVolume(playerVolume > 0 ? 0 : 1)} className="ml-auto grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-ivory/78 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={playerVolume > 0 ? "Mute player" : "Unmute player"}>
             {playerVolume > 0 ? <Volume2 className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /> : <VolumeX className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" />}
