@@ -64,3 +64,7 @@ export function readRendererFeatureFlags(env: Partial<NodeJS.ProcessEnv> = readS
 export function shouldUsePhotorealisticPreview(flags: WaveAtlasRendererFeatureFlags = readRendererFeatureFlags()) {
   return flags.photorealisticPreview && !flags.forceLegacyCanvas && flags.rendererKind === "photorealistic-preview";
 }
+
+export function shouldRenderPhotorealisticBasemap(basemap: GlobeBasemapKey, flags: WaveAtlasRendererFeatureFlags = readRendererFeatureFlags()) {
+  return basemap === "photorealistic" || shouldUsePhotorealisticPreview(flags);
+}

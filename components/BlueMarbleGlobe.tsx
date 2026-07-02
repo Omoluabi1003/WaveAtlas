@@ -7,7 +7,7 @@ import { flagFor, type Station } from "@/lib/stations";
 import { stationKey } from "@/lib/fast-connect-engine";
 import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalCluster, type SignalFeature } from "@/lib/signal-constellations";
 import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
-import { shouldUsePhotorealisticPreview } from "@/lib/globe-renderer-adapter";
+import { shouldRenderPhotorealisticBasemap } from "@/lib/globe-renderer-adapter";
 import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, invertGlobePoint, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
 import { drawActiveStationBeacon } from "@/components/ActiveStationBeacon";
 
@@ -510,11 +510,11 @@ const GLOBE_STYLE_COPY: Record<GlobeBasemapKey, string> = {
   blueMarble: "Blue Marble Globe",
   night: "Night Globe",
   signal: "Signal Globe",
-  photorealistic: "Photorealistic Preview Globe",
+  photorealistic: "Photorealistic Globe",
 };
 
 export default function BlueMarbleGlobe({ station, stations = [], previousStation, teleporting = false, onCountrySelect, onFallback, onStreetZoomRequest, mobile = false, basemap = "blueMarble", selectionVersion }: Props) {
-  const effectiveBasemap: GlobeBasemapKey = basemap === "photorealistic" && !shouldUsePhotorealisticPreview() ? "blueMarble" : basemap;
+  const effectiveBasemap: GlobeBasemapKey = basemap;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -539,6 +539,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const lastFocusKeyRef = useRef("");
   const previousFocusRef = useRef<{ name: string; point: GlobePoint | null } | null>(null);
   const signalRefreshKeyRef = useRef("");
+  const photorealisticFallbackNotifiedRef = useRef(false);
 
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
@@ -772,7 +773,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       const targetScreenY = cy;
 
       drawSpaceBackdrop(ctx, { width: w, height: h, cx, cy, radius: r, now, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, basemap: runtime.basemap });
-      const photorealisticPreview = runtime.basemap === "photorealistic";
+      let photorealisticPreview = shouldRenderPhotorealisticBasemap(runtime.basemap);
       const frameStartedAt = performance.now();
       const rendererDiagnostics: RendererDiagnostics = {
         drawCalls: 0,
@@ -795,7 +796,18 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       const projection = buildGlobeProjection(w, h, r, state.current.rotX, state.current.rotY, cx, cy)
         .precision(mobile || profile.lowPower ? 0.85 : 0.45);
       if (photorealisticPreview) {
-        drawPhotorealisticSurface(ctx, { projection, cx, cy, r, now, quality: globeQuality, landShapes: runtime.landShapes, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, diagnostics: rendererDiagnostics });
+        try {
+          drawPhotorealisticSurface(ctx, { projection, cx, cy, r, now, quality: globeQuality, landShapes: runtime.landShapes, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, diagnostics: rendererDiagnostics });
+        } catch (error) {
+          photorealisticPreview = false;
+          runtime.basemap = "blueMarble";
+          if (process.env.NODE_ENV !== "production") console.warn("[WaveAtlas globe] photorealistic render fallback", error);
+          if (!photorealisticFallbackNotifiedRef.current && typeof window !== "undefined") {
+            photorealisticFallbackNotifiedRef.current = true;
+            window.dispatchEvent(new CustomEvent("waveatlas:atlas-toast", { detail: { title: "Switched to Blue Marble Globe.", subtitle: "Photorealistic Globe is temporarily unavailable.", kind: "status", id: "photorealistic-globe-fallback" } }));
+          }
+          ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+        }
       } else {
         ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
       }

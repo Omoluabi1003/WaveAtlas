@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { buildGlobeProjection, fixtureProjectsToFocusedCenter, focusRotationForPoint, invertGlobePoint, projectGlobePoint, GLOBE_COORDINATE_FIXTURES } from "../lib/globe-math";
-import { readRendererFeatureFlags, shouldUsePhotorealisticPreview } from "../lib/globe-renderer-adapter";
+import { readRendererFeatureFlags, shouldRenderPhotorealisticBasemap, shouldUsePhotorealisticPreview } from "../lib/globe-renderer-adapter";
+import { getSelectableGlobeBasemapKeys } from "../lib/globe-style-options";
 
 const screen = { width: 1000, height: 1000, radius: 300 };
 
@@ -39,5 +40,10 @@ assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBL
 assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_VERCEL_ENV: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "true" })), false, "forced legacy remains an instant rollback in preview");
 assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "false" })), true, "preview requires explicit rollback opt-out");
 assert.equal(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "false" }).rendererKind, "photorealistic-preview", "browser-inlined preview flags should activate the renderer adapter");
+
+assert.deepEqual(getSelectableGlobeBasemapKeys(), ["photorealistic", "blueMarble", "night", "signal"], "Globe Style should expose photorealistic first while preserving other globe styles");
+assert.equal(shouldRenderPhotorealisticBasemap("photorealistic", readRendererFeatureFlags({})), true, "selecting photorealistic should activate the photorealistic render branch without deployment flags");
+assert.equal(shouldRenderPhotorealisticBasemap("blueMarble", readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview" })), true, "preview builds should still activate the photorealistic render branch through feature flags");
+assert.equal(shouldRenderPhotorealisticBasemap("blueMarble", readRendererFeatureFlags({})), false, "Blue Marble remains the legacy render branch by default");
 
 console.log("renderer regression checks passed");
