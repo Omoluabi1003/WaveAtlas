@@ -52,8 +52,8 @@ function readSafeRendererEnv(): Partial<NodeJS.ProcessEnv> {
 }
 
 export function readRendererFeatureFlags(env: Partial<NodeJS.ProcessEnv> = readSafeRendererEnv()): WaveAtlasRendererFeatureFlags {
-  const preview = env.NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER === "preview";
-  const forceLegacy = env.NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER !== "false";
+  const preview = env.NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER === "preview" || env.NEXT_PUBLIC_VERCEL_ENV === "preview" || env.VERCEL_ENV === "preview";
+  const forceLegacy = env.NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER === "true" || (!preview && env.NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER !== "false");
   return {
     rendererKind: preview && !forceLegacy ? "photorealistic-preview" : "canvas2d",
     photorealisticPreview: preview,

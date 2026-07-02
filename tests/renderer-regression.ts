@@ -34,7 +34,9 @@ const d3Projection = buildGlobeProjection(screen.width, screen.height, screen.ra
 assert.deepEqual(d3Projection.rotate().map((value) => Math.round(value * 1000) / 1000), [-teleportEnd.lng, -teleportEnd.lat, 0].map((value) => Math.round(value * 1000) / 1000), "D3 projection should preserve [longitude, latitude] rotation contract");
 
 assert.deepEqual(readRendererFeatureFlags({}), { rendererKind: "canvas2d", photorealisticPreview: false, forceLegacyCanvas: true }, "legacy renderer should be default rollback");
-assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview" })), false, "preview flag alone should not override rollback");
+assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview" })), true, "preview flag activates the renderer adapter unless rollback is forced");
+assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_VERCEL_ENV: "preview" })), true, "Vercel preview deployments should show the photorealistic renderer");
+assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_VERCEL_ENV: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "true" })), false, "forced legacy remains an instant rollback in preview");
 assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "false" })), true, "preview requires explicit rollback opt-out");
 assert.equal(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "false" }).rendererKind, "photorealistic-preview", "browser-inlined preview flags should activate the renderer adapter");
 
