@@ -480,7 +480,8 @@ let stationSelectionVersion = 0;
 let wandererResolving = false;
 type PlaybackRequestSource = StationSelectionSource | "search" | "discovery";
 type PlaybackRequest = { id: number; source: PlaybackRequestSource; controller: AbortController; startedAt: number };
-type CountryLoadRequest = { id: number; controller: AbortController; startedAt: number };
+type CountryLoadIntent = { countryCode?: string; countryName?: string; tag?: string };
+type CountryLoadRequest = { id: number; controller: AbortController; startedAt: number; intent: CountryLoadIntent };
 class PlaybackRequestManager {
   private active: PlaybackRequest | null = null;
   begin(source: PlaybackRequestSource) {
@@ -502,16 +503,24 @@ class PlaybackRequestManager {
 const playbackRequests = new PlaybackRequestManager();
 class CountryLoadRequestManager {
   private active: CountryLoadRequest | null = null;
-  begin() {
+  begin(intent: CountryLoadIntent = {}) {
     this.active?.controller.abort();
-    const request: CountryLoadRequest = { id: (this.active?.id ?? 0) + 1, controller: new AbortController(), startedAt: Date.now() };
+    const request: CountryLoadRequest = { id: (this.active?.id ?? 0) + 1, controller: new AbortController(), startedAt: Date.now(), intent };
     this.active = request;
-    debugCountryClick("request scoped", { requestId: request.id });
+    debugCountryClick("request scoped", { requestId: request.id, ...intent });
     return request;
+  }
+  abort(detail: Record<string, unknown> = {}) {
+    if (!this.active) return;
+    this.active.controller.abort();
+    debugCountryClick("request aborted", { requestId: this.active.id, ...this.active.intent, ...detail });
   }
   isActive(request?: Pick<CountryLoadRequest, "id"> | number | null) {
     const id = typeof request === "number" ? request : request?.id;
     return Boolean(id && this.active?.id === id && !this.active.controller.signal.aborted);
+  }
+  matchesIntent(request: CountryLoadRequest, intent: CountryLoadIntent) {
+    return this.isActive(request) && (!intent.countryCode || this.active?.intent.countryCode === intent.countryCode) && ((intent.tag ?? "") === (this.active?.intent.tag ?? ""));
   }
   signal(request: CountryLoadRequest) { return request.controller.signal; }
   ignoreStale(request: Pick<CountryLoadRequest, "id">, detail: Record<string, unknown> = {}) {
@@ -542,6 +551,7 @@ function warnIfStationGeoConflicts(station: Station, geo: GeoPoint) {
 }
 
 function setCurrentStationAndDestination(station: Station, source: StationSelectionSource = "manual", queue: Station[] = [], request?: PlaybackRequest) {
+  if (source !== "auto") countryLoadRequests.abort({ reason: "station selection superseded country load", source, station: station.name });
   if (request && !playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { station: station.name, mutation: "setCurrentStationAndDestination" }); return undefined; }
   const version = ++stationSelectionVersion;
   debugGlobeStationSelection(station, source, version);
@@ -2938,7 +2948,7 @@ function NowPlaying({
 
 function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings }: { viewportOffsetTop?: number; onOpenSearch: () => void; onOpenSettings: () => void }) {
   return (
-    <div style={{ top: viewportOffsetTop }} className="pointer-events-none fixed inset-x-0 z-40 bg-gradient-to-b from-slate-950/85 via-slate-950/55 to-transparent pb-8 pt-[calc(env(safe-area-inset-top)+12px)]">
+    <div data-waveatlas-mobile-header style={{ top: viewportOffsetTop }} className="pointer-events-none fixed inset-x-0 z-40 bg-gradient-to-b from-slate-950/85 via-slate-950/55 to-transparent pb-8 pt-[calc(env(safe-area-inset-top)+12px)]">
       <div className="mx-4 flex items-center justify-between gap-3">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/45 px-3 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-xl backdrop-blur-2xl">
           WaveAtlas™
@@ -3525,6 +3535,23 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     return () => { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); };
   }, [makeWandererHop, wandererActive]);
   const visualViewport = useIOSVisualViewport();
+  const [mobileHeaderSafeZone, setMobileHeaderSafeZone] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      const header = document.querySelector<HTMLElement>("[data-waveatlas-mobile-header]");
+      const viewportOffsetTop = window.visualViewport?.offsetTop ?? 0;
+      const bottom = header?.getBoundingClientRect().bottom ?? viewportOffsetTop;
+      setMobileHeaderSafeZone(Math.ceil(Math.max(0, bottom + 16)));
+    };
+    measure();
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    const header = document.querySelector<HTMLElement>("[data-waveatlas-mobile-header]");
+    if (header) resizeObserver?.observe(header);
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
+    window.addEventListener("resize", measure);
+    return () => { resizeObserver?.disconnect(); window.visualViewport?.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("scroll", measure); window.removeEventListener("resize", measure); };
+  }, [visualViewport.viewportOffsetTop]);
   useWaveAtlasLayoutDebug(process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_LAYOUT === "true");
   const handleMobileGlobeFallback = useCallback((reason?: string) => {
     const fallbackReason = reason || "Globe view is unavailable on this device right now.";
@@ -3558,7 +3585,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     setTransitionContext(context);
     atlasTransition.requestMapToGlobe(context.reason || "map world/country zoom threshold", context);
   }, [atlasTransition]);
-  return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
+  return <section style={{ "--waveatlas-mobile-header-safe-zone": `${mobileHeaderSafeZone}px` } as React.CSSProperties} className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
       <AtlasViewErrorBoundary key={`mobile-map-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={activeTransitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={mobileSearchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
     ) : (
@@ -3566,7 +3593,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     )}
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
-    <MobileSearchCommandOverlay open={mobileSearchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station, candidates = [station]) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setScopedStationAndDestination(station, "manual", candidates); }, 250); }} voiceControl={settingsLayerOpen ? undefined : <VoiceCommandButton compact active={mobileSearchOverlayOpen} onIntent={onVoiceIntent} onFeedback={onVoiceFeedback} />} />
+    <MobileSearchCommandOverlay open={mobileSearchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { countryLoadRequests.abort({ reason: "mobile search closed" }); setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station, candidates = [station]) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setScopedStationAndDestination(station, "manual", candidates); }, 250); }} voiceControl={settingsLayerOpen ? undefined : <VoiceCommandButton compact active={mobileSearchOverlayOpen} onIntent={onVoiceIntent} onFeedback={onVoiceFeedback} />} />
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
@@ -3580,7 +3607,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     <MobileNowPlayingMini station={current} onOpen={() => setSheetOpen(true)} />
     <MobileStationSheet station={current} stations={stations} inventoryStats={inventoryStats} setQuery={setQuery} open={sheetOpen || mode === "Library"} setOpen={setSheetOpen} />
     <NewspaperBrief station={current} stations={stations} open={mode === "Brief"} onClose={() => setMode("Atlas")} />
-    {!settingsLayerOpen ? <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const request = playbackRequests.begin("teleport"); usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current, playbackRequests.signal(request)).then(({ station, queue }) => { if (playbackRequests.isActive(request)) { commitTeleportStation(station, queue, request); handleTravel(intent); } else playbackRequests.ignoreStale(request, { stage: "mobile teleport resolved" }); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} /> : null}
+    {!settingsLayerOpen ? <MobileCommandDock mode={mode} wandererActive={wandererActive} onToggleWanderer={() => setWandererActive((active) => !active)} onTeleport={() => { if (mobileTeleporting) return; countryLoadRequests.abort({ reason: "mobile teleport superseded country load" }); setMobileTeleporting(true); setWandererActive(false); const intent = "Take me somewhere surprising"; const request = playbackRequests.begin("teleport"); usePlayer.getState().setStatus("buffering", "Teleporting…"); void resolveTeleportDestination(stations, usePlayer.getState().current ?? current, playbackRequests.signal(request)).then(({ station, queue }) => { if (playbackRequests.isActive(request)) { commitTeleportStation(station, queue, request); handleTravel(intent); } else playbackRequests.ignoreStale(request, { stage: "mobile teleport resolved" }); }).catch((error) => { if (!(error instanceof DOMException && error.name === "AbortError")) usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station."); }).finally(() => setMobileTeleporting(false)); }} setMode={(m) => { setMode(m); if (m === "Passport" || m === "History" || m === "Favorites") setSheetOpen(true); else setSheetOpen(false); }} /> : null}
   </section>;
 }
 
@@ -4328,7 +4355,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     return () => controller.abort();
   }, [deepLinkUuid]);
 
-  const loadCountryStations = useCallback(async (country: CountryResult, nextOffset = 0, tag = activeTag, request = countryLoadRequests.begin()) => {
+  const loadCountryStations = useCallback(async (country: CountryResult, nextOffset = 0, tag = activeTag, request = countryLoadRequests.begin({ countryCode: country.code, countryName: country.name, tag })) => {
     setLoadingCountry(true);
     setCountrySignalMessage(nextOffset ? "Finding more live signals…" : `Tuning into ${country.name}…`);
     if (!nextOffset) setStationPool([]);
@@ -4346,7 +4373,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       debugCountryClick("candidates", { apiRequestUrl: requestUrl, candidateCount: sameCountryStations.length, selectedStation: sameCountryStations[0]?.name ?? null });
       setStationPool((prev) => nextOffset ? [...prev, ...sameCountryStations] : sameCountryStations);
       setOffset(nextOffset + sameCountryStations.length);
-      if (!nextOffset && sameCountryStations[0] && startupPreferences.autoplayAfterSearch) {
+      if (!nextOffset && sameCountryStations[0] && startupPreferences.autoplayAfterSearch && countryLoadRequests.matchesIntent(request, { countryCode: country.code, tag })) {
         playFirstSearchCandidate(sameCountryStations, "auto", country.name);
         setCountrySignalMessage(`Loading first playable station from ${country.name}…`);
         debugCountryClick("playback", { selectedStation: sameCountryStations[0], playbackResult: "search-session-started" });
@@ -4367,6 +4394,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       if (countryLoadRequests.isActive(request)) setLoadingCountry(false);
     }
   }, [activeTag, startupPreferences.autoplayAfterSearch]);
+  useEffect(() => () => countryLoadRequests.abort({ reason: "WaveAtlasApp unmounted" }), []);
   const centerAppAfterQuery = useCallback(() => {
     window.requestAnimationFrame(() => {
       document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, destination..."]')?.blur();
@@ -4374,6 +4402,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   }, []);
 
   const selectCountry = useCallback((country: CountryResult) => {
+    countryLoadRequests.abort({ reason: "country selection replaced", nextCountryCode: country.code });
     setDesktopDrawerCollapsed(false);
     setSelectedCountry(country);
     setQuery("");
@@ -4381,6 +4410,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     void loadCountryStations(country, 0, "").finally(centerAppAfterQuery);
   }, [centerAppAfterQuery, loadCountryStations]);
   const selectTag = (tag: string) => {
+    countryLoadRequests.abort({ reason: "country tag replaced", tag });
     setActiveTag(tag);
     if (selectedCountry) void loadCountryStations(selectedCountry, 0, tag);
   };
@@ -4436,6 +4466,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
 
   const runDesktopTeleport = useCallback(() => {
     if (desktopTeleporting) return;
+    countryLoadRequests.abort({ reason: "desktop teleport superseded country load" });
     playPremiumTeleportClick();
     setDesktopTeleporting(true);
     setWandererActive(false);
@@ -4448,6 +4479,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   }, [current, desktopTeleporting, stationPool]);
 
   const showVoiceSearchResults = useCallback((query: string, _feedback?: string) => {
+    countryLoadRequests.abort({ reason: "voice search superseded country load" });
     setDesktopMode("Atlas");
     setSelectedCountry(null);
     setDesktopDrawerCollapsed(false);
@@ -4671,6 +4703,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const desktopDrawerActive = query.trim().length > 0 || Boolean(selectedCountry) || desktopDrawerWorkflows.has(desktopMode);
   const desktopDrawerOpen = desktopDrawerActive && !desktopDrawerCollapsed;
   const closeDesktopDrawer = useCallback(() => {
+    countryLoadRequests.abort({ reason: "country drawer closed" });
     setQuery("");
     setSelectedCountry(null);
     setDesktopMode("Atlas");
@@ -4803,7 +4836,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           </div> : null}
           {desktopMode !== "Atlas" || query.trim() || selectedCountry ? <div className="mt-5 grid gap-3">
             {visible.map((s) => (
-              <button key={s.id} onClick={() => { setScopedStationAndDestination(s, "manual", visible); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} className="rounded-[18px] border border-white/[0.08] bg-[rgba(20,28,42,0.82)] px-4 py-3 text-left transition hover:border-gold/45 hover:bg-[rgba(28,38,58,0.9)]"><b className="block truncate font-display text-[15px] tracking-[-0.015em] text-[#F8FAFC]">{s.name}</b><p className="mt-1 truncate text-xs leading-5 text-white/[0.72]">{[s.city || s.state, s.country].filter(Boolean).join(" · ")} · {s.tags.slice(0, 2).join(", ") || "live radio"}</p></button>
+              <button key={s.id} onClick={() => { countryLoadRequests.abort({ reason: "drawer station selected" }); setScopedStationAndDestination(s, "manual", visible); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} className="rounded-[18px] border border-white/[0.08] bg-[rgba(20,28,42,0.82)] px-4 py-3 text-left transition hover:border-gold/45 hover:bg-[rgba(28,38,58,0.9)]"><b className="block truncate font-display text-[15px] tracking-[-0.015em] text-[#F8FAFC]">{s.name}</b><p className="mt-1 truncate text-xs leading-5 text-white/[0.72]">{[s.city || s.state, s.country].filter(Boolean).join(" · ")} · {s.tags.slice(0, 2).join(", ") || "live radio"}</p></button>
             ))}
           </div> : null}
           {selectedCountry && !visible.length && !loadingCountry ? <p className="mt-5 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">No live signal found here yet. Try Teleport or Add Your Signal.</p> : null}
