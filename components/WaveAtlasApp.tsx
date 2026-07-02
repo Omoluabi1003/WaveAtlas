@@ -38,6 +38,8 @@ import { create } from "zustand";
 import { isoCountryCentroids, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
+import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
+import { shouldUsePhotorealisticPreview } from "@/lib/globe-renderer-adapter";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station, type StationInventoryStats } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
@@ -1996,7 +1998,6 @@ function useAtlasTransitionController({ initialView, activeStation, onViewChange
 }
 
 type BasemapKey = "atlasStreets" | "atlas" | "satellite" | "terrain" | "streets" | "night" | "blueMarble";
-type GlobeBasemapKey = "blueMarble" | "night" | "signal";
 type DefaultMapView = { center: [number, number]; zoom: number; bearing: number; pitch: number; duration: number };
 const DEFAULT_MAP_VIEW: Record<"desktop" | "mobile", DefaultMapView> = {
   desktop: { center: [0, 20], zoom: 1.6, bearing: 0, pitch: 0, duration: 2500 },
@@ -2021,8 +2022,9 @@ const globeBasemapStyles: Record<GlobeBasemapKey, { label: string; name: string;
   blueMarble: { label: "🌊 Blue Marble Globe", name: "Blue Marble Globe", description: "Procedural oceans, landmasses, borders, labels, and live beacon." },
   night: { label: "🌃 Night Globe", name: "Night Globe", description: "Dark Earth with country outlines, city-light style points, and live beacon." },
   signal: { label: "📡 Signal Globe", name: "Signal Globe", description: "Minimal navy globe with grid, country outlines, and live beacon." },
+  photorealistic: { label: "🌍 Photorealistic Preview", name: "Photorealistic", description: "Feature-flagged realistic Earth texture, clouds, atmosphere, city lights, directional light, and ocean depth." },
 };
-function getInitialGlobeBasemap(): GlobeBasemapKey { if (typeof window === "undefined") return "blueMarble"; const saved = window.localStorage.getItem(GLOBE_BASEMAP_STORAGE_KEY) as GlobeBasemapKey | null; return saved && saved in globeBasemapStyles ? saved : "blueMarble"; }
+function getInitialGlobeBasemap(): GlobeBasemapKey { if (typeof window === "undefined") return "blueMarble"; const saved = window.localStorage.getItem(GLOBE_BASEMAP_STORAGE_KEY) as GlobeBasemapKey | null; return saved && saved in globeBasemapStyles && (saved !== "photorealistic" || shouldUsePhotorealisticPreview()) ? saved : "blueMarble"; }
 function getInitialAtlasView(): AtlasViewMode {
   if (typeof window === "undefined") return "globe";
   const saved = window.localStorage.getItem(ATLAS_VIEW_STORAGE_KEY);
@@ -3609,8 +3611,9 @@ function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atla
     {onGlobeBasemapChange && globeBasemap ? <details className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
       <summary className="cursor-pointer px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Globe style · {globeBasemapStyles[globeBasemap].name}</summary>
       <div className="mt-2 grid gap-2">
-        {(Object.keys(globeBasemapStyles) as GlobeBasemapKey[]).map((key) => <button key={key} type="button" onClick={() => onGlobeBasemapChange(key)} className={`rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${globeBasemap === key ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{globeBasemapStyles[key].label}</button>)}
+        {(Object.keys(globeBasemapStyles) as GlobeBasemapKey[]).filter((key) => key !== "photorealistic" || shouldUsePhotorealisticPreview()).map((key) => <button key={key} type="button" onClick={() => onGlobeBasemapChange(key)} className={`rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${globeBasemap === key ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{globeBasemapStyles[key].label}</button>)}
       </div>
+      {!shouldUsePhotorealisticPreview() ? <p className="mt-2 px-1 text-[11px] leading-5 text-ivory/55">Photorealistic preview is hidden unless NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER=preview and NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER=false are set. Legacy canvas remains the default rollback.</p> : null}
     </details> : null}
 
     {onBasemapChange && basemap ? <details className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">

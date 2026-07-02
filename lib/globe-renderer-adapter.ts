@@ -1,5 +1,5 @@
 import type { Station } from "@/lib/stations";
-import type { GlobeBasemapKey } from "@/components/BlueMarbleGlobe";
+import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
 import type { GlobeGeoPoint, GlobeRotation, GlobeScreen } from "@/lib/globe-math";
 
 export type WaveAtlasRendererKind = "canvas2d" | "photorealistic-preview";
@@ -45,7 +45,11 @@ export const DEFAULT_RENDERER_FLAGS: WaveAtlasRendererFeatureFlags = {
   forceLegacyCanvas: true,
 };
 
-export function readRendererFeatureFlags(env: Partial<NodeJS.ProcessEnv> = process.env): WaveAtlasRendererFeatureFlags {
+function readSafeRendererEnv(): Partial<NodeJS.ProcessEnv> {
+  return typeof process !== "undefined" && typeof process.env !== "undefined" ? process.env : {};
+}
+
+export function readRendererFeatureFlags(env: Partial<NodeJS.ProcessEnv> = readSafeRendererEnv()): WaveAtlasRendererFeatureFlags {
   const preview = env.NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER === "preview";
   const forceLegacy = env.NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER !== "false";
   return {
