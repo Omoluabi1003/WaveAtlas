@@ -2948,7 +2948,7 @@ function NowPlaying({
 
 function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings }: { viewportOffsetTop?: number; onOpenSearch: () => void; onOpenSettings: () => void }) {
   return (
-    <div data-waveatlas-mobile-header style={{ top: viewportOffsetTop }} className="pointer-events-none fixed inset-x-0 z-40 bg-gradient-to-b from-slate-950/85 via-slate-950/55 to-transparent pb-8 pt-[calc(env(safe-area-inset-top)+12px)]">
+    <div style={{ top: viewportOffsetTop }} className="pointer-events-none fixed inset-x-0 z-40 bg-gradient-to-b from-slate-950/85 via-slate-950/55 to-transparent pb-8 pt-[calc(env(safe-area-inset-top)+12px)]">
       <div className="mx-4 flex items-center justify-between gap-3">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/45 px-3 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-xl backdrop-blur-2xl">
           WaveAtlas™
@@ -3535,28 +3535,6 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     return () => { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); };
   }, [makeWandererHop, wandererActive]);
   const visualViewport = useIOSVisualViewport();
-  const [mobileHeaderSafeZone, setMobileHeaderSafeZone] = useState(0);
-  useEffect(() => {
-    const measure = () => {
-      const header = document.querySelector<HTMLElement>("[data-waveatlas-mobile-header]");
-      const viewportOffsetTop = window.visualViewport?.offsetTop ?? 0;
-      const bottom = header?.getBoundingClientRect().bottom ?? viewportOffsetTop;
-      setMobileHeaderSafeZone(Math.ceil(Math.max(0, bottom + 8)));
-    };
-    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
-    let frame = 0;
-    const observeHeader = () => {
-      const header = document.querySelector<HTMLElement>("[data-waveatlas-mobile-header]");
-      if (header) resizeObserver?.observe(header);
-      measure();
-    };
-    observeHeader();
-    frame = window.requestAnimationFrame(observeHeader);
-    window.visualViewport?.addEventListener("resize", measure);
-    window.visualViewport?.addEventListener("scroll", measure);
-    window.addEventListener("resize", measure);
-    return () => { if (frame) window.cancelAnimationFrame(frame); resizeObserver?.disconnect(); window.visualViewport?.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("scroll", measure); window.removeEventListener("resize", measure); };
-  }, [mode]);
   useWaveAtlasLayoutDebug(process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_LAYOUT === "true");
   const handleMobileGlobeFallback = useCallback((reason?: string) => {
     const fallbackReason = reason || "Globe view is unavailable on this device right now.";
@@ -3590,7 +3568,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     setTransitionContext(context);
     atlasTransition.requestMapToGlobe(context.reason || "map world/country zoom threshold", context);
   }, [atlasTransition]);
-  return <section style={{ "--waveatlas-mobile-header-safe-zone": `${mobileHeaderSafeZone}px` } as React.CSSProperties} className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
+  return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
       <AtlasViewErrorBoundary key={`mobile-map-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={activeTransitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={mobileSearchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
     ) : (
