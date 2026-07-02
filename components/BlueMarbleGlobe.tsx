@@ -7,8 +7,9 @@ import { flagFor, type Station } from "@/lib/stations";
 import { stationKey } from "@/lib/fast-connect-engine";
 import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalCluster, type SignalFeature } from "@/lib/signal-constellations";
 import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
-import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, invertGlobePoint, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
+import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
 import { drawActiveStationBeacon } from "@/components/ActiveStationBeacon";
+import { AtlasInteractionEngine, type AtlasInteractionGeometry } from "@/lib/atlas-interaction-engine";
 
 type CountryResult = {
   name: string;
@@ -427,65 +428,6 @@ function countryNameForCode(code: string) {
   }
 }
 
-function globeDistanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const dLat = (b.lat - a.lat) * DEG;
-  const dLng = (b.lng - a.lng) * DEG;
-  const lat1 = a.lat * DEG;
-  const lat2 = b.lat * DEG;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
-}
-
-function isPlayableGlobeStation(station: Station) {
-  const streamUrl = (station.url_resolved || station.url || "").trim();
-  return Boolean(station.is_active && streamUrl && /^https?:\/\//i.test(streamUrl) && station.sourceType !== "geoaudio");
-}
-
-function stationResolvedPoint(station: Station) {
-  const geo = resolveStationGeo(station);
-  if (geo.lat === null || geo.lng === null || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lng)) return null;
-  return { lat: geo.lat, lng: geo.lng, source: geo.source, precision: geo.precision };
-}
-
-type ResolvedGlobeStationPoint = NonNullable<ReturnType<typeof stationResolvedPoint>>;
-type RankedGlobeStation = { station: Station; distance: number; point: ResolvedGlobeStationPoint };
-
-function rankStationsNearPoint(stations: Station[], point: { lat: number; lng: number }) {
-  const ranked = stations
-    .filter(isPlayableGlobeStation)
-    .map((station) => {
-      const geo = stationResolvedPoint(station);
-      if (!geo || geo.source === "country_centroid") return null;
-      return { station, distance: globeDistanceKm(point, geo), point: geo };
-    })
-    .filter((item): item is RankedGlobeStation => item !== null)
-    .sort((a, b) => a.distance - b.distance);
-  const nearby = ranked.filter((item) => item.distance <= 350);
-  return { ranked: nearby, candidates: nearby.map((item) => item.station), fallbackReason: nearby.length ? "nearest-point" : "no-nearby-station" };
-}
-
-function normalizeCountryText(value = "") {
-  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function stationMatchesCountry(station: Station, country: CountryResult) {
-  const stationCode = station.country_code?.trim().toUpperCase();
-  if (stationCode && stationCode === country.code.toUpperCase()) return true;
-  return normalizeCountryText(station.country) === normalizeCountryText(country.name);
-}
-
-function rankPlayableStationsInCountry(stations: Station[], point: { lat: number; lng: number }, country: CountryResult) {
-  const ranked = stations
-    .filter((station) => isPlayableGlobeStation(station) && stationMatchesCountry(station, country))
-    .map((station) => {
-      const geo = stationResolvedPoint(station);
-      const distance = geo ? globeDistanceKm(point, geo) : Number.POSITIVE_INFINITY;
-      return { station, distance, point: geo };
-    })
-    .sort((a, b) => a.distance - b.distance || b.station.votes - a.station.votes || b.station.click_count - a.station.click_count);
-  return { ranked, candidates: ranked.map((item) => item.station) };
-}
-
 function landBoundsForShape(shape: LandShape) {
   if (shape.bounds) return shape.bounds;
   const bounds = shape.rings.reduce<LandBounds>((acc, ring) => {
@@ -686,6 +628,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const lastFocusKeyRef = useRef("");
   const previousFocusRef = useRef<{ name: string; point: GlobePoint | null } | null>(null);
   const signalRefreshKeyRef = useRef("");
+  const stationsRef = useRef(stations);
 
   const getGlobeGeometry = useCallback((dimensions: { width: number; height: number }, zoom: number, usableBounds?: GlobeUsableBounds): GlobeGeometry => {
     const width = Math.max(1, dimensions.width);
@@ -706,6 +649,28 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       usableBounds: safeBounds,
     };
   }, [mobile]);
+
+  const interactionEngineRef = useRef<AtlasInteractionEngine | null>(null);
+  const getInteractionEngine = useCallback(() => {
+    if (!interactionEngineRef.current) {
+      interactionEngineRef.current = new AtlasInteractionEngine({
+        dragThresholdPx: 8,
+        stationsProvider: () => stationsRef.current,
+        countryResolver: (point) => countryAtPoint(point.lat, point.lng, runtimeRef.current.landShapes),
+        geometryProvider: () => {
+          const canvas = canvasRef.current;
+          const wrap = wrapRef.current;
+          if (!canvas) return null;
+          const rect = canvas.getBoundingClientRect();
+          const viewportDebug = wrap ? readMobileViewport(wrap, canvas) : null;
+          const s = state.current;
+          const geometry = getGlobeGeometry({ width: rect.width, height: rect.height }, s.zoom, viewportDebug?.usableBounds);
+          return { geometry: geometry as AtlasInteractionGeometry, rotation: { rotX: s.rotX, rotY: s.rotY } };
+        },
+      });
+    }
+    return interactionEngineRef.current;
+  }, [getGlobeGeometry]);
 
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
@@ -1149,80 +1114,47 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, stationFocusIdentityKey, teleporting]);
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; debugGlobeFocus("user drag cancelled transition", { selectionVersion, station: station.name, travelActive: s.travelActive, focusDuration: s.focusDuration }); s.travelActive = false; s.focusDuration = 0; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; s.downOverOverlay = isGlobePointerBlockedByOverlay(event.clientX, event.clientY); event.currentTarget.setPointerCapture(event.pointerId); };
-  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; event.preventDefault(); pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) { s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom + (distance - pinchDistance.current) * 0.003)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "pinch street/city threshold"); } pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; const rotation = rotateFromDrag({ rotX: s.targetX, rotY: s.targetY }, dx, dy, mobile); s.targetX = rotation.rotX; s.targetY = rotation.rotY; s.lastX = event.clientX; s.lastY = event.clientY; };
+  useEffect(() => { stationsRef.current = stations; }, [stations]);
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; debugGlobeFocus("user drag cancelled transition", { selectionVersion, station: station.name, travelActive: s.travelActive, focusDuration: s.focusDuration }); s.travelActive = false; s.focusDuration = 0; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; s.downOverOverlay = isGlobePointerBlockedByOverlay(event.clientX, event.clientY); getInteractionEngine().pointerDown({ pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, blockedByOverlay: s.downOverOverlay }); event.currentTarget.setPointerCapture(event.pointerId); };
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; event.preventDefault(); pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); getInteractionEngine().pointerMove({ pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) { s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom + (distance - pinchDistance.current) * 0.003)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "pinch street/city threshold"); } pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; const rotation = rotateFromDrag({ rotX: s.targetX, rotY: s.targetY }, dx, dy, mobile); s.targetX = rotation.rotX; s.targetY = rotation.rotY; s.lastX = event.clientX; s.lastY = event.clientY; };
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
     event.preventDefault();
     pointers.current.delete(event.pointerId);
     pinchDistance.current = null;
-    const s = state.current; s.dragging = pointers.current.size > 0;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const screen = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    const endedOverOverlay = isGlobePointerBlockedByOverlay(event.clientX, event.clientY);
-    const blockedByOverlay = s.downOverOverlay || endedOverOverlay;
-    const dragged = Math.hypot(event.clientX - s.downX, event.clientY - s.downY) > 8;
-    if (dragged || blockedByOverlay) {
-      debugGlobeClick({ screen, skipped: true, reason: dragged ? "drag-threshold" : "overlay", startedOverOverlay: s.downOverOverlay, endedOverOverlay });
-      return;
-    }
-    const wrap = wrapRef.current;
-    const viewportDebug = wrap ? readMobileViewport(wrap, event.currentTarget) : null;
-    const geometry = getGlobeGeometry({ width: rect.width, height: rect.height }, s.zoom, viewportDebug?.usableBounds);
-    if (screen.x < geometry.usableBounds.left || screen.x > geometry.usableBounds.right || screen.y < geometry.usableBounds.top || screen.y > geometry.usableBounds.bottom) {
-      debugGlobeClick({ screen, geometry, tapPoint: screen, skipped: true, fallbackReason: "outside-usable-bounds" });
-      return;
-    }
-    const point = invertGlobePoint(screen.x, screen.y, { rotX: s.rotX, rotY: s.rotY }, geometry);
-    if (!point) {
-      debugGlobeClick({ screen, geometry, tapPoint: screen, resolvedLatLng: null, fallbackReason: "outside-globe" });
-      return;
-    }
-    const projected = projectGlobePoint(point, { rotX: s.rotX, rotY: s.rotY }, geometry);
-    if (projected.z < -0.001) {
-      debugGlobeClick({ screen, geometry, tapPoint: screen, resolvedLatLng: { lat: point.lat, lng: point.lng }, fallbackReason: "back-facing" });
-      return;
-    }
-    const country = countryAtPoint(point.lat, point.lng, runtimeRef.current.landShapes) ?? nearestCountry(point.lat, point.lng, 450);
-    const pointRanked = rankStationsNearPoint(stations, point);
-    const countryRanked = country && !pointRanked.candidates.length ? rankPlayableStationsInCountry(stations, point, country) : { ranked: [], candidates: [] };
-    const candidates = pointRanked.candidates.length ? pointRanked.candidates : countryRanked.candidates;
-    const selected = candidates[0];
-    const selectedPoint = pointRanked.ranked[0]?.station.id === selected?.id
-      ? pointRanked.ranked[0]?.point
-      : countryRanked.ranked[0]?.station.id === selected?.id
-        ? countryRanked.ranked[0]?.point
-        : selected
-          ? stationResolvedPoint(selected)
-          : null;
-    const tapStage = pointRanked.candidates.length ? "point-nearby-station" : selected ? "country-nearest-station" : country ? "country-context-only" : "unresolved";
-    const fallbackReason = selected
-      ? (pointRanked.candidates.length ? "nearest-point" : "nearest-country-station")
-      : country ? "country-only-no-playable-station" : "no-country";
+    const s = state.current;
+    s.dragging = pointers.current.size > 0;
+    const result = getInteractionEngine().pointerUp({
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      canvasRect: event.currentTarget.getBoundingClientRect(),
+      blockedByOverlay: isGlobePointerBlockedByOverlay(event.clientX, event.clientY),
+    });
     debugGlobeClick({
-      screen,
-      geometry,
-      tapPoint: screen,
-      stage: tapStage,
-      resolvedLatLng: { lat: point.lat, lng: point.lng },
-      resolvedCountry: country ? { name: country.name, code: country.code } : null,
-      pointCandidateCount: pointRanked.candidates.length,
-      countryCandidateCount: countryRanked.candidates.length,
-      selectedStation: selected ? { id: selected.id, name: selected.name, country: selected.country, country_code: selected.country_code } : null,
-      selectedStationCoordinates: selectedPoint ? { lat: selectedPoint.lat, lng: selectedPoint.lng, source: selectedPoint.source, precision: selectedPoint.precision } : null,
-      fallbackReason,
-      candidateCount: candidates.length,
+      ...result.diagnostics,
+      event: result.kind === "destination" ? result.event.type : result.kind,
+      selectedStationDistanceKm: result.kind === "destination" ? result.event.distanceKm : null,
+      candidateCount: result.kind === "destination" ? result.event.candidates.length : 0,
       zoom: s.zoom,
     });
-    if (selected) {
-      onStationSelect?.(selected, candidates, country?.name ?? "globe point");
+    if (result.kind === "destination") {
+      onStationSelect?.(result.event.station, result.event.candidates, result.event.country.name);
       return;
     }
-    if (country) onCountrySelect?.(country);
+    if (result.kind === "country") onCountrySelect?.(result.country);
+  };
+  const handlePointerCancel = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    getInteractionEngine().pointerCancel(event.pointerId);
+    pointers.current.delete(event.pointerId);
+    pinchDistance.current = null;
+    state.current.dragging = pointers.current.size > 0;
+    debugGlobeClick({ screen: null, skipped: true, rejectedReason: "pointer-cancel" });
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "wheel street/city threshold"); };
 
   return <div ref={wrapRef} data-globe-travel-active="false" className={`${mobile ? "waveatlas-globe-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
-    <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
+    <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
     <div className={`${mobile ? "hidden" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 ${mobile ? "shadow-none backdrop-blur-sm" : "shadow-lg backdrop-blur-xl"}`}>{GLOBE_STYLE_COPY[effectiveBasemap]} · zoom in for Atlas Streets · tap to tune</div>
     <div className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing procedural globe…"}</span></div>
     {globeDebugEnabled() && debugOverlay ? <div className="pointer-events-none absolute bottom-4 left-4 z-30 rounded-2xl border border-emerald-300/30 bg-slate-950/80 p-3 font-mono text-[10px] leading-5 text-emerald-100 shadow-2xl backdrop-blur-xl">
