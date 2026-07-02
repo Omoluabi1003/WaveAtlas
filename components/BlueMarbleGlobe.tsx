@@ -24,6 +24,7 @@ type GlobeLabel = GlobePoint & { active?: boolean; kind?: GlobeLabelKind; priori
 type GlobeRuntime = { currentPoint: GlobePoint | null; selectionVersion?: number; focusIdentityKey: string; stationName: string; stationCity?: string; stationCountry?: string; stationLabel: string; basemap: GlobeBasemapKey; teleporting: boolean; labels: GlobeLabel[]; landShapes: LandShape[]; signalFeatures: SignalFeature[]; signalClusters: SignalCluster[] };
 type GlobeDebugOverlay = { stationLat: number | null; stationLng: number | null; screenX: number | null; screenY: number | null; targetScreenX: number; targetScreenY: number; deltaX: number | null; deltaY: number | null; usableBounds: { left: number; top: number; right: number; bottom: number }; canvasCenter: { x: number; y: number }; rotX: number; rotY: number; selectedCountry: string | null; frontFacing: boolean; correctiveFocusRan: boolean; d3InputOrder: "[longitude, latitude]" };
 type CanvasSize = { cssWidth: number; cssHeight: number; pixelWidth: number; pixelHeight: number; dpr: number };
+type GlobeGeometry = { width: number; height: number; radius: number; centerX: number; centerY: number };
 type LandRing = Array<[number, number]>;
 type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number }; feature: GeoPermissibleObjects };
 type NaturalEarthFeature = {
@@ -499,6 +500,11 @@ function debugGlobeCoordinates(details: Record<string, unknown>) {
   console.info("[WaveAtlas globe coordinates]", details);
 }
 
+function debugGlobeClick(details: Record<string, unknown>) {
+  if (process.env.NODE_ENV === "production") return;
+  console.info("[WaveAtlas globe click]", { ...details, timestamp: new Date().toISOString() });
+}
+
 const CITY_LIGHTS: GlobePoint[] = [
   { lat: 40.7128, lng: -74.006, label: "New York" }, { lat: 34.0522, lng: -118.2437, label: "Los Angeles" },
   { lat: 51.5072, lng: -0.1276, label: "London" }, { lat: 48.8566, lng: 2.3522, label: "Paris" },
@@ -523,6 +529,24 @@ function readGlobeFavoriteSet() {
 
 function globeCenterFromRotation(rotX: number, rotY: number) {
   return { centerLat: Math.max(-89, Math.min(89, rotX / DEG)), centerLng: ((((rotY / DEG) % 360) + 540) % 360) - 180 };
+}
+
+function pointInsideRect(x: number, y: number, rect: DOMRect | null | undefined) {
+  if (!rect || rect.width <= 0 || rect.height <= 0) return false;
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function isGlobePointerBlockedByOverlay(clientX: number, clientY: number) {
+  if (typeof document === "undefined") return false;
+  const selectors = [
+    '[aria-label="Open station search"]',
+    '[role="search"]',
+    'input[type="search"]',
+    '[data-waveatlas-player]',
+    '[aria-label="Now playing"]',
+    'nav[class*="bottom-0"]',
+  ];
+  return selectors.some((selector) => Array.from(document.querySelectorAll(selector)).some((element) => pointInsideRect(clientX, clientY, element.getBoundingClientRect())));
 }
 
 function readMobileViewport(wrap: HTMLDivElement, canvas: HTMLCanvasElement) {
@@ -564,7 +588,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
   const [landShapes, setLandShapes] = useState<LandShape[]>([]);
-  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, travelStartX: -10 * DEG, travelStartY: 0, travelStartZoom: 1, focusStartedAt: 0, focusDuration: 1100, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, disabledMotion: false, hidden: false, focusToken: 0, activeFocusToken: 0, activeSelectionVersion: selectionVersion, verificationPending: false, correctiveFocusRan: false, verifiedPointKey: "", travelActive: false, landingPulseStartedAt: 0, progressMilestones: new Set<number>(), activeFocusIdentityKey: "" });
+  const state = useRef({ rotX: -10 * DEG, rotY: 0, zoom: 1, targetX: -10 * DEG, targetY: 0, targetZoom: 1, travelStartX: -10 * DEG, travelStartY: 0, travelStartZoom: 1, focusStartedAt: 0, focusDuration: 1100, dragging: false, lastX: 0, lastY: 0, downX: 0, downY: 0, downOverOverlay: false, disabledMotion: false, hidden: false, focusToken: 0, activeFocusToken: 0, activeSelectionVersion: selectionVersion, verificationPending: false, correctiveFocusRan: false, verifiedPointKey: "", travelActive: false, landingPulseStartedAt: 0, progressMilestones: new Set<number>(), activeFocusIdentityKey: "" });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchDistance = useRef<number | null>(null);
   const currentPoint = useMemo(() => stationPoint(station), [station]);
@@ -584,6 +608,18 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const lastFocusKeyRef = useRef("");
   const previousFocusRef = useRef<{ name: string; point: GlobePoint | null } | null>(null);
   const signalRefreshKeyRef = useRef("");
+
+  const getActiveGlobeGeometry = useCallback((dimensions: { width: number; height: number }, zoom: number): GlobeGeometry => {
+    const width = Math.max(1, dimensions.width);
+    const height = Math.max(1, dimensions.height);
+    return {
+      width,
+      height,
+      radius: Math.min(width, height) * (mobile ? 0.46 : 0.34) * zoom,
+      centerX: width / 2,
+      centerY: mobile ? height * 0.42 : height / 2,
+    };
+  }, [mobile]);
 
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
@@ -805,8 +841,8 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         }
       }
       if (!runtime.currentPoint && !s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1 && activeFocusVerified) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
-      const r = Math.min(w, h) * (mobile ? 0.46 : 0.34) * s.zoom;
-      const cx = w / 2, cy = mobile ? h * 0.42 : h / 2;
+      const geometry = getActiveGlobeGeometry({ width: w, height: h }, s.zoom);
+      const { radius: r, centerX: cx, centerY: cy } = geometry;
       const viewportDebug = mobile || globeDebugEnabled() ? readMobileViewport(wrap, canvas) : null;
       const usableBounds = viewportDebug?.usableBounds ?? { left: 0, top: 0, right: w, bottom: h };
       const targetScreenX = cx;
@@ -961,7 +997,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       }
       ctx.restore();
       if (globeDebugEnabled() && activeBeacon) {
-        const projected = projectGlobePoint(activeBeacon, { rotX: s.rotX, rotY: s.rotY }, { width: w, height: h, radius: r, centerX: cx, centerY: cy });
+        const projected = projectGlobePoint(activeBeacon, { rotX: s.rotX, rotY: s.rotY }, geometry);
         ctx.save();
         ctx.setLineDash([6, 5]);
         ctx.strokeStyle = "rgba(255,255,255,0.55)";
@@ -981,7 +1017,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       painted = true;
       if (transitionStats.active && !s.travelActive) {
         const avgGap = transitionStats.frameCount ? transitionStats.totalFrameGap / transitionStats.frameCount : 0;
-        const projected = activeBeacon ? projectGlobePoint(activeBeacon, { rotX: s.rotX, rotY: s.rotY }, { width: w, height: h, radius: r, centerX: cx, centerY: cy }) : null;
+        const projected = activeBeacon ? projectGlobePoint(activeBeacon, { rotX: s.rotX, rotY: s.rotY }, geometry) : null;
         debugGlobeFocus("transition ended", { selectionVersion: runtime.selectionVersion, iosWebKit, endedAt: Date.now(), durationMs: now - transitionStats.startedAt, frameCount: transitionStats.frameCount, averageFps: avgGap ? 1000 / avgGap : null, maxFrameGap: transitionStats.maxFrameGap, droppedFrames: transitionStats.droppedFrames, canvasSizeChanged: transitionStats.canvasSizeChanged, resizeEvents: transitionStats.resizeEvents, finalBeaconDelta: projected ? { x: projected.x - targetScreenX, y: projected.y - targetScreenY } : null });
         wrap.setAttribute("data-globe-travel-active", "false");
         window.dispatchEvent(new CustomEvent("waveatlas:globe-travel", { detail: { active: false, iosWebKit, endedAt: Date.now(), selectionVersion: runtime.selectionVersion } }));
@@ -1024,25 +1060,41 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     document.addEventListener("visibilitychange", onVisibility);
     raf = requestAnimationFrame(draw);
     return () => { document.removeEventListener("visibilitychange", onVisibility); resizeObserver?.disconnect(); window.removeEventListener("orientationchange", onOrientationChange); window.removeEventListener("resize", onWindowResize); window.visualViewport?.removeEventListener("resize", onVisualViewportResize); window.visualViewport?.removeEventListener("scroll", onVisualViewportScroll); window.clearTimeout(throttleTimer); if (fallbackTimer) window.clearTimeout(fallbackTimer); cancelAnimationFrame(raf); raf = 0; };
-  }, [focusPoint, mobile, station, stations]);
+  }, [focusPoint, getActiveGlobeGeometry, mobile, station, stations]);
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, stationFocusIdentityKey, teleporting]);
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; debugGlobeFocus("user drag cancelled transition", { selectionVersion, station: station.name, travelActive: s.travelActive, focusDuration: s.focusDuration }); s.travelActive = false; s.focusDuration = 0; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); };
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; debugGlobeFocus("user drag cancelled transition", { selectionVersion, station: station.name, travelActive: s.travelActive, focusDuration: s.focusDuration }); s.travelActive = false; s.focusDuration = 0; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; s.downOverOverlay = isGlobePointerBlockedByOverlay(event.clientX, event.clientY); event.currentTarget.setPointerCapture(event.pointerId); };
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; event.preventDefault(); pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) { s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom + (distance - pinchDistance.current) * 0.003)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "pinch street/city threshold"); } pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; const rotation = rotateFromDrag({ rotX: s.targetX, rotY: s.targetY }, dx, dy, mobile); s.targetX = rotation.rotX; s.targetY = rotation.rotY; s.lastX = event.clientX; s.lastY = event.clientY; };
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
     event.preventDefault();
     pointers.current.delete(event.pointerId);
     pinchDistance.current = null;
     const s = state.current; s.dragging = pointers.current.size > 0;
-    if (Math.hypot(event.clientX - s.downX, event.clientY - s.downY) > 8) return;
-    const rect = event.currentTarget.getBoundingClientRect(); const r = Math.min(rect.width, rect.height) * (mobile ? 0.46 : 0.34) * s.zoom; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY: mobile ? rect.height * 0.42 : rect.height / 2 }); if (!point) return;
-    const projected = projectGlobePoint(point, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY: mobile ? rect.height * 0.42 : rect.height / 2 });
-    if (projected.z < -0.001) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const screen = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    const endedOverOverlay = isGlobePointerBlockedByOverlay(event.clientX, event.clientY);
+    const blockedByOverlay = s.downOverOverlay || endedOverOverlay;
+    const dragged = Math.hypot(event.clientX - s.downX, event.clientY - s.downY) > 8;
+    if (dragged || blockedByOverlay) {
+      debugGlobeClick({ screen, skipped: true, reason: dragged ? "drag-threshold" : "overlay", startedOverOverlay: s.downOverOverlay, endedOverOverlay });
+      return;
+    }
+    const geometry = getActiveGlobeGeometry({ width: rect.width, height: rect.height }, s.zoom);
+    const point = invertGlobePoint(screen.x, screen.y, { rotX: s.rotX, rotY: s.rotY }, geometry);
+    if (!point) {
+      debugGlobeClick({ screen, renderCenter: { x: geometry.centerX, y: geometry.centerY }, radius: geometry.radius, resolved: null, fallbackReason: "outside-globe" });
+      return;
+    }
+    const projected = projectGlobePoint(point, { rotX: s.rotX, rotY: s.rotY }, geometry);
+    if (projected.z < -0.001) {
+      debugGlobeClick({ screen, renderCenter: { x: geometry.centerX, y: geometry.centerY }, radius: geometry.radius, resolved: { lat: point.lat, lng: point.lng }, fallbackReason: "back-facing" });
+      return;
+    }
     const country = nearestCountry(point.lat, point.lng);
     const ranked = rankStationsNearPoint(stations, point, country);
     const selected = ranked.candidates[0];
-    if (process.env.NODE_ENV !== "production") console.info("[WaveAtlas globe click]", { screen: { x: event.clientX - rect.left, y: event.clientY - rect.top }, lat: point.lat, lng: point.lng, country: country?.name ?? null, candidateCount: ranked.candidates.length, selectedStation: selected?.name ?? null, fallbackReason: ranked.fallbackReason });
+    debugGlobeClick({ screen, renderCenter: { x: geometry.centerX, y: geometry.centerY }, radius: geometry.radius, resolved: { lat: point.lat, lng: point.lng }, country: country?.name ?? null, selectedStation: selected?.name ?? null, fallbackReason: ranked.fallbackReason, candidateCount: ranked.candidates.length, zoom: s.zoom });
     if (country) onCountrySelect?.(country);
     if (selected) onStationSelect?.(selected, ranked.candidates, country?.name ?? "globe point");
   };
