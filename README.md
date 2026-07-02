@@ -60,14 +60,6 @@ STATION_STEWARD_VALIDATE_LIMIT=30
 
 When Supabase credentials are absent, the agent automatically runs in dry-run mode so local development remains safe.
 
-Frontend layout safety flag:
-
-```bash
-NEXT_PUBLIC_WAVEATLAS_MOBILE_GLOBE_LAYOUT_SAFE_MODE=true
-```
-
-When enabled, the mobile globe uses conservative measured geometry, clamps the rendered globe inside runtime usable bounds, and avoids experimental vertical offsets.
-
 ### Running the agent
 
 The cron-safe endpoint is available at:
