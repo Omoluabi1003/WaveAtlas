@@ -247,15 +247,59 @@ function blendRgb(base: [number, number, number], overlay: [number, number, numb
   ];
 }
 
+function photorealisticLandColor(lat: number, lng: number): [number, number, number] {
+  const polar = Math.abs(lat);
+  const desertBand = Math.max(0, 1 - Math.abs(polar - 24) / 23);
+  const forestBand = Math.max(0, 1 - Math.abs(lat) / 44);
+  const tundra = Math.max(0, (polar - 52) / 32);
+  const ice = Math.max(0, (polar - 68) / 18);
+  const aridNoise = surfaceNoise(lat, lng, 23);
+  const vegetationNoise = surfaceNoise(lat, lng, 29);
+  let color: [number, number, number] = [58, 116, 64];
+  color = blendRgb(color, [187, 144, 77], Math.min(0.7, desertBand * (0.38 + aridNoise * 0.42)));
+  color = blendRgb(color, [22, 83, 45], Math.min(0.55, forestBand * (0.28 + vegetationNoise * 0.38)));
+  color = blendRgb(color, [115, 126, 96], Math.min(0.55, tundra * 0.62));
+  color = blendRgb(color, [229, 238, 241], Math.min(0.92, ice));
+  return color;
+}
+
+function drawCountryBoundaries(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; landShapes: LandShape[]; quality: GlobeQualityTier; mobile: boolean; lowPower: boolean; diagnostics?: RendererDiagnostics }) {
+  const { projection, landShapes, quality, mobile, lowPower, diagnostics } = options;
+  if (!landShapes.length) return;
+  const path = geoPath(projection, ctx);
+  ctx.save();
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  if (quality !== "mobile") {
+    ctx.strokeStyle = "rgba(15,23,42,0.30)";
+    ctx.lineWidth = 1.25;
+    for (const shape of landShapes) {
+      ctx.beginPath();
+      path(shape.feature);
+      ctx.stroke();
+    }
+  }
+  ctx.globalCompositeOperation = "screen";
+  ctx.strokeStyle = "rgba(226,244,255,0.48)";
+  ctx.lineWidth = quality === "cinematic" ? 0.72 : mobile || lowPower ? 0.48 : 0.58;
+  for (const shape of landShapes) {
+    ctx.beginPath();
+    path(shape.feature);
+    ctx.stroke();
+    if (diagnostics) diagnostics.drawCalls += 1;
+  }
+  ctx.restore();
+}
+
 function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; cx: number; cy: number; r: number; now: number; quality: GlobeQualityTier; landShapes: LandShape[]; mobile: boolean; lowPower: boolean; reducedMotion: boolean; diagnostics: RendererDiagnostics }) {
   const { projection, cx, cy, r, now, quality, landShapes, mobile, lowPower, reducedMotion, diagnostics } = options;
   const path = geoPath(projection, ctx);
   const ocean = ctx.createRadialGradient(cx - r * 0.45, cy - r * 0.45, r * 0.08, cx + r * 0.25, cy + r * 0.2, r * 1.18);
-  ocean.addColorStop(0, "#74d7e8");
-  ocean.addColorStop(0.18, "#1b91c8");
-  ocean.addColorStop(0.52, "#075b9d");
-  ocean.addColorStop(0.82, "#03285a");
-  ocean.addColorStop(1, "#010817");
+  ocean.addColorStop(0, "#5cc9dc");
+  ocean.addColorStop(0.16, "#137eb7");
+  ocean.addColorStop(0.44, "#064b8e");
+  ocean.addColorStop(0.76, "#021f4a");
+  ocean.addColorStop(1, "#000713");
   ctx.fillStyle = ocean;
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
@@ -274,26 +318,34 @@ function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { pro
   }
   ctx.globalAlpha = 1;
 
-  const strokeCountries = quality !== "mobile";
-  if (strokeCountries) {
-    ctx.strokeStyle = "rgba(226,232,240,0.16)";
-    ctx.lineWidth = 0.35;
-  }
   for (const shape of landShapes) {
-    const elevation = 0.78 + surfaceNoise(shape.centroid.lat, shape.centroid.lng, 11) * 0.18;
-    const base: [number, number, number] = [Math.round(46 * elevation), Math.round(112 * elevation), Math.round(66 * elevation)];
-    const arid = surfaceNoise(shape.centroid.lat, shape.centroid.lng, 23);
-    const overlay: [number, number, number] = arid > 0.58 ? [190, 152, 83] : [20, 83, 45];
-    const overlayAlpha = arid > 0.58 ? 0.28 : 0.26;
-    const [red, green, blue] = blendRgb(base, overlay, overlayAlpha);
+    const terrain = photorealisticLandColor(shape.centroid.lat, shape.centroid.lng);
+    const relief = 0.74 + surfaceNoise(shape.centroid.lat, shape.centroid.lng, 11) * 0.34;
+    const [red, green, blue] = terrain.map((channel) => Math.max(0, Math.min(255, Math.round(channel * relief)))) as [number, number, number];
     ctx.fillStyle = `rgba(${red},${green},${blue},0.95)`;
     ctx.beginPath();
     path(shape.feature);
     diagnostics.projectedPolygons += 1;
     diagnostics.drawCalls += 1;
     ctx.fill("evenodd");
-    if (strokeCountries) ctx.stroke();
   }
+
+  ctx.globalAlpha = quality === "cinematic" ? 0.2 : 0.14;
+  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  ctx.lineWidth = quality === "cinematic" ? 1.2 : 0.8;
+  for (let lat = -72; lat <= 72; lat += quality === "cinematic" ? 9 : 14) {
+    ctx.beginPath();
+    let started = false;
+    for (let lng = -180; lng <= 180; lng += 5) {
+      const ridgeLat = lat + (surfaceNoise(lat, lng, 41) - 0.5) * 2.8;
+      const p = projectCanvasGlobePoint(ridgeLat, lng, projection, diagnostics);
+      if (p.z < 0.04 || surfaceNoise(ridgeLat, lng, 43) < 0.58) { started = false; continue; }
+      started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+      started = true;
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
 
   const cloudStep = quality === "cinematic" ? 18 : quality === "balanced" ? 26 : 42;
   ctx.globalAlpha = quality === "mobile" ? 0.18 : 0.28;
@@ -314,7 +366,7 @@ function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { pro
   ctx.globalAlpha = 1;
 
   const terminator = ctx.createLinearGradient(cx - r * 0.85, cy - r * 0.85, cx + r * 0.7, cy + r * 0.58);
-  terminator.addColorStop(0, "rgba(255,255,255,0.26)");
+  terminator.addColorStop(0, "rgba(255,255,255,0.30)");
   terminator.addColorStop(0.38, "rgba(255,255,255,0.02)");
   terminator.addColorStop(0.62, "rgba(2,6,23,0.32)");
   terminator.addColorStop(1, "rgba(0,0,0,0.78)");
@@ -840,6 +892,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       if (photorealisticPreview) {
         const lights = mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;
         for (const light of lights) { const p = project(light.lat, light.lng, projection, rendererDiagnostics); if (p.z < -0.02) continue; const nightBoost = Math.max(0.15, 1 - Math.max(0, p.z) * 0.65); const glow = (1 + Math.max(0, p.z) * 1.2) * nightBoost; ctx.fillStyle = "rgba(251,191,36,0.24)"; ctx.beginPath(); ctx.arc(p.x, p.y, 4.8 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.78)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.05 * glow, 0, TAU); ctx.fill(); }
+        drawCountryBoundaries(ctx, { projection, landShapes: runtime.landShapes, quality: globeQuality, mobile, lowPower: profile.lowPower, diagnostics: rendererDiagnostics });
       }
       if (runtime.basemap === "night") {
         const lights = mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;
@@ -956,7 +1009,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         ctx.beginPath(); ctx.moveTo(projected.x, projected.y); ctx.lineTo(targetScreenX, targetScreenY); ctx.stroke();
         ctx.restore();
       }
-      ctx.strokeStyle = "rgba(0,214,143,0.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = photorealisticPreview ? "rgba(96,165,250,0.58)" : "rgba(0,214,143,0.55)"; ctx.lineWidth = photorealisticPreview ? 1.8 : 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
       if (photorealisticPreview) {
         rendererDiagnostics.frameTimeMs = performance.now() - frameStartedAt;
         rendererDiagnostics.estimatedFps = rendererDiagnostics.frameTimeMs > 0 ? 1000 / rendererDiagnostics.frameTimeMs : 0;
