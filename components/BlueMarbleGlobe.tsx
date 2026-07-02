@@ -7,7 +7,6 @@ import { flagFor, type Station } from "@/lib/stations";
 import { stationKey } from "@/lib/fast-connect-engine";
 import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalCluster, type SignalFeature } from "@/lib/signal-constellations";
 import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
-import { shouldUsePhotorealisticPreview } from "@/lib/globe-renderer-adapter";
 import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, invertGlobePoint, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
 import { drawActiveStationBeacon } from "@/components/ActiveStationBeacon";
 
@@ -505,11 +504,11 @@ const GLOBE_STYLE_COPY: Record<GlobeBasemapKey, string> = {
   blueMarble: "Blue Marble Globe",
   night: "Night Globe",
   signal: "Signal Globe",
-  photorealistic: "Photorealistic Preview Globe",
+  photorealistic: "Photorealistic Globe",
 };
 
 export default function BlueMarbleGlobe({ station, stations = [], previousStation, teleporting = false, onCountrySelect, onFallback, onStreetZoomRequest, mobile = false, basemap = "blueMarble", selectionVersion }: Props) {
-  const effectiveBasemap: GlobeBasemapKey = basemap === "photorealistic" && !shouldUsePhotorealisticPreview() ? "blueMarble" : basemap;
+  const effectiveBasemap: GlobeBasemapKey = basemap;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
