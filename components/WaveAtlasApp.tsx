@@ -480,6 +480,7 @@ let stationSelectionVersion = 0;
 let wandererResolving = false;
 type PlaybackRequestSource = StationSelectionSource | "search" | "discovery";
 type PlaybackRequest = { id: number; source: PlaybackRequestSource; controller: AbortController; startedAt: number };
+type CountryLoadRequest = { id: number; controller: AbortController; startedAt: number };
 class PlaybackRequestManager {
   private active: PlaybackRequest | null = null;
   begin(source: PlaybackRequestSource) {
@@ -499,6 +500,25 @@ class PlaybackRequestManager {
   }
 }
 const playbackRequests = new PlaybackRequestManager();
+class CountryLoadRequestManager {
+  private active: CountryLoadRequest | null = null;
+  begin() {
+    this.active?.controller.abort();
+    const request: CountryLoadRequest = { id: (this.active?.id ?? 0) + 1, controller: new AbortController(), startedAt: Date.now() };
+    this.active = request;
+    debugCountryClick("request scoped", { requestId: request.id });
+    return request;
+  }
+  isActive(request?: Pick<CountryLoadRequest, "id"> | number | null) {
+    const id = typeof request === "number" ? request : request?.id;
+    return Boolean(id && this.active?.id === id && !this.active.controller.signal.aborted);
+  }
+  signal(request: CountryLoadRequest) { return request.controller.signal; }
+  ignoreStale(request: Pick<CountryLoadRequest, "id">, detail: Record<string, unknown> = {}) {
+    debugCountryClick("ignored stale country request", { requestId: request.id, activeRequestId: this.active?.id ?? null, ...detail });
+  }
+}
+const countryLoadRequests = new CountryLoadRequestManager();
 let teleportPoolCache: { anchorKey: string; stations: Station[]; expires: number } | null = null;
 let activeTeleportController: AbortController | null = null;
 const TELEPORT_POOL_TTL_MS = 45_000;
@@ -2918,7 +2938,7 @@ function NowPlaying({
 
 function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings }: { viewportOffsetTop?: number; onOpenSearch: () => void; onOpenSettings: () => void }) {
   return (
-    <div style={{ top: viewportOffsetTop }} className="pointer-events-none fixed inset-x-0 z-40 pt-[calc(env(safe-area-inset-top)+12px)]">
+    <div style={{ top: viewportOffsetTop }} className="pointer-events-none fixed inset-x-0 z-40 bg-gradient-to-b from-slate-950/85 via-slate-950/55 to-transparent pb-8 pt-[calc(env(safe-area-inset-top)+12px)]">
       <div className="mx-4 flex items-center justify-between gap-3">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/45 px-3 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-xl backdrop-blur-2xl">
           WaveAtlas™
@@ -2930,7 +2950,7 @@ function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings 
       <button
         type="button"
         onClick={onOpenSearch}
-        className="pointer-events-auto mx-auto mt-2 flex h-11 w-[min(520px,72vw)] md:hidden items-center gap-2 rounded-full border border-white/15 bg-slate-950/45 px-4 text-left shadow-[0_14px_42px_rgba(0,0,0,.28)] backdrop-blur-2xl"
+        className="pointer-events-auto mx-auto mt-3 flex h-11 w-[min(520px,72vw)] md:hidden items-center gap-2 rounded-full border border-white/15 bg-slate-950/80 px-4 text-left shadow-[0_18px_46px_rgba(0,0,0,.42)] backdrop-blur-2xl"
         aria-label="Open station search"
       >
         <Search className="size-4 shrink-0 text-sky" />
@@ -4308,7 +4328,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     return () => controller.abort();
   }, [deepLinkUuid]);
 
-  const loadCountryStations = useCallback(async (country: CountryResult, nextOffset = 0, tag = activeTag, request = playbackRequests.begin("search")) => {
+  const loadCountryStations = useCallback(async (country: CountryResult, nextOffset = 0, tag = activeTag, request = countryLoadRequests.begin()) => {
     setLoadingCountry(true);
     setCountrySignalMessage(nextOffset ? "Finding more live signals…" : `Tuning into ${country.name}…`);
     if (!nextOffset) setStationPool([]);
@@ -4317,17 +4337,17 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     const requestUrl = `/api/stations/by-country?${params}`;
     debugCountryClick("request", { apiRequestUrl: requestUrl, resolvedCountryName: country.name, resolvedCountryCode: country.code });
     try {
-      const res = await fetch(requestUrl, { signal: playbackRequests.signal(request) });
+      const res = await fetch(requestUrl, { signal: countryLoadRequests.signal(request) });
       if (!res.ok) throw new Error(`Country station request failed: ${res.status}`);
-      if (!playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "country fetch", country: country.code }); return; }
+      if (!countryLoadRequests.isActive(request)) { countryLoadRequests.ignoreStale(request, { stage: "country fetch", country: country.code }); return; }
       const data = (await res.json()) as { stations: Station[] };
-      if (!playbackRequests.isActive(request)) { playbackRequests.ignoreStale(request, { stage: "country parse", country: country.code }); return; }
+      if (!countryLoadRequests.isActive(request)) { countryLoadRequests.ignoreStale(request, { stage: "country parse", country: country.code }); return; }
       const sameCountryStations = data.stations.filter((station) => station.country_code === country.code);
       debugCountryClick("candidates", { apiRequestUrl: requestUrl, candidateCount: sameCountryStations.length, selectedStation: sameCountryStations[0]?.name ?? null });
       setStationPool((prev) => nextOffset ? [...prev, ...sameCountryStations] : sameCountryStations);
       setOffset(nextOffset + sameCountryStations.length);
       if (!nextOffset && sameCountryStations[0] && startupPreferences.autoplayAfterSearch) {
-        playFirstSearchCandidate(sameCountryStations, "auto", country.name, request);
+        playFirstSearchCandidate(sameCountryStations, "auto", country.name);
         setCountrySignalMessage(`Loading first playable station from ${country.name}…`);
         debugCountryClick("playback", { selectedStation: sameCountryStations[0], playbackResult: "search-session-started" });
       } else if (!nextOffset && sameCountryStations[0]) {
@@ -4339,12 +4359,12 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         debugCountryClick("playback", { selectedStation: null, playbackResult: "no-candidates" });
       }
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") { playbackRequests.ignoreStale(request, { stage: "country abort", country: country.code }); return; }
+      if (error instanceof DOMException && error.name === "AbortError") { countryLoadRequests.ignoreStale(request, { stage: "country abort", country: country.code }); return; }
       setCountrySignalMessage("No live signal found here yet. Try Teleport or Add Your Signal.");
       usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station.");
       debugCountryClick("playback", { selectedStation: null, playbackResult: "request-failed", error: error instanceof Error ? error.message : "unknown" });
     } finally {
-      if (playbackRequests.isActive(request)) setLoadingCountry(false);
+      if (countryLoadRequests.isActive(request)) setLoadingCountry(false);
     }
   }, [activeTag, startupPreferences.autoplayAfterSearch]);
   const centerAppAfterQuery = useCallback(() => {
