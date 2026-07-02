@@ -9,6 +9,7 @@ import {
   WAVEATLAS_SITE_URL,
 } from "@/lib/branding";
 import { BackgroundRotationProvider } from "@/components/background-rotation-provider";
+import { ServiceWorkerDiagnostics } from "@/components/ServiceWorkerDiagnostics";
 import { fontBody, fontDisplay, fontMono } from "@/app/fonts";
 import "./globals.css";
 
@@ -51,7 +52,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable}`}>
-      <body><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
+      <body><ServiceWorkerDiagnostics /><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
     </html>
   );
 }

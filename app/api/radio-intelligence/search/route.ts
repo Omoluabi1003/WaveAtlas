@@ -1,0 +1,3 @@
+import { NextRequest, NextResponse } from "next/server";
+import { discoverRadioIntelligence, queryRadioIntelligence, rankCanonical } from "@/lib/radio-intelligence";
+export async function GET(req: NextRequest) { const p = req.nextUrl.searchParams; const q = p.get("q") ?? ""; const limit = Number(p.get("limit") ?? "50"); await discoverRadioIntelligence({ q, genre: p.get("genre") ?? undefined, countryCode: p.get("countryCode") ?? undefined, limit: Math.min(limit, 500) }); const stations = rankCanonical(queryRadioIntelligence({ q, genre: p.get("genre") ?? undefined, health: "playable", limit }), q); return NextResponse.json({ query: q.toLowerCase(), source: "radio-intelligence:index", stations, totalReturned: stations.length }); }

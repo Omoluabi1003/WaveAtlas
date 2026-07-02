@@ -2908,7 +2908,7 @@ function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings 
       <button
         type="button"
         onClick={onOpenSearch}
-        className="pointer-events-auto mx-auto mt-2 flex h-11 w-[min(520px,72vw)] items-center gap-2 rounded-full border border-white/15 bg-slate-950/45 px-4 text-left shadow-[0_14px_42px_rgba(0,0,0,.28)] backdrop-blur-2xl"
+        className="pointer-events-auto mx-auto mt-2 flex h-11 w-[min(520px,72vw)] md:hidden items-center gap-2 rounded-full border border-white/15 bg-slate-950/45 px-4 text-left shadow-[0_14px_42px_rgba(0,0,0,.28)] backdrop-blur-2xl"
         aria-label="Open station search"
       >
         <Search className="size-4 shrink-0 text-sky" />
@@ -4665,7 +4665,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
         {activeStation ? <SelectedStationTheater station={activeStation} /> : null}
       </div>
-      <section className="pointer-events-none fixed left-1/2 top-6 z-50 w-[min(560px,calc(100vw-3rem))] -translate-x-1/2">
+      <section className="pointer-events-none fixed left-[calc(50%+120px)] top-[calc(env(safe-area-inset-top)+1.5rem)] z-50 w-[min(520px,calc(100vw-31rem))] -translate-x-1/2">
         <div className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/40 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl">
           <div className="flex items-center gap-3">
             <Search className="shrink-0 text-sky" />
@@ -4716,7 +4716,6 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           </div>
         </div>
         <div className={`${desktopDrawerOpen ? "block" : "hidden"} atlas-drawer-scroll min-h-0 flex-1 overflow-y-auto pr-1`}>
-          {query.trim() ? <CountryAutocomplete query={query} onSelect={selectCountry} /> : null}
           {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={activeStation ? <AtlasLocationPill stations={stationPool} current={activeStation} /> : undefined} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} activeStation={activeStation} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={current} /></div> : null}
