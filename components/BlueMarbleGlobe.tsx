@@ -35,6 +35,7 @@ type NaturalEarthFeature = {
 type NaturalEarthCollection = { type: "FeatureCollection"; features: NaturalEarthFeature[] };
 
 type SpaceStar = { x: number; y: number; radius: number; alpha: number; hue: number; phase: number; twinkle: number };
+type GlobeQualityTier = "mobile" | "balanced" | "cinematic";
 
 type Props = {
   station: Station;
@@ -215,6 +216,112 @@ function loadLandShapes() {
     });
   }
   return landPromise;
+}
+
+function resolveGlobeQualityTier(mobile: boolean, lowPower: boolean): GlobeQualityTier {
+  if (mobile || lowPower) return "mobile";
+  if (typeof window !== "undefined" && window.devicePixelRatio >= 2 && window.innerWidth >= 1280) return "cinematic";
+  return "balanced";
+}
+
+function surfaceNoise(lat: number, lng: number, seed = 0) {
+  return seededUnit(Math.round((lat + 90) * 7.13 + (lng + 180) * 3.71 + seed * 101));
+}
+
+function projectCanvasGlobePoint(lat: number, lng: number, projection: D3GeoProjection): GlobeProjection {
+  const projected = projection([lng, lat]);
+  const z = globeDepthFromProjection({ lat, lng }, projection);
+  return { x: projected?.[0] ?? Number.NaN, y: projected?.[1] ?? Number.NaN, z, vector: { x: Number.NaN, y: Number.NaN, z }, projection };
+}
+
+function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; cx: number; cy: number; r: number; now: number; quality: GlobeQualityTier; landShapes: LandShape[]; mobile: boolean; lowPower: boolean; reducedMotion: boolean }) {
+  const { projection, cx, cy, r, now, quality, landShapes, mobile, lowPower, reducedMotion } = options;
+  const path = geoPath(projection, ctx);
+  const ocean = ctx.createRadialGradient(cx - r * 0.45, cy - r * 0.45, r * 0.08, cx + r * 0.25, cy + r * 0.2, r * 1.18);
+  ocean.addColorStop(0, "#74d7e8");
+  ocean.addColorStop(0.18, "#1b91c8");
+  ocean.addColorStop(0.52, "#075b9d");
+  ocean.addColorStop(0.82, "#03285a");
+  ocean.addColorStop(1, "#010817");
+  ctx.fillStyle = ocean;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+  const bathymetryStep = quality === "cinematic" ? 10 : quality === "balanced" ? 15 : 24;
+  ctx.globalAlpha = lowPower ? 0.12 : 0.2;
+  for (let lat = -70; lat <= 70; lat += bathymetryStep) {
+    for (let lng = -180; lng < 180; lng += bathymetryStep) {
+      const p = projectCanvasGlobePoint(lat, lng, projection);
+      if (p.z < 0.02) continue;
+      const shallow = Math.max(0, 1 - Math.abs(lat) / 82) * (0.35 + surfaceNoise(lat, lng, 3) * 0.65);
+      ctx.fillStyle = shallow > 0.72 ? "rgba(103,232,249,0.22)" : "rgba(8,47,73,0.22)";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(1.5, r * 0.018), 0, TAU);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  for (const shape of landShapes) {
+    const elevation = 0.78 + surfaceNoise(shape.centroid.lat, shape.centroid.lng, 11) * 0.18;
+    ctx.fillStyle = `rgba(${Math.round(46 * elevation)},${Math.round(112 * elevation)},${Math.round(66 * elevation)},0.95)`;
+    ctx.beginPath();
+    path(shape.feature);
+    ctx.fill("evenodd");
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = "source-atop";
+  for (const shape of landShapes) {
+    const arid = surfaceNoise(shape.centroid.lat, shape.centroid.lng, 23);
+    ctx.fillStyle = arid > 0.58 ? "rgba(190,152,83,0.28)" : "rgba(20,83,45,0.26)";
+    ctx.beginPath();
+    path(shape.feature);
+    ctx.fill("evenodd");
+  }
+  ctx.restore();
+
+  if (quality !== "mobile") {
+    ctx.strokeStyle = "rgba(226,232,240,0.16)";
+    ctx.lineWidth = 0.35;
+    for (const shape of landShapes) {
+      ctx.beginPath();
+      path(shape.feature);
+      ctx.stroke();
+    }
+  }
+
+  const cloudStep = quality === "cinematic" ? 18 : quality === "balanced" ? 26 : 42;
+  ctx.globalAlpha = quality === "mobile" ? 0.18 : 0.28;
+  ctx.strokeStyle = "rgba(255,255,255,0.72)";
+  ctx.lineWidth = mobile ? 1.1 : 1.6;
+  for (let lat = -62; lat <= 62; lat += cloudStep) {
+    ctx.beginPath();
+    let started = false;
+    for (let lng = -180; lng <= 180; lng += 4) {
+      const waveLat = lat + Math.sin((lng * 1.7 + now * (reducedMotion ? 0 : 0.003)) * DEG) * 3.2;
+      const p = projectCanvasGlobePoint(waveLat, lng + (reducedMotion ? 0 : now * 0.0015), projection);
+      if (p.z < 0.05) { started = false; continue; }
+      started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+      started = true;
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  const terminator = ctx.createLinearGradient(cx - r * 0.85, cy - r * 0.85, cx + r * 0.7, cy + r * 0.58);
+  terminator.addColorStop(0, "rgba(255,255,255,0.26)");
+  terminator.addColorStop(0.38, "rgba(255,255,255,0.02)");
+  terminator.addColorStop(0.62, "rgba(2,6,23,0.32)");
+  terminator.addColorStop(1, "rgba(0,0,0,0.78)");
+  ctx.fillStyle = terminator;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+  const spec = ctx.createRadialGradient(cx - r * 0.36, cy - r * 0.42, 0, cx - r * 0.36, cy - r * 0.42, r * 0.5);
+  spec.addColorStop(0, "rgba(255,255,255,0.30)");
+  spec.addColorStop(0.2, "rgba(186,230,253,0.14)");
+  spec.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = spec;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 }
 
 function iosGlobeDebugEnabled() {
@@ -657,19 +764,23 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
 
       drawSpaceBackdrop(ctx, { width: w, height: h, cx, cy, radius: r, now, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, basemap: runtime.basemap });
       const photorealisticPreview = runtime.basemap === "photorealistic";
+      const globeQuality = resolveGlobeQualityTier(mobile, profile.lowPower);
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
       bg.addColorStop(0, runtime.basemap === "night" ? "rgba(125,92,255,0.16)" : runtime.basemap === "signal" ? "rgba(0,214,143,0.12)" : "rgba(0,214,143,0.18)"); bg.addColorStop(0.64, "rgba(3,12,27,0.10)"); bg.addColorStop(1, "rgba(3,8,20,0)");
       ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
       ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.clip();
       const ocean = ctx.createRadialGradient(cx - r * 0.38, cy - r * 0.44, r * 0.12, cx, cy, r * 1.12);
-      if (photorealisticPreview) { ocean.addColorStop(0, "#56b7d8"); ocean.addColorStop(0.28, "#1479b8"); ocean.addColorStop(0.62, "#064b8f"); ocean.addColorStop(1, "#03142f"); }
-      else if (runtime.basemap === "night") { ocean.addColorStop(0, "#111827"); ocean.addColorStop(0.55, "#050816"); ocean.addColorStop(1, "#01030a"); }
+      if (runtime.basemap === "night") { ocean.addColorStop(0, "#111827"); ocean.addColorStop(0.55, "#050816"); ocean.addColorStop(1, "#01030a"); }
       else if (runtime.basemap === "signal") { ocean.addColorStop(0, "#08213a"); ocean.addColorStop(0.55, "#031225"); ocean.addColorStop(1, "#010814"); }
       else { ocean.addColorStop(0, "#1f6f9d"); ocean.addColorStop(0.42, "#0c3b67"); ocean.addColorStop(1, "#031327"); }
-      ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
       const projection = buildGlobeProjection(w, h, r, state.current.rotX, state.current.rotY, cx, cy)
         .precision(mobile || profile.lowPower ? 0.85 : 0.45);
-      if (runtime.landShapes.length) {
+      if (photorealisticPreview) {
+        drawPhotorealisticSurface(ctx, { projection, cx, cy, r, now, quality: globeQuality, landShapes: runtime.landShapes, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion });
+      } else {
+        ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      }
+      if (!photorealisticPreview && runtime.landShapes.length) {
         const path = geoPath(projection, ctx);
         const shapesToDraw = runtime.landShapes;
 
@@ -691,21 +802,13 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       ctx.strokeStyle = runtime.basemap === "signal" ? "rgba(56,189,248,0.24)" : runtime.basemap === "night" ? "rgba(148,163,184,0.055)" : "rgba(147,197,253,0.09)"; ctx.lineWidth = mobile || profile.lowPower ? 0.45 : 0.7;
       const latStep = mobile || profile.lowPower ? 30 : 15;
       const lngStep = mobile || profile.lowPower ? 30 : 15;
-      for (let lat = -75; lat <= 75; lat += latStep) { ctx.beginPath(); for (let lng = -180; lng <= 180; lng += 4) { const p = project(lat, lng, projection); if (p.z < -0.02) continue; lng === -180 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.stroke(); }
-      for (let lng = -180; lng < 180; lng += lngStep) { ctx.beginPath(); let started = false; for (let lat = -85; lat <= 85; lat += 3) { const p = project(lat, lng, projection); if (p.z < -0.02) { started = false; continue; } started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); started = true; } ctx.stroke(); }
+      if (!photorealisticPreview) {
+        for (let lat = -75; lat <= 75; lat += latStep) { ctx.beginPath(); let started = false; for (let lng = -180; lng <= 180; lng += 4) { const p = project(lat, lng, projection); if (p.z < -0.02) { started = false; continue; } started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); started = true; } ctx.stroke(); }
+        for (let lng = -180; lng < 180; lng += lngStep) { ctx.beginPath(); let started = false; for (let lat = -85; lat <= 85; lat += 3) { const p = project(lat, lng, projection); if (p.z < -0.02) { started = false; continue; } started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); started = true; } ctx.stroke(); }
+      }
       if (photorealisticPreview) {
-        const shade = ctx.createRadialGradient(cx - r * 0.48, cy - r * 0.42, r * 0.08, cx + r * 0.34, cy + r * 0.18, r * 1.18);
-        shade.addColorStop(0, "rgba(255,255,255,0.34)");
-        shade.addColorStop(0.38, "rgba(255,255,255,0.04)");
-        shade.addColorStop(0.72, "rgba(2,6,23,0.30)");
-        shade.addColorStop(1, "rgba(0,0,0,0.72)");
-        ctx.fillStyle = shade; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-        ctx.globalAlpha = profile.lowPower ? 0.18 : 0.28;
-        ctx.strokeStyle = "rgba(255,255,255,0.50)"; ctx.lineWidth = mobile ? 1.3 : 1.8;
-        for (let lat = -60; lat <= 60; lat += 30) { ctx.beginPath(); for (let lng = -180; lng <= 180; lng += 5) { const p = project(lat + Math.sin((lng + now * 0.002) * DEG) * 2.2, lng, projection); if (p.z < 0.05) continue; lng === -180 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.stroke(); }
-        ctx.globalAlpha = 1;
         const lights = mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;
-        for (const light of lights) { const p = project(light.lat, light.lng, projection); if (p.z < -0.02) continue; const glow = 1 + Math.max(0, p.z) * 1.8; ctx.fillStyle = "rgba(251,191,36,0.18)"; ctx.beginPath(); ctx.arc(p.x, p.y, 4.8 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.70)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.05 * glow, 0, TAU); ctx.fill(); }
+        for (const light of lights) { const p = project(light.lat, light.lng, projection); if (p.z < -0.02) continue; const nightBoost = Math.max(0.15, 1 - Math.max(0, p.z) * 0.65); const glow = (1 + Math.max(0, p.z) * 1.2) * nightBoost; ctx.fillStyle = "rgba(251,191,36,0.24)"; ctx.beginPath(); ctx.arc(p.x, p.y, 4.8 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.78)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.05 * glow, 0, TAU); ctx.fill(); }
       }
       if (runtime.basemap === "night") {
         const lights = mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;

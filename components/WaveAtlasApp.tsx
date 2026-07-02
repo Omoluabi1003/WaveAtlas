@@ -3613,7 +3613,7 @@ function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atla
       <div className="mt-2 grid gap-2">
         {(Object.keys(globeBasemapStyles) as GlobeBasemapKey[]).filter((key) => key !== "photorealistic" || shouldUsePhotorealisticPreview()).map((key) => <button key={key} type="button" onClick={() => onGlobeBasemapChange(key)} className={`rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${globeBasemap === key ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{globeBasemapStyles[key].label}</button>)}
       </div>
-      {!shouldUsePhotorealisticPreview() ? <p className="mt-2 px-1 text-[11px] leading-5 text-ivory/55">Photorealistic preview is hidden unless NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER=preview and NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER=false are set. Legacy canvas remains the default rollback.</p> : null}
+      {!shouldUsePhotorealisticPreview() ? <p className="mt-2 px-1 text-[11px] leading-5 text-ivory/55">Photorealistic preview is hidden until it is enabled for this deployment. Legacy canvas remains the default rollback.</p> : null}
     </details> : null}
 
     {onBasemapChange && basemap ? <details className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">

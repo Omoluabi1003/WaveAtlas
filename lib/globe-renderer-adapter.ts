@@ -46,7 +46,9 @@ export const DEFAULT_RENDERER_FLAGS: WaveAtlasRendererFeatureFlags = {
 };
 
 function readSafeRendererEnv(): Partial<NodeJS.ProcessEnv> {
-  return typeof process !== "undefined" && typeof process.env !== "undefined" ? process.env : {};
+  if (typeof process !== "undefined" && typeof process.env !== "undefined") return process.env;
+  const browserEnv = typeof window !== "undefined" ? (window as Window & { __WAVEATLAS_RENDERER_FLAGS__?: Partial<NodeJS.ProcessEnv> }).__WAVEATLAS_RENDERER_FLAGS__ : undefined;
+  return browserEnv ?? {};
 }
 
 export function readRendererFeatureFlags(env: Partial<NodeJS.ProcessEnv> = readSafeRendererEnv()): WaveAtlasRendererFeatureFlags {

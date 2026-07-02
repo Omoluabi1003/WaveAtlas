@@ -36,5 +36,6 @@ assert.deepEqual(d3Projection.rotate().map((value) => Math.round(value * 1000) /
 assert.deepEqual(readRendererFeatureFlags({}), { rendererKind: "canvas2d", photorealisticPreview: false, forceLegacyCanvas: true }, "legacy renderer should be default rollback");
 assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview" })), false, "preview flag alone should not override rollback");
 assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "false" })), true, "preview requires explicit rollback opt-out");
+assert.equal(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "false" }).rendererKind, "photorealistic-preview", "browser-inlined preview flags should activate the renderer adapter");
 
 console.log("renderer regression checks passed");
