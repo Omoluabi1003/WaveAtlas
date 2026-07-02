@@ -10,6 +10,7 @@ export type GeoAudioCatalogAuditRow = { album: string; journey: string; journeyI
 
 const GEOAUDIO_SEED_CHECKED_AT = '2026-07-01T00:00:00.000Z';
 const ARIYO_AI_ORIGIN = 'https://omoluabi1003.github.io/Ariyo-AI';
+const GEOAUDIO_JOURNEYS_ENABLED = process.env.NEXT_PUBLIC_WAVEATLAS_GEOAUDIO_JOURNEYS === 'true';
 const FLORIDA_ANCHOR = { city: 'Florida', state: 'Florida', country: 'United States', countryCode: 'US', latitude: 28.5383, longitude: -81.3792 };
 const ariyoUrl = (path: string) => `${ARIYO_AI_ORIGIN}/${path.split('/').map(encodeURIComponent).join('/')}`;
 
@@ -509,11 +510,13 @@ export function adaptAriyoAlbumToGeoAudioChannel(album: GeoAudioAlbum): Station 
   };
 }
 
-export const journeyCatalog: JourneyCatalogEntry[] = buildJourneyCatalog();
+export const sourceTruthJourneyAudit: GeoAudioCatalogAuditRow[] = auditGeoAudioCatalog(buildJourneyCatalog());
+
+export const journeyCatalog: JourneyCatalogEntry[] = GEOAUDIO_JOURNEYS_ENABLED ? buildJourneyCatalog() : [];
 
 const journeyCatalogIssues = validateJourneyCatalog(journeyCatalog);
 if (journeyCatalogIssues.length && process.env.NODE_ENV !== 'production') {
   console.warn('[geoaudio] Journey catalog validation issues', journeyCatalogIssues);
 }
 
-export const ariyoGeoAudioChannels: Station[] = ariyoGeoAudioAlbums.map(adaptAriyoAlbumToGeoAudioChannel);
+export const ariyoGeoAudioChannels: Station[] = GEOAUDIO_JOURNEYS_ENABLED ? ariyoGeoAudioAlbums.map(adaptAriyoAlbumToGeoAudioChannel).filter((station) => station.is_active && Boolean(station.geoAudio?.tracks.length)) : [];

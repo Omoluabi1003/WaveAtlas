@@ -3,6 +3,7 @@ import {
   ariyoGeoAudioChannels,
   buildJourneyCatalog,
   journeyCatalog,
+  sourceTruthJourneyAudit,
   normalizeJourneyTrackTitle,
   resolveGeoAudioPlaybackUrl,
   validateJourneyCatalog,
@@ -12,13 +13,16 @@ import {
 } from '../lib/geoaudio';
 
 const issues = validateJourneyCatalog(journeyCatalog);
-assert.deepEqual(issues.filter((issue) => issue.severity === 'error'), [], 'canonical journey catalog must not contain duplicate audio references, title/source filename mismatches, or order errors');
-assert.deepEqual(geoAudioCatalogMismatchReport(), [], 'canonical journey catalog must not contain title/source filename mismatches');
+assert.deepEqual(journeyCatalog, [], 'GeoAudio kill switch should hide all journeys by default');
+assert.deepEqual(ariyoGeoAudioChannels, [], 'GeoAudio kill switch should hide all frontend GeoAudio channels by default');
+assert.deepEqual(issues.filter((issue) => issue.severity === 'error'), [], 'disabled journey catalog must not expose invalid journeys');
+assert.deepEqual(geoAudioCatalogMismatchReport(), [], 'disabled journey catalog must not expose title/source filename mismatches');
 const auditRows = auditGeoAudioCatalog();
-assert.equal(auditRows.length, journeyCatalog.reduce((count, journey) => count + journey.tracks.length, 0), 'catalog audit should emit one row per displayed GeoAudio track');
-assert.deepEqual(auditRows.filter((row) => row.duplicateReason), [], 'catalog audit should report no duplicate suppression risks in canonical journeys');
+assert.equal(auditRows.length, 0, 'production-exposed catalog audit should be empty while GeoAudio is disabled');
+assert.ok(sourceTruthJourneyAudit.length > 0, 'source-truth audit should remain available for Ariyo rebuild work while production exposure is disabled');
+assert.deepEqual(sourceTruthJourneyAudit.filter((row) => row.duplicateReason), [], 'source-truth audit should report no duplicate suppression risks');
 
-const sunoAuditRows = auditRows.filter((row) => row.originalSunoUrl);
+const sunoAuditRows = sourceTruthJourneyAudit.filter((row) => row.originalSunoUrl);
 assert.ok(sunoAuditRows.length > 0, 'catalog-wide audit should include every Suno-origin track');
 assert.deepEqual(sunoAuditRows.filter((row) => row.status !== 'resolved'), [], 'every Suno-origin audit row should be resolved by exact manifest URL');
 for (const row of sunoAuditRows) {
@@ -30,7 +34,7 @@ for (const row of sunoAuditRows) {
   assert.equal(row.finalAudioUrl, `https://omoluabi1003.github.io/Ariyo-AI/${row.manifestPath}`, 'Suno audit row finalAudioUrl should match the exact manifest asset');
 }
 
-for (const journey of journeyCatalog) {
+for (const journey of buildJourneyCatalog()) {
   assert.ok(journey.journeyId.endsWith('-journey'), `${journey.albumId} should expose a stable journeyId`);
   journey.tracks.forEach((track, index) => {
     assert.equal(track.orderIndex, index + 1, `${track.trackId} should have contiguous 1-based orderIndex`);
@@ -50,31 +54,6 @@ for (const journey of journeyCatalog) {
   });
 }
 
-for (const channel of ariyoGeoAudioChannels) {
-  const journey = journeyCatalog.find((entry) => entry.albumId === channel.id);
-  assert.ok(journey, `${channel.id} should be backed by a canonical journey manifest`);
-  assert.equal(channel.name, `${journey.title} GeoAudio Channel — ${channel.geoAudio?.studio}`, `${channel.id} frontend label should match manifest title`);
-  assert.deepEqual(
-    channel.geoAudio?.tracks.map((track) => track.title),
-    journey.tracks.map((track) => track.title),
-    `${channel.id} station queue should consume canonical manifest titles`,
-  );
-  assert.deepEqual(
-    channel.channel?.queue.items.map((item) => item.title),
-    journey.tracks.map((track) => track.title),
-    `${channel.id} playback queue should consume canonical manifest titles`,
-  );
-  assert.deepEqual(
-    channel.geoAudio?.tracks.map((track) => track.url),
-    journey.tracks.map((track) => track.audioUrl),
-    `${channel.id} manual track selection should use canonical JourneyCatalogTrack.audioUrl values`,
-  );
-  assert.deepEqual(
-    channel.channel?.queue.items.map((item) => item.url),
-    journey.tracks.map((track) => track.audioUrl),
-    `${channel.id} auto-next queue should use the same canonical JourneyCatalogTrack.audioUrl values`,
-  );
-}
 
 const syntheticIssues = validateJourneyCatalog([
   {
@@ -156,14 +135,15 @@ assert.equal(
 );
 
 async function runPlaybackValidationRegression() {
-  const playbackProbeResults = await validateJourneyPlaybackUrls(journeyCatalog, {
+  const sourceCatalog = buildJourneyCatalog();
+  const playbackProbeResults = await validateJourneyPlaybackUrls(sourceCatalog, {
     fetchImpl: (async (url: string | URL | Request, init?: RequestInit) => {
       assert.equal(init?.method, 'HEAD', 'build-time playback validation should HEAD-check remote journey tracks');
       assert.ok(String(url).startsWith('https://omoluabi1003.github.io/Ariyo-AI/'), 'validation should probe playable Ariyo source URLs');
       return new Response(null, { status: 200 });
     }) as typeof fetch,
   });
-  assert.equal(playbackProbeResults.length, journeyCatalog.length, 'validation should probe at least one track per journey');
+  assert.equal(playbackProbeResults.length, sourceCatalog.length, 'validation should probe at least one track per journey');
   assert.deepEqual(playbackProbeResults.filter((result) => !result.ok), [], 'mocked Ariyo HEAD checks should pass');
 }
 
