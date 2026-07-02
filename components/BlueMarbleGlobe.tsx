@@ -7,7 +7,7 @@ import { flagFor, type Station } from "@/lib/stations";
 import { stationKey } from "@/lib/fast-connect-engine";
 import { DEBUG_SIGNALS, buildSignalFeatures, getActiveBeaconFeature, resolveStationGeo, type SignalCluster, type SignalFeature } from "@/lib/signal-constellations";
 import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
-import { shouldRenderPhotorealisticBasemap } from "@/lib/globe-renderer-adapter";
+import { shouldUsePhotorealisticPreview } from "@/lib/globe-renderer-adapter";
 import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, invertGlobePoint, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
 import { drawActiveStationBeacon } from "@/components/ActiveStationBeacon";
 
@@ -36,11 +36,6 @@ type NaturalEarthCollection = { type: "FeatureCollection"; features: NaturalEart
 
 type SpaceStar = { x: number; y: number; radius: number; alpha: number; hue: number; phase: number; twinkle: number };
 type GlobeQualityTier = "mobile" | "balanced" | "cinematic";
-type RendererDiagnostics = { drawCalls: number; projectedPolygons: number; hiddenPointSkips: number; frameTimeMs: number; estimatedFps: number; beforeDrawCalls: number; beforeProjectedPolygons: number };
-type GlobeTextureKey = "day" | "night" | "clouds" | "detail" | "normal";
-type GlobeTextureStatus = "idle" | "loading" | "loaded" | "failed";
-type GlobeTextureBundle = { status: Record<GlobeTextureKey, GlobeTextureStatus>; images: Partial<Record<GlobeTextureKey, HTMLImageElement>>; fallbackReason?: string };
-type RendererDiagnosticsSnapshot = { mode: string; quality: GlobeQualityTier; fps: number; frameTimeMs: number; textureStatus: Record<GlobeTextureKey, GlobeTextureStatus>; fallbackReason: string | null; recoveryStatus: string };
 
 type Props = {
   station: Station;
@@ -62,8 +57,6 @@ const LAND_CACHE_NAME = "waveatlas-boundaries-v1";
 const MOBILE_FRAME_MS = 1000 / 30;
 const DESKTOP_FRAME_MS = 1000 / 60;
 const MOBILE_FALLBACK_MS = 2000;
-const TEXTURE_RETRY_BASE_MS = 1200;
-const TEXTURE_RETRY_MAX_MS = 30000;
 const MOBILE_PRIMARY_FOCUS_DURATION_MS = 3000;
 const DESKTOP_PRIMARY_FOCUS_DURATION_MS = 3600;
 const MOBILE_FAST_FOCUS_DURATION_MS = 2200;
@@ -84,16 +77,6 @@ const SPACE_STAR_COUNT_LOW_POWER = 20;
 const SPACE_STARS = buildSpaceStars(SPACE_STAR_COUNT_DESKTOP, SPACE_STAR_SEED);
 let landPromise: Promise<LandShape[]> | null = null;
 let landCache: LandShape[] | null = null;
-
-const EARTH_TEXTURES: Record<GlobeTextureKey, { cinematic: string; balanced: string; mobile: string; required: boolean }> = {
-  day: { cinematic: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_atmos_2048.jpg", balanced: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_atmos_2048.jpg", mobile: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_atmos_2048.jpg", required: true },
-  night: { cinematic: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_lights_2048.png", balanced: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_lights_2048.png", mobile: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_lights_2048.png", required: true },
-  clouds: { cinematic: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_clouds_1024.png", balanced: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_clouds_1024.png", mobile: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_clouds_1024.png", required: true },
-  detail: { cinematic: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_specular_2048.jpg", balanced: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_specular_2048.jpg", mobile: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_specular_2048.jpg", required: true },
-  normal: { cinematic: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_normal_2048.jpg", balanced: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_normal_2048.jpg", mobile: "https://unpkg.com/three@0.160.0/examples/textures/planets/earth_normal_2048.jpg", required: false },
-};
-
-const EMPTY_TEXTURE_STATUS: Record<GlobeTextureKey, GlobeTextureStatus> = { day: "idle", night: "idle", clouds: "idle", detail: "idle", normal: "idle" };
 
 
 function seededUnit(seed: number) {
@@ -245,148 +228,100 @@ function surfaceNoise(lat: number, lng: number, seed = 0) {
   return seededUnit(Math.round((lat + 90) * 7.13 + (lng + 180) * 3.71 + seed * 101));
 }
 
-function projectCanvasGlobePoint(lat: number, lng: number, projection: D3GeoProjection, diagnostics?: RendererDiagnostics): GlobeProjection {
+function projectCanvasGlobePoint(lat: number, lng: number, projection: D3GeoProjection): GlobeProjection {
   const projected = projection([lng, lat]);
-  if (!projected) {
-    if (diagnostics) diagnostics.hiddenPointSkips += 1;
-    return { x: Number.NaN, y: Number.NaN, z: -1, vector: { x: Number.NaN, y: Number.NaN, z: -1 }, projection };
-  }
   const z = globeDepthFromProjection({ lat, lng }, projection);
-  return { x: projected[0], y: projected[1], z, vector: { x: Number.NaN, y: Number.NaN, z }, projection };
+  return { x: projected?.[0] ?? Number.NaN, y: projected?.[1] ?? Number.NaN, z, vector: { x: Number.NaN, y: Number.NaN, z }, projection };
 }
 
-function blendRgb(base: [number, number, number], overlay: [number, number, number], overlayAlpha: number): [number, number, number] {
-  return [
-    Math.round(overlay[0] * overlayAlpha + base[0] * (1 - overlayAlpha)),
-    Math.round(overlay[1] * overlayAlpha + base[1] * (1 - overlayAlpha)),
-    Math.round(overlay[2] * overlayAlpha + base[2] * (1 - overlayAlpha)),
-  ];
-}
-
-function photorealisticLandColor(lat: number, lng: number): [number, number, number] {
-  const polar = Math.abs(lat);
-  const desertBand = Math.max(0, 1 - Math.abs(polar - 24) / 23);
-  const forestBand = Math.max(0, 1 - Math.abs(lat) / 44);
-  const tundra = Math.max(0, (polar - 52) / 32);
-  const ice = Math.max(0, (polar - 68) / 18);
-  const aridNoise = surfaceNoise(lat, lng, 23);
-  const vegetationNoise = surfaceNoise(lat, lng, 29);
-  let color: [number, number, number] = [58, 116, 64];
-  color = blendRgb(color, [187, 144, 77], Math.min(0.7, desertBand * (0.38 + aridNoise * 0.42)));
-  color = blendRgb(color, [22, 83, 45], Math.min(0.55, forestBand * (0.28 + vegetationNoise * 0.38)));
-  color = blendRgb(color, [115, 126, 96], Math.min(0.55, tundra * 0.62));
-  color = blendRgb(color, [229, 238, 241], Math.min(0.92, ice));
-  return color;
-}
-
-function drawCountryBoundaries(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; landShapes: LandShape[]; quality: GlobeQualityTier; mobile: boolean; lowPower: boolean; diagnostics?: RendererDiagnostics }) {
-  const { projection, landShapes, quality, mobile, lowPower, diagnostics } = options;
-  if (!landShapes.length) return;
+function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; cx: number; cy: number; r: number; now: number; quality: GlobeQualityTier; landShapes: LandShape[]; mobile: boolean; lowPower: boolean; reducedMotion: boolean }) {
+  const { projection, cx, cy, r, now, quality, landShapes, mobile, lowPower, reducedMotion } = options;
   const path = geoPath(projection, ctx);
+  const ocean = ctx.createRadialGradient(cx - r * 0.45, cy - r * 0.45, r * 0.08, cx + r * 0.25, cy + r * 0.2, r * 1.18);
+  ocean.addColorStop(0, "#74d7e8");
+  ocean.addColorStop(0.18, "#1b91c8");
+  ocean.addColorStop(0.52, "#075b9d");
+  ocean.addColorStop(0.82, "#03285a");
+  ocean.addColorStop(1, "#010817");
+  ctx.fillStyle = ocean;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+  const bathymetryStep = quality === "cinematic" ? 10 : quality === "balanced" ? 15 : 24;
+  ctx.globalAlpha = lowPower ? 0.12 : 0.2;
+  for (let lat = -70; lat <= 70; lat += bathymetryStep) {
+    for (let lng = -180; lng < 180; lng += bathymetryStep) {
+      const p = projectCanvasGlobePoint(lat, lng, projection);
+      if (p.z < 0.02) continue;
+      const shallow = Math.max(0, 1 - Math.abs(lat) / 82) * (0.35 + surfaceNoise(lat, lng, 3) * 0.65);
+      ctx.fillStyle = shallow > 0.72 ? "rgba(103,232,249,0.22)" : "rgba(8,47,73,0.22)";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(1.5, r * 0.018), 0, TAU);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  for (const shape of landShapes) {
+    const elevation = 0.78 + surfaceNoise(shape.centroid.lat, shape.centroid.lng, 11) * 0.18;
+    ctx.fillStyle = `rgba(${Math.round(46 * elevation)},${Math.round(112 * elevation)},${Math.round(66 * elevation)},0.95)`;
+    ctx.beginPath();
+    path(shape.feature);
+    ctx.fill("evenodd");
+  }
+
   ctx.save();
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
+  ctx.globalCompositeOperation = "source-atop";
+  for (const shape of landShapes) {
+    const arid = surfaceNoise(shape.centroid.lat, shape.centroid.lng, 23);
+    ctx.fillStyle = arid > 0.58 ? "rgba(190,152,83,0.28)" : "rgba(20,83,45,0.26)";
+    ctx.beginPath();
+    path(shape.feature);
+    ctx.fill("evenodd");
+  }
+  ctx.restore();
+
   if (quality !== "mobile") {
-    ctx.strokeStyle = "rgba(15,23,42,0.30)";
-    ctx.lineWidth = 1.25;
+    ctx.strokeStyle = "rgba(226,232,240,0.16)";
+    ctx.lineWidth = 0.35;
     for (const shape of landShapes) {
       ctx.beginPath();
       path(shape.feature);
       ctx.stroke();
     }
   }
-  ctx.globalCompositeOperation = "screen";
-  ctx.strokeStyle = "rgba(226,244,255,0.48)";
-  ctx.lineWidth = quality === "cinematic" ? 0.72 : mobile || lowPower ? 0.48 : 0.58;
-  for (const shape of landShapes) {
+
+  const cloudStep = quality === "cinematic" ? 18 : quality === "balanced" ? 26 : 42;
+  ctx.globalAlpha = quality === "mobile" ? 0.18 : 0.28;
+  ctx.strokeStyle = "rgba(255,255,255,0.72)";
+  ctx.lineWidth = mobile ? 1.1 : 1.6;
+  for (let lat = -62; lat <= 62; lat += cloudStep) {
     ctx.beginPath();
-    path(shape.feature);
+    let started = false;
+    for (let lng = -180; lng <= 180; lng += 4) {
+      const waveLat = lat + Math.sin((lng * 1.7 + now * (reducedMotion ? 0 : 0.003)) * DEG) * 3.2;
+      const p = projectCanvasGlobePoint(waveLat, lng + (reducedMotion ? 0 : now * 0.0015), projection);
+      if (p.z < 0.05) { started = false; continue; }
+      started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+      started = true;
+    }
     ctx.stroke();
-    if (diagnostics) diagnostics.drawCalls += 1;
   }
-  ctx.restore();
-}
+  ctx.globalAlpha = 1;
 
-function textureSampleRect(image: HTMLImageElement, lng: number, lat: number) {
-  const x = (((lng + 180) % 360 + 360) % 360) / 360 * image.naturalWidth;
-  const y = (90 - Math.max(-90, Math.min(90, lat))) / 180 * image.naturalHeight;
-  return { sx: Math.max(0, Math.min(image.naturalWidth - 2, x)), sy: Math.max(0, Math.min(image.naturalHeight - 2, y)) };
-}
-
-function drawEquirectangularTextureLayer(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; cx: number; cy: number; r: number; image: HTMLImageElement; alpha?: number; composite?: GlobalCompositeOperation; cell: number; lngOffset?: number; diagnostics: RendererDiagnostics }) {
-  const { projection, cx, cy, r, image, alpha = 1, composite = "source-over", cell, lngOffset = 0, diagnostics } = options;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.globalCompositeOperation = composite;
-  for (let y = cy - r; y < cy + r; y += cell) {
-    for (let x = cx - r; x < cx + r; x += cell) {
-      const dx = x + cell * 0.5 - cx;
-      const dy = y + cell * 0.5 - cy;
-      if (dx * dx + dy * dy > r * r) continue;
-      const inverted = projection.invert?.([x + cell * 0.5, y + cell * 0.5]);
-      if (!inverted) { diagnostics.hiddenPointSkips += 1; continue; }
-      const [lng, lat] = inverted;
-      const source = textureSampleRect(image, lng + lngOffset, lat);
-      ctx.drawImage(image, source.sx, source.sy, 2, 2, x, y, cell + 0.75, cell + 0.75);
-      diagnostics.drawCalls += 1;
-    }
-  }
-  ctx.restore();
-}
-
-function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; cx: number; cy: number; r: number; now: number; quality: GlobeQualityTier; landShapes: LandShape[]; mobile: boolean; lowPower: boolean; reducedMotion: boolean; diagnostics: RendererDiagnostics; textures: GlobeTextureBundle }) {
-  const { projection, cx, cy, r, now, quality, landShapes, mobile, lowPower, reducedMotion, diagnostics, textures } = options;
-  const day = textures.images.day;
-  const night = textures.images.night;
-  const clouds = textures.images.clouds;
-  const detail = textures.images.detail;
-  if (!day || !night || !clouds || !detail) throw new Error(textures.fallbackReason || "Required photorealistic Earth texture failed to load.");
-
-  const cell = quality === "cinematic" ? Math.max(4.5, r / 118) : quality === "balanced" ? Math.max(6.25, r / 92) : Math.max(9.5, r / 58);
-  const cloudCell = quality === "cinematic" ? cell * 1.6 : cell * 1.95;
-  drawEquirectangularTextureLayer(ctx, { projection, cx, cy, r, image: day, cell, diagnostics });
-  drawEquirectangularTextureLayer(ctx, { projection, cx, cy, r, image: detail, cell: cell * 1.8, alpha: quality === "mobile" ? 0.16 : 0.24, composite: "soft-light", diagnostics });
-
-  const sunLng = -35;
-  const sunLat = 18;
-  const terminatorStep = quality === "mobile" ? cell * 1.8 : cell * 1.35;
-  ctx.save();
-  ctx.globalCompositeOperation = "source-over";
-  for (let y = cy - r; y < cy + r; y += terminatorStep) {
-    for (let x = cx - r; x < cx + r; x += terminatorStep) {
-      const dx = x + terminatorStep * 0.5 - cx;
-      const dy = y + terminatorStep * 0.5 - cy;
-      if (dx * dx + dy * dy > r * r) continue;
-      const inverted = projection.invert?.([x + terminatorStep * 0.5, y + terminatorStep * 0.5]);
-      if (!inverted) continue;
-      const [lng, lat] = inverted;
-      const light = Math.sin(lat * DEG) * Math.sin(sunLat * DEG) + Math.cos(lat * DEG) * Math.cos(sunLat * DEG) * Math.cos((lng - sunLng) * DEG);
-      const nightAlpha = Math.max(0, Math.min(1, (0.22 - light) / 0.52));
-      if (nightAlpha <= 0.02) continue;
-      const source = textureSampleRect(night, lng, lat);
-      const sampledAlpha = Math.min(0.92, nightAlpha);
-      ctx.globalAlpha = sampledAlpha;
-      ctx.drawImage(night, source.sx, source.sy, 2, 2, x, y, terminatorStep + 1, terminatorStep + 1);
-      ctx.globalAlpha = Math.min(0.68, nightAlpha * 0.54);
-      ctx.fillStyle = "#020617";
-      ctx.fillRect(x, y, terminatorStep + 1, terminatorStep + 1);
-      diagnostics.drawCalls += 1;
-    }
-  }
-  ctx.restore();
-
-  if (textures.images.normal && quality !== "mobile") drawEquirectangularTextureLayer(ctx, { projection, cx, cy, r, image: textures.images.normal, cell: cell * 2.2, alpha: 0.1, composite: "overlay", diagnostics });
-
-  // Clouds are intentionally separate and slightly drift above the Earth surface.
-  drawEquirectangularTextureLayer(ctx, { projection, cx, cy, r: r * 1.006, image: clouds, cell: cloudCell, alpha: lowPower ? 0.22 : 0.34, composite: "screen", lngOffset: reducedMotion ? 0 : now * 0.00055, diagnostics });
-
-  const limb = ctx.createRadialGradient(cx - r * 0.24, cy - r * 0.28, r * 0.08, cx, cy, r);
-  limb.addColorStop(0, "rgba(255,255,255,0.16)");
-  limb.addColorStop(0.56, "rgba(255,255,255,0.015)");
-  limb.addColorStop(1, "rgba(0,7,19,0.56)");
-  ctx.fillStyle = limb;
+  const terminator = ctx.createLinearGradient(cx - r * 0.85, cy - r * 0.85, cx + r * 0.7, cy + r * 0.58);
+  terminator.addColorStop(0, "rgba(255,255,255,0.26)");
+  terminator.addColorStop(0.38, "rgba(255,255,255,0.02)");
+  terminator.addColorStop(0.62, "rgba(2,6,23,0.32)");
+  terminator.addColorStop(1, "rgba(0,0,0,0.78)");
+  ctx.fillStyle = terminator;
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-  diagnostics.projectedPolygons += landShapes.length;
+
+  const spec = ctx.createRadialGradient(cx - r * 0.36, cy - r * 0.42, 0, cx - r * 0.36, cy - r * 0.42, r * 0.5);
+  spec.addColorStop(0, "rgba(255,255,255,0.30)");
+  spec.addColorStop(0.2, "rgba(186,230,253,0.14)");
+  spec.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = spec;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 }
 
 function iosGlobeDebugEnabled() {
@@ -566,47 +501,15 @@ function readMobileViewport(wrap: HTMLDivElement, canvas: HTMLCanvasElement) {
   };
 }
 
-function loadGlobeTexture(src: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.decoding = "async";
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`Texture failed to load: ${src}`));
-    image.src = src;
-  });
-}
-
-async function loadPhotorealisticTextures(quality: GlobeQualityTier, onStatus: (key: GlobeTextureKey, status: GlobeTextureStatus) => void): Promise<GlobeTextureBundle> {
-  const images: Partial<Record<GlobeTextureKey, HTMLImageElement>> = {};
-  const status: Record<GlobeTextureKey, GlobeTextureStatus> = { ...EMPTY_TEXTURE_STATUS };
-  let fallbackReason: string | undefined;
-  await Promise.all((Object.keys(EARTH_TEXTURES) as GlobeTextureKey[]).map(async (key) => {
-    const texture = EARTH_TEXTURES[key];
-    status[key] = "loading";
-    onStatus(key, "loading");
-    try {
-      images[key] = await loadGlobeTexture(texture[quality]);
-      status[key] = "loaded";
-      onStatus(key, "loaded");
-    } catch (error) {
-      status[key] = "failed";
-      onStatus(key, "failed");
-      if (texture.required) fallbackReason = error instanceof Error ? error.message : `${key} texture failed to load`;
-    }
-  }));
-  return { status, images, fallbackReason };
-}
-
 const GLOBE_STYLE_COPY: Record<GlobeBasemapKey, string> = {
   blueMarble: "Blue Marble Globe",
   night: "Night Globe",
   signal: "Signal Globe",
-  photorealistic: "Photorealistic Globe",
+  photorealistic: "Photorealistic Preview Globe",
 };
 
-export default function BlueMarbleGlobe({ station, stations = [], previousStation, teleporting = false, onCountrySelect, onFallback, onStreetZoomRequest, mobile = false, basemap = "photorealistic", selectionVersion }: Props) {
-  const effectiveBasemap: GlobeBasemapKey = basemap;
+export default function BlueMarbleGlobe({ station, stations = [], previousStation, teleporting = false, onCountrySelect, onFallback, onStreetZoomRequest, mobile = false, basemap = "blueMarble", selectionVersion }: Props) {
+  const effectiveBasemap: GlobeBasemapKey = basemap === "photorealistic" && !shouldUsePhotorealisticPreview() ? "blueMarble" : basemap;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -627,18 +530,10 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const streetZoomTriggeredRef = useRef(false);
   const [debugOverlay, setDebugOverlay] = useState<GlobeDebugOverlay | null>(null);
   const debugOverlayTickRef = useRef(0);
-  const diagnosticsTickRef = useRef(0);
   const settledFocusLogRef = useRef("");
   const lastFocusKeyRef = useRef("");
   const previousFocusRef = useRef<{ name: string; point: GlobePoint | null } | null>(null);
   const signalRefreshKeyRef = useRef("");
-  const photorealisticFallbackNotifiedRef = useRef(false);
-  const textureRetryAttemptRef = useRef(0);
-  const textureRecoveryStatusRef = useRef("idle");
-  const textureBundleRef = useRef<GlobeTextureBundle>({ status: { ...EMPTY_TEXTURE_STATUS }, images: {} });
-  const [textureStatus, setTextureStatus] = useState<Record<GlobeTextureKey, GlobeTextureStatus>>({ ...EMPTY_TEXTURE_STATUS });
-  const [textureRecoveryStatus, setTextureRecoveryStatus] = useState("idle");
-  const [rendererDiagnosticsSnapshot, setRendererDiagnosticsSnapshot] = useState<RendererDiagnosticsSnapshot | null>(null);
 
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
@@ -702,41 +597,6 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   }, [effectiveBasemap, currentPoint, globeLabels, landShapes, selectionVersion, stationFocusIdentityKey, signalConstellation, station.city, station.country, station.name, station.state, stationLabel, teleporting]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !shouldRenderPhotorealisticBasemap(effectiveBasemap)) return;
-    let mounted = true;
-    let retryTimer = 0;
-    const quality = resolveGlobeQualityTier(mobile, getDeviceProfile().lowPower);
-    const runLoad = () => {
-      textureRecoveryStatusRef.current = textureRetryAttemptRef.current ? `retrying (${textureRetryAttemptRef.current})` : "loading";
-      setTextureRecoveryStatus(textureRecoveryStatusRef.current);
-      void loadPhotorealisticTextures(quality, (key, status) => {
-        if (!mounted) return;
-        setTextureStatus((prev) => ({ ...prev, [key]: status }));
-      }).then((bundle) => {
-        if (!mounted) return;
-        textureBundleRef.current = bundle;
-        setTextureStatus(bundle.status);
-        if (bundle.fallbackReason) {
-          textureRecoveryStatusRef.current = "recovering";
-          setTextureRecoveryStatus("recovering");
-          const attempt = textureRetryAttemptRef.current++;
-          const delay = Math.min(TEXTURE_RETRY_MAX_MS, TEXTURE_RETRY_BASE_MS * 2 ** attempt);
-          if (globeDebugEnabled()) setRendererDiagnosticsSnapshot({ mode: "blueMarble-fallback", quality, fps: 0, frameTimeMs: 0, textureStatus: bundle.status, fallbackReason: bundle.fallbackReason, recoveryStatus: `retry in ${Math.round(delay / 1000)}s` });
-          retryTimer = window.setTimeout(runLoad, delay);
-          return;
-        }
-        textureRetryAttemptRef.current = 0;
-        textureRecoveryStatusRef.current = "available";
-        setTextureRecoveryStatus("available");
-        photorealisticFallbackNotifiedRef.current = false;
-        if (globeDebugEnabled()) setRendererDiagnosticsSnapshot({ mode: "photorealistic-texture", quality, fps: 0, frameTimeMs: 0, textureStatus: bundle.status, fallbackReason: null, recoveryStatus: "available" });
-      });
-    };
-    runLoad();
-    return () => { mounted = false; window.clearTimeout(retryTimer); };
-  }, [effectiveBasemap, mobile]);
-
-  useEffect(() => {
     let mounted = true;
     loadLandShapes()
       .then((shapes) => { if (mounted) setLandShapes(shapes); })
@@ -778,14 +638,10 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     const transitionStats = { active: false, startedAt: 0, frameCount: 0, droppedFrames: 0, maxFrameGap: 0, totalFrameGap: 0, startSize: null as CanvasSize | null, canvasSizeChanged: false, resizeEvents: [] as string[] };
     const fallbackTimer = mobile ? window.setTimeout(() => { if (!painted) fallbackRef.current?.("Globe view is optimized for this device using map mode."); }, MOBILE_FALLBACK_MS) : 0;
 
-    const project = (lat: number, lng: number, projection: D3GeoProjection, diagnostics?: RendererDiagnostics): GlobeProjection => {
+    const project = (lat: number, lng: number, projection: D3GeoProjection): GlobeProjection => {
       const projected = projection([lng, lat]);
-      if (!projected) {
-        if (diagnostics) diagnostics.hiddenPointSkips += 1;
-        return { x: Number.NaN, y: Number.NaN, z: -1, vector: { x: Number.NaN, y: Number.NaN, z: -1 }, projection };
-      }
       const z = globeDepthFromProjection({ lat, lng }, projection);
-      return { x: projected[0], y: projected[1], z, vector: { x: Number.NaN, y: Number.NaN, z }, projection };
+      return { x: projected?.[0] ?? Number.NaN, y: projected?.[1] ?? Number.NaN, z, vector: { x: Number.NaN, y: Number.NaN, z }, projection };
     };
 
     const labelBoxes: Array<{ left: number; right: number; top: number; bottom: number; active: boolean }> = [];
@@ -906,46 +762,21 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       const targetScreenX = cx;
       const targetScreenY = cy;
 
-      const textureBundle = textureBundleRef.current;
-      const requiredTextureKeys: GlobeTextureKey[] = ["day", "night", "clouds", "detail"];
-      const requiredTexturesLoaded = requiredTextureKeys.every((key) => textureBundle.status[key] === "loaded" && textureBundle.images[key]);
-      const requiredTextureFailed = requiredTextureKeys.some((key) => textureBundle.status[key] === "failed") || Boolean(textureBundle.fallbackReason);
-      const userSelectedBasemap = runtime.basemap;
-      const wantsPhotorealistic = shouldRenderPhotorealisticBasemap(userSelectedBasemap);
-      let photorealisticPreview = wantsPhotorealistic && requiredTexturesLoaded && !requiredTextureFailed;
-      let effectiveRenderBasemap: GlobeBasemapKey = wantsPhotorealistic && !photorealisticPreview ? "blueMarble" : userSelectedBasemap;
-      drawSpaceBackdrop(ctx, { width: w, height: h, cx, cy, radius: r, now, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, basemap: effectiveRenderBasemap });
-      const frameStartedAt = performance.now();
-      const rendererDiagnostics: RendererDiagnostics = {
-        drawCalls: 0,
-        projectedPolygons: 0,
-        hiddenPointSkips: 0,
-        frameTimeMs: 0,
-        estimatedFps: 0,
-        beforeDrawCalls: photorealisticPreview ? runtime.landShapes.length * (resolveGlobeQualityTier(mobile, profile.lowPower) === "mobile" ? 2 : 3) : 0,
-        beforeProjectedPolygons: photorealisticPreview ? runtime.landShapes.length * (resolveGlobeQualityTier(mobile, profile.lowPower) === "mobile" ? 2 : 3) : 0,
-      };
+      drawSpaceBackdrop(ctx, { width: w, height: h, cx, cy, radius: r, now, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, basemap: runtime.basemap });
+      const photorealisticPreview = runtime.basemap === "photorealistic";
       const globeQuality = resolveGlobeQualityTier(mobile, profile.lowPower);
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
-      bg.addColorStop(0, effectiveRenderBasemap === "night" ? "rgba(125,92,255,0.16)" : effectiveRenderBasemap === "signal" ? "rgba(0,214,143,0.12)" : "rgba(0,214,143,0.18)"); bg.addColorStop(0.64, "rgba(3,12,27,0.10)"); bg.addColorStop(1, "rgba(3,8,20,0)");
+      bg.addColorStop(0, runtime.basemap === "night" ? "rgba(125,92,255,0.16)" : runtime.basemap === "signal" ? "rgba(0,214,143,0.12)" : "rgba(0,214,143,0.18)"); bg.addColorStop(0.64, "rgba(3,12,27,0.10)"); bg.addColorStop(1, "rgba(3,8,20,0)");
       ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
       ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.clip();
       const ocean = ctx.createRadialGradient(cx - r * 0.38, cy - r * 0.44, r * 0.12, cx, cy, r * 1.12);
-      if (effectiveRenderBasemap === "night") { ocean.addColorStop(0, "#111827"); ocean.addColorStop(0.55, "#050816"); ocean.addColorStop(1, "#01030a"); }
-      else if (effectiveRenderBasemap === "signal") { ocean.addColorStop(0, "#08213a"); ocean.addColorStop(0.55, "#031225"); ocean.addColorStop(1, "#010814"); }
+      if (runtime.basemap === "night") { ocean.addColorStop(0, "#111827"); ocean.addColorStop(0.55, "#050816"); ocean.addColorStop(1, "#01030a"); }
+      else if (runtime.basemap === "signal") { ocean.addColorStop(0, "#08213a"); ocean.addColorStop(0.55, "#031225"); ocean.addColorStop(1, "#010814"); }
       else { ocean.addColorStop(0, "#1f6f9d"); ocean.addColorStop(0.42, "#0c3b67"); ocean.addColorStop(1, "#031327"); }
       const projection = buildGlobeProjection(w, h, r, state.current.rotX, state.current.rotY, cx, cy)
         .precision(mobile || profile.lowPower ? 0.85 : 0.45);
       if (photorealisticPreview) {
-        try {
-          drawPhotorealisticSurface(ctx, { projection, cx, cy, r, now, quality: globeQuality, landShapes: runtime.landShapes, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion, diagnostics: rendererDiagnostics, textures: textureBundleRef.current });
-        } catch (error) {
-          photorealisticPreview = false;
-          effectiveRenderBasemap = "blueMarble";
-          if (process.env.NODE_ENV !== "production") console.warn("[WaveAtlas globe] photorealistic render fallback", error);
-          photorealisticFallbackNotifiedRef.current = true;
-          ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-        }
+        drawPhotorealisticSurface(ctx, { projection, cx, cy, r, now, quality: globeQuality, landShapes: runtime.landShapes, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion });
       } else {
         ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
       }
@@ -953,14 +784,14 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         const path = geoPath(projection, ctx);
         const shapesToDraw = runtime.landShapes;
 
-        ctx.fillStyle = photorealisticPreview ? "rgba(57,118,74,0.88)" : effectiveRenderBasemap === "night" ? "rgba(30,41,59,0.78)" : effectiveRenderBasemap === "signal" ? "rgba(18,52,70,0.66)" : "rgba(42,92,78,0.82)";
+        ctx.fillStyle = photorealisticPreview ? "rgba(57,118,74,0.88)" : runtime.basemap === "night" ? "rgba(30,41,59,0.78)" : runtime.basemap === "signal" ? "rgba(18,52,70,0.66)" : "rgba(42,92,78,0.82)";
         for (const shape of shapesToDraw) {
           ctx.beginPath();
           path(shape.feature);
           ctx.fill("evenodd");
         }
 
-        ctx.strokeStyle = photorealisticPreview ? "rgba(234,244,255,0.28)" : effectiveRenderBasemap === "night" ? "rgba(125,211,252,0.25)" : effectiveRenderBasemap === "signal" ? "rgba(125,211,252,0.38)" : "rgba(125,211,252,0.30)";
+        ctx.strokeStyle = photorealisticPreview ? "rgba(234,244,255,0.28)" : runtime.basemap === "night" ? "rgba(125,211,252,0.25)" : runtime.basemap === "signal" ? "rgba(125,211,252,0.38)" : "rgba(125,211,252,0.30)";
         ctx.lineWidth = mobile || profile.lowPower ? 0.42 : 0.65;
         for (const shape of shapesToDraw) {
           ctx.beginPath();
@@ -968,7 +799,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
           ctx.stroke();
         }
       }
-      ctx.strokeStyle = effectiveRenderBasemap === "signal" ? "rgba(56,189,248,0.24)" : effectiveRenderBasemap === "night" ? "rgba(148,163,184,0.055)" : "rgba(147,197,253,0.09)"; ctx.lineWidth = mobile || profile.lowPower ? 0.45 : 0.7;
+      ctx.strokeStyle = runtime.basemap === "signal" ? "rgba(56,189,248,0.24)" : runtime.basemap === "night" ? "rgba(148,163,184,0.055)" : "rgba(147,197,253,0.09)"; ctx.lineWidth = mobile || profile.lowPower ? 0.45 : 0.7;
       const latStep = mobile || profile.lowPower ? 30 : 15;
       const lngStep = mobile || profile.lowPower ? 30 : 15;
       if (!photorealisticPreview) {
@@ -977,12 +808,11 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       }
       if (photorealisticPreview) {
         const lights = mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;
-        for (const light of lights) { const p = project(light.lat, light.lng, projection, rendererDiagnostics); if (p.z < -0.02) continue; const nightBoost = Math.max(0.15, 1 - Math.max(0, p.z) * 0.65); const glow = (1 + Math.max(0, p.z) * 1.2) * nightBoost; ctx.fillStyle = "rgba(251,191,36,0.24)"; ctx.beginPath(); ctx.arc(p.x, p.y, 4.8 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.78)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.05 * glow, 0, TAU); ctx.fill(); }
-        drawCountryBoundaries(ctx, { projection, landShapes: runtime.landShapes, quality: globeQuality, mobile, lowPower: profile.lowPower, diagnostics: rendererDiagnostics });
+        for (const light of lights) { const p = project(light.lat, light.lng, projection); if (p.z < -0.02) continue; const nightBoost = Math.max(0.15, 1 - Math.max(0, p.z) * 0.65); const glow = (1 + Math.max(0, p.z) * 1.2) * nightBoost; ctx.fillStyle = "rgba(251,191,36,0.24)"; ctx.beginPath(); ctx.arc(p.x, p.y, 4.8 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.78)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.05 * glow, 0, TAU); ctx.fill(); }
       }
-      if (effectiveRenderBasemap === "night") {
+      if (runtime.basemap === "night") {
         const lights = mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;
-        for (const light of lights) { const p = project(light.lat, light.lng, projection, rendererDiagnostics); if (p.z < -0.02) continue; const glow = 1 + Math.max(0, p.z) * 1.8; ctx.fillStyle = "rgba(251,191,36,0.24)"; ctx.beginPath(); ctx.arc(p.x, p.y, 5.5 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.88)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.4 * glow, 0, TAU); ctx.fill(); }
+        for (const light of lights) { const p = project(light.lat, light.lng, projection); if (p.z < -0.02) continue; const glow = 1 + Math.max(0, p.z) * 1.8; ctx.fillStyle = "rgba(251,191,36,0.24)"; ctx.beginPath(); ctx.arc(p.x, p.y, 5.5 * glow, 0, TAU); ctx.fill(); ctx.fillStyle = "rgba(255,244,180,0.88)"; ctx.beginPath(); ctx.arc(p.x, p.y, 1.4 * glow, 0, TAU); ctx.fill(); }
       }
       ctx.restore();
       if (photorealisticPreview) {
@@ -1095,19 +925,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         ctx.beginPath(); ctx.moveTo(projected.x, projected.y); ctx.lineTo(targetScreenX, targetScreenY); ctx.stroke();
         ctx.restore();
       }
-      ctx.strokeStyle = photorealisticPreview ? "rgba(96,165,250,0.58)" : "rgba(0,214,143,0.55)"; ctx.lineWidth = photorealisticPreview ? 1.8 : 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
-      if (photorealisticPreview) {
-        rendererDiagnostics.frameTimeMs = performance.now() - frameStartedAt;
-        rendererDiagnostics.estimatedFps = rendererDiagnostics.frameTimeMs > 0 ? 1000 / rendererDiagnostics.frameTimeMs : 0;
-        if (globeDebugEnabled() && now - diagnosticsTickRef.current > 1000) {
-          diagnosticsTickRef.current = now;
-          setRendererDiagnosticsSnapshot({ mode: photorealisticPreview ? "photorealistic-texture" : effectiveRenderBasemap, quality: globeQuality, fps: Number(rendererDiagnostics.estimatedFps.toFixed(1)), frameTimeMs: Number(rendererDiagnostics.frameTimeMs.toFixed(2)), textureStatus: textureBundleRef.current.status, fallbackReason: textureBundleRef.current.fallbackReason ?? null, recoveryStatus: textureRecoveryStatusRef.current });
-          console.debug("[WaveAtlas renderer diagnostics]", {
-            before: { drawCalls: rendererDiagnostics.beforeDrawCalls, projectedPolygons: rendererDiagnostics.beforeProjectedPolygons },
-            after: { drawCalls: rendererDiagnostics.drawCalls, projectedPolygons: rendererDiagnostics.projectedPolygons, hiddenPointSkips: rendererDiagnostics.hiddenPointSkips, frameTimeMs: Number(rendererDiagnostics.frameTimeMs.toFixed(2)), estimatedFps: Number(rendererDiagnostics.estimatedFps.toFixed(1)) },
-          });
-        }
-      }
+      ctx.strokeStyle = "rgba(0,214,143,0.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
       painted = true;
       if (transitionStats.active && !s.travelActive) {
         const avgGap = transitionStats.frameCount ? transitionStats.totalFrameGap / transitionStats.frameCount : 0;
@@ -1170,21 +988,11 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     const country = nearestCountry(point.lat, point.lng); if (country) onCountrySelect?.(country);
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "wheel street/city threshold"); };
-  const diagnosticsOverlay: RendererDiagnosticsSnapshot | null = rendererDiagnosticsSnapshot ?? (shouldRenderPhotorealisticBasemap(effectiveBasemap) ? { mode: "texture-loading", quality: resolveGlobeQualityTier(mobile, false), fps: 0, frameTimeMs: 0, textureStatus, fallbackReason: null, recoveryStatus: textureRecoveryStatus } : null);
 
   return <div ref={wrapRef} data-globe-travel-active="false" className={`${mobile ? "waveatlas-globe-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
     <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
     <div className={`${mobile ? "hidden" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 ${mobile ? "shadow-none backdrop-blur-sm" : "shadow-lg backdrop-blur-xl"}`}>{GLOBE_STYLE_COPY[effectiveBasemap]} · zoom in for Atlas Streets · tap to tune</div>
-    <div className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing texture-driven globe…"}</span></div>
-    {globeDebugEnabled() && diagnosticsOverlay ? <div className="pointer-events-none absolute right-4 top-28 z-30 rounded-2xl border border-sky-300/25 bg-slate-950/80 p-3 font-mono text-[10px] leading-5 text-sky-100 shadow-2xl backdrop-blur-xl">
-      <div>renderer: {diagnosticsOverlay.mode}</div>
-      <div>quality: {diagnosticsOverlay.quality}</div>
-      <div>fps: {diagnosticsOverlay.fps}</div>
-      <div>frame: {diagnosticsOverlay.frameTimeMs}ms</div>
-      <div>textures: {(Object.entries(diagnosticsOverlay.textureStatus) as Array<[GlobeTextureKey, GlobeTextureStatus]>).map(([key, value]) => `${key}:${value}`).join(" · ")}</div>
-      <div>fallback: {diagnosticsOverlay.fallbackReason ?? "none"}</div>
-      <div>recovery: {diagnosticsOverlay.recoveryStatus}</div>
-    </div> : null}
+    <div className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing procedural globe…"}</span></div>
     {globeDebugEnabled() && debugOverlay ? <div className="pointer-events-none absolute bottom-4 left-4 z-30 rounded-2xl border border-emerald-300/30 bg-slate-950/80 p-3 font-mono text-[10px] leading-5 text-emerald-100 shadow-2xl backdrop-blur-xl">
       <div>station lat/lng: {debugOverlay.stationLat?.toFixed(4)}, {debugOverlay.stationLng?.toFixed(4)}</div>
       <div>screen x/y: {debugOverlay.screenX?.toFixed(1)}, {debugOverlay.screenY?.toFixed(1)}</div>

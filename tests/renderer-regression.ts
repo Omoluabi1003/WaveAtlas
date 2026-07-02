@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { buildGlobeProjection, fixtureProjectsToFocusedCenter, focusRotationForPoint, invertGlobePoint, projectGlobePoint, GLOBE_COORDINATE_FIXTURES } from "../lib/globe-math";
-import { readRendererFeatureFlags, shouldRenderPhotorealisticBasemap, shouldUsePhotorealisticPreview } from "../lib/globe-renderer-adapter";
-import { getSelectableGlobeBasemapKeys } from "../lib/globe-style-options";
+import { readRendererFeatureFlags, shouldUsePhotorealisticPreview } from "../lib/globe-renderer-adapter";
 
 const screen = { width: 1000, height: 1000, radius: 300 };
 
@@ -35,15 +34,8 @@ const d3Projection = buildGlobeProjection(screen.width, screen.height, screen.ra
 assert.deepEqual(d3Projection.rotate().map((value) => Math.round(value * 1000) / 1000), [-teleportEnd.lng, -teleportEnd.lat, 0].map((value) => Math.round(value * 1000) / 1000), "D3 projection should preserve [longitude, latitude] rotation contract");
 
 assert.deepEqual(readRendererFeatureFlags({}), { rendererKind: "canvas2d", photorealisticPreview: false, forceLegacyCanvas: true }, "legacy renderer should be default rollback");
-assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview" })), true, "preview flag activates the renderer adapter unless rollback is forced");
-assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_VERCEL_ENV: "preview" })), true, "Vercel preview deployments should show the photorealistic renderer");
-assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_VERCEL_ENV: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "true" })), false, "forced legacy remains an instant rollback in preview");
+assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview" })), false, "preview flag alone should not override rollback");
 assert.equal(shouldUsePhotorealisticPreview(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "false" })), true, "preview requires explicit rollback opt-out");
 assert.equal(readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview", NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER: "false" }).rendererKind, "photorealistic-preview", "browser-inlined preview flags should activate the renderer adapter");
-
-assert.deepEqual(getSelectableGlobeBasemapKeys(), ["photorealistic", "blueMarble", "night", "signal"], "Globe Style should expose photorealistic first while preserving other globe styles");
-assert.equal(shouldRenderPhotorealisticBasemap("photorealistic", readRendererFeatureFlags({})), true, "selecting photorealistic should activate the photorealistic render branch without deployment flags");
-assert.equal(shouldRenderPhotorealisticBasemap("blueMarble", readRendererFeatureFlags({ NEXT_PUBLIC_WAVEATLAS_PHOTOREALISTIC_RENDERER: "preview" })), true, "preview builds should still activate the photorealistic render branch through feature flags");
-assert.equal(shouldRenderPhotorealisticBasemap("blueMarble", readRendererFeatureFlags({})), false, "Blue Marble remains the legacy render branch by default");
 
 console.log("renderer regression checks passed");
