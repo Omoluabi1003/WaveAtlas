@@ -106,12 +106,14 @@ export function rankPlayableAtlasStationsInCountry(stations: Station[], tap: Atl
 
 export class AtlasInteractionEngine {
   private candidate: { pointerId: number; x: number; y: number; blocked: boolean; dragging: boolean } | null = null;
+  private readonly activePointers = new Set<number>();
   private multiTouchBlocked = false;
 
   constructor(private readonly options: { dragThresholdPx?: number; geometryProvider: AtlasInteractionGeometryProvider; countryResolver: AtlasInteractionCountryResolver; stationsProvider: () => Station[]; activeStationKeyProvider?: AtlasInteractionActiveStationKeyProvider }) {}
 
   pointerDown(input: { pointerId: number; clientX: number; clientY: number; blockedByOverlay?: boolean }) {
-    if (this.candidate && this.candidate.pointerId !== input.pointerId) {
+    this.activePointers.add(input.pointerId);
+    if (this.activePointers.size > 1 || (this.candidate && this.candidate.pointerId !== input.pointerId)) {
       this.candidate = null;
       this.multiTouchBlocked = true;
       return;
@@ -128,16 +130,18 @@ export class AtlasInteractionEngine {
   }
 
   pointerCancel(pointerId: number) {
+    this.activePointers.delete(pointerId);
     if (this.candidate?.pointerId === pointerId) this.candidate = null;
-    this.multiTouchBlocked = false;
+    if (this.activePointers.size === 0) this.multiTouchBlocked = false;
   }
 
   pointerUp(input: { pointerId: number; clientX: number; clientY: number; canvasRect: DOMRect; blockedByOverlay?: boolean }): AtlasInteractionResult {
+    this.activePointers.delete(input.pointerId);
     const candidate = this.candidate;
     this.candidate = null;
     const screen = { x: input.clientX - input.canvasRect.left, y: input.clientY - input.canvasRect.top };
     const base = (reason: string | null, point: AtlasInteractionGeoPoint | null = null, country: AtlasInteractionCountry | null = null): AtlasInteractionDiagnostics => ({ screen, resolvedLatLng: point, resolvedCountry: country ? { name: country.name, code: country.code } : null, playableStationsInCountry: 0, activeStationKey: this.options.activeStationKeyProvider?.() ?? null, excludedActiveStation: false, candidateCountBeforeExclusion: 0, candidateCountAfterExclusion: 0, selectedStation: null, distanceToSelectedStationKm: null, selectedStationDistanceKm: null, fallbackReason: null, rejectedReason: reason });
-    if (this.multiTouchBlocked) { this.multiTouchBlocked = false; return { kind: "rejected", diagnostics: base("multi-touch") }; }
+    if (this.multiTouchBlocked) { if (this.activePointers.size === 0) this.multiTouchBlocked = false; return { kind: "rejected", diagnostics: base("multi-touch") }; }
     if (!candidate || candidate.pointerId !== input.pointerId) return { kind: "rejected", diagnostics: base("missing-pointer-candidate") };
     if (candidate.blocked || input.blockedByOverlay) return { kind: "rejected", diagnostics: base("overlay") };
     if (candidate.dragging || Math.hypot(input.clientX - candidate.x, input.clientY - candidate.y) > (this.options.dragThresholdPx ?? 8)) return { kind: "rejected", diagnostics: base("drag-threshold") };

@@ -10,6 +10,7 @@ import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
 import { DEG, buildGlobeProjection, focusRotationForPoint, globeDepthFromProjection, projectGlobePoint, rotateFromDrag, type GlobeProjection } from "@/lib/globe-math";
 import { drawActiveStationBeacon } from "@/components/ActiveStationBeacon";
 import { AtlasInteractionEngine, type AtlasInteractionGeometry } from "@/lib/atlas-interaction-engine";
+import { logStationGeoTruthHealthReport } from "@/lib/station-geotruth-health";
 
 type CountryResult = {
   name: string;
@@ -1119,7 +1120,10 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, stationFocusIdentityKey, teleporting]);
 
-  useEffect(() => { stationsRef.current = stations; }, [stations]);
+  useEffect(() => {
+    stationsRef.current = stations;
+    if (process.env.NODE_ENV !== "production") logStationGeoTruthHealthReport(stations);
+  }, [stations]);
   useEffect(() => { activeStationKeyRef.current = station.station_uuid || station.id; }, [station.station_uuid, station.id]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; debugGlobeFocus("user drag cancelled transition", { selectionVersion, station: station.name, travelActive: s.travelActive, focusDuration: s.focusDuration }); s.travelActive = false; s.focusDuration = 0; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; s.downOverOverlay = isGlobePointerBlockedByOverlay(event.clientX, event.clientY); getInteractionEngine().pointerDown({ pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, blockedByOverlay: s.downOverOverlay }); event.currentTarget.setPointerCapture(event.pointerId); };
