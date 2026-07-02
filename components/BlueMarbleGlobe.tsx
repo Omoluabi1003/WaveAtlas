@@ -447,18 +447,21 @@ function stationResolvedPoint(station: Station) {
   return { lat: geo.lat, lng: geo.lng, source: geo.source, precision: geo.precision };
 }
 
+type ResolvedGlobeStationPoint = NonNullable<ReturnType<typeof stationResolvedPoint>>;
+type RankedGlobeStation = { station: Station; distance: number; point: ResolvedGlobeStationPoint };
+
 function rankStationsNearPoint(stations: Station[], point: { lat: number; lng: number }) {
   const ranked = stations
     .filter(isPlayableGlobeStation)
     .map((station) => {
       const geo = stationResolvedPoint(station);
       if (!geo || geo.source === "country_centroid") return null;
-      return { station, distance: globeDistanceKm(point, geo) };
+      return { station, distance: globeDistanceKm(point, geo), point: geo };
     })
-    .filter((item): item is { station: Station; distance: number } => Boolean(item))
+    .filter((item): item is RankedGlobeStation => item !== null)
     .sort((a, b) => a.distance - b.distance);
   const nearby = ranked.filter((item) => item.distance <= 350);
-  return { candidates: nearby.map((item) => item.station), fallbackReason: nearby.length ? "nearest-point" : "no-nearby-station" };
+  return { ranked: nearby, candidates: nearby.map((item) => item.station), fallbackReason: nearby.length ? "nearest-point" : "no-nearby-station" };
 }
 
 function normalizeCountryText(value = "") {
@@ -472,15 +475,15 @@ function stationMatchesCountry(station: Station, country: CountryResult) {
 }
 
 function rankPlayableStationsInCountry(stations: Station[], point: { lat: number; lng: number }, country: CountryResult) {
-  return stations
+  const ranked = stations
     .filter((station) => isPlayableGlobeStation(station) && stationMatchesCountry(station, country))
     .map((station) => {
       const geo = stationResolvedPoint(station);
       const distance = geo ? globeDistanceKm(point, geo) : Number.POSITIVE_INFINITY;
-      return { station, distance };
+      return { station, distance, point: geo };
     })
-    .sort((a, b) => a.distance - b.distance || b.station.votes - a.station.votes || b.station.click_count - a.station.click_count)
-    .map((item) => item.station);
+    .sort((a, b) => a.distance - b.distance || b.station.votes - a.station.votes || b.station.click_count - a.station.click_count);
+  return { ranked, candidates: ranked.map((item) => item.station) };
 }
 
 function landBoundsForShape(shape: LandShape) {
@@ -1181,13 +1184,35 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     }
     const country = countryAtPoint(point.lat, point.lng, runtimeRef.current.landShapes) ?? nearestCountry(point.lat, point.lng, 450);
     const pointRanked = rankStationsNearPoint(stations, point);
-    const countryCandidates = country && !pointRanked.candidates.length ? rankPlayableStationsInCountry(stations, point, country) : [];
-    const candidates = pointRanked.candidates.length ? pointRanked.candidates : countryCandidates;
+    const countryRanked = country && !pointRanked.candidates.length ? rankPlayableStationsInCountry(stations, point, country) : { ranked: [], candidates: [] };
+    const candidates = pointRanked.candidates.length ? pointRanked.candidates : countryRanked.candidates;
     const selected = candidates[0];
+    const selectedPoint = pointRanked.ranked[0]?.station.id === selected?.id
+      ? pointRanked.ranked[0]?.point
+      : countryRanked.ranked[0]?.station.id === selected?.id
+        ? countryRanked.ranked[0]?.point
+        : selected
+          ? stationResolvedPoint(selected)
+          : null;
+    const tapStage = pointRanked.candidates.length ? "point-nearby-station" : selected ? "country-nearest-station" : country ? "country-context-only" : "unresolved";
     const fallbackReason = selected
       ? (pointRanked.candidates.length ? "nearest-point" : "nearest-country-station")
       : country ? "country-only-no-playable-station" : "no-country";
-    debugGlobeClick({ screen, geometry, tapPoint: screen, resolvedLatLng: { lat: point.lat, lng: point.lng }, country: country?.name ?? null, selectedStation: selected?.name ?? null, fallbackReason, candidateCount: candidates.length, zoom: s.zoom });
+    debugGlobeClick({
+      screen,
+      geometry,
+      tapPoint: screen,
+      stage: tapStage,
+      resolvedLatLng: { lat: point.lat, lng: point.lng },
+      resolvedCountry: country ? { name: country.name, code: country.code } : null,
+      pointCandidateCount: pointRanked.candidates.length,
+      countryCandidateCount: countryRanked.candidates.length,
+      selectedStation: selected ? { id: selected.id, name: selected.name, country: selected.country, country_code: selected.country_code } : null,
+      selectedStationCoordinates: selectedPoint ? { lat: selectedPoint.lat, lng: selectedPoint.lng, source: selectedPoint.source, precision: selectedPoint.precision } : null,
+      fallbackReason,
+      candidateCount: candidates.length,
+      zoom: s.zoom,
+    });
     if (selected) {
       onStationSelect?.(selected, candidates, country?.name ?? "globe point");
       return;
