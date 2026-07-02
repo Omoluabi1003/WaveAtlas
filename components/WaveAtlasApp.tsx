@@ -3541,17 +3541,22 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
       const header = document.querySelector<HTMLElement>("[data-waveatlas-mobile-header]");
       const viewportOffsetTop = window.visualViewport?.offsetTop ?? 0;
       const bottom = header?.getBoundingClientRect().bottom ?? viewportOffsetTop;
-      setMobileHeaderSafeZone(Math.ceil(Math.max(0, bottom + 16)));
+      setMobileHeaderSafeZone(Math.ceil(Math.max(0, bottom + 8)));
     };
-    measure();
     const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
-    const header = document.querySelector<HTMLElement>("[data-waveatlas-mobile-header]");
-    if (header) resizeObserver?.observe(header);
+    let frame = 0;
+    const observeHeader = () => {
+      const header = document.querySelector<HTMLElement>("[data-waveatlas-mobile-header]");
+      if (header) resizeObserver?.observe(header);
+      measure();
+    };
+    observeHeader();
+    frame = window.requestAnimationFrame(observeHeader);
     window.visualViewport?.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("scroll", measure);
     window.addEventListener("resize", measure);
-    return () => { resizeObserver?.disconnect(); window.visualViewport?.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("scroll", measure); window.removeEventListener("resize", measure); };
-  }, [visualViewport.viewportOffsetTop]);
+    return () => { if (frame) window.cancelAnimationFrame(frame); resizeObserver?.disconnect(); window.visualViewport?.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("scroll", measure); window.removeEventListener("resize", measure); };
+  }, [mode]);
   useWaveAtlasLayoutDebug(process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_LAYOUT === "true");
   const handleMobileGlobeFallback = useCallback((reason?: string) => {
     const fallbackReason = reason || "Globe view is unavailable on this device right now.";

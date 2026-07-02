@@ -535,7 +535,7 @@ function readMobileViewport(wrap: HTMLDivElement, canvas: HTMLCanvasElement) {
   const playerRect = document.querySelector('[data-waveatlas-player], [aria-label="Now playing"]')?.getBoundingClientRect();
   const visualHeight = visualViewport?.height ?? window.innerHeight;
   const safeAreaBottomEstimate = Math.max(0, window.innerHeight - visualHeight - (visualViewport?.offsetTop ?? 0));
-  const topObstruction = headerRect ? Math.max(0, headerRect.bottom - canvasRect.top + 16) : 0;
+  const topObstruction = headerRect ? Math.max(0, headerRect.bottom - canvasRect.top + 8) : 0;
   const bottomObstruction = Math.max(safeAreaBottomEstimate, dockRect ? Math.max(0, canvasRect.bottom - dockRect.top + 16) : 0, toastRect ? Math.max(0, canvasRect.bottom - toastRect.top + 16) : 0, playerRect ? Math.max(0, canvasRect.bottom - playerRect.top + 16) : 0);
   const usableBounds = { left: 0, top: Math.min(canvasRect.height, topObstruction), right: canvasRect.width, bottom: Math.max(0, canvasRect.height - bottomObstruction) };
   return {
@@ -805,10 +805,15 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         }
       }
       if (!runtime.currentPoint && !s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1 && activeFocusVerified) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
-      const r = Math.min(w, h) * (mobile ? 0.46 : 0.34) * s.zoom;
-      const cx = w / 2, cy = mobile ? h * 0.42 : h / 2;
       const viewportDebug = mobile || globeDebugEnabled() ? readMobileViewport(wrap, canvas) : null;
       const usableBounds = viewportDebug?.usableBounds ?? { left: 0, top: 0, right: w, bottom: h };
+      const r = Math.min(w, h) * (mobile ? 0.46 : 0.34) * s.zoom;
+      const cx = w / 2;
+      const usableHeight = Math.max(0, usableBounds.bottom - usableBounds.top);
+      const mobileCenterY = usableBounds.top + usableHeight * 0.46;
+      const minMobileCenterY = usableBounds.top + Math.min(r, usableHeight / 2);
+      const maxMobileCenterY = usableBounds.bottom - Math.min(r, usableHeight / 2);
+      const cy = mobile ? Math.max(minMobileCenterY, Math.min(maxMobileCenterY, mobileCenterY)) : h / 2;
       const targetScreenX = cx;
       const targetScreenY = cy;
 
@@ -1036,8 +1041,8 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     pinchDistance.current = null;
     const s = state.current; s.dragging = pointers.current.size > 0;
     if (Math.hypot(event.clientX - s.downX, event.clientY - s.downY) > 8) return;
-    const rect = event.currentTarget.getBoundingClientRect(); const r = Math.min(rect.width, rect.height) * (mobile ? 0.46 : 0.34) * s.zoom; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY: mobile ? rect.height * 0.42 : rect.height / 2 }); if (!point) return;
-    const projected = projectGlobePoint(point, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY: mobile ? rect.height * 0.42 : rect.height / 2 });
+    const rect = event.currentTarget.getBoundingClientRect(); const viewportDebug = mobile && wrapRef.current ? readMobileViewport(wrapRef.current, event.currentTarget) : null; const usableBounds = viewportDebug?.usableBounds ?? { left: 0, top: 0, right: rect.width, bottom: rect.height }; const r = Math.min(rect.width, rect.height) * (mobile ? 0.46 : 0.34) * s.zoom; const usableHeight = Math.max(0, usableBounds.bottom - usableBounds.top); const mobileCenterY = usableBounds.top + usableHeight * 0.46; const minMobileCenterY = usableBounds.top + Math.min(r, usableHeight / 2); const maxMobileCenterY = usableBounds.bottom - Math.min(r, usableHeight / 2); const centerY = mobile ? Math.max(minMobileCenterY, Math.min(maxMobileCenterY, mobileCenterY)) : rect.height / 2; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY }); if (!point) return;
+    const projected = projectGlobePoint(point, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY });
     if (projected.z < -0.001) return;
     const country = nearestCountry(point.lat, point.lng);
     const ranked = rankStationsNearPoint(stations, point, country);
@@ -1048,7 +1053,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "wheel street/city threshold"); };
 
-  return <div ref={wrapRef} data-globe-travel-active="false" className={`${mobile ? "waveatlas-globe-shell fixed inset-x-0 bottom-0 top-[var(--waveatlas-mobile-header-safe-zone,0px)] h-auto min-h-0 w-full max-w-[100vw] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
+  return <div ref={wrapRef} data-globe-travel-active="false" className={`${mobile ? "waveatlas-globe-shell fixed inset-0 h-full min-h-0 w-full max-w-[100vw] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}>
     <canvas ref={canvasRef} className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} onWheel={handleWheel} aria-label="Interactive audio tourism globe" role="img" />
     <div className={`${mobile ? "hidden" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 ${mobile ? "shadow-none backdrop-blur-sm" : "shadow-lg backdrop-blur-xl"}`}>{GLOBE_STYLE_COPY[effectiveBasemap]} · zoom in for Atlas Streets · tap to tune</div>
     <div className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}><b className="block text-white">Audio Tourism layer</b><span>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing procedural globe…"}</span></div>
