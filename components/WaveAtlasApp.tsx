@@ -39,7 +39,7 @@ import { isoCountryCentroids, type ResolvedStationGeo } from "@/lib/geotruth-res
 import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
-import { globeBasemapStyles, getSelectableGlobeBasemapKeys } from "@/lib/globe-style-options";
+import { shouldUsePhotorealisticPreview } from "@/lib/globe-renderer-adapter";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
 import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station, type StationInventoryStats } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
@@ -2018,8 +2018,13 @@ const basemapStyles: Record<BasemapKey, { label: string; name: string; descripti
   blueMarble: { label: "🌊 Blue Marble", name: "Blue Marble", description: "Clean global Earth aesthetic", style: { version: 8, sources: { marble: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / Blue Marble" } }, layers: [{ id: "blue-marble", type: "raster", source: "marble" }] } },
 };
 function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
-function getInitialGlobeBasemap(): GlobeBasemapKey { if (typeof window === "undefined") return "photorealistic"; const saved = window.localStorage.getItem(GLOBE_BASEMAP_STORAGE_KEY) as GlobeBasemapKey | null; return saved && saved in globeBasemapStyles ? saved : "photorealistic"; }
-function rememberGlobeBasemap(value: GlobeBasemapKey) { try { window.localStorage.setItem(GLOBE_BASEMAP_STORAGE_KEY, value); } catch { /* Globe preference persistence is non-critical. */ } }
+const globeBasemapStyles: Record<GlobeBasemapKey, { label: string; name: string; description: string }> = {
+  blueMarble: { label: "🌊 Blue Marble Globe", name: "Blue Marble Globe", description: "Procedural oceans, landmasses, borders, labels, and live beacon." },
+  night: { label: "🌃 Night Globe", name: "Night Globe", description: "Dark Earth with country outlines, city-light style points, and live beacon." },
+  signal: { label: "📡 Signal Globe", name: "Signal Globe", description: "Minimal navy globe with grid, country outlines, and live beacon." },
+  photorealistic: { label: "🌍 Photorealistic Preview", name: "Photorealistic", description: "Feature-flagged realistic Earth texture, clouds, atmosphere, city lights, directional light, and ocean depth." },
+};
+function getInitialGlobeBasemap(): GlobeBasemapKey { if (typeof window === "undefined") return "blueMarble"; const saved = window.localStorage.getItem(GLOBE_BASEMAP_STORAGE_KEY) as GlobeBasemapKey | null; return saved && saved in globeBasemapStyles && (saved !== "photorealistic" || shouldUsePhotorealisticPreview()) ? saved : "blueMarble"; }
 function getInitialAtlasView(): AtlasViewMode {
   if (typeof window === "undefined") return "globe";
   const saved = window.localStorage.getItem(ATLAS_VIEW_STORAGE_KEY);
@@ -3520,7 +3525,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
-    {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact atlasView={selectedView} onChooseAtlasView={chooseAtlasView} atlasViewTransitioning={atlasTransition.transitionLocked} globeFallbackReason={mobileGlobeFallbackReason} basemap={basemap} onBasemapChange={setBasemap} globeBasemap={globeBasemap} onGlobeBasemapChange={(value) => { setGlobeBasemap(value); rememberGlobeBasemap(value); if (selectedView !== "globe" || mobileGlobeFallbackReason) atlasTransition.retryGlobe("globe style selection", transitionContext); }} atlasDrive={<AtlasLocationPill stations={stations} current={current} />} onClose={() => setMode("Atlas")} startupPreferences={startupPreferences} onStartupPreferencesChange={onStartupPreferencesChange} activeStation={current} /></div> : null}
+    {mode === "Settings" ? <div className="pointer-events-auto fixed inset-0 z-[998] overflow-y-auto bg-black/35 pb-28 backdrop-blur-[8px]"><UtilityLinksPanel compact atlasView={selectedView} onChooseAtlasView={chooseAtlasView} atlasViewTransitioning={atlasTransition.transitionLocked} globeFallbackReason={mobileGlobeFallbackReason} basemap={basemap} onBasemapChange={setBasemap} globeBasemap={globeBasemap} onGlobeBasemapChange={(value) => { setGlobeBasemap(value); if (selectedView !== "globe" || mobileGlobeFallbackReason) atlasTransition.retryGlobe("globe style selection", transitionContext); }} atlasDrive={<AtlasLocationPill stations={stations} current={current} />} onClose={() => setMode("Atlas")} startupPreferences={startupPreferences} onStartupPreferencesChange={onStartupPreferencesChange} activeStation={current} /></div> : null}
     {mode === "Add Signal" ? (
       <div className="pointer-events-auto fixed inset-0 z-[999] flex h-[100dvh] items-start justify-center overflow-y-auto overscroll-contain bg-black/45 px-3 pb-[calc(140px_+_env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))] backdrop-blur-[10px]">
         <AddYourSignalPanel compact onCancel={() => setMode("Atlas")} />
@@ -3606,8 +3611,9 @@ function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atla
     {onGlobeBasemapChange && globeBasemap ? <details className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
       <summary className="cursor-pointer px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Globe style · {globeBasemapStyles[globeBasemap].name}</summary>
       <div className="mt-2 grid gap-2">
-        {getSelectableGlobeBasemapKeys().map((key) => <button key={key} type="button" onClick={() => onGlobeBasemapChange(key)} className={`rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${globeBasemap === key ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{globeBasemapStyles[key].label}</button>)}
+        {(Object.keys(globeBasemapStyles) as GlobeBasemapKey[]).filter((key) => key !== "photorealistic" || shouldUsePhotorealisticPreview()).map((key) => <button key={key} type="button" onClick={() => onGlobeBasemapChange(key)} className={`rounded-2xl px-3 py-2 text-left text-xs font-semibold transition ${globeBasemap === key ? "bg-radio text-midnight" : "bg-white/[0.05] text-ivory/75 hover:bg-white/10"}`}>{globeBasemapStyles[key].label}</button>)}
       </div>
+      {!shouldUsePhotorealisticPreview() ? <p className="mt-2 px-1 text-[11px] leading-5 text-ivory/55">Photorealistic preview is hidden until it is enabled for this deployment. Legacy canvas remains the default rollback.</p> : null}
     </details> : null}
 
     {onBasemapChange && basemap ? <details className="mt-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
@@ -4713,7 +4719,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           </div>
         </div>
         <div className={`${desktopDrawerOpen ? "block" : "hidden"} atlas-drawer-scroll min-h-0 flex-1 overflow-y-auto pr-1`}>
-          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); rememberGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={activeStation ? <AtlasLocationPill stations={stationPool} current={activeStation} /> : undefined} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} activeStation={activeStation} /></div> : null}
+          {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={activeStation ? <AtlasLocationPill stations={stationPool} current={activeStation} /> : undefined} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} activeStation={activeStation} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={current} /></div> : null}
           {desktopMode === "History" ? <div className="mt-5"><RecentlyVisitedPanel /></div> : null}
