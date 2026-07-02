@@ -279,34 +279,6 @@ function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { pro
   }
   ctx.restore();
 
-  if (quality !== "mobile") {
-    ctx.strokeStyle = "rgba(226,232,240,0.16)";
-    ctx.lineWidth = 0.35;
-    for (const shape of landShapes) {
-      ctx.beginPath();
-      path(shape.feature);
-      ctx.stroke();
-    }
-  }
-
-  const cloudStep = quality === "cinematic" ? 18 : quality === "balanced" ? 26 : 42;
-  ctx.globalAlpha = quality === "mobile" ? 0.18 : 0.28;
-  ctx.strokeStyle = "rgba(255,255,255,0.72)";
-  ctx.lineWidth = mobile ? 1.1 : 1.6;
-  for (let lat = -62; lat <= 62; lat += cloudStep) {
-    ctx.beginPath();
-    let started = false;
-    for (let lng = -180; lng <= 180; lng += 4) {
-      const waveLat = lat + Math.sin((lng * 1.7 + now * (reducedMotion ? 0 : 0.003)) * DEG) * 3.2;
-      const p = projectCanvasGlobePoint(waveLat, lng + (reducedMotion ? 0 : now * 0.0015), projection);
-      if (p.z < 0.05) { started = false; continue; }
-      started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
-      started = true;
-    }
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
   const terminator = ctx.createLinearGradient(cx - r * 0.85, cy - r * 0.85, cx + r * 0.7, cy + r * 0.58);
   terminator.addColorStop(0, "rgba(255,255,255,0.26)");
   terminator.addColorStop(0.38, "rgba(255,255,255,0.02)");
@@ -322,6 +294,48 @@ function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { pro
   ctx.fillStyle = spec;
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 }
+
+function drawPhotorealisticCloudLayer(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; quality: GlobeQualityTier; now: number; mobile: boolean; reducedMotion: boolean }) {
+  const { projection, quality, now, mobile, reducedMotion } = options;
+  const cloudStep = quality === "cinematic" ? 16 : quality === "balanced" ? 24 : 38;
+  ctx.save();
+  ctx.globalAlpha = quality === "mobile" ? 0.22 : 0.34;
+  ctx.strokeStyle = "rgba(255,255,255,0.76)";
+  ctx.lineWidth = mobile ? 1.2 : 1.8;
+  ctx.lineCap = "round";
+  for (let lat = -62; lat <= 62; lat += cloudStep) {
+    ctx.beginPath();
+    let started = false;
+    for (let lng = -180; lng <= 180; lng += 4) {
+      const drift = reducedMotion ? 0 : now * 0.0015;
+      const waveLat = lat + Math.sin((lng * 1.7 + now * (reducedMotion ? 0 : 0.003)) * DEG) * 3.2;
+      const p = projectCanvasGlobePoint(waveLat, lng + drift, projection);
+      if (p.z < 0.05) { started = false; continue; }
+      started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+      started = true;
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPhotorealisticCountryBoundaries(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; landShapes: LandShape[]; mobile: boolean; lowPower: boolean }) {
+  const { projection, landShapes, mobile, lowPower } = options;
+  if (!landShapes.length) return;
+  const path = geoPath(projection, ctx);
+  ctx.save();
+  ctx.strokeStyle = "rgba(226,242,255,0.42)";
+  ctx.lineWidth = mobile || lowPower ? 0.48 : 0.72;
+  ctx.shadowColor = "rgba(15,23,42,0.45)";
+  ctx.shadowBlur = mobile ? 0 : 1.2;
+  for (const shape of landShapes) {
+    ctx.beginPath();
+    path(shape.feature);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 
 function iosGlobeDebugEnabled() {
   return process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_IOS_GLOBE === "true";
@@ -776,6 +790,8 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         .precision(mobile || profile.lowPower ? 0.85 : 0.45);
       if (photorealisticPreview) {
         drawPhotorealisticSurface(ctx, { projection, cx, cy, r, now, quality: globeQuality, landShapes: runtime.landShapes, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion });
+        drawPhotorealisticCloudLayer(ctx, { projection, quality: globeQuality, now, mobile, reducedMotion: s.disabledMotion });
+        drawPhotorealisticCountryBoundaries(ctx, { projection, landShapes: runtime.landShapes, mobile, lowPower: profile.lowPower });
       } else {
         ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
       }
@@ -816,7 +832,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       ctx.restore();
       if (photorealisticPreview) {
         ctx.save();
-        ctx.strokeStyle = "rgba(125,211,252,0.34)"; ctx.lineWidth = mobile ? 5 : 8; ctx.beginPath(); ctx.arc(cx, cy, r + (mobile ? 3 : 5), 0, TAU); ctx.stroke();
+        ctx.strokeStyle = "rgba(125,211,252,0.28)"; ctx.lineWidth = mobile ? 5 : 8; ctx.beginPath(); ctx.arc(cx, cy, r + (mobile ? 3 : 5), 0, TAU); ctx.stroke();
         const halo = ctx.createRadialGradient(cx, cy, r * 0.92, cx, cy, r * 1.28);
         halo.addColorStop(0, "rgba(96,165,250,0.22)"); halo.addColorStop(1, "rgba(96,165,250,0)");
         ctx.fillStyle = halo; ctx.fillRect(cx - r * 1.35, cy - r * 1.35, r * 2.7, r * 2.7);
