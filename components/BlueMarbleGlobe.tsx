@@ -22,7 +22,8 @@ type GlobePoint = { lat: number; lng: number; label: string; geoSource?: string;
 type GlobeLabelKind = "active" | "country" | "city" | "station";
 type GlobeLabel = GlobePoint & { active?: boolean; kind?: GlobeLabelKind; priority?: number };
 type GlobeRuntime = { currentPoint: GlobePoint | null; selectionVersion?: number; focusIdentityKey: string; stationName: string; stationCity?: string; stationCountry?: string; stationLabel: string; basemap: GlobeBasemapKey; teleporting: boolean; labels: GlobeLabel[]; landShapes: LandShape[]; signalFeatures: SignalFeature[]; signalClusters: SignalCluster[] };
-type GlobeDebugOverlay = { stationLat: number | null; stationLng: number | null; screenX: number | null; screenY: number | null; targetScreenX: number; targetScreenY: number; deltaX: number | null; deltaY: number | null; usableBounds: { left: number; top: number; right: number; bottom: number }; canvasCenter: { x: number; y: number }; rotX: number; rotY: number; selectedCountry: string | null; frontFacing: boolean; correctiveFocusRan: boolean; d3InputOrder: "[longitude, latitude]" };
+type GlobeDebugOverlay = { stationLat: number | null; stationLng: number | null; screenX: number | null; screenY: number | null; targetScreenX: number; targetScreenY: number; deltaX: number | null; deltaY: number | null; usableBounds: { left: number; top: number; right: number; bottom: number }; canvasCenter: { x: number; y: number }; computedRadius: number; headerBottom: number | null; playerTop: number | null; dockTop: number | null; usableTop: number; usableBottom: number; fallbackReason: string | null; rotX: number; rotY: number; selectedCountry: string | null; frontFacing: boolean; correctiveFocusRan: boolean; d3InputOrder: "[longitude, latitude]" };
+type MobileGlobeLayout = { cx: number; cy: number; r: number; usableBounds: { left: number; top: number; right: number; bottom: number }; fallbackReason: string | null; metrics: ReturnType<typeof readMobileViewport> | null };
 type CanvasSize = { cssWidth: number; cssHeight: number; pixelWidth: number; pixelHeight: number; dpr: number };
 type LandRing = Array<[number, number]>;
 type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number }; feature: GeoPermissibleObjects };
@@ -525,6 +526,19 @@ function globeCenterFromRotation(rotX: number, rotY: number) {
   return { centerLat: Math.max(-89, Math.min(89, rotX / DEG)), centerLng: ((((rotY / DEG) % 360) + 540) % 360) - 180 };
 }
 
+const MOBILE_GLOBE_SAFE_MODE = process.env.NEXT_PUBLIC_WAVEATLAS_MOBILE_GLOBE_LAYOUT_SAFE_MODE === "true";
+
+function readSafeAreaInsets() {
+  if (typeof document === "undefined") return { top: 0, bottom: 0, left: 0, right: 0 };
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;inset:auto;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
+  document.body.appendChild(probe);
+  const style = window.getComputedStyle(probe);
+  const insets = { top: parseFloat(style.paddingTop) || 0, right: parseFloat(style.paddingRight) || 0, bottom: parseFloat(style.paddingBottom) || 0, left: parseFloat(style.paddingLeft) || 0 };
+  probe.remove();
+  return insets;
+}
+
 function readMobileViewport(wrap: HTMLDivElement, canvas: HTMLCanvasElement) {
   const canvasRect = canvas.getBoundingClientRect();
   const wrapRect = wrap.getBoundingClientRect();
@@ -533,22 +547,44 @@ function readMobileViewport(wrap: HTMLDivElement, canvas: HTMLCanvasElement) {
   const dockRect = document.querySelector('nav[class*="bottom-0"]')?.getBoundingClientRect();
   const toastRect = document.querySelector('[role="status"], [role="alert"]')?.getBoundingClientRect();
   const playerRect = document.querySelector('[data-waveatlas-player], [aria-label="Now playing"]')?.getBoundingClientRect();
-  const visualHeight = visualViewport?.height ?? window.innerHeight;
-  const safeAreaBottomEstimate = Math.max(0, window.innerHeight - visualHeight - (visualViewport?.offsetTop ?? 0));
-  const topObstruction = headerRect ? Math.max(0, headerRect.bottom - canvasRect.top + 8) : 0;
-  const bottomObstruction = Math.max(safeAreaBottomEstimate, dockRect ? Math.max(0, canvasRect.bottom - dockRect.top + 16) : 0, toastRect ? Math.max(0, canvasRect.bottom - toastRect.top + 16) : 0, playerRect ? Math.max(0, canvasRect.bottom - playerRect.top + 16) : 0);
+  const safeAreaInsets = readSafeAreaInsets();
+  const visualTop = Math.max(0, (visualViewport?.offsetTop ?? 0) - canvasRect.top);
+  const visualBottom = Math.min(canvasRect.height, (visualViewport ? visualViewport.offsetTop + visualViewport.height : window.innerHeight) - canvasRect.top);
+  const topObstruction = Math.max(visualTop, safeAreaInsets.top, headerRect ? Math.max(0, headerRect.bottom - canvasRect.top + 8) : 0);
+  const measuredBottoms = [safeAreaInsets.bottom, dockRect ? Math.max(0, canvasRect.bottom - dockRect.top + 16) : 0, toastRect ? Math.max(0, canvasRect.bottom - toastRect.top + 16) : 0, playerRect ? Math.max(0, canvasRect.bottom - playerRect.top + 16) : 0, Math.max(0, canvasRect.height - visualBottom)];
+  const bottomObstruction = Math.max(...measuredBottoms);
   const usableBounds = { left: 0, top: Math.min(canvasRect.height, topObstruction), right: canvasRect.width, bottom: Math.max(0, canvasRect.height - bottomObstruction) };
   return {
     canvasRect: { left: canvasRect.left, top: canvasRect.top, width: canvasRect.width, height: canvasRect.height },
     wrapRect: { left: wrapRect.left, top: wrapRect.top, width: wrapRect.width, height: wrapRect.height },
     visualViewport: visualViewport ? { width: visualViewport.width, height: visualViewport.height, offsetTop: visualViewport.offsetTop, offsetLeft: visualViewport.offsetLeft, scale: visualViewport.scale } : null,
-    safeAreaBottomEstimate,
+    safeAreaInsets,
     headerRect: headerRect ? { left: headerRect.left, top: headerRect.top, width: headerRect.width, height: headerRect.height, bottom: headerRect.bottom } : null,
     dockRect: dockRect ? { left: dockRect.left, top: dockRect.top, width: dockRect.width, height: dockRect.height, bottom: dockRect.bottom } : null,
     toastRect: toastRect ? { left: toastRect.left, top: toastRect.top, width: toastRect.width, height: toastRect.height, bottom: toastRect.bottom } : null,
     playerRect: playerRect ? { left: playerRect.left, top: playerRect.top, width: playerRect.width, height: playerRect.height, bottom: playerRect.bottom } : null,
     usableBounds,
   };
+}
+
+function resolveMobileGlobeLayout(width: number, height: number, zoom: number, metrics: ReturnType<typeof readMobileViewport> | null, lastGood: MobileGlobeLayout | null): MobileGlobeLayout {
+  const usableBounds = metrics?.usableBounds ?? { left: 0, top: 0, right: width, bottom: height };
+  const usableHeight = Math.max(0, usableBounds.bottom - usableBounds.top);
+  const fallbackReason = usableHeight < Math.max(180, height * 0.32) ? "usable-bounds-too-small" : null;
+  if (fallbackReason && lastGood) return { ...lastGood, fallbackReason, metrics };
+  const maxByWidth = width * (MOBILE_GLOBE_SAFE_MODE ? 0.43 : 0.46) * zoom;
+  const maxByUsableHeight = Math.max(1, usableHeight / 2 - 10);
+  const minRadius = Math.max(96, Math.min(width, height) * 0.28);
+  const unclampedRadius = Math.min(maxByWidth, maxByUsableHeight);
+  const r = Math.max(Math.min(minRadius, maxByUsableHeight), unclampedRadius);
+  const desiredCenterY = usableBounds.top + usableHeight * (MOBILE_GLOBE_SAFE_MODE ? 0.5 : 0.46);
+  const minCenterY = usableBounds.top + r;
+  const maxCenterY = usableBounds.bottom - r;
+  const cy = Math.max(minCenterY, Math.min(maxCenterY, desiredCenterY));
+  if (!Number.isFinite(cy) || !Number.isFinite(r) || r <= 0) {
+    return lastGood ? { ...lastGood, fallbackReason: "invalid-mobile-layout", metrics } : { cx: width / 2, cy: height / 2, r: Math.min(width, height) * 0.34, usableBounds: { left: 0, top: 0, right: width, bottom: height }, fallbackReason: "invalid-mobile-layout", metrics };
+  }
+  return { cx: width / 2, cy, r, usableBounds, fallbackReason, metrics };
 }
 
 const GLOBE_STYLE_COPY: Record<GlobeBasemapKey, string> = {
@@ -584,6 +620,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const lastFocusKeyRef = useRef("");
   const previousFocusRef = useRef<{ name: string; point: GlobePoint | null } | null>(null);
   const signalRefreshKeyRef = useRef("");
+  const lastGoodMobileLayoutRef = useRef<MobileGlobeLayout | null>(null);
 
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
@@ -806,14 +843,12 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       }
       if (!runtime.currentPoint && !s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1 && activeFocusVerified) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
       const viewportDebug = mobile || globeDebugEnabled() ? readMobileViewport(wrap, canvas) : null;
-      const usableBounds = viewportDebug?.usableBounds ?? { left: 0, top: 0, right: w, bottom: h };
-      const r = Math.min(w, h) * (mobile ? 0.46 : 0.34) * s.zoom;
-      const cx = w / 2;
-      const usableHeight = Math.max(0, usableBounds.bottom - usableBounds.top);
-      const mobileCenterY = usableBounds.top + usableHeight * 0.46;
-      const minMobileCenterY = usableBounds.top + Math.min(r, usableHeight / 2);
-      const maxMobileCenterY = usableBounds.bottom - Math.min(r, usableHeight / 2);
-      const cy = mobile ? Math.max(minMobileCenterY, Math.min(maxMobileCenterY, mobileCenterY)) : h / 2;
+      const mobileLayout = mobile ? resolveMobileGlobeLayout(w, h, s.zoom, viewportDebug, lastGoodMobileLayoutRef.current) : null;
+      if (mobileLayout && !mobileLayout.fallbackReason) lastGoodMobileLayoutRef.current = mobileLayout;
+      const usableBounds = mobileLayout?.usableBounds ?? viewportDebug?.usableBounds ?? { left: 0, top: 0, right: w, bottom: h };
+      const r = mobileLayout?.r ?? Math.min(w, h) * 0.34 * s.zoom;
+      const cx = mobileLayout?.cx ?? w / 2;
+      const cy = mobileLayout?.cy ?? h / 2;
       const targetScreenX = cx;
       const targetScreenY = cy;
 
@@ -946,7 +981,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         if (globeDebugEnabled() && now - debugOverlayTickRef.current > 250) {
           debugOverlayTickRef.current = now;
           const country = nearestCountry(activeBeacon.lat, activeBeacon.lng);
-          setDebugOverlay({ stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, screenX: p.x, screenY: p.y, targetScreenX, targetScreenY, deltaX, deltaY, usableBounds, canvasCenter: { x: cx, y: cy }, rotX: s.rotX / DEG, rotY: s.rotY / DEG, selectedCountry: country?.name ?? null, frontFacing, correctiveFocusRan: s.correctiveFocusRan, d3InputOrder: "[longitude, latitude]" });
+          setDebugOverlay({ stationLat: activeBeacon.lat, stationLng: activeBeacon.lng, screenX: p.x, screenY: p.y, targetScreenX, targetScreenY, deltaX, deltaY, usableBounds, canvasCenter: { x: cx, y: cy }, computedRadius: r, headerBottom: viewportDebug?.headerRect?.bottom ?? null, playerTop: viewportDebug?.playerRect?.top ?? null, dockTop: viewportDebug?.dockRect?.top ?? null, usableTop: usableBounds.top, usableBottom: usableBounds.bottom, fallbackReason: mobileLayout?.fallbackReason ?? null, rotX: s.rotX / DEG, rotY: s.rotY / DEG, selectedCountry: country?.name ?? null, frontFacing, correctiveFocusRan: s.correctiveFocusRan, d3InputOrder: "[longitude, latitude]" });
         }
         const logKey = `${runtime.stationName}:${activeBeacon.lat}:${activeBeacon.lng}:${Math.round(p.x)}:${Math.round(p.y)}:${Math.round(p.z * 1000)}`;
         if (lastCoordinateLogRef.current !== logKey) {
@@ -956,7 +991,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         const settledKey = `${runtime.stationName}:${activeBeacon.lat}:${activeBeacon.lng}:${Math.round(s.focusStartedAt)}`;
         if (focusProgress >= 1 && settledFocusLogRef.current !== settledKey) {
           settledFocusLogRef.current = settledKey;
-          debugGlobeFocus("animation settled projection", { station: runtime.stationName, selectionVersion: runtime.selectionVersion, label: runtime.stationLabel, beaconScreenX: p.x, beaconScreenY: p.y, targetScreenX, targetScreenY, deltaX, deltaY, focusProgress, driftEnabled: false, canvasWidth: w, canvasHeight: h, devicePixelRatio: dpr, visualViewportHeight: viewportDebug?.visualViewport ? viewportDebug.visualViewport.height : null, safeAreaBottomEstimate: viewportDebug?.safeAreaBottomEstimate ?? null, dockRect: viewportDebug?.dockRect ?? null, playerRect: viewportDebug?.playerRect ?? null, usableBounds });
+          debugGlobeFocus("animation settled projection", { station: runtime.stationName, selectionVersion: runtime.selectionVersion, label: runtime.stationLabel, beaconScreenX: p.x, beaconScreenY: p.y, targetScreenX, targetScreenY, deltaX, deltaY, focusProgress, driftEnabled: false, canvasWidth: w, canvasHeight: h, devicePixelRatio: dpr, visualViewportHeight: viewportDebug?.visualViewport ? viewportDebug.visualViewport.height : null, safeAreaInsets: viewportDebug?.safeAreaInsets ?? null, dockRect: viewportDebug?.dockRect ?? null, playerRect: viewportDebug?.playerRect ?? null, usableBounds });
         }
         if (p.z > -0.05) {
           const approachVisibility = s.disabledMotion ? 1 : Math.min(1, Math.max(0.18, (focusProgress - 0.5) / 0.42));
@@ -1041,8 +1076,8 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     pinchDistance.current = null;
     const s = state.current; s.dragging = pointers.current.size > 0;
     if (Math.hypot(event.clientX - s.downX, event.clientY - s.downY) > 8) return;
-    const rect = event.currentTarget.getBoundingClientRect(); const viewportDebug = mobile && wrapRef.current ? readMobileViewport(wrapRef.current, event.currentTarget) : null; const usableBounds = viewportDebug?.usableBounds ?? { left: 0, top: 0, right: rect.width, bottom: rect.height }; const r = Math.min(rect.width, rect.height) * (mobile ? 0.46 : 0.34) * s.zoom; const usableHeight = Math.max(0, usableBounds.bottom - usableBounds.top); const mobileCenterY = usableBounds.top + usableHeight * 0.46; const minMobileCenterY = usableBounds.top + Math.min(r, usableHeight / 2); const maxMobileCenterY = usableBounds.bottom - Math.min(r, usableHeight / 2); const centerY = mobile ? Math.max(minMobileCenterY, Math.min(maxMobileCenterY, mobileCenterY)) : rect.height / 2; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY }); if (!point) return;
-    const projected = projectGlobePoint(point, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX: rect.width / 2, centerY });
+    const rect = event.currentTarget.getBoundingClientRect(); const viewportDebug = mobile && wrapRef.current ? readMobileViewport(wrapRef.current, event.currentTarget) : null; const mobileLayout = mobile ? resolveMobileGlobeLayout(rect.width, rect.height, s.zoom, viewportDebug, lastGoodMobileLayoutRef.current) : null; const r = mobileLayout?.r ?? Math.min(rect.width, rect.height) * 0.34 * s.zoom; const centerX = mobileLayout?.cx ?? rect.width / 2; const centerY = mobileLayout?.cy ?? rect.height / 2; const point = invertGlobePoint(event.clientX - rect.left, event.clientY - rect.top, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX, centerY }); if (!point) return;
+    const projected = projectGlobePoint(point, { rotX: s.rotX, rotY: s.rotY }, { width: rect.width, height: rect.height, radius: r, centerX, centerY });
     if (projected.z < -0.001) return;
     const country = nearestCountry(point.lat, point.lng);
     const ranked = rankStationsNearPoint(stations, point, country);
@@ -1062,7 +1097,10 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       <div>screen x/y: {debugOverlay.screenX?.toFixed(1)}, {debugOverlay.screenY?.toFixed(1)}</div>
       <div>target x/y: {debugOverlay.targetScreenX.toFixed(1)}, {debugOverlay.targetScreenY.toFixed(1)}</div>
       <div>delta x/y: {debugOverlay.deltaX?.toFixed(1)}, {debugOverlay.deltaY?.toFixed(1)}</div>
-      <div>usable: {Math.round(debugOverlay.usableBounds.left)},{Math.round(debugOverlay.usableBounds.top)} → {Math.round(debugOverlay.usableBounds.right)},{Math.round(debugOverlay.usableBounds.bottom)}</div>
+      <div>header/player/dock: {debugOverlay.headerBottom?.toFixed(1) ?? "—"}, {debugOverlay.playerTop?.toFixed(1) ?? "—"}, {debugOverlay.dockTop?.toFixed(1) ?? "—"}</div>
+      <div>usable: {Math.round(debugOverlay.usableBounds.left)},{Math.round(debugOverlay.usableTop)} → {Math.round(debugOverlay.usableBounds.right)},{Math.round(debugOverlay.usableBottom)}</div>
+      <div>computed centerY/radius: {debugOverlay.canvasCenter.y.toFixed(1)}, {debugOverlay.computedRadius.toFixed(1)}</div>
+      <div>fallback: {debugOverlay.fallbackReason ?? "—"}</div>
       <div>rotX/rotY: {debugOverlay.rotX.toFixed(2)}°, {debugOverlay.rotY.toFixed(2)}°</div>
       <div>front-facing: {String(debugOverlay.frontFacing)}</div>
       <div>corrective pass: {String(debugOverlay.correctiveFocusRan)}</div>
