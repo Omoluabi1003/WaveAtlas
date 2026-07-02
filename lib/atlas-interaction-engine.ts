@@ -17,14 +17,21 @@ export type AtlasInteractionStationPoint = AtlasInteractionGeoPoint & { source?:
 export type AtlasInteractionGeometry = GlobeScreen & { usableBounds?: { left: number; top: number; right: number; bottom: number } };
 export type AtlasInteractionGeometryProvider = () => { geometry: AtlasInteractionGeometry; rotation: GlobeRotation } | null;
 export type AtlasInteractionCountryResolver = (point: AtlasInteractionGeoPoint) => AtlasInteractionCountry | null;
+export type AtlasInteractionActiveStationKeyProvider = () => string | null | undefined;
 
 export type AtlasInteractionDiagnostics = {
   screen: AtlasInteractionScreenPoint;
   resolvedLatLng: AtlasInteractionGeoPoint | null;
   resolvedCountry: { name: string; code: string } | null;
   playableStationsInCountry: number;
-  selectedStation: { id: string; name: string; country: string; country_code: string } | null;
+  activeStationKey: string | null;
+  excludedActiveStation: boolean;
+  candidateCountBeforeExclusion: number;
+  candidateCountAfterExclusion: number;
+  selectedStation: { id: string; key: string; name: string; country: string; country_code: string } | null;
   distanceToSelectedStationKm: number | null;
+  selectedStationDistanceKm: number | null;
+  fallbackReason: string | null;
   rejectedReason: string | null;
 };
 
@@ -67,47 +74,73 @@ export function atlasStationMatchesCountry(station: Station, country: AtlasInter
   return normalizeCountryText(station.country) === normalizeCountryText(country.name);
 }
 
-export function rankPlayableAtlasStationsInCountry(stations: Station[], tap: AtlasInteractionGeoPoint, country: AtlasInteractionCountry) {
-  return stations
+export function atlasStationKey(station: Station) {
+  return station.station_uuid || station.id;
+}
+
+type RankedAtlasStation = { station: Station; point: AtlasInteractionStationPoint | null; distanceKm: number };
+
+function compareAtlasStationDistance(a: RankedAtlasStation, b: RankedAtlasStation) {
+  const aFinite = Number.isFinite(a.distanceKm);
+  const bFinite = Number.isFinite(b.distanceKm);
+  if (aFinite && bFinite && a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
+  if (aFinite !== bFinite) return aFinite ? -1 : 1;
+  return b.station.votes - a.station.votes || b.station.click_count - a.station.click_count;
+}
+
+export function rankPlayableAtlasStationsInCountry(stations: Station[], tap: AtlasInteractionGeoPoint, country: AtlasInteractionCountry, activeStationKey?: string | null) {
+  const allCandidates = stations
     .filter((station) => isPlayableAtlasStation(station) && atlasStationMatchesCountry(station, country))
     .map((station) => {
       const point = stationAtlasPoint(station);
       return { station, point, distanceKm: point ? greatCircleDistanceKm(tap, point) : Number.POSITIVE_INFINITY };
     })
-    .sort((a, b) => a.distanceKm - b.distanceKm || b.station.votes - a.station.votes || b.station.click_count - a.station.click_count);
+    .sort(compareAtlasStationDistance);
+  const candidateCountBeforeExclusion = allCandidates.length;
+  const nonActiveCandidates = activeStationKey ? allCandidates.filter((item) => atlasStationKey(item.station) !== activeStationKey) : allCandidates;
+  const excludedActiveStation = nonActiveCandidates.length < allCandidates.length;
+  const ranked = excludedActiveStation && nonActiveCandidates.length > 0 ? nonActiveCandidates : allCandidates;
+  const fallbackReason = excludedActiveStation && nonActiveCandidates.length === 0 && allCandidates.length > 0 ? "only-active-station-in-country" : null;
+  return { ranked, candidateCountBeforeExclusion, candidateCountAfterExclusion: ranked.length, excludedActiveStation: excludedActiveStation && nonActiveCandidates.length > 0, fallbackReason };
 }
 
 export class AtlasInteractionEngine {
-  private candidate: { pointerId: number; x: number; y: number; blocked: boolean } | null = null;
-  private dragging = false;
+  private candidate: { pointerId: number; x: number; y: number; blocked: boolean; dragging: boolean } | null = null;
+  private multiTouchBlocked = false;
 
-  constructor(private readonly options: { dragThresholdPx?: number; geometryProvider: AtlasInteractionGeometryProvider; countryResolver: AtlasInteractionCountryResolver; stationsProvider: () => Station[] }) {}
+  constructor(private readonly options: { dragThresholdPx?: number; geometryProvider: AtlasInteractionGeometryProvider; countryResolver: AtlasInteractionCountryResolver; stationsProvider: () => Station[]; activeStationKeyProvider?: AtlasInteractionActiveStationKeyProvider }) {}
 
   pointerDown(input: { pointerId: number; clientX: number; clientY: number; blockedByOverlay?: boolean }) {
-    this.candidate = { pointerId: input.pointerId, x: input.clientX, y: input.clientY, blocked: Boolean(input.blockedByOverlay) };
-    this.dragging = false;
+    if (this.candidate && this.candidate.pointerId !== input.pointerId) {
+      this.candidate = null;
+      this.multiTouchBlocked = true;
+      return;
+    }
+    this.candidate = { pointerId: input.pointerId, x: input.clientX, y: input.clientY, blocked: Boolean(input.blockedByOverlay), dragging: false };
+    this.multiTouchBlocked = false;
   }
 
   pointerMove(input: { pointerId: number; clientX: number; clientY: number }) {
     if (!this.candidate || this.candidate.pointerId !== input.pointerId) return false;
     const threshold = this.options.dragThresholdPx ?? 8;
-    if (Math.hypot(input.clientX - this.candidate.x, input.clientY - this.candidate.y) > threshold) this.dragging = true;
-    return this.dragging;
+    if (Math.hypot(input.clientX - this.candidate.x, input.clientY - this.candidate.y) > threshold) this.candidate.dragging = true;
+    return this.candidate.dragging;
   }
 
   pointerCancel(pointerId: number) {
     if (this.candidate?.pointerId === pointerId) this.candidate = null;
-    this.dragging = false;
+    this.multiTouchBlocked = false;
   }
 
   pointerUp(input: { pointerId: number; clientX: number; clientY: number; canvasRect: DOMRect; blockedByOverlay?: boolean }): AtlasInteractionResult {
     const candidate = this.candidate;
     this.candidate = null;
     const screen = { x: input.clientX - input.canvasRect.left, y: input.clientY - input.canvasRect.top };
-    const base = (reason: string | null, point: AtlasInteractionGeoPoint | null = null, country: AtlasInteractionCountry | null = null): AtlasInteractionDiagnostics => ({ screen, resolvedLatLng: point, resolvedCountry: country ? { name: country.name, code: country.code } : null, playableStationsInCountry: 0, selectedStation: null, distanceToSelectedStationKm: null, rejectedReason: reason });
+    const base = (reason: string | null, point: AtlasInteractionGeoPoint | null = null, country: AtlasInteractionCountry | null = null): AtlasInteractionDiagnostics => ({ screen, resolvedLatLng: point, resolvedCountry: country ? { name: country.name, code: country.code } : null, playableStationsInCountry: 0, activeStationKey: this.options.activeStationKeyProvider?.() ?? null, excludedActiveStation: false, candidateCountBeforeExclusion: 0, candidateCountAfterExclusion: 0, selectedStation: null, distanceToSelectedStationKm: null, selectedStationDistanceKm: null, fallbackReason: null, rejectedReason: reason });
+    if (this.multiTouchBlocked) { this.multiTouchBlocked = false; return { kind: "rejected", diagnostics: base("multi-touch") }; }
     if (!candidate || candidate.pointerId !== input.pointerId) return { kind: "rejected", diagnostics: base("missing-pointer-candidate") };
     if (candidate.blocked || input.blockedByOverlay) return { kind: "rejected", diagnostics: base("overlay") };
-    if (this.dragging || Math.hypot(input.clientX - candidate.x, input.clientY - candidate.y) > (this.options.dragThresholdPx ?? 8)) return { kind: "rejected", diagnostics: base("drag-threshold") };
+    if (candidate.dragging || Math.hypot(input.clientX - candidate.x, input.clientY - candidate.y) > (this.options.dragThresholdPx ?? 8)) return { kind: "rejected", diagnostics: base("drag-threshold") };
     const authoritative = this.options.geometryProvider();
     if (!authoritative) return { kind: "rejected", diagnostics: base("missing-geometry") };
     const { geometry, rotation } = authoritative;
@@ -119,9 +152,11 @@ export class AtlasInteractionEngine {
     if (projected.z < -0.001) return { kind: "rejected", diagnostics: base("back-facing", point) };
     const country = this.options.countryResolver(point);
     if (!country) return { kind: "rejected", diagnostics: base("no-country", point) };
-    const ranked = rankPlayableAtlasStationsInCountry(this.options.stationsProvider(), point, country);
+    const activeStationKey = this.options.activeStationKeyProvider?.() ?? null;
+    const { ranked, candidateCountBeforeExclusion, candidateCountAfterExclusion, excludedActiveStation, fallbackReason } = rankPlayableAtlasStationsInCountry(this.options.stationsProvider(), point, country, activeStationKey);
     const selected = ranked[0];
-    const diagnostics: AtlasInteractionDiagnostics = { ...base(selected ? null : "country-only-no-playable-station", point, country), playableStationsInCountry: ranked.length, selectedStation: selected ? { id: selected.station.id, name: selected.station.name, country: selected.station.country, country_code: selected.station.country_code } : null, distanceToSelectedStationKm: selected && Number.isFinite(selected.distanceKm) ? selected.distanceKm : null };
+    const selectedDistanceKm = selected && Number.isFinite(selected.distanceKm) ? selected.distanceKm : null;
+    const diagnostics: AtlasInteractionDiagnostics = { ...base(selected ? null : "country-only-no-playable-station", point, country), playableStationsInCountry: candidateCountAfterExclusion, activeStationKey, excludedActiveStation, candidateCountBeforeExclusion, candidateCountAfterExclusion, selectedStation: selected ? { id: selected.station.id, key: atlasStationKey(selected.station), name: selected.station.name, country: selected.station.country, country_code: selected.station.country_code } : null, distanceToSelectedStationKm: selectedDistanceKm, selectedStationDistanceKm: selectedDistanceKm, fallbackReason };
     if (!selected) return { kind: "country", country, diagnostics };
     const event: GlobeDestinationSelectedEvent = { type: "GlobeDestinationSelected", station: selected.station, candidates: ranked.map((item) => item.station), country, distanceKm: selected.distanceKm, diagnostics };
     return { kind: "destination", event, diagnostics };

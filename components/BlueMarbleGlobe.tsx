@@ -629,6 +629,8 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const previousFocusRef = useRef<{ name: string; point: GlobePoint | null } | null>(null);
   const signalRefreshKeyRef = useRef("");
   const stationsRef = useRef(stations);
+  const activeStationKeyRef = useRef(station.station_uuid || station.id);
+  const getGlobeGeometryRef = useRef<(dimensions: { width: number; height: number }, zoom: number, usableBounds?: GlobeUsableBounds) => GlobeGeometry>(() => ({ width: 1, height: 1, radius: 1, centerX: 0.5, centerY: 0.5, usableBounds: { left: 0, top: 0, right: 1, bottom: 1 } }));
 
   const getGlobeGeometry = useCallback((dimensions: { width: number; height: number }, zoom: number, usableBounds?: GlobeUsableBounds): GlobeGeometry => {
     const width = Math.max(1, dimensions.width);
@@ -650,12 +652,15 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     };
   }, [mobile]);
 
+  useEffect(() => { getGlobeGeometryRef.current = getGlobeGeometry; }, [getGlobeGeometry]);
+
   const interactionEngineRef = useRef<AtlasInteractionEngine | null>(null);
   const getInteractionEngine = useCallback(() => {
     if (!interactionEngineRef.current) {
       interactionEngineRef.current = new AtlasInteractionEngine({
         dragThresholdPx: 8,
         stationsProvider: () => stationsRef.current,
+        activeStationKeyProvider: () => activeStationKeyRef.current,
         countryResolver: (point) => countryAtPoint(point.lat, point.lng, runtimeRef.current.landShapes),
         geometryProvider: () => {
           const canvas = canvasRef.current;
@@ -664,13 +669,13 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
           const rect = canvas.getBoundingClientRect();
           const viewportDebug = wrap ? readMobileViewport(wrap, canvas) : null;
           const s = state.current;
-          const geometry = getGlobeGeometry({ width: rect.width, height: rect.height }, s.zoom, viewportDebug?.usableBounds);
+          const geometry = getGlobeGeometryRef.current({ width: rect.width, height: rect.height }, s.zoom, viewportDebug?.usableBounds);
           return { geometry: geometry as AtlasInteractionGeometry, rotation: { rotX: s.rotX, rotY: s.rotY } };
         },
       });
     }
     return interactionEngineRef.current;
-  }, [getGlobeGeometry]);
+  }, []);
 
   const focusPoint = useCallback((point: GlobePoint | null, fast = false) => {
     if (!point) return;
@@ -1115,6 +1120,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, stationFocusIdentityKey, teleporting]);
 
   useEffect(() => { stationsRef.current = stations; }, [stations]);
+  useEffect(() => { activeStationKeyRef.current = station.station_uuid || station.id; }, [station.station_uuid, station.id]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; debugGlobeFocus("user drag cancelled transition", { selectionVersion, station: station.name, travelActive: s.travelActive, focusDuration: s.focusDuration }); s.travelActive = false; s.focusDuration = 0; pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); pinchDistance.current = null; s.dragging = true; s.lastX = event.clientX; s.lastY = event.clientY; s.downX = event.clientX; s.downY = event.clientY; s.downOverOverlay = isGlobePointerBlockedByOverlay(event.clientX, event.clientY); getInteractionEngine().pointerDown({ pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, blockedByOverlay: s.downOverOverlay }); event.currentTarget.setPointerCapture(event.pointerId); };
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => { const s = state.current; if (!s.dragging) return; event.preventDefault(); pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); getInteractionEngine().pointerMove({ pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY }); const activePointers = Array.from(pointers.current.values()); if (activePointers.length >= 2) { const [a, b] = activePointers; const distance = Math.hypot(a.x - b.x, a.y - b.y); if (pinchDistance.current) { s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom + (distance - pinchDistance.current) * 0.003)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "pinch street/city threshold"); } pinchDistance.current = distance; return; } const dx = event.clientX - s.lastX; const dy = event.clientY - s.lastY; const rotation = rotateFromDrag({ rotX: s.targetX, rotY: s.targetY }, dx, dy, mobile); s.targetX = rotation.rotX; s.targetY = rotation.rotY; s.lastX = event.clientX; s.lastY = event.clientY; };
