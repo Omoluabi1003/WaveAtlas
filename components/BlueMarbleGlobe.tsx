@@ -27,7 +27,8 @@ type CanvasSize = { cssWidth: number; cssHeight: number; pixelWidth: number; pix
 type GlobeUsableBounds = { left: number; top: number; right: number; bottom: number };
 type GlobeGeometry = { width: number; height: number; radius: number; centerX: number; centerY: number; usableBounds: GlobeUsableBounds };
 type LandRing = Array<[number, number]>;
-type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number }; feature: GeoPermissibleObjects };
+type LandBounds = { minLat: number; maxLat: number; minLng: number; maxLng: number };
+type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number }; feature: GeoPermissibleObjects; bounds?: LandBounds };
 type NaturalEarthFeature = {
   type: "Feature";
   properties?: Record<string, string | number | null | undefined>;
@@ -460,6 +461,52 @@ function rankStationsNearPoint(stations: Station[], point: { lat: number; lng: n
   return { candidates: nearby.map((item) => item.station), fallbackReason: nearby.length ? "nearest-point" : "no-nearby-station" };
 }
 
+function normalizeCountryText(value = "") {
+  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function stationMatchesCountry(station: Station, country: CountryResult) {
+  const stationCode = station.country_code?.trim().toUpperCase();
+  if (stationCode && stationCode === country.code.toUpperCase()) return true;
+  return normalizeCountryText(station.country) === normalizeCountryText(country.name);
+}
+
+function rankPlayableStationsInCountry(stations: Station[], point: { lat: number; lng: number }, country: CountryResult) {
+  return stations
+    .filter((station) => isPlayableGlobeStation(station) && stationMatchesCountry(station, country))
+    .map((station) => {
+      const geo = stationResolvedPoint(station);
+      const distance = geo ? globeDistanceKm(point, geo) : Number.POSITIVE_INFINITY;
+      return { station, distance };
+    })
+    .sort((a, b) => a.distance - b.distance || b.station.votes - a.station.votes || b.station.click_count - a.station.click_count)
+    .map((item) => item.station);
+}
+
+function landBoundsForShape(shape: LandShape) {
+  if (shape.bounds) return shape.bounds;
+  const bounds = shape.rings.reduce<LandBounds>((acc, ring) => {
+    for (const [lng, lat] of ring) {
+      acc.minLat = Math.min(acc.minLat, lat);
+      acc.maxLat = Math.max(acc.maxLat, lat);
+      acc.minLng = Math.min(acc.minLng, lng);
+      acc.maxLng = Math.max(acc.maxLng, lng);
+    }
+    return acc;
+  }, { minLat: Number.POSITIVE_INFINITY, maxLat: Number.NEGATIVE_INFINITY, minLng: Number.POSITIVE_INFINITY, maxLng: Number.NEGATIVE_INFINITY });
+  shape.bounds = bounds;
+  return bounds;
+}
+
+function pointInLandBounds(lat: number, lng: number, bounds: LandBounds) {
+  return lat >= bounds.minLat && lat <= bounds.maxLat && lng >= bounds.minLng && lng <= bounds.maxLng;
+}
+
+function pointInLandShape(lat: number, lng: number, shape: LandShape) {
+  if (!pointInLandBounds(lat, lng, landBoundsForShape(shape))) return false;
+  return shape.rings.some((ring) => pointInLandRing(lat, lng, ring));
+}
+
 function pointInLandRing(lat: number, lng: number, ring: LandRing) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
@@ -479,10 +526,14 @@ function countryResultFromShape(shape: LandShape): CountryResult | null {
 }
 
 function countryAtPoint(lat: number, lng: number, landShapes: LandShape[]) {
+  let matchedUnresolvedShape = false;
   for (const shape of landShapes) {
-    if (shape.rings.some((ring) => pointInLandRing(lat, lng, ring))) return countryResultFromShape(shape);
+    if (!pointInLandShape(lat, lng, shape)) continue;
+    const country = countryResultFromShape(shape);
+    if (country) return country;
+    matchedUnresolvedShape = true;
   }
-  return null;
+  return matchedUnresolvedShape ? nearestCountry(lat, lng, 450) : null;
 }
 
 function nearestCountry(lat: number, lng: number, maxDistanceKm = 1700): CountryResult | null {
@@ -1129,11 +1180,16 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       return;
     }
     const country = countryAtPoint(point.lat, point.lng, runtimeRef.current.landShapes) ?? nearestCountry(point.lat, point.lng, 450);
-    const ranked = rankStationsNearPoint(stations, point);
-    const selected = ranked.candidates[0];
-    debugGlobeClick({ screen, geometry, tapPoint: screen, resolvedLatLng: { lat: point.lat, lng: point.lng }, country: country?.name ?? null, selectedStation: selected?.name ?? null, fallbackReason: selected ? ranked.fallbackReason : country ? "country-fallback" : ranked.fallbackReason, candidateCount: ranked.candidates.length, zoom: s.zoom });
+    const pointRanked = rankStationsNearPoint(stations, point);
+    const countryCandidates = country && !pointRanked.candidates.length ? rankPlayableStationsInCountry(stations, point, country) : [];
+    const candidates = pointRanked.candidates.length ? pointRanked.candidates : countryCandidates;
+    const selected = candidates[0];
+    const fallbackReason = selected
+      ? (pointRanked.candidates.length ? "nearest-point" : "nearest-country-station")
+      : country ? "country-only-no-playable-station" : "no-country";
+    debugGlobeClick({ screen, geometry, tapPoint: screen, resolvedLatLng: { lat: point.lat, lng: point.lng }, country: country?.name ?? null, selectedStation: selected?.name ?? null, fallbackReason, candidateCount: candidates.length, zoom: s.zoom });
     if (selected) {
-      onStationSelect?.(selected, ranked.candidates, country?.name ?? "globe point");
+      onStationSelect?.(selected, candidates, country?.name ?? "globe point");
       return;
     }
     if (country) onCountrySelect?.(country);
