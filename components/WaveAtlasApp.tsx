@@ -3520,7 +3520,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     )}
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
-    <MobileSearchCommandOverlay open={mobileSearchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station, candidates = [station]) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setScopedStationAndDestination(station, "manual", candidates); }, 250); }} voiceControl={<VoiceCommandButton compact onIntent={onVoiceIntent} onFeedback={onVoiceFeedback} />} />
+    <MobileSearchCommandOverlay open={mobileSearchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station, candidates = [station]) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setScopedStationAndDestination(station, "manual", candidates); }, 250); }} voiceControl={<VoiceCommandButton compact active={mobileSearchOverlayOpen && mode !== "Settings"} onIntent={onVoiceIntent} onFeedback={onVoiceFeedback} />} />
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
@@ -3839,6 +3839,7 @@ function DailyFlightPanel({ stations, inventoryStats, activeStation }: { station
 
 type VoiceCommandButtonProps = {
   compact?: boolean;
+  active?: boolean;
   onIntent: (intent: VoiceCommandIntent) => void;
   onFeedback?: (message: string) => void;
 };
@@ -3852,7 +3853,7 @@ function microphoneBlockedMessage() {
   return "Microphone permission is blocked. Re-enable the microphone for this site in your browser settings, then press Retry. Manual search and playback still work.";
 }
 
-function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceCommandButtonProps) {
+function VoiceCommandButton({ compact = false, active = true, onIntent, onFeedback }: VoiceCommandButtonProps) {
   const [supported] = useState(() => Boolean(getSpeechRecognitionConstructor()));
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState(() => getSpeechRecognitionConstructor() ? VOICE_TOOLTIP_DEFAULT_MESSAGE : "Voice commands are unavailable in this browser.");
@@ -4043,20 +4044,32 @@ function VoiceCommandButton({ compact = false, onIntent, onFeedback }: VoiceComm
   }, [listening, microphonePermission, onFeedback, refreshMicrophonePermission, resetLocalTooltip, supported]);
 
   useEffect(() => {
+    if (active) return;
+    if (recognitionActiveRef.current || listening) {
+      manualStopRef.current = true;
+      recognitionActiveRef.current = false;
+      setListening(false);
+      resetLocalTooltip();
+      onFeedback?.("");
+      recognitionRef.current?.abort();
+    }
+  }, [active, listening, onFeedback, resetLocalTooltip]);
+
+  useEffect(() => {
     const startVoiceSearch = () => {
       const container = containerRef.current;
       if (!container) return;
       const style = window.getComputedStyle(container);
       const rect = container.getBoundingClientRect();
-      if (style.display === "none" || style.visibility === "hidden" || rect.width === 0 || rect.height === 0) return;
+      if (!active || style.display === "none" || style.visibility === "hidden" || rect.width === 0 || rect.height === 0) return;
       void pushToTalk();
     };
     window.addEventListener("waveatlas:voice-search", startVoiceSearch);
     return () => window.removeEventListener("waveatlas:voice-search", startVoiceSearch);
-  }, [pushToTalk]);
+  }, [active, pushToTalk]);
 
-  return <div ref={containerRef} className="relative">
-    <button type="button" onClick={pushToTalk} className={`${compact ? "size-11" : "size-10"} grid place-items-center rounded-full border ${listening ? "border-radio bg-radio text-midnight" : "border-white/15 bg-white/[0.06] text-ivory/75 hover:border-radio/35 hover:text-radio"} shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold`} aria-pressed={listening} aria-label={microphonePermission === "blocked" ? "Microphone blocked. Retry voice permission" : supported ? "Push to talk voice command" : "Voice commands unsupported"} title={microphonePermission === "blocked" ? "Microphone blocked — retry after restoring permission" : supported ? "Push to talk" : "Voice commands unsupported"}>
+  return <div ref={containerRef} className={`${active ? "" : "pointer-events-none opacity-0"} relative transition-opacity`}>
+    <button type="button" onClick={pushToTalk} disabled={!active} className={`${compact ? "size-11" : "size-10"} grid place-items-center rounded-full border ${listening ? "border-radio bg-radio text-midnight" : "border-white/15 bg-white/[0.06] text-ivory/75 hover:border-radio/35 hover:text-radio"} shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:cursor-not-allowed disabled:opacity-0`} aria-pressed={listening} aria-label={microphonePermission === "blocked" ? "Microphone blocked. Retry voice permission" : supported ? "Push to talk voice command" : "Voice commands unsupported"} title={microphonePermission === "blocked" ? "Microphone blocked — retry after restoring permission" : supported ? "Push to talk" : "Voice commands unsupported"}>
       <Mic className="size-4" />
       {microphonePermission === "blocked" ? <span className="absolute -right-1 -top-1 size-3 rounded-full border border-slate-950 bg-red-400" aria-hidden="true" /> : null}
     </button>
@@ -4677,7 +4690,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
               placeholder="Search country, city, destination..."
               className="w-full bg-transparent outline-none placeholder:text-ivory/45"
             />
-            <VoiceCommandButton onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} />
+            <VoiceCommandButton active={!desktopDrawerActive && !briefOpen} onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} />
           </div>
         </div>
         {voiceFeedback ? <p className="pointer-events-none mx-auto mt-2 w-fit rounded-full border border-radio/20 bg-slate-950/70 px-3 py-1.5 text-center text-xs font-medium text-radio shadow-xl backdrop-blur-xl" role="status" aria-live="polite">{voiceFeedback}</p> : null}
