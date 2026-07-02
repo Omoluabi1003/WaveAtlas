@@ -24,7 +24,8 @@ type GlobeLabel = GlobePoint & { active?: boolean; kind?: GlobeLabelKind; priori
 type GlobeRuntime = { currentPoint: GlobePoint | null; selectionVersion?: number; focusIdentityKey: string; stationName: string; stationCity?: string; stationCountry?: string; stationLabel: string; basemap: GlobeBasemapKey; teleporting: boolean; labels: GlobeLabel[]; landShapes: LandShape[]; signalFeatures: SignalFeature[]; signalClusters: SignalCluster[] };
 type GlobeDebugOverlay = { stationLat: number | null; stationLng: number | null; screenX: number | null; screenY: number | null; targetScreenX: number; targetScreenY: number; deltaX: number | null; deltaY: number | null; usableBounds: { left: number; top: number; right: number; bottom: number }; canvasCenter: { x: number; y: number }; rotX: number; rotY: number; selectedCountry: string | null; frontFacing: boolean; correctiveFocusRan: boolean; d3InputOrder: "[longitude, latitude]" };
 type CanvasSize = { cssWidth: number; cssHeight: number; pixelWidth: number; pixelHeight: number; dpr: number };
-type GlobeGeometry = { width: number; height: number; radius: number; centerX: number; centerY: number };
+type GlobeUsableBounds = { left: number; top: number; right: number; bottom: number };
+type GlobeGeometry = { width: number; height: number; radius: number; centerX: number; centerY: number; usableBounds: GlobeUsableBounds };
 type LandRing = Array<[number, number]>;
 type LandShape = { name: string; code?: string; rings: LandRing[]; centroid: { lat: number; lng: number }; feature: GeoPermissibleObjects };
 type NaturalEarthFeature = {
@@ -445,9 +446,9 @@ function stationResolvedPoint(station: Station) {
   return { lat: geo.lat, lng: geo.lng, source: geo.source, precision: geo.precision };
 }
 
-function rankStationsNearPoint(stations: Station[], point: { lat: number; lng: number }, country: CountryResult | null) {
-  const playable = stations.filter(isPlayableGlobeStation);
-  const pointRanked = playable
+function rankStationsNearPoint(stations: Station[], point: { lat: number; lng: number }) {
+  const ranked = stations
+    .filter(isPlayableGlobeStation)
     .map((station) => {
       const geo = stationResolvedPoint(station);
       if (!geo || geo.source === "country_centroid") return null;
@@ -455,13 +456,36 @@ function rankStationsNearPoint(stations: Station[], point: { lat: number; lng: n
     })
     .filter((item): item is { station: Station; distance: number } => Boolean(item))
     .sort((a, b) => a.distance - b.distance);
-  const nearby = pointRanked.filter((item) => item.distance <= 350);
-  if (nearby.length) return { candidates: nearby.map((item) => item.station), fallbackReason: "nearest-point" };
-  const countryPool = country ? playable.filter((station) => station.country_code?.toUpperCase() === country.code || station.country?.toLowerCase() === country.name.toLowerCase()) : [];
-  return { candidates: countryPool, fallbackReason: countryPool.length ? "country-pool" : "none" };
+  const nearby = ranked.filter((item) => item.distance <= 350);
+  return { candidates: nearby.map((item) => item.station), fallbackReason: nearby.length ? "nearest-point" : "no-nearby-station" };
 }
 
-function nearestCountry(lat: number, lng: number): CountryResult | null {
+function pointInLandRing(lat: number, lng: number, ring: LandRing) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const intersects = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / ((yj - yi) || Number.EPSILON) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function countryResultFromShape(shape: LandShape): CountryResult | null {
+  if (!shape.code || !(shape.code in isoCountryCentroids)) return null;
+  const code = shape.code;
+  const centroid = isoCountryCentroids[code as keyof typeof isoCountryCentroids];
+  return { name: countryNameForCode(code), code, flag: flagFor(code), centroid, station_count: 0 };
+}
+
+function countryAtPoint(lat: number, lng: number, landShapes: LandShape[]) {
+  for (const shape of landShapes) {
+    if (shape.rings.some((ring) => pointInLandRing(lat, lng, ring))) return countryResultFromShape(shape);
+  }
+  return null;
+}
+
+function nearestCountry(lat: number, lng: number, maxDistanceKm = 1700): CountryResult | null {
   let best: { code: string; distance: number } | null = null;
   for (const [code, point] of Object.entries(isoCountryCentroids)) {
     const dLat = (lat - point.lat) * DEG;
@@ -470,7 +494,7 @@ function nearestCountry(lat: number, lng: number): CountryResult | null {
     const distance = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     if (!best || distance < best.distance) best = { code, distance };
   }
-  if (!best || best.distance > 1700) return null;
+  if (!best || best.distance > maxDistanceKm) return null;
   const centroid = isoCountryCentroids[best.code];
   return { name: countryNameForCode(best.code), code: best.code, flag: flagFor(best.code), centroid, station_count: 0 };
 }
@@ -561,7 +585,7 @@ function readMobileViewport(wrap: HTMLDivElement, canvas: HTMLCanvasElement) {
   const safeAreaBottomEstimate = Math.max(0, window.innerHeight - visualHeight - (visualViewport?.offsetTop ?? 0));
   const topObstruction = headerRect ? Math.max(0, headerRect.bottom - canvasRect.top + 16) : 0;
   const bottomObstruction = Math.max(safeAreaBottomEstimate, dockRect ? Math.max(0, canvasRect.bottom - dockRect.top + 16) : 0, toastRect ? Math.max(0, canvasRect.bottom - toastRect.top + 16) : 0, playerRect ? Math.max(0, canvasRect.bottom - playerRect.top + 16) : 0);
-  const usableBounds = { left: 0, top: Math.min(canvasRect.height, topObstruction), right: canvasRect.width, bottom: Math.max(0, canvasRect.height - bottomObstruction) };
+  const usableBounds: GlobeUsableBounds = { left: 0, top: Math.min(canvasRect.height, topObstruction), right: canvasRect.width, bottom: Math.max(0, canvasRect.height - bottomObstruction) };
   return {
     canvasRect: { left: canvasRect.left, top: canvasRect.top, width: canvasRect.width, height: canvasRect.height },
     wrapRect: { left: wrapRect.left, top: wrapRect.top, width: wrapRect.width, height: wrapRect.height },
@@ -609,15 +633,23 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const previousFocusRef = useRef<{ name: string; point: GlobePoint | null } | null>(null);
   const signalRefreshKeyRef = useRef("");
 
-  const getActiveGlobeGeometry = useCallback((dimensions: { width: number; height: number }, zoom: number): GlobeGeometry => {
+  const getGlobeGeometry = useCallback((dimensions: { width: number; height: number }, zoom: number, usableBounds?: GlobeUsableBounds): GlobeGeometry => {
     const width = Math.max(1, dimensions.width);
     const height = Math.max(1, dimensions.height);
+    const bounds = usableBounds ?? { left: 0, top: 0, right: width, bottom: height };
+    const safeBounds = {
+      left: Math.max(0, Math.min(width, bounds.left)),
+      top: Math.max(0, Math.min(height, bounds.top)),
+      right: Math.max(0, Math.min(width, bounds.right)),
+      bottom: Math.max(0, Math.min(height, bounds.bottom)),
+    };
     return {
       width,
       height,
       radius: Math.min(width, height) * (mobile ? 0.46 : 0.34) * zoom,
       centerX: width / 2,
       centerY: mobile ? height * 0.42 : height / 2,
+      usableBounds: safeBounds,
     };
   }, [mobile]);
 
@@ -841,10 +873,9 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         }
       }
       if (!runtime.currentPoint && !s.dragging && !s.disabledMotion && !s.hidden && focusProgress >= 1 && activeFocusVerified) s.targetY += (mobile ? 0.00016 : 0.00035) * (runtime.teleporting ? (mobile ? 1.4 : 2.6) : 1);
-      const geometry = getActiveGlobeGeometry({ width: w, height: h }, s.zoom);
-      const { radius: r, centerX: cx, centerY: cy } = geometry;
       const viewportDebug = mobile || globeDebugEnabled() ? readMobileViewport(wrap, canvas) : null;
-      const usableBounds = viewportDebug?.usableBounds ?? { left: 0, top: 0, right: w, bottom: h };
+      const geometry = getGlobeGeometry({ width: w, height: h }, s.zoom, viewportDebug?.usableBounds);
+      const { radius: r, centerX: cx, centerY: cy, usableBounds } = geometry;
       const targetScreenX = cx;
       const targetScreenY = cy;
 
@@ -1060,7 +1091,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     document.addEventListener("visibilitychange", onVisibility);
     raf = requestAnimationFrame(draw);
     return () => { document.removeEventListener("visibilitychange", onVisibility); resizeObserver?.disconnect(); window.removeEventListener("orientationchange", onOrientationChange); window.removeEventListener("resize", onWindowResize); window.visualViewport?.removeEventListener("resize", onVisualViewportResize); window.visualViewport?.removeEventListener("scroll", onVisualViewportScroll); window.clearTimeout(throttleTimer); if (fallbackTimer) window.clearTimeout(fallbackTimer); cancelAnimationFrame(raf); raf = 0; };
-  }, [focusPoint, getActiveGlobeGeometry, mobile, station, stations]);
+  }, [focusPoint, getGlobeGeometry, mobile, station, stations]);
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, stationFocusIdentityKey, teleporting]);
 
@@ -1080,23 +1111,32 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       debugGlobeClick({ screen, skipped: true, reason: dragged ? "drag-threshold" : "overlay", startedOverOverlay: s.downOverOverlay, endedOverOverlay });
       return;
     }
-    const geometry = getActiveGlobeGeometry({ width: rect.width, height: rect.height }, s.zoom);
+    const wrap = wrapRef.current;
+    const viewportDebug = wrap ? readMobileViewport(wrap, event.currentTarget) : null;
+    const geometry = getGlobeGeometry({ width: rect.width, height: rect.height }, s.zoom, viewportDebug?.usableBounds);
+    if (screen.x < geometry.usableBounds.left || screen.x > geometry.usableBounds.right || screen.y < geometry.usableBounds.top || screen.y > geometry.usableBounds.bottom) {
+      debugGlobeClick({ screen, geometry, tapPoint: screen, skipped: true, fallbackReason: "outside-usable-bounds" });
+      return;
+    }
     const point = invertGlobePoint(screen.x, screen.y, { rotX: s.rotX, rotY: s.rotY }, geometry);
     if (!point) {
-      debugGlobeClick({ screen, renderCenter: { x: geometry.centerX, y: geometry.centerY }, radius: geometry.radius, resolved: null, fallbackReason: "outside-globe" });
+      debugGlobeClick({ screen, geometry, tapPoint: screen, resolvedLatLng: null, fallbackReason: "outside-globe" });
       return;
     }
     const projected = projectGlobePoint(point, { rotX: s.rotX, rotY: s.rotY }, geometry);
     if (projected.z < -0.001) {
-      debugGlobeClick({ screen, renderCenter: { x: geometry.centerX, y: geometry.centerY }, radius: geometry.radius, resolved: { lat: point.lat, lng: point.lng }, fallbackReason: "back-facing" });
+      debugGlobeClick({ screen, geometry, tapPoint: screen, resolvedLatLng: { lat: point.lat, lng: point.lng }, fallbackReason: "back-facing" });
       return;
     }
-    const country = nearestCountry(point.lat, point.lng);
-    const ranked = rankStationsNearPoint(stations, point, country);
+    const country = countryAtPoint(point.lat, point.lng, runtimeRef.current.landShapes) ?? nearestCountry(point.lat, point.lng, 450);
+    const ranked = rankStationsNearPoint(stations, point);
     const selected = ranked.candidates[0];
-    debugGlobeClick({ screen, renderCenter: { x: geometry.centerX, y: geometry.centerY }, radius: geometry.radius, resolved: { lat: point.lat, lng: point.lng }, country: country?.name ?? null, selectedStation: selected?.name ?? null, fallbackReason: ranked.fallbackReason, candidateCount: ranked.candidates.length, zoom: s.zoom });
+    debugGlobeClick({ screen, geometry, tapPoint: screen, resolvedLatLng: { lat: point.lat, lng: point.lng }, country: country?.name ?? null, selectedStation: selected?.name ?? null, fallbackReason: selected ? ranked.fallbackReason : country ? "country-fallback" : ranked.fallbackReason, candidateCount: ranked.candidates.length, zoom: s.zoom });
+    if (selected) {
+      onStationSelect?.(selected, ranked.candidates, country?.name ?? "globe point");
+      return;
+    }
     if (country) onCountrySelect?.(country);
-    if (selected) onStationSelect?.(selected, ranked.candidates, country?.name ?? "globe point");
   };
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => { event.preventDefault(); const s = state.current; s.targetZoom = Math.max(0.82, Math.min(1.8, s.targetZoom - event.deltaY * 0.001)); if (s.targetZoom >= 1.68) requestStreetZoom(s.targetZoom, "wheel street/city threshold"); };
 
