@@ -1,0 +1,15 @@
+const SW_VERSION = "waveatlas-sw-v1-20260702";
+const APP_SHELL_CACHE = `${SW_VERSION}-app-shell`;
+const STATIC_CACHE = `${SW_VERSION}-static`;
+const API_CACHE = `${SW_VERSION}-api`;
+const APP_SHELL = ["/", "/manifest.webmanifest", "/offline.html", "/brand/waveatlas-192x192.png"];
+const API_PATTERNS = [/\/api\/stations\/(search|nearby|by-uuid|active)/, /\/api\/radio-intelligence\//, /\/api\/countries\/search/];
+const STATIC_PATTERNS = [/\/_next\/static\//, /\/brand\//, /\.(?:css|js|woff2?|png|svg|ico)$/];
+function log(event, detail) { self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => clients.forEach((client) => client.postMessage({ type: "WA_SW_DIAGNOSTIC", event, detail, version: SW_VERSION, at: new Date().toISOString() }))); }
+function isRadioStream(request) { const dest = request.destination; const url = new URL(request.url); return dest === "audio" || /\.(mp3|aac|m3u8|pls|ogg)(\?|$)/i.test(url.pathname) || url.pathname.includes("/stream"); }
+self.addEventListener("install", (event) => { event.waitUntil(caches.open(APP_SHELL_CACHE).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()).then(() => log("installed"))); });
+self.addEventListener("activate", (event) => { event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => !key.startsWith(SW_VERSION)).map((key) => caches.delete(key)))) .then(() => self.clients.claim()).then(() => log("activated"))); });
+async function networkFirst(request) { const cache = await caches.open(API_CACHE); try { const response = await fetch(request); if (response.ok) { cache.put(request, response.clone()); log("cache-write", request.url); } return response; } catch (error) { const cached = await cache.match(request); if (cached) { log("cache-hit", request.url); return cached; } log("cache-miss", request.url); throw error; } }
+async function staleWhileRevalidate(request) { const cache = await caches.open(STATIC_CACHE); const cached = await cache.match(request); const network = fetch(request).then((response) => { if (response.ok) cache.put(request, response.clone()); return response; }).catch(() => cached); if (cached) { log("cache-hit", request.url); return cached; } log("cache-miss", request.url); return network; }
+self.addEventListener("fetch", (event) => { const { request } = event; if (request.method !== "GET" || isRadioStream(request) || request.cache === "only-if-cached") return; const url = new URL(request.url); if (url.origin !== self.location.origin) return; if (API_PATTERNS.some((pattern) => pattern.test(url.pathname))) { event.respondWith(networkFirst(request).catch(() => new Response(JSON.stringify({ error: "Network required for fresh station search." }), { status: 503, headers: { "Content-Type": "application/json" } }))); return; } if (STATIC_PATTERNS.some((pattern) => pattern.test(url.pathname))) { event.respondWith(staleWhileRevalidate(request)); return; } if (request.mode === "navigate") { event.respondWith(fetch(request).catch(() => caches.match("/offline.html"))); } });
+self.addEventListener("message", (event) => { if (event.data?.type === "WA_SW_SKIP_WAITING") self.skipWaiting(); });
