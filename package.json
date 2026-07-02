@@ -6,7 +6,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:geoaudio": "npx tsx tests/geoaudio-catalog.regression.ts",
-    "validate:geoaudio-playback": "npx tsx tests/geoaudio-playback-headcheck.ts"
+    "validate:geoaudio-playback": "npx tsx tests/geoaudio-playback-headcheck.ts",
+    "test:renderer": "npx tsx tests/renderer-regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",
