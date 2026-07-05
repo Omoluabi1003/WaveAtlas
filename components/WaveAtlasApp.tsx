@@ -217,7 +217,7 @@ type CountryResult = {
 type CountrySelectPayload = CountryResult & {
   isoA2?: string;
   clickLatLng?: LatLng;
-  source?: "polygon" | "reverse-geocode";
+  source?: "polygon" | "polygon-fallback" | "reverse-geocode";
 };
 
 type GeoPoint = ResolvedStationGeo & { label: string; tone: "green-gold" | "blue-gold" | "radio-gold" };
@@ -2265,6 +2265,16 @@ function transitionContextForStation(station: Station, fallback?: MapTeleportCon
 function debugAtlasTransition(detail: { fromView: AtlasViewMode; toView: AtlasViewMode; activeStation?: string; stationId?: string; coordinates: { lat: number; lng: number }; zoomLevel: number; transitionReason: string; preservedContext: boolean; globeReadyState?: string }) {
   if (process.env.NODE_ENV !== "production") console.info("[WaveAtlas] atlas view transition", detail);
   logAtlasTransitionDiagnostics("view transition", detail);
+}
+
+function resolveCountryIsoA2(country: Pick<CountrySelectPayload, "isoA2" | "code" | "name">) {
+  const rawIso = country.isoA2?.trim().toUpperCase();
+  if (rawIso && /^[A-Z]{2}$/.test(rawIso)) return rawIso;
+  const rawCode = country.code?.trim().toUpperCase();
+  if (rawCode && /^[A-Z]{2}$/.test(rawCode)) return rawCode;
+  if (rawCode && ISO3_TO_A2[rawCode]) return ISO3_TO_A2[rawCode];
+  const aliasCode = countryAliases[country.name.trim().toLowerCase()];
+  return aliasCode && /^[A-Z]{2}$/.test(aliasCode) ? aliasCode : "";
 }
 
 function countryNameForCode(code: string) {
@@ -4398,12 +4408,14 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   }, []);
 
   const selectCountry = useCallback((country: CountrySelectPayload) => {
-    const countryCode = country.isoA2 || country.code;
+    const countryCode = resolveCountryIsoA2(country);
+    const selectedCountryPayload = countryCode ? { ...country, code: countryCode, isoA2: countryCode } : country;
     countryLoadRequests.abort({ reason: "country selection replaced", nextCountryCode: countryCode });
     setDesktopDrawerCollapsed(false);
-    setSelectedCountry(country);
+    setSelectedCountry(selectedCountryPayload);
     setQuery("");
     setActiveTag("");
+    setCountrySignalMessage(`Acquiring ${country.name} signals…`);
 
     if (!countryCode) {
       setCountrySignalMessage(`No verified stations found for ${country.name} yet.`);

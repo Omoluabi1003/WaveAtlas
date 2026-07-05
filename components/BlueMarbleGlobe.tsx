@@ -23,7 +23,7 @@ type CountryResult = {
 type CountrySelectPayload = CountryResult & {
   isoA2: string;
   clickLatLng: { lat: number; lng: number };
-  source: "polygon" | "reverse-geocode";
+  source: "polygon" | "polygon-fallback" | "reverse-geocode";
 };
 
 type GlobePoint = { lat: number; lng: number; label: string; geoSource?: string; geoPrecision?: string; usedFallbackCentroid?: boolean };
@@ -799,14 +799,17 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       const active = Boolean(label.active || label.kind === "active");
       if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || p.z < (active ? -0.08 : 0.03)) return false;
       const kind = label.kind ?? (active ? "active" : "station");
-      const fontSize = active ? (mobile ? 12 : 13) : kind === "country" ? (mobile ? 9 : 10) : kind === "city" ? (mobile ? 8 : 9) : (mobile ? 8 : 9);
-      const weight = active ? 800 : kind === "country" ? 700 : 600;
+      const isCountry = kind === "country";
+      const fontSize = active ? (mobile ? 12 : 13) : isCountry ? (mobile ? 7.5 : 8.5) : kind === "city" ? (mobile ? 8 : 9) : (mobile ? 8 : 9);
+      const weight = active ? 800 : isCountry ? 520 : 600;
       const y = p.y - (active ? (mobile ? 24 : 28) : kind === "station" ? 16 : 0);
+      const displayLabel = isCountry ? label.label.toLocaleUpperCase("en-US") : label.label;
       ctx.save();
-      ctx.font = `${weight} ${fontSize}px var(--font-sans), Inter, system-ui, sans-serif`;
-      const width = Math.min(ctx.measureText(label.label).width, mobile ? 132 : 180);
-      const padX = active ? 8 : 5;
-      const padY = active ? 5 : 3;
+      ctx.font = `${weight} ${fontSize}px ${isCountry ? "var(--font-serif), ui-serif, Georgia, serif" : "var(--font-sans), Inter, system-ui, sans-serif"}`;
+      (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = isCountry ? (mobile ? "0.08em" : "0.11em") : "0px";
+      const width = Math.min(ctx.measureText(displayLabel).width, mobile ? 112 : 150);
+      const padX = active ? 8 : isCountry ? 4 : 5;
+      const padY = active ? 5 : isCountry ? 2 : 3;
       const box = { left: p.x - width / 2 - padX, right: p.x + width / 2 + padX, top: y - fontSize / 2 - padY, bottom: y + fontSize / 2 + padY, active };
       const collides = labelBoxes.some((other) => box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top);
       if (collides && !active && !options.force) { ctx.restore(); return false; }
@@ -814,10 +817,10 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.lineWidth = active ? 4.5 : 3;
-      ctx.strokeStyle = active ? "rgba(2,6,23,0.92)" : "rgba(2,6,23,0.78)";
-      ctx.strokeText(label.label, p.x, y, mobile ? 132 : 180);
-      ctx.fillStyle = active ? "rgba(255,255,255,0.98)" : kind === "country" ? "rgba(226,232,240,0.66)" : kind === "city" ? "rgba(186,230,253,0.68)" : "rgba(209,250,229,0.74)";
-      ctx.fillText(label.label, p.x, y, mobile ? 132 : 180);
+      ctx.strokeStyle = active ? "rgba(2,6,23,0.92)" : isCountry ? "rgba(2,6,23,0.48)" : "rgba(2,6,23,0.78)";
+      ctx.strokeText(displayLabel, p.x, y, mobile ? 112 : 150);
+      ctx.fillStyle = active ? "rgba(255,255,255,0.98)" : isCountry ? "rgba(241,245,249,0.54)" : kind === "city" ? "rgba(186,230,253,0.68)" : "rgba(209,250,229,0.74)";
+      ctx.fillText(displayLabel, p.x, y, mobile ? 112 : 150);
       ctx.restore();
       return true;
     };
@@ -1158,14 +1161,15 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       onStationSelect?.(result.event.station, result.event.candidates, result.event.country.name);
       return;
     }
-    if (result.kind === "country" && result.diagnostics.resolvedLatLng) {
+    if (result.kind === "country") {
+      const clickLatLng = result.diagnostics.resolvedLatLng ?? result.country.centroid;
       onCountrySelect?.({
         ...result.country,
         code: result.country.code,
         isoA2: result.country.code,
-        clickLatLng: result.diagnostics.resolvedLatLng,
+        clickLatLng,
         centroid: result.country.centroid,
-        source: "polygon",
+        source: result.diagnostics.resolvedLatLng ? "polygon" : "polygon-fallback",
       });
     }
   };
