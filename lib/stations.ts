@@ -232,17 +232,49 @@ export async function resolveCountryIntent(raw = '') {
   return countries.find((c) => c.name.toLowerCase() === q || c.code.toLowerCase() === q);
 }
 
-export async function fetchStationsForCountryIntent(countryName: string, countryCode: string, params: Record<string,string|undefined> = {}) {
-  const limit = params.limit ?? '50';
-  const offset = params.offset ?? '0';
+type LatLng = { lat: number; lng: number };
+export type CountryIntentOptions = Record<string, string | number | boolean | LatLng | undefined> & { limit?: number | string; offset?: number | string; strictCountryMatch?: boolean; excludeDefaultFallback?: boolean; clickLatLng?: LatLng; centroid?: LatLng };
+
+function normalizeIsoA2(value = '') { return value.trim().toUpperCase(); }
+function stationDistanceKm(station: Station, point?: LatLng) {
+  if (!point || station.latitude == null || station.longitude == null) return Number.POSITIVE_INFINITY;
+  const toRad = (value: number) => value * Math.PI / 180;
+  const dLat = toRad(station.latitude - point.lat);
+  const dLng = toRad(station.longitude - point.lng);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(point.lat)) * Math.cos(toRad(station.latitude)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function rankStationsForCountryIntent(stations: Station[], query: string, clickLatLng?: LatLng) {
+  const ranked = rankStations(stations, query);
+  if (!clickLatLng) return ranked;
+  return ranked.sort((a, b) => {
+    const aDistance = stationDistanceKm(a, clickLatLng);
+    const bDistance = stationDistanceKm(b, clickLatLng);
+    const aFinite = Number.isFinite(aDistance);
+    const bFinite = Number.isFinite(bDistance);
+    if (aFinite && bFinite && Math.abs(aDistance - bDistance) > 25) return aDistance - bDistance;
+    if (aFinite !== bFinite) return aFinite ? -1 : 1;
+    return 0;
+  });
+}
+
+export async function fetchStationsForCountryIntent(countryName: string, isoA2 = '', options: CountryIntentOptions = {}) {
+  const limit = String(options.limit ?? '50');
+  const offset = String(options.offset ?? '0');
   const aliasCode = countryAliases[countryName.trim().toLowerCase()];
-  const code = (countryCode || aliasCode || '').toUpperCase();
-  const primary = await fetchStationsByCountry({ ...params, country: countryName, countryCode: code, limit, offset });
-  const scopedFallbacks = code ? fallbackStations.filter((station) => station.country_code === code) : [];
-  const baseScopedSeeds = code ? nonGeoAudioSeeds().filter((station) => station.country_code === code) : nonGeoAudioSeeds();
-  const scopedSeeds = matchesGeoAudioIntent(params.name || params.q || params.tag || '') ? [...baseScopedSeeds, ...geoAudioSeedsForParams({ ...params, countryCode: code })] : baseScopedSeeds;
-  const scoped = mergeSeedStations([...primary, ...scopedFallbacks], scopedSeeds).filter((station) => !code || station.country_code === code);
-  return rankStations(scoped, params.name || params.q || params.tag || params.language || countryName || code);
+  const code = normalizeIsoA2(isoA2 || aliasCode || '');
+  const requestParams: Record<string, string | undefined> = Object.fromEntries(Object.entries(options).filter(([, value]) => typeof value === 'string' || typeof value === 'number').map(([key, value]) => [key, String(value)]));
+  const primary = await fetchStationsByCountry({ ...requestParams, country: countryName, countryCode: code, limit, offset });
+  const strictCountryMatch = Boolean(options.strictCountryMatch);
+  const excludeDefaultFallback = Boolean(options.excludeDefaultFallback);
+  const normalizedCode = normalizeIsoA2(code);
+  const matchesStrictCountry = (station: Station) => !strictCountryMatch || !normalizedCode || normalizeIsoA2(station.country_code) === normalizedCode;
+  const primaryScoped = primary.filter(matchesStrictCountry);
+  const scopedFallbacks = excludeDefaultFallback ? [] : (normalizedCode ? fallbackStations.filter((station) => normalizeIsoA2(station.country_code) === normalizedCode) : fallbackStations);
+  const baseScopedSeeds = normalizedCode ? nonGeoAudioSeeds().filter((station) => normalizeIsoA2(station.country_code) === normalizedCode) : nonGeoAudioSeeds();
+  const scopedSeeds = matchesGeoAudioIntent(requestParams.name || requestParams.q || requestParams.tag || '') ? [...baseScopedSeeds, ...geoAudioSeedsForParams({ ...requestParams, countryCode: normalizedCode })] : baseScopedSeeds;
+  const scoped = mergeSeedStations([...primaryScoped, ...scopedFallbacks], scopedSeeds).filter(matchesStrictCountry);
+  return rankStationsForCountryIntent(scoped, requestParams.name || requestParams.q || requestParams.tag || requestParams.language || countryName || normalizedCode, options.clickLatLng).slice(0, Number(limit));
 }
 
 function inferStreamFormat(url: string, contentType = '') {

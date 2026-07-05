@@ -40,7 +40,7 @@ import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
-import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station, type StationInventoryStats } from "@/lib/stations";
+import { countryAliases, fetchStationsForCountryIntent, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station, type StationInventoryStats } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
 import { PlaceHero } from "@/components/PlaceHero";
 import { NewspaperBrief } from "@/components/NewspaperBrief";
@@ -206,12 +206,18 @@ function playPremiumTeleportClick() {
   }
 }
 
+type LatLng = { lat: number; lng: number };
 type CountryResult = {
   name: string;
   code: string;
   flag: string;
-  centroid: { lat: number; lng: number };
+  centroid: LatLng;
   station_count: number;
+};
+type CountrySelectPayload = CountryResult & {
+  isoA2?: string;
+  clickLatLng?: LatLng;
+  source?: "polygon" | "reverse-geocode";
 };
 
 type GeoPoint = ResolvedStationGeo & { label: string; tone: "green-gold" | "blue-gold" | "radio-gold" };
@@ -2317,7 +2323,7 @@ function nearestCountryResult(lat: number, lng: number): CountryResult | null {
 
 
 
-function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onWorldZoomRequest, initialContext, onCountrySelect, searchActive = false, keyboardOpen = false, transitionLocked = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onWorldZoomRequest?: (context: AtlasTransitionContext) => void; initialContext?: AtlasTransitionContext | null; onCountrySelect?: (country: CountryResult) => void; searchActive?: boolean; keyboardOpen?: boolean; transitionLocked?: boolean }) {
+function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onWorldZoomRequest, initialContext, onCountrySelect, searchActive = false, keyboardOpen = false, transitionLocked = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onWorldZoomRequest?: (context: AtlasTransitionContext) => void; initialContext?: AtlasTransitionContext | null; onCountrySelect?: (country: CountrySelectPayload) => void; searchActive?: boolean; keyboardOpen?: boolean; transitionLocked?: boolean }) {
   const status = usePlayer((s) => s.status);
   const selectionSource = usePlayer((s) => s.stationSelectionSource);
   const activeStation = useNavigationEngine((s) => s.activeStation) ?? station;
@@ -3056,7 +3062,7 @@ function GeoAudioChannelInspector({ station }: { station: Station }) {
   </section>;
 }
 
-function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelect, setQuery, compact = false }: { query: string; stations: Station[]; onStationSelect: (station: Station, candidates: Station[]) => void; onCountrySelect: (country: CountryResult) => void; setQuery: (q: string) => void; compact?: boolean }) {
+function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelect, setQuery, compact = false }: { query: string; stations: Station[]; onStationSelect: (station: Station, candidates: Station[]) => void; onCountrySelect: (country: CountrySelectPayload) => void; setQuery: (q: string) => void; compact?: boolean }) {
   const [remoteStations, setRemoteStations] = useState<Station[]>([]);
   const [countries, setCountries] = useState<CountryResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -3217,7 +3223,7 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   </>;
 }
 
-function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, onCountrySelect, onStationSelect, voiceControl }: { open: boolean; query: string; setQuery: (q: string) => void; stations: Station[]; onClose: () => void; onCountrySelect: (country: CountryResult) => void; onStationSelect: (station: Station, candidates?: Station[]) => void; voiceControl?: ReactNode }) {
+function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, onCountrySelect, onStationSelect, voiceControl }: { open: boolean; query: string; setQuery: (q: string) => void; stations: Station[]; onClose: () => void; onCountrySelect: (country: CountrySelectPayload) => void; onStationSelect: (station: Station, candidates?: Station[]) => void; voiceControl?: ReactNode }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     if (!open) return;
@@ -3495,7 +3501,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel} whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) { playPremiumTeleportClick(); onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
 }
 
-function MobileAtlasShell({ stations, allStations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest, onVoiceIntent, onVoiceFeedback, startupPreferences, onStartupPreferencesChange, onSettingsLayerChange }: { stations: Station[]; allStations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountryResult) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number; onVoiceIntent: (intent: VoiceCommandIntent) => void; onVoiceFeedback: (message: string) => void; startupPreferences: StartupPreferences; onStartupPreferencesChange: (preferences: StartupPreferences) => void; onSettingsLayerChange?: (open: boolean) => void }) {
+function MobileAtlasShell({ stations, allStations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest, onVoiceIntent, onVoiceFeedback, startupPreferences, onStartupPreferencesChange, onSettingsLayerChange }: { stations: Station[]; allStations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountrySelectPayload) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number; onVoiceIntent: (intent: VoiceCommandIntent) => void; onVoiceFeedback: (message: string) => void; startupPreferences: StartupPreferences; onStartupPreferencesChange: (preferences: StartupPreferences) => void; onSettingsLayerChange?: (open: boolean) => void }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState("Atlas");
   const [atlasView, setAtlasView] = useState<AtlasViewMode>(getInitialAtlasView);
@@ -4384,13 +4390,52 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     });
   }, []);
 
-  const selectCountry = useCallback((country: CountryResult) => {
-    countryLoadRequests.abort({ reason: "country selection replaced", nextCountryCode: country.code });
+  const selectCountry = useCallback((country: CountrySelectPayload) => {
+    countryLoadRequests.abort({ reason: "country selection replaced", nextCountryCode: country.isoA2 || country.code });
     setDesktopDrawerCollapsed(false);
     setSelectedCountry(country);
     setQuery("");
     setActiveTag("");
-    void loadCountryStations(country, 0, "").finally(centerAppAfterQuery);
+
+    if (!country.clickLatLng) {
+      void loadCountryStations(country, 0, "").finally(centerAppAfterQuery);
+      return;
+    }
+
+    const request = countryLoadRequests.begin({ countryCode: country.isoA2 || country.code, countryName: country.name, tag: "" });
+    setLoadingCountry(true);
+    setCountrySignalMessage(`Tuning into ${country.name}…`);
+    void fetchStationsForCountryIntent(country.name, country.isoA2 || country.code, {
+      limit: 50,
+      strictCountryMatch: true,
+      excludeDefaultFallback: true,
+      clickLatLng: country.clickLatLng,
+      centroid: country.centroid,
+    })
+      .then((results) => {
+        if (!countryLoadRequests.isActive(request)) { countryLoadRequests.ignoreStale(request, { stage: "country intent resolved", country: country.isoA2 || country.code }); return; }
+        setStationPool(results);
+        setOffset(results.length);
+        if (!results.length) {
+          setCountrySignalMessage(`No verified stations found for ${country.name} yet.`);
+          debugCountryClick("playback", { selectedStation: null, playbackResult: "strict-country-empty" });
+          return;
+        }
+        setCountrySignalMessage(`Loading closest verified station from ${country.name}…`);
+        setScopedStationAndDestination(results[0], "manual", results, country.name);
+        debugCountryClick("playback", { selectedStation: results[0], playbackResult: "strict-country-station-selected" });
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") { countryLoadRequests.ignoreStale(request, { stage: "country intent abort", country: country.isoA2 || country.code }); return; }
+        setStationPool([]);
+        setOffset(0);
+        setCountrySignalMessage(`No verified stations found for ${country.name} yet.`);
+        debugCountryClick("playback", { selectedStation: null, playbackResult: "strict-country-request-failed", error: error instanceof Error ? error.message : "unknown" });
+      })
+      .finally(() => {
+        if (countryLoadRequests.isActive(request)) setLoadingCountry(false);
+        centerAppAfterQuery();
+      });
   }, [centerAppAfterQuery, loadCountryStations]);
   const selectTag = (tag: string) => {
     countryLoadRequests.abort({ reason: "country tag replaced", tag });
