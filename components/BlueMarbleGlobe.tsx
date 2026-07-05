@@ -20,6 +20,12 @@ type CountryResult = {
   station_count: number;
 };
 
+type CountrySelectPayload = CountryResult & {
+  isoA2: string;
+  clickLatLng: { lat: number; lng: number };
+  source: "polygon" | "reverse-geocode";
+};
+
 type GlobePoint = { lat: number; lng: number; label: string; geoSource?: string; geoPrecision?: string; usedFallbackCentroid?: boolean };
 type GlobeLabelKind = "active" | "country" | "city" | "station";
 type GlobeLabel = GlobePoint & { active?: boolean; kind?: GlobeLabelKind; priority?: number };
@@ -46,7 +52,7 @@ type Props = {
   stations?: Station[];
   previousStation?: Station;
   teleporting?: boolean;
-  onCountrySelect?: (country: CountryResult) => void;
+  onCountrySelect?: (country: CountrySelectPayload) => void;
   onStationSelect?: (station: Station, candidates: Station[], label?: string) => void;
   onFallback?: (reason: string) => void;
   onStreetZoomRequest?: (context?: { lat: number; lng: number; zoom: number; stationId?: string; reason: string }) => void;
@@ -1152,7 +1158,16 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       onStationSelect?.(result.event.station, result.event.candidates, result.event.country.name);
       return;
     }
-    if (result.kind === "country") onCountrySelect?.(result.country);
+    if (result.kind === "country" && result.diagnostics.resolvedLatLng) {
+      onCountrySelect?.({
+        ...result.country,
+        code: result.country.code,
+        isoA2: result.country.code,
+        clickLatLng: result.diagnostics.resolvedLatLng,
+        centroid: result.country.centroid,
+        source: "polygon",
+      });
+    }
   };
   const handlePointerCancel = (event: React.PointerEvent<HTMLCanvasElement>) => {
     getInteractionEngine().pointerCancel(event.pointerId);
