@@ -66,6 +66,12 @@ export interface StationSourceConnector<RawStation = unknown> {
   scoreCandidate?(candidate: NormalizedStationEvidence): number;
 }
 
+export interface StationSourceProvider<RawStation = unknown> extends StationSourceConnector<RawStation> {
+  readonly primary?: boolean;
+  readonly referenceOnly?: boolean;
+  readonly usageConstraints?: string[];
+}
+
 export function stableStationUuid(sourceName: string, sourceStationId: string, fallbackName = '') {
   const seed = `${sourceName}:${sourceStationId || fallbackName}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   return seed || `station-${Date.now()}`;

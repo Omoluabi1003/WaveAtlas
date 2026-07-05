@@ -4,7 +4,7 @@ import { campusAtlasDiagnostics, campusAtlasStations } from './stations/campusAt
 import { ariyoGeoAudioChannels } from './geoaudio';
 import { ChannelType, liveRadioCapabilities, type Channel, type ChannelCapabilities } from './channel-framework';
 
-export type Station = { id:string; station_uuid:string; name:string; normalized_name?:string; url:string; url_resolved?:string; homepage?:string; favicon?:string; country:string; country_code:string; state?:string; city?:string; language:string; tags:string[]; codec:string; bitrate:number; latitude?:number; longitude?:number; votes:number; click_count:number; health_score:number; is_active:boolean; last_check_ok?:boolean; last_checked_at:string; failure_count:number; response_time_ms:number; curation_source?: string; curation_tier?: 'curated_atlas' | 'radio_browser' | 'community_signal'; validation_status?: 'candidate' | 'needs_review' | 'verified' | 'rejected' | 'curated' | 'failed' | 'unknown'; validation_reason?: string; sourceType?: 'radio' | 'geoaudio'; channelType?: ChannelType; channel?: Channel; capabilities?: ChannelCapabilities; geoAudio?: { albumTitle: string; artist: string; provider: string; producer: string; studio: string; coverArtUrl?: string; trackCount?: number; queueId?: string; queueLabel?: string; highlightedQueueItemId?: string; currentJourneyId?: string; currentTrackId?: string; currentTrackTitle?: string; trackIndex?: number; nextTrackId?: string; queueLength?: number; tracks: { title: string; url: string; duration?: string }[] }; };
+export type Station = { id:string; station_uuid:string; name:string; normalized_name?:string; url:string; url_resolved?:string; homepage?:string; favicon?:string; country:string; country_code:string; state?:string; city?:string; language:string; tags:string[]; codec:string; bitrate:number; latitude?:number; longitude?:number; votes:number; click_count:number; health_score:number; is_active:boolean; last_check_ok?:boolean; last_checked_at:string; failure_count:number; response_time_ms:number; curation_source?: string; curation_tier?: 'curated_atlas' | 'radio_browser' | 'community_signal'; source_confidence?: number; verification_status?: 'unverified' | 'candidate' | 'reference_only' | 'verified' | 'failed'; validation_status?: 'candidate' | 'needs_review' | 'verified' | 'rejected' | 'curated' | 'failed' | 'unknown'; validation_reason?: string; sourceType?: 'radio' | 'geoaudio'; channelType?: ChannelType; channel?: Channel; capabilities?: ChannelCapabilities; geoAudio?: { albumTitle: string; artist: string; provider: string; producer: string; studio: string; coverArtUrl?: string; trackCount?: number; queueId?: string; queueLabel?: string; highlightedQueueItemId?: string; currentJourneyId?: string; currentTrackId?: string; currentTrackTitle?: string; trackIndex?: number; nextTrackId?: string; queueLength?: number; tracks: { title: string; url: string; duration?: string }[] }; };
 
 export type CountryResult = { name:string; code:string; flag:string; centroid:{ lat:number; lng:number }; station_count:number };
 
@@ -251,14 +251,16 @@ function rankStationsForCountryIntent(stations: Station[], query: string, clickL
     .map((station, originalRank) => ({
       station,
       originalRank,
-      distanceBucket: Math.floor(stationDistanceKm(station, clickLatLng) / 25),
+      distanceKm: stationDistanceKm(station, clickLatLng),
     }))
+    .map((item) => ({ ...item, distanceBucket: Number.isFinite(item.distanceKm) ? Math.floor(item.distanceKm / 25) : Number.POSITIVE_INFINITY }))
     .sort((a, b) => {
       const aFinite = Number.isFinite(a.distanceBucket);
       const bFinite = Number.isFinite(b.distanceBucket);
       if (aFinite !== bFinite) return aFinite ? -1 : 1;
       if (aFinite && bFinite && a.distanceBucket !== b.distanceBucket) return a.distanceBucket - b.distanceBucket;
-      return a.originalRank - b.originalRank;
+      if (aFinite && bFinite && a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
+      return a.originalRank - b.originalRank || stationNameKey(a.station).localeCompare(stationNameKey(b.station));
     })
     .map(({ station }) => station);
 }
