@@ -177,7 +177,7 @@ export async function probeStationHealth(station: Station, options: StationHealt
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startedAt;
-    const aborted = error instanceof DOMException && error.name === 'AbortError';
+    const aborted = error instanceof Error && error.name === 'AbortError';
     const reason: StationHealthProbeReason = aborted ? 'timeout' : 'network-error';
     if (options.markMemory !== false) markStationUnhealthy(station, reason, now);
     return {
@@ -193,6 +193,7 @@ export async function probeStationHealth(station: Station, options: StationHealt
     };
   } finally {
     clearTimeout(timeout);
+    controller.abort();
   }
 }
 
@@ -235,12 +236,18 @@ export async function runStationHealthAgent(stations: Station[], options: Statio
 
 export function buildStationHealthReport(results: StationHealthProbeResult[]) {
   const summary = summarizeStationHealthRun(results);
-  const byCountry = results.reduce<Record<string, StationHealthAgentSummary>>((acc, result) => {
+  const groups: Record<string, StationHealthProbeResult[]> = {};
+
+  for (const result of results) {
     const country = result.countryCode || 'UN';
-    const list = results.filter((item) => (item.countryCode || 'UN') === country);
-    acc[country] = summarizeStationHealthRun(list);
-    return acc;
-  }, {});
+    groups[country] ??= [];
+    groups[country].push(result);
+  }
+
+  const byCountry: Record<string, StationHealthAgentSummary> = {};
+  for (const [country, list] of Object.entries(groups)) {
+    byCountry[country] = summarizeStationHealthRun(list);
+  }
 
   return {
     generatedAt: new Date().toISOString(),
