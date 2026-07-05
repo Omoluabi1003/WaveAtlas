@@ -2301,13 +2301,20 @@ function countryResultFromFeatureProperties(properties: Record<string, unknown> 
   return nearestCountryResult(fallbackLat, fallbackLng);
 }
 
-function countryResultFromMapClick(map: Map, event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent): CountryResult | null {
+function countryResultFromMapClick(map: Map, event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent): CountrySelectPayload | null {
   const point = event.point;
+  const clickLatLng = { lat: event.lngLat.lat, lng: event.lngLat.lng };
   const features = map.queryRenderedFeatures(point).filter((feature) => feature.properties);
-  const feature = features.find((item) => countryResultFromFeatureProperties(item.properties as Record<string, unknown>, event.lngLat.lat, event.lngLat.lng)) ?? features[0];
-  const country = countryResultFromFeatureProperties(feature?.properties as Record<string, unknown> | undefined, event.lngLat.lat, event.lngLat.lng);
+  const feature = features.find((item) => countryResultFromFeatureProperties(item.properties as Record<string, unknown>, clickLatLng.lat, clickLatLng.lng)) ?? features[0];
+  const country = countryResultFromFeatureProperties(feature?.properties as Record<string, unknown> | undefined, clickLatLng.lat, clickLatLng.lng);
   debugCountryClick("resolved", { featureProperties: feature?.properties ?? null, resolvedCountryName: country?.name, resolvedCountryCode: country?.code, lngLat: event.lngLat });
-  return country;
+  return country ? {
+    ...country,
+    isoA2: country.code,
+    clickLatLng,
+    centroid: country.centroid,
+    source: feature ? "polygon" : "reverse-geocode",
+  } : null;
 }
 
 function nearestCountryResult(lat: number, lng: number): CountryResult | null {
@@ -4391,29 +4398,31 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   }, []);
 
   const selectCountry = useCallback((country: CountrySelectPayload) => {
-    countryLoadRequests.abort({ reason: "country selection replaced", nextCountryCode: country.isoA2 || country.code });
+    const countryCode = country.isoA2 || country.code;
+    countryLoadRequests.abort({ reason: "country selection replaced", nextCountryCode: countryCode });
     setDesktopDrawerCollapsed(false);
     setSelectedCountry(country);
     setQuery("");
     setActiveTag("");
 
-    if (!country.clickLatLng) {
-      void loadCountryStations(country, 0, "").finally(centerAppAfterQuery);
+    if (!countryCode) {
+      setCountrySignalMessage(`No verified stations found for ${country.name} yet.`);
+      centerAppAfterQuery();
       return;
     }
 
-    const request = countryLoadRequests.begin({ countryCode: country.isoA2 || country.code, countryName: country.name, tag: "" });
+    const request = countryLoadRequests.begin({ countryCode, countryName: country.name, tag: "" });
     setLoadingCountry(true);
     setCountrySignalMessage(`Tuning into ${country.name}…`);
-    void fetchStationsForCountryIntent(country.name, country.isoA2 || country.code, {
+    void fetchStationsForCountryIntent(country.name, countryCode, {
       limit: 50,
       strictCountryMatch: true,
       excludeDefaultFallback: true,
-      clickLatLng: country.clickLatLng,
+      clickLatLng: country.clickLatLng ?? country.centroid,
       centroid: country.centroid,
     })
       .then((results) => {
-        if (!countryLoadRequests.isActive(request)) { countryLoadRequests.ignoreStale(request, { stage: "country intent resolved", country: country.isoA2 || country.code }); return; }
+        if (!countryLoadRequests.isActive(request)) { countryLoadRequests.ignoreStale(request, { stage: "country intent resolved", country: countryCode }); return; }
         setStationPool(results);
         setOffset(results.length);
         if (!results.length) {
@@ -4426,9 +4435,8 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         debugCountryClick("playback", { selectedStation: results[0], playbackResult: "strict-country-station-selected" });
       })
       .catch((error) => {
-        if (error instanceof DOMException && error.name === "AbortError") { countryLoadRequests.ignoreStale(request, { stage: "country intent abort", country: country.isoA2 || country.code }); return; }
-        setStationPool([]);
-        setOffset(0);
+        if (!countryLoadRequests.isActive(request)) { countryLoadRequests.ignoreStale(request, { stage: "country intent error", country: countryCode }); return; }
+        if (error instanceof DOMException && error.name === "AbortError") { countryLoadRequests.ignoreStale(request, { stage: "country intent abort", country: countryCode }); return; }
         setCountrySignalMessage(`No verified stations found for ${country.name} yet.`);
         debugCountryClick("playback", { selectedStation: null, playbackResult: "strict-country-request-failed", error: error instanceof Error ? error.message : "unknown" });
       })
@@ -4436,7 +4444,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         if (countryLoadRequests.isActive(request)) setLoadingCountry(false);
         centerAppAfterQuery();
       });
-  }, [centerAppAfterQuery, loadCountryStations]);
+  }, [centerAppAfterQuery]);
   const selectTag = (tag: string) => {
     countryLoadRequests.abort({ reason: "country tag replaced", tag });
     setActiveTag(tag);
