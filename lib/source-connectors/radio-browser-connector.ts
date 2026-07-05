@@ -1,10 +1,12 @@
 import { fetchStationByUuid, fetchStations, fetchStationsByCountry, type Station } from '../stations';
-import { clampConfidence, type NormalizedStationEvidence, type StationSourceConnector } from './station-source-connector';
+import { clampConfidence, type NormalizedStationEvidence, type StationSourceProvider } from './station-source-connector';
 
-export class RadioBrowserConnector implements StationSourceConnector<Station> {
+export class RadioBrowserConnector implements StationSourceProvider<Station> {
   readonly name = 'radio_browser';
   readonly status = 'active' as const;
   readonly purpose = 'Primary global station discovery';
+  readonly primary = true;
+  readonly referenceOnly = false;
 
   async searchStations(query: string) { return fetchStations({ q: query, limit: '50' }); }
   async getStationsByCountry(countryCode: string) { return fetchStationsByCountry({ countryCode, limit: '75' }); }

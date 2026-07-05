@@ -40,7 +40,7 @@ import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
-import { countryAliases, fetchStationsForCountryIntent, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station, type StationInventoryStats } from "@/lib/stations";
+import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, type Station, type StationInventoryStats } from "@/lib/stations";
 import { ArrivalCard } from "@/components/arrival-card";
 import { PlaceHero } from "@/components/PlaceHero";
 import { NewspaperBrief } from "@/components/NewspaperBrief";
@@ -213,6 +213,7 @@ type CountryResult = {
   flag: string;
   centroid: LatLng;
   station_count: number;
+  clickLatLng?: LatLng;
 };
 type CountrySelectPayload = CountryResult & {
   isoA2?: string;
@@ -4366,6 +4367,10 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     setCountrySignalMessage(nextOffset ? "Finding more live signals…" : `Tuning into ${country.name}…`);
     if (!nextOffset) setStationPool([]);
     const params = new URLSearchParams({ country: country.name, countryCode: country.code, limit: "500", offset: String(nextOffset) });
+    if (country.clickLatLng) {
+      params.set("lat", String(country.clickLatLng.lat));
+      params.set("lng", String(country.clickLatLng.lng));
+    }
     if (tag) params.set("tag", tag);
     const requestUrl = `/api/stations/by-country?${params}`;
     debugCountryClick("request", { apiRequestUrl: requestUrl, resolvedCountryName: country.name, resolvedCountryCode: country.code });
@@ -4392,6 +4397,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         debugCountryClick("playback", { selectedStation: null, playbackResult: "no-candidates" });
       }
     } catch (error) {
+      if (!countryLoadRequests.isActive(request)) { countryLoadRequests.ignoreStale(request, { stage: "country failure", country: country.code }); return; }
       if (error instanceof DOMException && error.name === "AbortError") { countryLoadRequests.ignoreStale(request, { stage: "country abort", country: country.code }); return; }
       setCountrySignalMessage("No live signal found here yet. Try Teleport or Add Your Signal.");
       usePlayer.getState().setStatus("failed", "Signal unavailable. Trying another station.");
@@ -4426,14 +4432,14 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
     const request = countryLoadRequests.begin({ countryCode, countryName: country.name, tag: "" });
     setLoadingCountry(true);
     setCountrySignalMessage(`Tuning into ${country.name}…`);
-    void fetchStationsForCountryIntent(country.name, countryCode, {
-      limit: 50,
-      strictCountryMatch: true,
-      excludeDefaultFallback: true,
-      clickLatLng: country.clickLatLng ?? country.centroid,
-      centroid: country.centroid,
-    })
-      .then((results) => {
+    const clickLatLng = country.clickLatLng ?? country.centroid;
+    const params = new URLSearchParams({ country: country.name, countryCode, limit: "50", offset: "0", lat: String(clickLatLng.lat), lng: String(clickLatLng.lng) });
+    void fetch(`/api/stations/by-country?${params}`, { signal: countryLoadRequests.signal(request) })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Country station request failed: ${res.status}`);
+        return (await res.json()) as { stations: Station[] };
+      })
+      .then(({ stations: results }) => {
         if (!countryLoadRequests.isActive(request)) { countryLoadRequests.ignoreStale(request, { stage: "country intent resolved", country: countryCode }); return; }
         setStationPool(results);
         setOffset(results.length);
