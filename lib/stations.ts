@@ -247,15 +247,20 @@ function stationDistanceKm(station: Station, point?: LatLng) {
 function rankStationsForCountryIntent(stations: Station[], query: string, clickLatLng?: LatLng) {
   const ranked = rankStations(stations, query);
   if (!clickLatLng) return ranked;
-  return ranked.sort((a, b) => {
-    const aDistance = stationDistanceKm(a, clickLatLng);
-    const bDistance = stationDistanceKm(b, clickLatLng);
-    const aFinite = Number.isFinite(aDistance);
-    const bFinite = Number.isFinite(bDistance);
-    if (aFinite && bFinite && Math.abs(aDistance - bDistance) > 25) return aDistance - bDistance;
-    if (aFinite !== bFinite) return aFinite ? -1 : 1;
-    return 0;
-  });
+  return ranked
+    .map((station, originalRank) => ({
+      station,
+      originalRank,
+      distanceBucket: Math.floor(stationDistanceKm(station, clickLatLng) / 25),
+    }))
+    .sort((a, b) => {
+      const aFinite = Number.isFinite(a.distanceBucket);
+      const bFinite = Number.isFinite(b.distanceBucket);
+      if (aFinite !== bFinite) return aFinite ? -1 : 1;
+      if (aFinite && bFinite && a.distanceBucket !== b.distanceBucket) return a.distanceBucket - b.distanceBucket;
+      return a.originalRank - b.originalRank;
+    })
+    .map(({ station }) => station);
 }
 
 export async function fetchStationsForCountryIntent(countryName: string, isoA2 = '', options: CountryIntentOptions = {}) {
