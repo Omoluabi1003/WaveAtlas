@@ -77,6 +77,7 @@ import { localTimeForStation, stationTimeCopy, teleportCopy } from "@/lib/smart-
 import { useNavigationEngine, type NavigationSelectionSource } from "@/lib/navigation-engine";
 import { getSpeechRecognitionConstructor, parseVoiceCommand, type BrowserSpeechRecognition, type VoiceCommandIntent } from "@/lib/voice-command-engine";
 import { LiveTrackMetadataEngine, type LiveTrackMetadataState } from "@/lib/live-track-metadata-engine";
+import { applyGeoSelectionDecision, normalizeGeoClick, selectStationFromGeoClick } from "@/lib/geo-selection-engine";
 
 
 type BrowserAudioContextConstructor = typeof AudioContext;
@@ -2317,7 +2318,7 @@ function nearestCountryResult(lat: number, lng: number): CountryResult | null {
 
 
 
-function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onWorldZoomRequest, initialContext, onCountrySelect, searchActive = false, keyboardOpen = false, transitionLocked = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onWorldZoomRequest?: (context: AtlasTransitionContext) => void; initialContext?: AtlasTransitionContext | null; onCountrySelect?: (country: CountrySelectPayload) => void; searchActive?: boolean; keyboardOpen?: boolean; transitionLocked?: boolean }) {
+function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, basemap: controlledBasemap, onBasemapChange, onMapContextChange, onWorldZoomRequest, initialContext, onCountrySelect, onStationSelect, searchActive = false, keyboardOpen = false, transitionLocked = false }: { station: Station; stations: Station[]; mobile?: boolean; resetSignal?: number; basemap?: BasemapKey; onBasemapChange?: (value: BasemapKey) => void; onMapContextChange?: (context: MapTeleportContext) => void; onWorldZoomRequest?: (context: AtlasTransitionContext) => void; initialContext?: AtlasTransitionContext | null; onCountrySelect?: (country: CountrySelectPayload) => void; onStationSelect?: (station: Station, candidates: Station[], label?: string) => void; searchActive?: boolean; keyboardOpen?: boolean; transitionLocked?: boolean }) {
   const status = usePlayer((s) => s.status);
   const selectionSource = usePlayer((s) => s.stationSelectionSource);
   const activeStation = useNavigationEngine((s) => s.activeStation) ?? station;
@@ -2332,10 +2333,16 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   const geo = useMemo(() => geotruth(activeStation), [activeStation]);
   const initialGeo = useRef(geo);
   const onCountrySelectRef = useRef(onCountrySelect);
+  const onStationSelectRef = useRef(onStationSelect);
+  const stationsRef = useRef(stations);
+  const activeStationKeyRef = useRef(activeStation.station_uuid || activeStation.id);
   const worldZoomRequestRef = useRef(onWorldZoomRequest);
   const transitionLockedRef = useRef(transitionLocked);
   const lastMapToGlobeFireRef = useRef(0);
   useEffect(() => { onCountrySelectRef.current = onCountrySelect; }, [onCountrySelect]);
+  useEffect(() => { onStationSelectRef.current = onStationSelect; }, [onStationSelect]);
+  useEffect(() => { stationsRef.current = stations; }, [stations]);
+  useEffect(() => { activeStationKeyRef.current = activeStation.station_uuid || activeStation.id; }, [activeStation.station_uuid, activeStation.id]);
   useEffect(() => { worldZoomRequestRef.current = onWorldZoomRequest; }, [onWorldZoomRequest]);
   useEffect(() => { transitionLockedRef.current = transitionLocked; }, [transitionLocked]);
 
@@ -2364,6 +2371,11 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     document.addEventListener("visibilitychange", resize);
     const clickCountry = (event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
       const country = countryResultFromMapClick(m, event);
+      const location = normalizeGeoClick({ lat: event.lngLat.lat, lng: event.lngLat.lng, view: "map", rawEventType: event.type, source: event.type === "touchend" ? "touch" : "mouse" });
+      if (location) {
+        const decision = selectStationFromGeoClick(location, stationsRef.current, { view: "map", rawEventType: event.type, source: location.source, countryCode: country?.code, countryName: country?.name, activeStationKey: activeStationKeyRef.current });
+        if (applyGeoSelectionDecision(decision, { onStationSelect: onStationSelectRef.current, label: country?.name })) return;
+      }
       if (country) onCountrySelectRef.current?.(country);
     };
     m.on("click", clickCountry);
@@ -3570,7 +3582,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
   }, [atlasTransition]);
   return <section className="waveatlas-mobile-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-transparent text-white md:hidden">
     {selectedView === "map" ? (
-      <AtlasViewErrorBoundary key={`mobile-map-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={activeTransitionContext} onCountrySelect={onCountrySelect} searchActive={false} keyboardOpen={mobileSearchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
+      <AtlasViewErrorBoundary key={`mobile-map-${atlasTransition.state.transitionVersion}`} name="mobile map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={current} stations={stations} mobile resetSignal={resetSignal} basemap={basemap} onBasemapChange={setBasemap} onMapContextChange={setMapContext} onWorldZoomRequest={returnMobileToGlobe} initialContext={activeTransitionContext} onCountrySelect={onCountrySelect} onStationSelect={(selected, candidates, label) => setScopedStationAndDestination(selected, "manual", candidates, label)} searchActive={false} keyboardOpen={mobileSearchOverlayOpen && visualViewport.keyboardOpen} transitionLocked={atlasTransition.transitionLocked} /></AtlasViewErrorBoundary>
     ) : (
       <AtlasViewErrorBoundary key={`mobile-globe-${current.station_uuid || current.id}-${atlasTransition.state.transitionVersion}`} name="mobile globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => atlasTransition.failTransition(error.message)}><BlueMarbleGlobe station={current} stations={stations} selectionVersion={selectionVersion} teleporting={mobileTeleporting} mobile basemap={globeBasemap} onCountrySelect={onCountrySelect} onStationSelect={(station, candidates, label) => setScopedStationAndDestination(station, "manual", candidates, label)} onFallback={(reason) => atlasTransition.failTransition(reason)} onStreetZoomRequest={enterMobileStreets} /></AtlasViewErrorBoundary>
     )}
@@ -4781,7 +4793,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-30 rounded-[2rem] border border-radio/30 bg-slate-950/55 px-4 py-3 text-left text-sm font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
         <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) closeDesktopDrawer(); }}>
           {!activeStation ? <EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /> : globeFallbackReason || desktopAtlasView === "map" ? (
-            <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={activeStation} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={activeDesktopTransitionContext} onCountrySelect={selectCountry} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
+            <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={activeStation} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={activeDesktopTransitionContext} onCountrySelect={selectCountry} onStationSelect={(selected, candidates, label) => { setStationPool((prev) => uniqueStationCandidates([selected, ...candidates, ...prev])); setScopedStationAndDestination(selected, "manual", candidates, label); }} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
           ) : (
             <AtlasViewErrorBoundary key={`desktop-globe-${activeStation.station_uuid || activeStation.id}-${desktopTransition.state.transitionVersion}-${voiceFocusNonce}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={activeStation} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onStationSelect={(station, candidates, label) => { setStationPool((prev) => uniqueStationCandidates([station, ...candidates, ...prev])); setScopedStationAndDestination(station, "manual", candidates, label); }} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
           )}
