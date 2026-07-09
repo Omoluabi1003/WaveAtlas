@@ -45,6 +45,7 @@ import { ArrivalCard } from "@/components/arrival-card";
 import { PlaceHero } from "@/components/PlaceHero";
 import { NewspaperBrief } from "@/components/NewspaperBrief";
 import { ActiveStationBeacon } from "@/components/ActiveStationBeacon";
+import { AutoMarqueeText } from "@/components/common/AutoMarqueeText";
 import { RadioDNA } from "@/components/RadioDNA";
 import { WorldContextPanel } from "@/components/WorldContextPanel";
 import type { WorldContext } from "@/lib/world-engine/types";
@@ -80,31 +81,6 @@ import { LiveTrackMetadataEngine, type LiveTrackMetadataState } from "@/lib/live
 
 type BrowserAudioContextConstructor = typeof AudioContext;
 
-function OverflowMarquee({ text, className = "" }: { text: string; className?: string }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const textRef = useRef<HTMLSpanElement | null>(null);
-  const [overflowing, setOverflowing] = useState(false);
-  const [distance, setDistance] = useState(0);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    const textNode = textRef.current;
-    if (!container || !textNode) return;
-    const measure = () => { const overflow = Math.max(0, textNode.scrollWidth - container.clientWidth); setOverflowing(overflow > 1); setDistance(overflow); };
-    measure();
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : undefined;
-    observer?.observe(container);
-    observer?.observe(textNode);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [text]);
-
-  return <div ref={containerRef} className={`waveatlas-marquee ${overflowing ? "is-overflowing" : ""} ${className}`} style={{ "--marquee-distance": `${distance}px` } as React.CSSProperties} title={text} aria-label={text}><span ref={textRef} className="waveatlas-marquee__content">{text}</span></div>;
-}
-
 function playerLocationLine(station: Station) {
   return [station.city || station.state, station.country].filter(Boolean).join(" · ") || "Global signal";
 }
@@ -119,9 +95,9 @@ function playerStatusMetadata(station: Station, status: PlaybackStatus) {
 function PlayerTextStack({ station, status, titleClassName = "text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]", locationClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]", metadataClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]" }: { station: Station; status: PlaybackStatus; titleClassName?: string; locationClassName?: string; metadataClassName?: string }) {
   return (
     <>
-      <OverflowMarquee text={station.name} className={titleClassName} />
-      <OverflowMarquee text={playerLocationLine(station)} className={locationClassName} />
-      <OverflowMarquee text={playerStatusMetadata(station, status)} className={metadataClassName} />
+      <AutoMarqueeText text={station.name} className={titleClassName} />
+      <AutoMarqueeText text={playerLocationLine(station)} className={locationClassName} />
+      <AutoMarqueeText text={playerStatusMetadata(station, status)} className={metadataClassName} />
     </>
   );
 }
