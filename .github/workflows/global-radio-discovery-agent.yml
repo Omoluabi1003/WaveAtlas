@@ -1,0 +1,36 @@
+name: Global Radio Discovery Agent
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Discovery dry run
+        run: npm run radio:discover:dry
+      - name: Discovery write run
+        run: npm run radio:discover
+        env:
+          RADIO_DISCOVERY_DRY_RUN: 'false'
+          RADIO_DISCOVERY_MAX_ADD: '25'
+      - run: npm run radio:validate
+      - run: npm run typecheck
+      - uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'chore: update discovered radio stations'
+          title: 'chore: update discovered radio stations'
+          body-path: reports/radio-discovery-report.md
+          branch: chore/global-radio-discovery-agent
+          delete-branch: true
