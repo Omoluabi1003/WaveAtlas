@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-07-09T18:44:24.557Z",
+  "dryRun": true,
+  "source": "https://de1.api.radio-browser.info/json",
+  "fetched": 0,
+  "added": [],
+  "skipped": [],
+  "duplicate": [],
+  "failed": [
+    {
+      "reason": "candidate_fetch_failed: fetch failed"
+    }
+  ],
+  "suspicious": []
+}

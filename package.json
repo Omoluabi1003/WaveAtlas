@@ -8,7 +8,10 @@
     "test:geoaudio": "npx tsx tests/geoaudio-catalog.regression.ts",
     "validate:geoaudio-playback": "npx tsx tests/geoaudio-playback-headcheck.ts",
     "test:renderer": "npx tsx tests/renderer-regression.ts",
-    "test:atlas-geotruth": "npx tsx tests/atlas-geotruth-health.regression.ts"
+    "test:atlas-geotruth": "npx tsx tests/atlas-geotruth-health.regression.ts",
+    "radio:discover": "npx tsx scripts/discover-radio-stations.ts",
+    "radio:discover:dry": "RADIO_DISCOVERY_DRY_RUN=true npx tsx scripts/discover-radio-stations.ts",
+    "radio:validate": "npx tsx tests/radio-discovery.regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",

@@ -1,6 +1,7 @@
 import { culturalAtlasScore } from './cultural-atlas';
 import { ariyoSeedStations } from './stations/ariyoSeedStations';
 import { campusAtlasDiagnostics, campusAtlasStations } from './stations/campusAtlasStations';
+import { discoveredRadioStations } from './stations/discoveredRadioStations';
 import { ariyoGeoAudioChannels } from './geoaudio';
 import { ChannelType, liveRadioCapabilities, type Channel, type ChannelCapabilities } from './channel-framework';
 
@@ -121,7 +122,7 @@ function geoAudioCatalogTerms() { return ariyoGeoAudioChannels.flatMap((channel)
 export function matchesGeoAudioIntent(rawQuery = '') { const q = rawQuery.trim().toLowerCase(); if (!q) return false; return [...staticGeoAudioIntentTerms, ...geoAudioCatalogTerms()].some((term) => q.includes(term) || term.includes(q)); }
 export function highlightGeoAudioSearchMatches(station: Station, rawQuery = '') { const q = rawQuery.trim().toLowerCase(); if (station.sourceType !== 'geoaudio' || !q || !station.geoAudio) return station; const match = station.geoAudio.tracks.find((track) => track.title.toLowerCase().includes(q) || q.includes(track.title.toLowerCase())); if (!match) return station; const index = station.geoAudio.tracks.indexOf(match); return { ...station, geoAudio: { ...station.geoAudio, highlightedQueueItemId: `${station.station_uuid}-track-${index + 1}` } }; }
 function geoAudioSeedsForParams(params: Record<string,string|undefined> = {}) { const intent = params.includeGeoAudio === 'true' || matchesGeoAudioIntent(params.name || params.q || params.tag || ''); const query = params.name || params.q || params.tag || ''; return intent ? ariyoGeoAudioChannels.filter((station) => station.is_active && seedMatchesParams(station, params)).map((station) => highlightGeoAudioSearchMatches(station, query)) : []; }
-function nonGeoAudioSeeds() { return [...ariyoSeedStations, ...campusAtlasStations]; }
+function nonGeoAudioSeeds() { return [...ariyoSeedStations, ...campusAtlasStations, ...discoveredRadioStations]; }
 function isAriyoSeed(station: Station) { return station.tags.some((tag) => tag.toLowerCase() === 'ariyo-ai-seed'); }
 function isCampusAtlas(station: Station) { return station.curation_source === 'campus-atlas' || station.tags.some((tag) => tag.toLowerCase() === 'campus atlas'); }
 function stationUrlKey(station: Station) { return station.sourceType === 'geoaudio' ? station.station_uuid : (station.url_resolved || station.url || '').trim().toLowerCase(); }
