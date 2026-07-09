@@ -11,7 +11,8 @@
     "test:atlas-geotruth": "npx tsx tests/atlas-geotruth-health.regression.ts",
     "radio:discover": "npx tsx scripts/discover-radio-stations.ts",
     "radio:discover:dry": "RADIO_DISCOVERY_DRY_RUN=true npx tsx scripts/discover-radio-stations.ts",
-    "radio:validate": "npx tsx tests/radio-discovery.regression.ts"
+    "radio:validate": "npx tsx tests/radio-discovery.regression.ts",
+    "test:aie": "npx tsx tests/atlas-intelligence-engine.regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",
