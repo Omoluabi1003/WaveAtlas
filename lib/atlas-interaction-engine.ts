@@ -1,8 +1,6 @@
-import { geoDistance } from "d3-geo";
 import type { Station } from "@/lib/stations";
 import { invertGlobePoint, projectGlobePoint, type GlobeRotation, type GlobeScreen } from "@/lib/globe-math";
-import { resolveStationGeo } from "@/lib/signal-constellations";
-import { decideStation } from "@/lib/atlas-intelligence-engine";
+import { geoDistanceKm, geoSelectionStationKey, getGeoSelectionCandidates, isGeoSelectionPlayableStation } from "@/lib/geo-selection-engine";
 
 export type AtlasInteractionCountry = {
   name: string;
@@ -50,20 +48,8 @@ export type AtlasInteractionResult =
   | { kind: "country"; country: AtlasInteractionCountry; diagnostics: AtlasInteractionDiagnostics }
   | { kind: "rejected"; diagnostics: AtlasInteractionDiagnostics };
 
-export function greatCircleDistanceKm(a: AtlasInteractionGeoPoint, b: AtlasInteractionGeoPoint) {
-  return geoDistance([a.lng, a.lat], [b.lng, b.lat]) * 6371;
-}
-
-export function isPlayableAtlasStation(station: Station) {
-  const streamUrl = (station.url_resolved || station.url || "").trim();
-  return Boolean(station.is_active && streamUrl && /^https?:\/\//i.test(streamUrl) && station.sourceType !== "geoaudio");
-}
-
-export function stationAtlasPoint(station: Station): AtlasInteractionStationPoint | null {
-  const geo = resolveStationGeo(station);
-  if (geo.lat === null || geo.lng === null || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lng)) return null;
-  return { lat: geo.lat, lng: geo.lng, source: geo.source, precision: geo.precision };
-}
+export const greatCircleDistanceKm = geoDistanceKm;
+export const isPlayableAtlasStation = isGeoSelectionPlayableStation;
 
 function normalizeCountryText(value = "") {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -75,33 +61,13 @@ export function atlasStationMatchesCountry(station: Station, country: AtlasInter
   return normalizeCountryText(station.country) === normalizeCountryText(country.name);
 }
 
-export function atlasStationKey(station: Station) {
-  return station.station_uuid || station.id;
-}
+export const atlasStationKey = geoSelectionStationKey;
 
-type RankedAtlasStation = { station: Station; point: AtlasInteractionStationPoint | null; distanceKm: number; aieScore: number; trustScore: number };
-
-function compareAtlasStationDecision(a: RankedAtlasStation, b: RankedAtlasStation) {
-  if (a.aieScore !== b.aieScore) return b.aieScore - a.aieScore;
-  if (a.trustScore !== b.trustScore) return b.trustScore - a.trustScore;
-  const aFinite = Number.isFinite(a.distanceKm);
-  const bFinite = Number.isFinite(b.distanceKm);
-  if (aFinite && bFinite && a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
-  if (aFinite !== bFinite) return aFinite ? -1 : 1;
-  return b.station.votes - a.station.votes || b.station.click_count - a.station.click_count;
-}
+type RankedAtlasStation = ReturnType<typeof getGeoSelectionCandidates>[number];
 
 export function rankPlayableAtlasStationsInCountry(stations: Station[], tap: AtlasInteractionGeoPoint, country: AtlasInteractionCountry, activeStationKey?: string | null) {
-  const allCandidates = stations
-    .filter((station) => isPlayableAtlasStation(station) && atlasStationMatchesCountry(station, country))
-    .map((station) => {
-      const point = stationAtlasPoint(station);
-      const distanceKm = point ? greatCircleDistanceKm(tap, point) : Number.POSITIVE_INFINITY;
-      const geographicRelevance = Number.isFinite(distanceKm) ? Math.max(0, 100 * (1 - distanceKm / 750)) : 25;
-      const decision = decideStation(station, { kind: 'beacon', geographicRelevance, distanceRelevance: geographicRelevance, geoConfidence: point?.precision === 'station' ? 90 : 55 });
-      return { station, point, distanceKm, aieScore: decision.score, trustScore: decision.trustScore };
-    })
-    .sort(compareAtlasStationDecision);
+  const location = { lat: tap.lat, lng: tap.lng, source: "pointer" as const, view: "globe" as const, timestamp: Date.now(), precision: "projected" as const, rawEventType: "pointerup" };
+  const allCandidates = getGeoSelectionCandidates(location, stations, { view: "globe", activeStationKey: null, countryCode: country.code, countryName: country.name, maxDistanceKm: 900 });
   const candidateCountBeforeExclusion = allCandidates.length;
   const nonActiveCandidates = activeStationKey ? allCandidates.filter((item) => atlasStationKey(item.station) !== activeStationKey) : allCandidates;
   const excludedActiveStation = nonActiveCandidates.length < allCandidates.length;
