@@ -454,6 +454,12 @@ function debugCountryClick(label: string, payload: Record<string, unknown>) {
   console.debug(`[WaveAtlas Country Click] ${label}`, payload);
 }
 
+function debugGeoClick(label: string, payload: Record<string, unknown>) {
+  if (typeof window === "undefined" || process.env.NODE_ENV === "production") return;
+  if (process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GEOCLICK !== "true") return;
+  console.debug(`[WaveAtlas GeoClick] ${label}`, payload);
+}
+
 function debugWanderer(label: string, payload: Record<string, unknown>) {
   if (typeof window === "undefined" || process.env.NODE_ENV === "production") return;
   console.debug(`[WaveAtlas Wanderer] ${label}`, payload);
@@ -541,9 +547,28 @@ function setCurrentStationAndDestination(station: Station, source: StationSelect
   debugGlobeStationSelection(station, source, version);
   warnIfStationGeoConflicts(station, geotruth(station));
   const player = usePlayer.getState();
+  const selectedGeo = geotruth(station);
+  debugGeoClick("commit", {
+    selectedStation: { id: station.id, name: station.name, country: station.country, country_code: station.country_code },
+    source,
+    selectionVersion: version,
+  });
   useNavigationEngine.getState().setActiveStation(station, source, version);
   useAtlasContext.getState().setActiveStationDestinationFromStation(station, source);
+  debugGeoClick("beacon", {
+    selectedStation: station.name,
+    lat: selectedGeo.lat,
+    lng: selectedGeo.lng,
+    geoSource: selectedGeo.source,
+    geoPrecision: selectedGeo.precision,
+  });
   player.setStation(station, source, version);
+  debugGeoClick("playback", {
+    selectedStation: station.name,
+    streamUrl: getStationStreamUrl(station),
+    source,
+    selectionVersion: version,
+  });
   if (queue.length) {
     player.setTeleportQueue(queue.filter((candidate) => stationKey(candidate) !== stationKey(station)));
   } else {
@@ -2289,13 +2314,30 @@ function countryResultFromFeatureProperties(properties: Record<string, unknown> 
   return nearestCountryResult(fallbackLat, fallbackLng);
 }
 
-function countryResultFromMapClick(map: Map, event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent): CountrySelectPayload | null {
-  const point = event.point;
-  const clickLatLng = { lat: event.lngLat.lat, lng: event.lngLat.lng };
+function mapEventPoint(map: Map, event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent): maplibregl.PointLike | null {
+  if (event.point) return event.point;
+  const touchEvent = typeof TouchEvent !== "undefined" && event.originalEvent instanceof TouchEvent ? event.originalEvent : null;
+  const touch = touchEvent?.changedTouches[0] ?? touchEvent?.touches[0];
+  if (!touch) return null;
+  const rect = map.getCanvas().getBoundingClientRect();
+  return [touch.clientX - rect.left, touch.clientY - rect.top];
+}
+
+function mapEventLngLat(map: Map, event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent): LatLng | null {
+  if (event.lngLat && Number.isFinite(event.lngLat.lat) && Number.isFinite(event.lngLat.lng)) return { lat: event.lngLat.lat, lng: event.lngLat.lng };
+  const point = mapEventPoint(map, event);
+  if (!point) return null;
+  const lngLat = map.unproject(point);
+  return { lat: lngLat.lat, lng: lngLat.lng };
+}
+
+function countryResultFromMapClick(map: Map, event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent, clickLatLng = mapEventLngLat(map, event)): CountrySelectPayload | null {
+  const point = mapEventPoint(map, event);
+  if (!point || !clickLatLng) return null;
   const features = map.queryRenderedFeatures(point).filter((feature) => feature.properties);
   const feature = features.find((item) => countryResultFromFeatureProperties(item.properties as Record<string, unknown>, clickLatLng.lat, clickLatLng.lng)) ?? features[0];
   const country = countryResultFromFeatureProperties(feature?.properties as Record<string, unknown> | undefined, clickLatLng.lat, clickLatLng.lng);
-  debugCountryClick("resolved", { featureProperties: feature?.properties ?? null, resolvedCountryName: country?.name, resolvedCountryCode: country?.code, lngLat: event.lngLat });
+  debugCountryClick("resolved", { featureProperties: feature?.properties ?? null, resolvedCountryName: country?.name, resolvedCountryCode: country?.code, lngLat: clickLatLng });
   return country ? {
     ...country,
     isoA2: country.code,
@@ -2370,12 +2412,23 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", resize);
     const clickCountry = (event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
-      const country = countryResultFromMapClick(m, event);
-      const location = normalizeGeoClick({ lat: event.lngLat.lat, lng: event.lngLat.lng, view: "map", rawEventType: event.type, source: event.type === "touchend" ? "touch" : "mouse" });
+      const clickLatLng = mapEventLngLat(m, event);
+      debugGeoClick("event", { view: "map", rawEventType: event.type, hasLngLat: Boolean(event.lngLat), clickLatLng });
+      const country = countryResultFromMapClick(m, event, clickLatLng);
+      const location = clickLatLng ? normalizeGeoClick({ lat: clickLatLng.lat, lng: clickLatLng.lng, view: "map", rawEventType: event.type, source: event.type === "touchend" ? "touch" : "mouse" }) : null;
+      debugGeoClick("normalized", { view: "map", location, resolvedCountryName: country?.name ?? null, resolvedCountryCode: country?.code ?? null });
       if (location) {
         const decision = selectStationFromGeoClick(location, stationsRef.current, { view: "map", rawEventType: event.type, source: location.source, countryCode: country?.code, countryName: country?.name, activeStationKey: activeStationKeyRef.current });
+        debugGeoClick("decision", {
+          view: "map",
+          candidateCount: decision.candidateStations.length,
+          selectedStation: decision.selectedStation ? { id: decision.selectedStation.id, name: decision.selectedStation.name, country: decision.selectedStation.country, country_code: decision.selectedStation.country_code } : null,
+          activeStationKey: activeStationKeyRef.current,
+          decisionReason: decision.decisionReason,
+        });
         if (applyGeoSelectionDecision(decision, { onStationSelect: onStationSelectRef.current, label: country?.name })) return;
       }
+      debugGeoClick("country-fallback", { view: "map", resolvedCountryName: country?.name ?? null, resolvedCountryCode: country?.code ?? null });
       if (country) onCountrySelectRef.current?.(country);
     };
     m.on("click", clickCountry);
