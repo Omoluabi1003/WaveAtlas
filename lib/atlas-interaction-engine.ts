@@ -2,6 +2,7 @@ import { geoDistance } from "d3-geo";
 import type { Station } from "@/lib/stations";
 import { invertGlobePoint, projectGlobePoint, type GlobeRotation, type GlobeScreen } from "@/lib/globe-math";
 import { resolveStationGeo } from "@/lib/signal-constellations";
+import { decideStation } from "@/lib/atlas-intelligence-engine";
 
 export type AtlasInteractionCountry = {
   name: string;
@@ -78,9 +79,11 @@ export function atlasStationKey(station: Station) {
   return station.station_uuid || station.id;
 }
 
-type RankedAtlasStation = { station: Station; point: AtlasInteractionStationPoint | null; distanceKm: number };
+type RankedAtlasStation = { station: Station; point: AtlasInteractionStationPoint | null; distanceKm: number; aieScore: number; trustScore: number };
 
-function compareAtlasStationDistance(a: RankedAtlasStation, b: RankedAtlasStation) {
+function compareAtlasStationDecision(a: RankedAtlasStation, b: RankedAtlasStation) {
+  if (a.aieScore !== b.aieScore) return b.aieScore - a.aieScore;
+  if (a.trustScore !== b.trustScore) return b.trustScore - a.trustScore;
   const aFinite = Number.isFinite(a.distanceKm);
   const bFinite = Number.isFinite(b.distanceKm);
   if (aFinite && bFinite && a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
@@ -93,9 +96,12 @@ export function rankPlayableAtlasStationsInCountry(stations: Station[], tap: Atl
     .filter((station) => isPlayableAtlasStation(station) && atlasStationMatchesCountry(station, country))
     .map((station) => {
       const point = stationAtlasPoint(station);
-      return { station, point, distanceKm: point ? greatCircleDistanceKm(tap, point) : Number.POSITIVE_INFINITY };
+      const distanceKm = point ? greatCircleDistanceKm(tap, point) : Number.POSITIVE_INFINITY;
+      const geographicRelevance = Number.isFinite(distanceKm) ? Math.max(0, 100 * (1 - distanceKm / 750)) : 25;
+      const decision = decideStation(station, { kind: 'beacon', geographicRelevance, distanceRelevance: geographicRelevance, geoConfidence: point?.precision === 'station' ? 90 : 55 });
+      return { station, point, distanceKm, aieScore: decision.score, trustScore: decision.trustScore };
     })
-    .sort(compareAtlasStationDistance);
+    .sort(compareAtlasStationDecision);
   const candidateCountBeforeExclusion = allCandidates.length;
   const nonActiveCandidates = activeStationKey ? allCandidates.filter((item) => atlasStationKey(item.station) !== activeStationKey) : allCandidates;
   const excludedActiveStation = nonActiveCandidates.length < allCandidates.length;
