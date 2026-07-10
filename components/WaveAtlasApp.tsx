@@ -36,7 +36,7 @@ import {
 import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { isoCountryCentroids, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
-import { BRAND, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
+import { BRAND, DEVELOPER_ATTRIBUTION, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
 import { useMapCameraController } from "@/hooks/useMapCameraController";
 import type { GlobeBasemapKey } from "@/lib/globe-renderer-types";
 import { useIOSVisualViewport } from "@/hooks/useIOSVisualViewport";
@@ -1465,8 +1465,8 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
       <p className="mt-2 text-lg text-ivory/70">Explore Humanity Through Sound™</p>
       <AnimatePresence mode="wait"><motion.p key={phase} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6 font-mono text-sm text-radio">{signalInitializationPhases[phase]}</motion.p></AnimatePresence>
       <div className="mt-8 rounded-full border border-white/10 bg-white/[0.035] px-5 py-3 shadow-[0_12px_40px_rgba(0,0,0,.18)] backdrop-blur-md">
-        <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-ivory/65">Built by ETL GIS Consulting LLC</p>
-        <p className="mt-1 text-[11px] font-medium tracking-[0.18em] text-gold/65">GIS • AI • Automation • Digital Modernization</p>
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-ivory/65">{DEVELOPER_ATTRIBUTION}</p>
+        <p className="mt-1 text-[11px] font-medium tracking-[0.18em] text-gold/65">WaveAtlas™ creator credit</p>
       </div>
     </div>
     <p className="absolute bottom-8 left-1/2 w-full max-w-sm -translate-x-1/2 px-6 text-center text-[11px] font-medium tracking-wide text-ivory/35 sm:bottom-10">Initializing the global radio atlas</p>
