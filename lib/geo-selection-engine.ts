@@ -95,7 +95,7 @@ function normalizeCountryText(value = "") {
 export function normalizeGeoClick(input: { lat?: unknown; lng?: unknown; latitude?: unknown; longitude?: unknown; view: GeoSelectionView; source?: GeoClickSource; timestamp?: number; precision?: NormalizedGeoLocation["precision"]; rawEventType?: string }): NormalizedGeoLocation | null {
   if (!input || typeof input !== "object") return null;
   const lat = parseCoordinate(input.lat ?? input.latitude, -90, 90);
-  const rawLng = parseCoordinate(input.lng ?? input.longitude, -180, 180);
+  const rawLng = parseCoordinate(input.lng ?? input.longitude, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY);
   if (lat === null || rawLng === null) return null;
   const rawEventType = input.rawEventType || input.source || "programmatic";
   return { lat, lng: normalizeLng(rawLng), source: input.source ?? inferSource(rawEventType), view: input.view, timestamp: input.timestamp ?? Date.now(), precision: input.precision ?? "point", rawEventType };
