@@ -1,4 +1,5 @@
 export const WAVEATLAS_SITE_URL = "https://wave-atlas.vercel.app";
+export const DEVELOPER_ATTRIBUTION = 'Developed by Paul Iyogun';
 
 export const WAVEATLAS_LOGO_PATH = "/brand/waveatlas-512x512.png";
 export const WAVEATLAS_APP_ICON_192_PATH = "/brand/waveatlas-192x192.png";

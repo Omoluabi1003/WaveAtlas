@@ -6,7 +6,7 @@ const policies = [
   ["Privacy Policy", "/legal/privacy", "Storage, submissions, optional email, analytics, retention, and rights."],
   ["Copyright & DMCA", "/legal/copyright", "Rights-holder ownership, article limits, takedown format, and removal requests."],
   ["Community Signals Policy", "/legal/community-signals", "How submitted stream URLs are reviewed, categorized, degraded, or removed."],
-  ["Attribution Policy", "/legal/attribution", "WaveAtlas, ETL GIS Consulting LLC, streams, maps, news, RSS, and open data attribution."],
+  ["Attribution Policy", "/legal/attribution", "WaveAtlas, developer credit, streams, maps, news, RSS, and open data attribution."],
 ] as const;
 
 export default function LegalPage() {

@@ -19,7 +19,7 @@ const curatedStations: CuratedStationRecord[] = [
 export class CuratedStationConnector implements StationSourceConnector<CuratedStationRecord> {
   readonly name = 'curated';
   readonly status = 'active' as const;
-  readonly purpose = 'ETL-approved manual station overrides and verified records';
+  readonly purpose = 'WaveAtlas-approved manual station overrides and verified records';
   constructor(private readonly records: CuratedStationRecord[] = curatedStations) {}
 
   async searchStations(query: string) { const q = query.toLowerCase(); return this.records.filter((s) => [s.name, s.country, s.country_code, s.city, ...(s.tags ?? [])].filter(Boolean).join(' ').toLowerCase().includes(q)); }
