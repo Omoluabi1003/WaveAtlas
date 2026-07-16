@@ -46,6 +46,11 @@ type NaturalEarthCollection = { type: "FeatureCollection"; features: NaturalEart
 
 type SpaceStar = { x: number; y: number; radius: number; alpha: number; hue: number; phase: number; twinkle: number };
 type GlobeQualityTier = "mobile" | "balanced" | "cinematic";
+type CloudQualityMode = "full" | "reduced" | "disabled";
+type CloudTextureStatus = "idle" | "loading" | "ready" | "failed";
+type CloudDriftStatus = "running" | "paused" | "disabled";
+type CloudParticle = { lat: number; lng: number; radius: number; alpha: number; stretch: number };
+type CloudLayerState = { quality: CloudQualityMode; textureStatus: CloudTextureStatus; particles: CloudParticle[]; drift: number; driftStatus: CloudDriftStatus; activatedAt: number; performanceStartedAt: number; frameCount: number; totalFrameMs: number; slowWindows: number; downgradeReason: string | null; iosReduced: boolean; contextLost: boolean; loadToken: number };
 
 type Props = {
   station: Station;
@@ -80,6 +85,11 @@ const IOS_FRAME_DELTA_CLAMP_MS = 32;
 const MINIMUM_FOCUS_DURATION_MS = 2400;
 const LONG_DISTANCE_FOCUS_DURATION_MS = 4200;
 const REDUCED_MOTION_FOCUS_DURATION_MS = 280;
+const PHOTOREALISTIC_CLOUDS_ENABLED = true;
+const DEBUG_CLOUDS = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_CLOUDS === "true";
+const CLOUD_PERFORMANCE_WINDOW_FRAMES = 90;
+const CLOUD_MOBILE_FRAME_THRESHOLD_MS = 38;
+const CLOUD_DESKTOP_FRAME_THRESHOLD_MS = 24;
 
 const SPACE_STAR_SEED = 92821;
 const SPACE_STAR_COUNT_DESKTOP = 90;
@@ -235,6 +245,33 @@ function resolveGlobeQualityTier(mobile: boolean, lowPower: boolean): GlobeQuali
   return "balanced";
 }
 
+function resolveCloudQuality(profile: ReturnType<typeof getDeviceProfile>, iosWebKit: boolean, reducedMotion: boolean): CloudQualityMode {
+  if (!PHOTOREALISTIC_CLOUDS_ENABLED || !profile.webgl) return "disabled";
+  if (profile.lowPower || profile.mobile || iosWebKit || reducedMotion) return "reduced";
+  return "full";
+}
+
+function buildCloudParticles(quality: CloudQualityMode) {
+  if (quality === "disabled") return [];
+  const count = quality === "full" ? 78 : 34;
+  return Array.from({ length: count }, (_, index): CloudParticle => {
+    const seed = 4100 + index * 29;
+    const band = seededUnit(seed + 1) > 0.55 ? 1 : -1;
+    return {
+      lat: Math.max(-58, Math.min(58, (seededUnit(seed + 2) - 0.5) * 92 + band * seededUnit(seed + 3) * 18)),
+      lng: seededUnit(seed + 4) * 360 - 180,
+      radius: quality === "full" ? 2.8 + seededUnit(seed + 5) * 5.8 : 2.2 + seededUnit(seed + 5) * 3.6,
+      alpha: quality === "full" ? 0.12 + seededUnit(seed + 6) * 0.16 : 0.08 + seededUnit(seed + 6) * 0.10,
+      stretch: 1.5 + seededUnit(seed + 7) * 2.8,
+    };
+  });
+}
+
+function debugClouds(details: Record<string, unknown>) {
+  if (!DEBUG_CLOUDS) return;
+  console.debug("[WaveAtlas clouds]", { ...details, timestamp: new Date().toISOString() });
+}
+
 function surfaceNoise(lat: number, lng: number, seed = 0) {
   return seededUnit(Math.round((lat + 90) * 7.13 + (lng + 180) * 3.71 + seed * 101));
 }
@@ -307,26 +344,31 @@ function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { pro
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 }
 
-function drawPhotorealisticCloudLayer(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; quality: GlobeQualityTier; now: number; mobile: boolean; reducedMotion: boolean }) {
-  const { projection, quality, now, mobile, reducedMotion } = options;
-  const cloudStep = quality === "cinematic" ? 16 : quality === "balanced" ? 24 : 38;
+function drawPhotorealisticCloudLayer(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; clouds: CloudLayerState; now: number; mobile: boolean; reducedMotion: boolean; travelActive: boolean }) {
+  const { projection, clouds, now, mobile, reducedMotion, travelActive } = options;
+  if (clouds.quality === "disabled" || clouds.textureStatus !== "ready" || !clouds.particles.length) {
+    clouds.driftStatus = "disabled";
+    return;
+  }
+  const canDrift = !reducedMotion && !travelActive && typeof document !== "undefined" && !document.hidden;
+  clouds.driftStatus = canDrift ? "running" : "paused";
+  if (canDrift) clouds.drift += (mobile || clouds.iosReduced ? 0.000018 : 0.000055) * Math.max(0, Math.min(34, now - clouds.activatedAt));
   ctx.save();
-  ctx.globalAlpha = quality === "mobile" ? 0.22 : 0.34;
-  ctx.strokeStyle = "rgba(255,255,255,0.76)";
-  ctx.lineWidth = mobile ? 1.2 : 1.8;
-  ctx.lineCap = "round";
-  for (let lat = -62; lat <= 62; lat += cloudStep) {
+  ctx.globalCompositeOperation = "source-over";
+  for (const cloud of clouds.particles) {
+    const p = projectCanvasGlobePoint(cloud.lat, cloud.lng + clouds.drift, projection);
+    if (p.z < 0.08 || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+    const depth = Math.max(0, Math.min(1, p.z));
+    const opacity = cloud.alpha * depth * (clouds.quality === "reduced" ? 0.72 : 1);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(Math.sin((cloud.lng + clouds.drift) * DEG) * 0.35);
+    ctx.scale(cloud.stretch, 1);
+    ctx.fillStyle = `rgba(255,255,255,${opacity})`;
     ctx.beginPath();
-    let started = false;
-    for (let lng = -180; lng <= 180; lng += 4) {
-      const drift = reducedMotion ? 0 : now * 0.0015;
-      const waveLat = lat + Math.sin((lng * 1.7 + now * (reducedMotion ? 0 : 0.003)) * DEG) * 3.2;
-      const p = projectCanvasGlobePoint(waveLat, lng + drift, projection);
-      if (p.z < 0.05) { started = false; continue; }
-      started ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
-      started = true;
-    }
-    ctx.stroke();
+    ctx.ellipse(0, 0, cloud.radius * (mobile ? 0.72 : 1), cloud.radius * 0.48 * (mobile ? 0.72 : 1), 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -638,6 +680,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const stationsRef = useRef(stations);
   const activeStationKeyRef = useRef(station.station_uuid || station.id);
   const getGlobeGeometryRef = useRef<(dimensions: { width: number; height: number }, zoom: number, usableBounds?: GlobeUsableBounds) => GlobeGeometry>(() => ({ width: 1, height: 1, radius: 1, centerX: 0.5, centerY: 0.5, usableBounds: { left: 0, top: 0, right: 1, bottom: 1 } }));
+  const cloudLayerRef = useRef<CloudLayerState>({ quality: "disabled", textureStatus: "idle", particles: [], drift: 0, driftStatus: "disabled", activatedAt: 0, performanceStartedAt: 0, frameCount: 0, totalFrameMs: 0, slowWindows: 0, downgradeReason: null, iosReduced: false, contextLost: false, loadToken: 0 });
 
   const getGlobeGeometry = useCallback((dimensions: { width: number; height: number }, zoom: number, usableBounds?: GlobeUsableBounds): GlobeGeometry => {
     const width = Math.max(1, dimensions.width);
@@ -784,8 +827,42 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     let lastFrame = 0;
     let then = performance.now();
     let painted = false;
+    let globeInteractive = false;
     const transitionStats = { active: false, startedAt: 0, frameCount: 0, droppedFrames: 0, maxFrameGap: 0, totalFrameGap: 0, startSize: null as CanvasSize | null, canvasSizeChanged: false, resizeEvents: [] as string[] };
     const fallbackTimer = mobile ? window.setTimeout(() => { if (!painted) fallbackRef.current?.("Globe view is optimized for this device using map mode."); }, MOBILE_FALLBACK_MS) : 0;
+    const cloudLayer = cloudLayerRef.current;
+    const initializeCloudLayer = () => {
+      if (cloudLayer.textureStatus !== "idle" || !PHOTOREALISTIC_CLOUDS_ENABLED) return;
+      cloudLayer.quality = resolveCloudQuality(profile, iosWebKit, state.current.disabledMotion);
+      cloudLayer.iosReduced = iosWebKit && cloudLayer.quality === "reduced";
+      if (cloudLayer.quality === "disabled") { cloudLayer.textureStatus = "failed"; debugClouds({ textureStatus: "failed", quality: cloudLayer.quality, reason: "clouds disabled by capability" }); return; }
+      cloudLayer.textureStatus = "loading";
+      const token = cloudLayer.loadToken + 1;
+      cloudLayer.loadToken = token;
+      window.setTimeout(() => {
+        if (cloudLayer.loadToken !== token || cloudLayer.contextLost) return;
+        try {
+          cloudLayer.particles = buildCloudParticles(cloudLayer.quality);
+          cloudLayer.textureStatus = "ready";
+          cloudLayer.activatedAt = performance.now();
+          cloudLayer.performanceStartedAt = cloudLayer.activatedAt;
+          debugClouds({ quality: cloudLayer.quality, textureStatus: cloudLayer.textureStatus, iosReduced: cloudLayer.iosReduced, particleCount: cloudLayer.particles.length, driftStatus: cloudLayer.driftStatus });
+        } catch (error) {
+          cloudLayer.quality = "disabled";
+          cloudLayer.textureStatus = "failed";
+          cloudLayer.downgradeReason = "cloud texture generation failed";
+          debugClouds({ textureStatus: "failed", error: error instanceof Error ? error.message : String(error) });
+        }
+      }, mobile || iosWebKit ? 180 : 90);
+    };
+    const downgradeClouds = (reason: string) => {
+      if (cloudLayer.quality === "full") { cloudLayer.quality = "reduced"; cloudLayer.particles = buildCloudParticles("reduced"); }
+      else { cloudLayer.quality = "disabled"; cloudLayer.textureStatus = "failed"; cloudLayer.particles = []; }
+      cloudLayer.downgradeReason = reason;
+      cloudLayer.frameCount = 0;
+      cloudLayer.totalFrameMs = 0;
+      debugClouds({ quality: cloudLayer.quality, textureStatus: cloudLayer.textureStatus, downgradeReason: reason });
+    };
 
     const project = (lat: number, lng: number, projection: D3GeoProjection): GlobeProjection => {
       const projected = projection([lng, lat]);
@@ -855,6 +932,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     };
 
     const drawFrame = (now: number) => {
+      const frameStartedAt = now;
       const frameMs = mobile || profile.lowPower ? MOBILE_FRAME_MS : DESKTOP_FRAME_MS;
       if (now - lastFrame < frameMs - 1) { raf = requestAnimationFrame(draw); return; }
       lastFrame = now;
@@ -928,7 +1006,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
         .precision(mobile || profile.lowPower ? 0.85 : 0.45);
       if (photorealisticPreview) {
         drawPhotorealisticSurface(ctx, { projection, cx, cy, r, now, quality: globeQuality, landShapes: runtime.landShapes, mobile, lowPower: profile.lowPower, reducedMotion: s.disabledMotion });
-        drawPhotorealisticCloudLayer(ctx, { projection, quality: globeQuality, now, mobile, reducedMotion: s.disabledMotion });
+        drawPhotorealisticCloudLayer(ctx, { projection, clouds: cloudLayer, now, mobile, reducedMotion: s.disabledMotion, travelActive: s.travelActive });
         drawPhotorealisticCountryBoundaries(ctx, { projection, landShapes: runtime.landShapes, mobile, lowPower: profile.lowPower });
       } else {
         ctx.fillStyle = ocean; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
@@ -1080,6 +1158,18 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       }
       ctx.strokeStyle = "rgba(0,214,143,0.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
       painted = true;
+      if (!globeInteractive) { globeInteractive = true; initializeCloudLayer(); }
+      if (cloudLayer.textureStatus === "ready" && cloudLayer.quality !== "disabled") {
+        cloudLayer.frameCount += 1;
+        cloudLayer.totalFrameMs += Math.max(0, performance.now() - frameStartedAt);
+        if (cloudLayer.frameCount >= CLOUD_PERFORMANCE_WINDOW_FRAMES) {
+          const avgFrameMs = cloudLayer.totalFrameMs / cloudLayer.frameCount;
+          const threshold = mobile || profile.lowPower || iosWebKit ? CLOUD_MOBILE_FRAME_THRESHOLD_MS : CLOUD_DESKTOP_FRAME_THRESHOLD_MS;
+          cloudLayer.slowWindows = avgFrameMs > threshold ? cloudLayer.slowWindows + 1 : 0;
+          if (cloudLayer.slowWindows >= 2) downgradeClouds(`sustained cloud frame cost ${avgFrameMs.toFixed(1)}ms`);
+          else { cloudLayer.frameCount = 0; cloudLayer.totalFrameMs = 0; }
+        }
+      }
       if (transitionStats.active && !s.travelActive) {
         const avgGap = transitionStats.frameCount ? transitionStats.totalFrameGap / transitionStats.frameCount : 0;
         const projected = activeBeacon ? projectGlobePoint(activeBeacon, { rotX: s.rotX, rotY: s.rotY }, geometry) : null;
@@ -1121,10 +1211,14 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     window.addEventListener("resize", onWindowResize, { passive: true });
     window.visualViewport?.addEventListener("resize", onVisualViewportResize, { passive: true });
     window.visualViewport?.addEventListener("scroll", onVisualViewportScroll, { passive: true });
-    const onVisibility = () => { state.current.hidden = document.hidden; if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else if (!raf) raf = requestAnimationFrame(draw); };
+    const onVisibility = () => { state.current.hidden = document.hidden; cloudLayer.driftStatus = document.hidden ? "paused" : cloudLayer.driftStatus; if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else if (!raf) raf = requestAnimationFrame(draw); };
+    const onPageShow = (event: PageTransitionEvent) => { debugClouds({ event: "pageshow", persisted: event.persisted, quality: cloudLayer.quality, textureStatus: cloudLayer.textureStatus }); if (!raf && !document.hidden) raf = requestAnimationFrame(draw); };
+    const onContextLost = () => { cloudLayer.contextLost = true; cloudLayer.quality = "disabled"; cloudLayer.textureStatus = "failed"; cloudLayer.particles = []; cloudLayer.downgradeReason = "canvas context lost"; debugClouds({ contextLost: true, quality: cloudLayer.quality }); };
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow);
+    canvas.addEventListener("webglcontextlost", onContextLost);
     raf = requestAnimationFrame(draw);
-    return () => { document.removeEventListener("visibilitychange", onVisibility); resizeObserver?.disconnect(); window.removeEventListener("orientationchange", onOrientationChange); window.removeEventListener("resize", onWindowResize); window.visualViewport?.removeEventListener("resize", onVisualViewportResize); window.visualViewport?.removeEventListener("scroll", onVisualViewportScroll); window.clearTimeout(throttleTimer); if (fallbackTimer) window.clearTimeout(fallbackTimer); cancelAnimationFrame(raf); raf = 0; };
+    return () => { cloudLayer.loadToken += 1; cloudLayer.particles = []; cloudLayer.textureStatus = "idle"; cloudLayer.quality = "disabled"; cloudLayer.driftStatus = "disabled"; document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pageshow", onPageShow); canvas.removeEventListener("webglcontextlost", onContextLost); resizeObserver?.disconnect(); window.removeEventListener("orientationchange", onOrientationChange); window.removeEventListener("resize", onWindowResize); window.visualViewport?.removeEventListener("resize", onVisualViewportResize); window.visualViewport?.removeEventListener("scroll", onVisualViewportScroll); window.clearTimeout(throttleTimer); if (fallbackTimer) window.clearTimeout(fallbackTimer); cancelAnimationFrame(raf); raf = 0; };
   }, [focusPoint, getGlobeGeometry, mobile, station, stations]);
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, stationFocusIdentityKey, teleporting]);
