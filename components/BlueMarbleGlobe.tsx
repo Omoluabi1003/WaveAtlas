@@ -47,10 +47,10 @@ type NaturalEarthCollection = { type: "FeatureCollection"; features: NaturalEart
 type SpaceStar = { x: number; y: number; radius: number; alpha: number; hue: number; phase: number; twinkle: number };
 type GlobeQualityTier = "mobile" | "balanced" | "cinematic";
 type CloudQualityMode = "full" | "reduced" | "disabled";
-type CloudTextureStatus = "idle" | "loading" | "ready" | "failed";
+type CloudResourceStatus = "idle" | "loading" | "ready" | "failed";
 type CloudDriftStatus = "running" | "paused" | "disabled";
 type CloudParticle = { lat: number; lng: number; radius: number; alpha: number; stretch: number };
-type CloudLayerState = { quality: CloudQualityMode; textureStatus: CloudTextureStatus; particles: CloudParticle[]; drift: number; driftStatus: CloudDriftStatus; activatedAt: number; performanceStartedAt: number; frameCount: number; totalFrameMs: number; slowWindows: number; downgradeReason: string | null; iosReduced: boolean; contextLost: boolean; loadToken: number };
+export type CloudLayerState = { quality: CloudQualityMode; resourceStatus: CloudResourceStatus; particles: CloudParticle[]; drift: number; driftStatus: CloudDriftStatus; activatedAt: number; lastDriftAt: number; performanceStartedAt: number; frameCount: number; totalFrameMs: number; renderFrameMs: number; slowWindows: number; downgradeReason: string | null; iosReduced: boolean; contextLost: boolean; loadToken: number };
 
 type Props = {
   station: Station;
@@ -90,6 +90,12 @@ const DEBUG_CLOUDS = process.env.NODE_ENV === "development" && process.env.NEXT_
 const CLOUD_PERFORMANCE_WINDOW_FRAMES = 90;
 const CLOUD_MOBILE_FRAME_THRESHOLD_MS = 38;
 const CLOUD_DESKTOP_FRAME_THRESHOLD_MS = 24;
+export const CLOUD_MOBILE_DRIFT_SPEED = 0.000018;
+export const CLOUD_DESKTOP_DRIFT_SPEED = 0.000055;
+export const CLOUD_MAX_DRIFT_DELTA_MS = 34;
+export const CLOUD_DRIFT_NORMALIZE_DEGREES = 360;
+export const CLOUD_CONTEXT_LOST_EVENT = "contextlost";
+const CLOUD_SUSTAINED_DEGRADATION_WINDOWS = 3;
 
 const SPACE_STAR_SEED = 92821;
 const SPACE_STAR_COUNT_DESKTOP = 90;
@@ -344,15 +350,36 @@ function drawPhotorealisticSurface(ctx: CanvasRenderingContext2D, options: { pro
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 }
 
+export function advanceCloudDrift(clouds: CloudLayerState, options: { now: number; mobile: boolean; reducedMotion: boolean; travelActive: boolean; documentHidden: boolean }) {
+  if (clouds.quality === "disabled" || clouds.resourceStatus !== "ready" || !clouds.particles.length) {
+    clouds.driftStatus = "disabled";
+    clouds.lastDriftAt = options.now;
+    return clouds.drift;
+  }
+  const canDrift = !options.reducedMotion && !options.travelActive && !options.documentHidden;
+  clouds.driftStatus = canDrift ? "running" : "paused";
+  if (!canDrift) {
+    clouds.lastDriftAt = options.now;
+    return clouds.drift;
+  }
+  const frameDelta = Math.max(0, Math.min(CLOUD_MAX_DRIFT_DELTA_MS, options.now - clouds.lastDriftAt));
+  const speed = options.mobile || clouds.iosReduced ? CLOUD_MOBILE_DRIFT_SPEED : CLOUD_DESKTOP_DRIFT_SPEED;
+  clouds.drift = (clouds.drift + speed * frameDelta) % CLOUD_DRIFT_NORMALIZE_DEGREES;
+  clouds.lastDriftAt = options.now;
+  return clouds.drift;
+}
+
+export function supportsCanvas2DContextLossEvents(canvas: HTMLCanvasElement) {
+  return `on${CLOUD_CONTEXT_LOST_EVENT}` in canvas;
+}
+
 function drawPhotorealisticCloudLayer(ctx: CanvasRenderingContext2D, options: { projection: D3GeoProjection; clouds: CloudLayerState; now: number; mobile: boolean; reducedMotion: boolean; travelActive: boolean }) {
   const { projection, clouds, now, mobile, reducedMotion, travelActive } = options;
-  if (clouds.quality === "disabled" || clouds.textureStatus !== "ready" || !clouds.particles.length) {
+  if (clouds.quality === "disabled" || clouds.resourceStatus !== "ready" || !clouds.particles.length) {
     clouds.driftStatus = "disabled";
     return;
   }
-  const canDrift = !reducedMotion && !travelActive && typeof document !== "undefined" && !document.hidden;
-  clouds.driftStatus = canDrift ? "running" : "paused";
-  if (canDrift) clouds.drift += (mobile || clouds.iosReduced ? 0.000018 : 0.000055) * Math.max(0, Math.min(34, now - clouds.activatedAt));
+  advanceCloudDrift(clouds, { now, mobile, reducedMotion, travelActive, documentHidden: typeof document !== "undefined" && document.hidden });
   ctx.save();
   ctx.globalCompositeOperation = "source-over";
   for (const cloud of clouds.particles) {
@@ -680,7 +707,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
   const stationsRef = useRef(stations);
   const activeStationKeyRef = useRef(station.station_uuid || station.id);
   const getGlobeGeometryRef = useRef<(dimensions: { width: number; height: number }, zoom: number, usableBounds?: GlobeUsableBounds) => GlobeGeometry>(() => ({ width: 1, height: 1, radius: 1, centerX: 0.5, centerY: 0.5, usableBounds: { left: 0, top: 0, right: 1, bottom: 1 } }));
-  const cloudLayerRef = useRef<CloudLayerState>({ quality: "disabled", textureStatus: "idle", particles: [], drift: 0, driftStatus: "disabled", activatedAt: 0, performanceStartedAt: 0, frameCount: 0, totalFrameMs: 0, slowWindows: 0, downgradeReason: null, iosReduced: false, contextLost: false, loadToken: 0 });
+  const cloudLayerRef = useRef<CloudLayerState>({ quality: "disabled", resourceStatus: "idle", particles: [], drift: 0, driftStatus: "disabled", activatedAt: 0, lastDriftAt: 0, performanceStartedAt: 0, frameCount: 0, totalFrameMs: 0, renderFrameMs: 0, slowWindows: 0, downgradeReason: null, iosReduced: false, contextLost: false, loadToken: 0 });
 
   const getGlobeGeometry = useCallback((dimensions: { width: number; height: number }, zoom: number, usableBounds?: GlobeUsableBounds): GlobeGeometry => {
     const width = Math.max(1, dimensions.width);
@@ -832,36 +859,39 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     const fallbackTimer = mobile ? window.setTimeout(() => { if (!painted) fallbackRef.current?.("Globe view is optimized for this device using map mode."); }, MOBILE_FALLBACK_MS) : 0;
     const cloudLayer = cloudLayerRef.current;
     const initializeCloudLayer = () => {
-      if (cloudLayer.textureStatus !== "idle" || !PHOTOREALISTIC_CLOUDS_ENABLED) return;
+      if (cloudLayer.resourceStatus !== "idle" || !PHOTOREALISTIC_CLOUDS_ENABLED) return;
       cloudLayer.quality = resolveCloudQuality(profile, iosWebKit, state.current.disabledMotion);
       cloudLayer.iosReduced = iosWebKit && cloudLayer.quality === "reduced";
-      if (cloudLayer.quality === "disabled") { cloudLayer.textureStatus = "failed"; debugClouds({ textureStatus: "failed", quality: cloudLayer.quality, reason: "clouds disabled by capability" }); return; }
-      cloudLayer.textureStatus = "loading";
+      if (cloudLayer.quality === "disabled") { cloudLayer.resourceStatus = "failed"; debugClouds({ resourceStatus: "failed", quality: cloudLayer.quality, reason: "clouds disabled by capability" }); return; }
+      cloudLayer.resourceStatus = "loading";
       const token = cloudLayer.loadToken + 1;
       cloudLayer.loadToken = token;
       window.setTimeout(() => {
         if (cloudLayer.loadToken !== token || cloudLayer.contextLost) return;
         try {
           cloudLayer.particles = buildCloudParticles(cloudLayer.quality);
-          cloudLayer.textureStatus = "ready";
+          cloudLayer.resourceStatus = "ready";
           cloudLayer.activatedAt = performance.now();
+          cloudLayer.lastDriftAt = cloudLayer.activatedAt;
           cloudLayer.performanceStartedAt = cloudLayer.activatedAt;
-          debugClouds({ quality: cloudLayer.quality, textureStatus: cloudLayer.textureStatus, iosReduced: cloudLayer.iosReduced, particleCount: cloudLayer.particles.length, driftStatus: cloudLayer.driftStatus });
+          debugClouds({ quality: cloudLayer.quality, resourceStatus: cloudLayer.resourceStatus, iosReduced: cloudLayer.iosReduced, particleCount: cloudLayer.particles.length, driftStatus: cloudLayer.driftStatus });
         } catch (error) {
           cloudLayer.quality = "disabled";
-          cloudLayer.textureStatus = "failed";
-          cloudLayer.downgradeReason = "cloud texture generation failed";
-          debugClouds({ textureStatus: "failed", error: error instanceof Error ? error.message : String(error) });
+          cloudLayer.resourceStatus = "failed";
+          cloudLayer.downgradeReason = "cloud particle generation failed";
+          debugClouds({ resourceStatus: "failed", error: error instanceof Error ? error.message : String(error) });
         }
       }, mobile || iosWebKit ? 180 : 90);
     };
     const downgradeClouds = (reason: string) => {
       if (cloudLayer.quality === "full") { cloudLayer.quality = "reduced"; cloudLayer.particles = buildCloudParticles("reduced"); }
-      else { cloudLayer.quality = "disabled"; cloudLayer.textureStatus = "failed"; cloudLayer.particles = []; }
+      else { cloudLayer.quality = "disabled"; cloudLayer.resourceStatus = "failed"; cloudLayer.particles = []; }
       cloudLayer.downgradeReason = reason;
       cloudLayer.frameCount = 0;
       cloudLayer.totalFrameMs = 0;
-      debugClouds({ quality: cloudLayer.quality, textureStatus: cloudLayer.textureStatus, downgradeReason: reason });
+      cloudLayer.renderFrameMs = 0;
+      cloudLayer.lastDriftAt = performance.now();
+      debugClouds({ quality: cloudLayer.quality, resourceStatus: cloudLayer.resourceStatus, downgradeReason: reason });
     };
 
     const project = (lat: number, lng: number, projection: D3GeoProjection): GlobeProjection => {
@@ -1159,15 +1189,16 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
       ctx.strokeStyle = "rgba(0,214,143,0.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, TAU); ctx.stroke();
       painted = true;
       if (!globeInteractive) { globeInteractive = true; initializeCloudLayer(); }
-      if (cloudLayer.textureStatus === "ready" && cloudLayer.quality !== "disabled") {
+      if (cloudLayer.resourceStatus === "ready" && cloudLayer.quality !== "disabled") {
         cloudLayer.frameCount += 1;
-        cloudLayer.totalFrameMs += Math.max(0, performance.now() - frameStartedAt);
+        cloudLayer.totalFrameMs += Math.max(0, rawDt);
+        cloudLayer.renderFrameMs += Math.max(0, performance.now() - frameStartedAt);
         if (cloudLayer.frameCount >= CLOUD_PERFORMANCE_WINDOW_FRAMES) {
           const avgFrameMs = cloudLayer.totalFrameMs / cloudLayer.frameCount;
           const threshold = mobile || profile.lowPower || iosWebKit ? CLOUD_MOBILE_FRAME_THRESHOLD_MS : CLOUD_DESKTOP_FRAME_THRESHOLD_MS;
           cloudLayer.slowWindows = avgFrameMs > threshold ? cloudLayer.slowWindows + 1 : 0;
-          if (cloudLayer.slowWindows >= 2) downgradeClouds(`sustained cloud frame cost ${avgFrameMs.toFixed(1)}ms`);
-          else { cloudLayer.frameCount = 0; cloudLayer.totalFrameMs = 0; }
+          if (cloudLayer.slowWindows >= CLOUD_SUSTAINED_DEGRADATION_WINDOWS) downgradeClouds(`sustained total frame cost ${avgFrameMs.toFixed(1)}ms`);
+          else { cloudLayer.frameCount = 0; cloudLayer.totalFrameMs = 0; cloudLayer.renderFrameMs = 0; }
         }
       }
       if (transitionStats.active && !s.travelActive) {
@@ -1211,14 +1242,14 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     window.addEventListener("resize", onWindowResize, { passive: true });
     window.visualViewport?.addEventListener("resize", onVisualViewportResize, { passive: true });
     window.visualViewport?.addEventListener("scroll", onVisualViewportScroll, { passive: true });
-    const onVisibility = () => { state.current.hidden = document.hidden; cloudLayer.driftStatus = document.hidden ? "paused" : cloudLayer.driftStatus; if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else if (!raf) raf = requestAnimationFrame(draw); };
-    const onPageShow = (event: PageTransitionEvent) => { debugClouds({ event: "pageshow", persisted: event.persisted, quality: cloudLayer.quality, textureStatus: cloudLayer.textureStatus }); if (!raf && !document.hidden) raf = requestAnimationFrame(draw); };
-    const onContextLost = () => { cloudLayer.contextLost = true; cloudLayer.quality = "disabled"; cloudLayer.textureStatus = "failed"; cloudLayer.particles = []; cloudLayer.downgradeReason = "canvas context lost"; debugClouds({ contextLost: true, quality: cloudLayer.quality }); };
+    const onVisibility = () => { state.current.hidden = document.hidden; cloudLayer.driftStatus = document.hidden ? "paused" : cloudLayer.driftStatus; cloudLayer.lastDriftAt = performance.now(); if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else if (!raf) raf = requestAnimationFrame(draw); };
+    const onPageShow = (event: PageTransitionEvent) => { cloudLayer.lastDriftAt = performance.now(); debugClouds({ event: "pageshow", persisted: event.persisted, quality: cloudLayer.quality, resourceStatus: cloudLayer.resourceStatus }); if (!raf && !document.hidden) raf = requestAnimationFrame(draw); };
+    const onContextLost = (event: Event) => { event.preventDefault(); cloudLayer.contextLost = true; cloudLayer.quality = "disabled"; cloudLayer.resourceStatus = "failed"; cloudLayer.particles = []; cloudLayer.lastDriftAt = performance.now(); cloudLayer.downgradeReason = "canvas context lost"; debugClouds({ contextLost: true, quality: cloudLayer.quality }); };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pageshow", onPageShow);
-    canvas.addEventListener("webglcontextlost", onContextLost);
+    if (supportsCanvas2DContextLossEvents(canvas)) canvas.addEventListener(CLOUD_CONTEXT_LOST_EVENT, onContextLost);
     raf = requestAnimationFrame(draw);
-    return () => { cloudLayer.loadToken += 1; cloudLayer.particles = []; cloudLayer.textureStatus = "idle"; cloudLayer.quality = "disabled"; cloudLayer.driftStatus = "disabled"; document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pageshow", onPageShow); canvas.removeEventListener("webglcontextlost", onContextLost); resizeObserver?.disconnect(); window.removeEventListener("orientationchange", onOrientationChange); window.removeEventListener("resize", onWindowResize); window.visualViewport?.removeEventListener("resize", onVisualViewportResize); window.visualViewport?.removeEventListener("scroll", onVisualViewportScroll); window.clearTimeout(throttleTimer); if (fallbackTimer) window.clearTimeout(fallbackTimer); cancelAnimationFrame(raf); raf = 0; };
+    return () => { cloudLayer.loadToken += 1; cloudLayer.particles = []; cloudLayer.resourceStatus = "idle"; cloudLayer.quality = "disabled"; cloudLayer.driftStatus = "disabled"; document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("pageshow", onPageShow); if (supportsCanvas2DContextLossEvents(canvas)) canvas.removeEventListener(CLOUD_CONTEXT_LOST_EVENT, onContextLost); resizeObserver?.disconnect(); window.removeEventListener("orientationchange", onOrientationChange); window.removeEventListener("resize", onWindowResize); window.visualViewport?.removeEventListener("resize", onVisualViewportResize); window.visualViewport?.removeEventListener("scroll", onVisualViewportScroll); window.clearTimeout(throttleTimer); if (fallbackTimer) window.clearTimeout(fallbackTimer); cancelAnimationFrame(raf); raf = 0; };
   }, [focusPoint, getGlobeGeometry, mobile, station, stations]);
 
   useEffect(() => focusPoint(currentPoint, teleporting), [currentPoint, focusPoint, stationFocusIdentityKey, teleporting]);
