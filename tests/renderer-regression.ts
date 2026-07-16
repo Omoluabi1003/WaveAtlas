@@ -222,16 +222,23 @@ assert.ok(
     beaconDrawIndex > cloudDrawIndex,
   "labels, borders, and beacon must render above clouds",
 );
-assert.doesNotMatch(
-  blueMarble.slice(
-    blueMarble.indexOf("const onContextLost"),
-    blueMarble.indexOf(
-      "document.addEventListener",
-      blueMarble.indexOf("const onContextLost"),
-    ),
-  ),
-  /fallbackRef|onFallback/,
-  "cloud context loss must disable clouds without invoking globe fallback",
-);
+  const onContextLostIndex = blueMarble.indexOf("const onContextLost");
+  const documentEventListenerIndex = blueMarble.indexOf(
+    "document.addEventListener",
+    onContextLostIndex,
+  );
+  assert.ok(
+    onContextLostIndex >= 0,
+    "const onContextLost must exist in BlueMarbleGlobe.tsx",
+  );
+  assert.ok(
+    documentEventListenerIndex > onContextLostIndex,
+    "document.addEventListener must exist after const onContextLost",
+  );
+  assert.doesNotMatch(
+    blueMarble.slice(onContextLostIndex, documentEventListenerIndex),
+    /fallbackRef|onFallback/,
+    "cloud context loss must disable clouds without invoking globe fallback",
+  );
 
 console.log("renderer regression checks passed");
