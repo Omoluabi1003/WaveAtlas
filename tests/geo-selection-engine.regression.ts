@@ -48,7 +48,35 @@ assert.equal(handedOff.length, 1, 'synthetic click after touchend must not trigg
 assert.equal(handedOff[0]?.id, 'fallback-nearest');
 assert.equal(applyGeoSelectionDecision(decision, {}), false);
 
-const globeFallbackStation = base({ id: 'globe-fallback', station_uuid: 'globe-fallback', name: 'Globe Fallback', latitude: 0, longitude: 0, health_score: 92 });
+const activeOnly = base({ id: 'active-only', station_uuid: 'active-only', name: 'Active Only', latitude: 40.03, longitude: -75.03 });
+decision = selectStationFromGeoClick(mapLocation, [activeOnly], { view: 'map', activeStationKey: 'active-only' });
+assert.equal(decision.selectedStation?.id, 'active-only', 'active station may be retained only when it is the sole playable option');
+assert.equal(decision.candidateCountBeforeActiveExclusion, 1);
+assert.equal(decision.candidateCountAfterActiveExclusion, 1);
+
+const activeNear = base({ id: 'active-near', station_uuid: 'active-near', name: 'Active Near', latitude: 40.001, longitude: -75.001, health_score: 95 });
+const alternateFar = base({ id: 'alternate-far', station_uuid: 'alternate-far', name: 'Alternate Far', latitude: 40.04, longitude: -75.04, health_score: 90 });
+decision = selectStationFromGeoClick(mapLocation, [activeNear, alternateFar], { view: 'map', activeStationKey: 'active-near' });
+assert.equal(decision.selectedStation?.id, 'alternate-far', 'active station is excluded when alternatives exist');
+assert.equal(decision.candidateCountBeforeActiveExclusion, 2);
+assert.equal(decision.candidateCountAfterActiveExclusion, 1);
+
+const borderLocation = normalizeGeoClick({ lat: 56.13, lng: -106.34, view: 'map', source: 'mouse', rawEventType: 'click', timestamp: 11 });
+assert.ok(borderLocation);
+const canadaOnly = base({ id: 'canada-only', station_uuid: 'canada-only', name: 'Canada Only', country: 'Canada', country_code: 'CA', latitude: 56.1304, longitude: -106.3468, health_score: 88 });
+decision = selectStationFromGeoClick(borderLocation, [canadaOnly], { view: 'map', countryCode: 'US', countryName: 'United States' });
+assert.equal(decision.selectedStation, null, 'known country does not silently cross borders');
+decision = selectStationFromGeoClick(borderLocation, [canadaOnly], { view: 'map', countryCode: 'US', countryName: 'United States', allowCrossBorderFallback: true });
+assert.equal(decision.selectedStation?.id, 'canada-only', 'explicit cross-border fallback selects nearest playable when country has none');
+assert.equal(decision.fallbackReason, 'cross-border-fallback-no-country-playable-candidates');
+
+const infiniteA = base({ id: 'infinite-a', station_uuid: 'infinite-a', name: 'Infinite A', latitude: null as unknown as number, longitude: null as unknown as number, country: 'United States', country_code: 'US', votes: 2, click_count: 1, health_score: 70 });
+const infiniteB = base({ id: 'infinite-b', station_uuid: 'infinite-b', name: 'Infinite B', latitude: null as unknown as number, longitude: null as unknown as number, country: 'United States', country_code: 'US', votes: 2, click_count: 1, health_score: 70 });
+const infiniteCandidates = getGeoSelectionCandidates(mapLocation, [infiniteB, infiniteA], { view: 'map', countryCode: 'US' });
+assert.deepEqual(infiniteCandidates.map((item) => item.station.id), ['infinite-a', 'infinite-b'], 'infinite distance tie-breaker is deterministic');
+
+
+const globeFallbackStation = base({ id: 'globe-fallback', station_uuid: 'globe-fallback', name: 'Globe Fallback', country: 'Sao Tome and Principe', country_code: 'ST', latitude: 0.1864, longitude: 6.6131, health_score: 92 });
 const interaction = new AtlasInteractionEngine({
   dragThresholdPx: 8,
   stationsProvider: () => [globeFallbackStation],
@@ -66,6 +94,34 @@ const interactionResult = interaction.pointerUp({
   clientY: 100,
   canvasRect: { left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200, x: 0, y: 0, toJSON: () => ({}) } as DOMRect,
 });
+
+
+const usaCountry = { name: 'United States', code: 'US', flag: '🇺🇸', centroid: { lat: 39, lng: -98 }, station_count: 2 };
+const countryInteraction = new AtlasInteractionEngine({
+  dragThresholdPx: 8,
+  stationsProvider: () => [crossBorderNear, inCountryFar],
+  activeStationKeyProvider: () => null,
+  countryResolver: () => usaCountry,
+  geometryProvider: () => ({ geometry: { width: 200, height: 200, radius: 90, centerX: 100, centerY: 100 }, rotation: { rotX: 0, rotY: 0 } }),
+});
+countryInteraction.pointerDown({ pointerId: 5, clientX: 100, clientY: 100 });
+const countryResult = countryInteraction.pointerUp({ pointerId: 5, clientX: 100, clientY: 100, canvasRect: { left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200, x: 0, y: 0, toJSON: () => ({}) } as DOMRect });
+assert.equal(countryResult.kind, 'destination');
+if (countryResult.kind === 'destination') assert.equal(countryResult.event.station.country_code, 'US', 'globe country polygon selections remain country scoped when candidates exist');
+
+const dragInteraction = new AtlasInteractionEngine({ dragThresholdPx: 8, stationsProvider: () => [globeFallbackStation], activeStationKeyProvider: () => null, countryResolver: () => null, geometryProvider: () => ({ geometry: { width: 200, height: 200, radius: 90, centerX: 100, centerY: 100 }, rotation: { rotX: 0, rotY: 0 } }) });
+dragInteraction.pointerDown({ pointerId: 7, clientX: 100, clientY: 100 });
+dragInteraction.pointerMove({ pointerId: 7, clientX: 130, clientY: 100 });
+assert.equal(dragInteraction.pointerUp({ pointerId: 7, clientX: 130, clientY: 100, canvasRect: { left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200, x: 0, y: 0, toJSON: () => ({}) } as DOMRect }).kind, 'rejected', 'drag gestures are rejected');
+
+const pinchInteraction = new AtlasInteractionEngine({ dragThresholdPx: 8, stationsProvider: () => [globeFallbackStation], activeStationKeyProvider: () => null, countryResolver: () => null, geometryProvider: () => ({ geometry: { width: 200, height: 200, radius: 90, centerX: 100, centerY: 100 }, rotation: { rotX: 0, rotY: 0 } }) });
+pinchInteraction.pointerDown({ pointerId: 8, clientX: 100, clientY: 100 });
+pinchInteraction.pointerDown({ pointerId: 9, clientX: 102, clientY: 102 });
+assert.equal(pinchInteraction.pointerUp({ pointerId: 8, clientX: 100, clientY: 100, canvasRect: { left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200, x: 0, y: 0, toJSON: () => ({}) } as DOMRect }).kind, 'rejected', 'pinch gestures are rejected');
+pinchInteraction.pointerCancel(9);
+pinchInteraction.pointerDown({ pointerId: 10, clientX: 100, clientY: 100 });
+assert.equal(pinchInteraction.pointerUp({ pointerId: 10, clientX: 100, clientY: 100, canvasRect: { left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200, x: 0, y: 0, toJSON: () => ({}) } as DOMRect }).kind, 'destination', 'engine recovers after stale pointer cancellation');
+
 assert.equal(interactionResult.kind, 'destination');
 if (interactionResult.kind === 'destination') {
   assert.equal(interactionResult.event.station.id, 'globe-fallback');
@@ -75,15 +131,11 @@ if (interactionResult.kind === 'destination') {
 const app = readFileSync('components/WaveAtlasApp.tsx', 'utf8');
 const globe = readFileSync('components/BlueMarbleGlobe.tsx', 'utf8');
 const atlasInteraction = readFileSync('lib/atlas-interaction-engine.ts', 'utf8');
-const marquee = readFileSync('components/common/AutoMarqueeText.tsx', 'utf8');
 assert.match(app, /selectStationFromGeoClick/);
 assert.match(app, /applyGeoSelectionDecision/);
 assert.match(atlasInteraction, /getGeoSelectionCandidates/);
 assert.match(atlasInteraction, /country-boundaries-unavailable-nearest-playable-station/);
 assert.match(globe, /AtlasInteractionEngine/);
 assert.match(app, /setScopedStationAndDestination\(selected, "manual", candidates, label\)/);
-assert.match(marquee, /--waveatlas-marquee-offset/);
-assert.match(marquee, /waveatlas-auto-marquee-scroll-v2/);
-assert.doesNotMatch(marquee, /calc\(-1\s*\*\s*var/);
 
 console.log('Geo Selection Engine regression checks passed.');

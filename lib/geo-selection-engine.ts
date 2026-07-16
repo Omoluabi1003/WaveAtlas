@@ -46,6 +46,10 @@ export type GeoSelectionDecision = {
   decisionReason: string;
   debug?: Record<string, unknown>;
   fallbackCandidates: Station[];
+  fallbackReason: string | null;
+  candidateCountBeforeActiveExclusion: number;
+  candidateCountAfterActiveExclusion: number;
+  rankingDurationMs: number;
 };
 
 let lastAppliedDecision: { stationKey: string; lat: number; lng: number; appliedAt: number } | null = null;
@@ -63,7 +67,7 @@ export function isGeoSelectionPlayableStation(station: Station) {
   return Boolean(station.is_active && station.last_check_ok !== false && streamUrl && /^https?:\/\//i.test(streamUrl) && station.sourceType !== "geoaudio");
 }
 
-function stationPoint(station: Station) {
+export function getGeoSelectionStationPoint(station: Station) {
   const geo = resolveStationGeo(station);
   if (geo.lat === null || geo.lng === null || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lng)) return null;
   return { lat: geo.lat, lng: geo.lng, source: geo.source, precision: geo.precision };
@@ -102,13 +106,20 @@ export function normalizeGeoClick(input: { lat?: unknown; lng?: unknown; latitud
 }
 
 function compareCandidates(a: GeoSelectionCandidate, b: GeoSelectionCandidate) {
+  const aReliability = a.decision.trustScore + Math.max(0, a.station.health_score || 0);
+  const bReliability = b.decision.trustScore + Math.max(0, b.station.health_score || 0);
+  if (aReliability !== bReliability) return bReliability - aReliability;
   if (a.decision.score !== b.decision.score) return b.decision.score - a.decision.score;
   if (a.decision.trustScore !== b.decision.trustScore) return b.decision.trustScore - a.decision.trustScore;
   const aFinite = Number.isFinite(a.distanceKm);
   const bFinite = Number.isFinite(b.distanceKm);
   if (aFinite !== bFinite) return aFinite ? -1 : 1;
   if (aFinite && bFinite && a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
-  return b.station.votes - a.station.votes || b.station.click_count - a.station.click_count || geoSelectionStationKey(a.station).localeCompare(geoSelectionStationKey(b.station));
+  const voteDelta = (b.station.votes || 0) - (a.station.votes || 0);
+  if (voteDelta) return voteDelta;
+  const clickDelta = (b.station.click_count || 0) - (a.station.click_count || 0);
+  if (clickDelta) return clickDelta;
+  return geoSelectionStationKey(a.station).localeCompare(geoSelectionStationKey(b.station));
 }
 
 function removeActiveStation(candidates: GeoSelectionCandidate[], activeStationKey?: string | null) {
@@ -128,7 +139,7 @@ export function getGeoSelectionCandidates(location: NormalizedGeoLocation, stati
 
   for (const station of stations) {
     if (!station || typeof station !== "object") continue;
-    const point = stationPoint(station);
+    const point = getGeoSelectionStationPoint(station);
     const distanceKm = point ? geoDistanceKm(location, point) : Number.POSITIVE_INFINITY;
     const stationCountryCode = station.country_code?.trim().toUpperCase() || "";
     const stationCountryName = normalizeCountryText(station.country);
@@ -162,17 +173,36 @@ export function getGeoSelectionCandidates(location: NormalizedGeoLocation, stati
   return removeActiveStation(scoped, context.activeStationKey).sort(compareCandidates);
 }
 
+export function getGeoSelectionCandidateStats(location: NormalizedGeoLocation, stations: Station[], context: GeoSelectionContext) {
+  const withoutActiveExclusion = getGeoSelectionCandidates(location, stations, { ...context, activeStationKey: null });
+  const withActiveExclusion = removeActiveStation(withoutActiveExclusion, context.activeStationKey).sort(compareCandidates);
+  return {
+    rankedCandidates: withActiveExclusion,
+    candidateCountBeforeActiveExclusion: withoutActiveExclusion.length,
+    candidateCountAfterActiveExclusion: withActiveExclusion.length,
+    excludedActiveStation: withActiveExclusion.length < withoutActiveExclusion.length,
+  };
+}
+
 export function selectStationFromGeoClick(location: NormalizedGeoLocation, stations: Station[], context: GeoSelectionContext): GeoSelectionDecision {
-  const rankedCandidates = getGeoSelectionCandidates(location, stations, context);
+  const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const stats = getGeoSelectionCandidateStats(location, stations, context);
+  const rankedCandidates = stats.rankedCandidates;
   const selectedStation = rankedCandidates[0]?.station ?? null;
   const hasCountryIntent = Boolean(context.countryCode || context.countryName);
+  const fallbackReason = hasCountryIntent && selectedStation && context.allowCrossBorderFallback && !rankedCandidates.some((item) => {
+    const code = item.station.country_code?.trim().toUpperCase();
+    const name = normalizeCountryText(item.station.country);
+    return Boolean(context.countryCode && code === context.countryCode.trim().toUpperCase()) || Boolean(context.countryName && name === normalizeCountryText(context.countryName));
+  }) ? "cross-border-fallback-no-country-playable-candidates" : null;
   const decisionReason = selectedStation
-    ? hasCountryIntent
+    ? fallbackReason ?? (hasCountryIntent
       ? "atlas-decision-engine-ranked-country-scoped-geo-click"
-      : "atlas-decision-engine-ranked-geo-click"
+      : "atlas-decision-engine-ranked-geo-click")
     : hasCountryIntent
       ? "no-playable-stations-in-resolved-country"
       : "no-playable-geo-candidates";
+  const rankingDurationMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt;
   return {
     selectedStation,
     candidateStations: rankedCandidates.map((item) => item.station),
@@ -180,7 +210,11 @@ export function selectStationFromGeoClick(location: NormalizedGeoLocation, stati
     location,
     decisionReason,
     fallbackCandidates: rankedCandidates.slice(1).map((item) => item.station),
-    debug: context.debug && process.env.NODE_ENV !== "production" ? { candidateCount: rankedCandidates.length, view: location.view, countryCode: context.countryCode ?? null, countryName: context.countryName ?? null } : undefined,
+    fallbackReason,
+    candidateCountBeforeActiveExclusion: stats.candidateCountBeforeActiveExclusion,
+    candidateCountAfterActiveExclusion: stats.candidateCountAfterActiveExclusion,
+    rankingDurationMs,
+    debug: context.debug && process.env.NODE_ENV !== "production" ? { candidateCount: rankedCandidates.length, view: location.view, countryCode: context.countryCode ?? null, countryName: context.countryName ?? null, rankingDurationMs, fallbackReason } : undefined,
   };
 }
 

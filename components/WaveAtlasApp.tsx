@@ -451,6 +451,7 @@ function debugPlayback(label: string, payload: Record<string, unknown>) {
 
 function debugCountryClick(label: string, payload: Record<string, unknown>) {
   if (typeof window === "undefined" || process.env.NODE_ENV === "production") return;
+  if (process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GEOCLICK !== "true") return;
   console.debug(`[WaveAtlas Country Click] ${label}`, payload);
 }
 
@@ -760,6 +761,7 @@ function playFirstSearchCandidate(candidates: Station[], source: StationSelectio
 }
 
 function setScopedStationAndDestination(station: Station, source: StationSelectionSource, candidates: Station[], label?: string, request = playbackRequests.begin(source)) {
+  debugGeoClick("handoff", { exactStationPassedToSetScopedStationAndDestination: { id: station.id, station_uuid: station.station_uuid, name: station.name, country: station.country, country_code: station.country_code, latitude: station.latitude, longitude: station.longitude }, source, label: label ?? null, candidateCount: candidates.length, playbackRequestOccurred: Boolean(request) });
   const scopedCandidates = uniqueStationCandidates([station, ...candidates]).filter((candidate) => getStationStreamUrl(candidate));
   const scopedLabel = label?.trim() || stationLocalQueueLabel(station);
   if (!scopedCandidates.length) {
@@ -2418,13 +2420,26 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
       const location = clickLatLng ? normalizeGeoClick({ lat: clickLatLng.lat, lng: clickLatLng.lng, view: "map", rawEventType: event.type, source: event.type === "touchend" ? "touch" : "mouse" }) : null;
       debugGeoClick("normalized", { view: "map", location, resolvedCountryName: country?.name ?? null, resolvedCountryCode: country?.code ?? null });
       if (location) {
-        const decision = selectStationFromGeoClick(location, stationsRef.current, { view: "map", rawEventType: event.type, source: location.source, countryCode: country?.code, countryName: country?.name, activeStationKey: activeStationKeyRef.current });
+        const decision = selectStationFromGeoClick(location, stationsRef.current, { view: "map", rawEventType: event.type, source: location.source, countryCode: country?.code, countryName: country?.name, activeStationKey: activeStationKeyRef.current, allowCrossBorderFallback: true });
         debugGeoClick("decision", {
           view: "map",
+          normalizedScreenCoordinates: mapEventPoint(m, event),
+          resolvedLatitude: location.lat,
+          resolvedLongitude: location.lng,
+          resolvedCountryName: country?.name ?? null,
+          resolvedCountryCode: country?.code ?? null,
+          countryBoundariesAvailable: country?.source === "polygon",
+          candidateCountBeforeActiveStationExclusion: decision.candidateCountBeforeActiveExclusion,
+          candidateCountAfterActiveStationExclusion: decision.candidateCountAfterActiveExclusion,
           candidateCount: decision.candidateStations.length,
-          selectedStation: decision.selectedStation ? { id: decision.selectedStation.id, name: decision.selectedStation.name, country: decision.selectedStation.country, country_code: decision.selectedStation.country_code } : null,
+          rankingDurationMs: decision.rankingDurationMs,
+          selectedStation: decision.selectedStation ? { id: decision.selectedStation.id, name: decision.selectedStation.name, country: decision.selectedStation.country, country_code: decision.selectedStation.country_code, latitude: decision.selectedStation.latitude, longitude: decision.selectedStation.longitude } : null,
           activeStationKey: activeStationKeyRef.current,
           decisionReason: decision.decisionReason,
+          fallbackReason: decision.fallbackReason,
+          playbackRequestOccurred: Boolean(decision.selectedStation),
+          beaconDestinationChanged: Boolean(decision.selectedStation),
+          cameraDestinationChanged: Boolean(decision.selectedStation),
         });
         if (applyGeoSelectionDecision(decision, { onStationSelect: onStationSelectRef.current, label: country?.name })) return;
       }
