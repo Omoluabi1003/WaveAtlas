@@ -529,6 +529,7 @@ function debugGlobeCoordinates(details: Record<string, unknown>) {
 
 function debugGlobeClick(details: Record<string, unknown>) {
   if (process.env.NODE_ENV === "production") return;
+  if (process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_GEOCLICK !== "true") return;
   console.info("[WaveAtlas globe click]", { ...details, timestamp: new Date().toISOString() });
 }
 
@@ -1153,8 +1154,13 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
     debugGlobeClick({
       ...result.diagnostics,
       event: result.kind === "destination" ? result.event.type : result.kind,
+      inputEventType: event.type,
       selectedStationDistanceKm: result.kind === "destination" ? result.event.distanceKm : null,
       candidateCount: result.kind === "destination" ? result.event.candidates.length : 0,
+      exactStationPassedToSetScopedStationAndDestination: result.kind === "destination" ? { id: result.event.station.id, name: result.event.station.name, country: result.event.station.country, country_code: result.event.station.country_code } : null,
+      playbackRequestOccurred: result.kind === "destination",
+      beaconDestinationChanged: result.kind === "destination",
+      cameraDestinationChanged: result.kind === "destination",
       zoom: s.zoom,
     });
     if (result.kind === "destination") {
