@@ -1166,7 +1166,7 @@ export default function BlueMarbleGlobe({ station, stations = [], previousStatio
           const avgFrameMs = cloudLayer.totalFrameMs / cloudLayer.frameCount;
           const threshold = mobile || profile.lowPower || iosWebKit ? CLOUD_MOBILE_FRAME_THRESHOLD_MS : CLOUD_DESKTOP_FRAME_THRESHOLD_MS;
           cloudLayer.slowWindows = avgFrameMs > threshold ? cloudLayer.slowWindows + 1 : 0;
-          if (cloudLayer.slowWindows >= 2) downgradeClouds(`sustained cloud frame cost ${avgFrameMs.toFixed(1)}ms`);
+          if (cloudLayer.slowWindows >= 2) downgradeClouds(`sustained total frame cost ${avgFrameMs.toFixed(1)}ms`);
           else { cloudLayer.frameCount = 0; cloudLayer.totalFrameMs = 0; }
         }
       }
