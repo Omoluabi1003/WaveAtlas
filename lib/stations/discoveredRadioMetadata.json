@@ -1,1 +1,227 @@
-[]
+[
+  {
+    "stationUuid": "radio-browser-classic-vinyl-hd-d1a54d2e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d1a54d2e-623e-4970-ab11-35f7b56c5ec3",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://icecast.walmradio.com:8443/classic"
+  },
+  {
+    "stationUuid": "radio-browser-rmc-fr-7a3a3989",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7a3a3989-8f26-44f7-9ae5-fa91e5cf4f9d",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://audio.bfmtv.com/rmcradio_128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-deutschlandfunk-dlf-mp3-128k-1c3e8be2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1c3e8be2-5b14-4933-bad3-87cbc227cba4",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://f111.rndfnk.com/ard/dlf/01/mp3/128/stream.mp3?aggregator=web&cid=01FBPWZ12X2XN8SDSMBZ7X0ZTT&sid=3IzgUbN4gMFNWu46WtF3MbxIbBp&token=gaNZHIgUdGj7d_CQ02Gj15ZCY_iBwAPrpnnBR4_vrzg&tvf=xbUo4A0T0xhmMTExLnJuZGZuay5jb20"
+  },
+  {
+    "stationUuid": "radio-browser-nostalgie-hq-d39ab442",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d39ab442-6c34-4097-afd0-e298ac21e50c",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 94,
+    "resolvedUrl": "https://streaming.nrjaudio.fm/oua8a3w2dqao?origine=playernostalgie&aw_0_req.userConsentV2=&aw_0_1st.station="
+  },
+  {
+    "stationUuid": "radio-browser-radio-paradise-main-mix-eu-320k-aac-9617a958",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9617a958-0601-11e8-ae97-52543be04c81",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 92,
+    "resolvedUrl": "http://stream-uk1.radioparadise.com/aac-320"
+  },
+  {
+    "stationUuid": "radio-browser-nrj-hits-36eba167",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "36eba167-5c51-4421-98f0-d2cda24be928",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 97,
+    "resolvedUrl": "https://streaming.nrjaudio.fm/ou7xugf3s5gi?origine=playernrj&aw_0_req.userConsentV2=&aw_0_1st.station=NRJ-Hits"
+  },
+  {
+    "stationUuid": "radio-browser-mirchi-top-20-6b36ba4f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6b36ba4f-6d29-4272-b3c0-9aeeb64e61ec",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://drive.uber.radio/uber/bollywoodnow/icecast.audio"
+  },
+  {
+    "stationUuid": "radio-browser-los-40-principales-espana-b81c57c3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b81c57c3-eb05-47ac-a0ea-eb01a6960cc4",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://22553.live.streamtheworld.com/LOS40.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-adroit-jazz-underground-ea8059be",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ea8059be-d119-4de3-b27b-0d9bd6aedb17",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://icecast.walmradio.com:8443/jazz"
+  },
+  {
+    "stationUuid": "radio-browser-christmas-vinyl-hd-6eff3484",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6eff3484-4ab4-4d36-bf27-9172c5aac15c",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://icecast.walmradio.com:8443/christmas"
+  },
+  {
+    "stationUuid": "radio-browser-top-100-club-charts-dance-and-dj-mix-radio-24-hours-non-stop-music-tiktok-hits-ibiza-house-sunset-lounge-melodic-music-edm-deep-house-dance-music-techno-and-hypertechno-rave-charts-top-40-charts-latin-reggaeton-music-moombahton-urban-hits-hiphop-party-and-clubbing-radio-trending-chartmusic-r-and-b-urban-mixtape-and-live-dj-set-dd98c499",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "dd98c499-a0c4-4019-a35e-99caa6940407",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://rautemusik.stream48.radiohost.de/breakz?ref=radiobrowser-top100-clubcharts&upd-meta&upd-scheme=https&_art=dD0xNzg4NzczMTM4JmQ9ZmE4MTgyY2NmZmY1ZjZkMmYxMTE"
+  },
+  {
+    "stationUuid": "radio-browser-somafm-groove-salad-128k-mp3-960cf833",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "960cf833-0601-11e8-ae97-52543be04c81",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://ice6.somafm.com/groovesalad-128-mp3"
+  },
+  {
+    "stationUuid": "radio-browser-mirchi-love-0e5dfcc8",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0e5dfcc8-99e2-4fed-a232-7f4bf23ba3c3",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://drive.uber.radio/uber/bollywoodlove/icecast.audio"
+  },
+  {
+    "stationUuid": "radio-browser-walm-2-hd-64bb1467",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "64bb1467-2585-4454-a96f-34cfbc864d41",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://icecast.walmradio.com:8443/walm2"
+  },
+  {
+    "stationUuid": "radio-browser-somafm-secret-agent-128k-mp3-960c7c81",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "960c7c81-0601-11e8-ae97-52543be04c81",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://ice2.somafm.com/secretagent-128-mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-538-fd059cc5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fd059cc5-b538-41c1-ae76-b8778a84c3db",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 92,
+    "resolvedUrl": "http://25583.live.streamtheworld.com/RADIO538.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-deutschlandfunk-dlf-aac-192k-717e3749",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "717e3749-b9e8-4497-bd6a-61ccec935922",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://f121.rndfnk.com/ard/dlf/01/aac/192/stream.aac?aggregator=web&cid=01FBPWZ12X2XN8SDSMBZ7X0ZTT&sid=3IzgWZTMzcYz39qq2wQtly3cmko&token=cB07W2m9JKLOtvQBH0ipTZAJnADY_kSI-dXTy0hxS8Q&tvf=FUULkRET0xhmMTIxLnJuZGZuay5jb20"
+  },
+  {
+    "stationUuid": "radio-browser-radio-24-d3e8d3a0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d3e8d3a0-d54e-4ae4-b8dc-45d57ad99074",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://s7.everestcast.com:1155/stream"
+  },
+  {
+    "stationUuid": "radio-browser-walm-hd-348dfc58",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "348dfc58-ce8c-413b-b264-0384f816344b",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://icecast.walmradio.com:8443/walm"
+  },
+  {
+    "stationUuid": "radio-browser-rac1-38a33fc0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "38a33fc0-be05-4c98-8c6a-ba3869575bc1",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://28513.live.streamtheworld.com/RAC_1.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-udaan-de7b0868",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "de7b0868-91ab-4b25-a8dc-9d5f82314212",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 93,
+    "resolvedUrl": "https://stream.radioudaan.com/listen/radio_udaan/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-intense-radio-we-love-dance-256k-af6f51b1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "af6f51b1-0ca9-11ea-a87e-52543be04c81",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://secure.live-streams.nl/main"
+  },
+  {
+    "stationUuid": "radio-browser-orf-hitradio-o3-hq-e723f7f8",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e723f7f8-0db1-4bc5-a64c-64d8377f9f9a",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://orf-live.ors-shoutcast.at/oe3-q2a"
+  },
+  {
+    "stationUuid": "radio-browser-nius-664e0f96",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "664e0f96-cdaa-4aa2-a362-1543e2dd2c36",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 90,
+    "resolvedUrl": "http://nius.stream38.radiohost.de/live_mp3-192?ref=radiobrowser&upd-meta&upd-scheme=http&_art=dD0xNzg4NzczMTQ5JmQ9MDZiMDM4MDYwNmNkZDljOWQ4MzY"
+  },
+  {
+    "stationUuid": "radio-browser-rdmix-classic-rock-70s-80s-90s-7afae7e3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7afae7e3-8d06-42f5-b59e-a52d6e09e60e",
+    "verifiedAt": "2026-09-07T09:20:15.120Z",
+    "lastSignalCheck": "2026-09-07T09:20:15.120Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://cast1.torontocast.com:4610/stream"
+  }
+]

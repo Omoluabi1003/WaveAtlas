@@ -1,15 +1,1024 @@
 {
-  "generatedAt": "2026-07-09T18:44:24.557Z",
-  "dryRun": true,
+  "generatedAt": "2026-09-07T09:20:15.120Z",
+  "dryRun": false,
   "source": "https://de1.api.radio-browser.info/json",
-  "fetched": 0,
-  "added": [],
-  "skipped": [],
-  "duplicate": [],
-  "failed": [
+  "fetched": 200,
+  "added": [
     {
-      "reason": "candidate_fetch_failed: fetch failed"
+      "name": "Classic Vinyl HD",
+      "url": "https://icecast.walmradio.com:8443/classic",
+      "sourceStationUuid": "d1a54d2e-623e-4970-ab11-35f7b56c5ec3",
+      "qualityScore": 100
+    },
+    {
+      "name": "RMC FR",
+      "url": "https://audio.bfmtv.com/rmcradio_128.mp3",
+      "sourceStationUuid": "7a3a3989-8f26-44f7-9ae5-fa91e5cf4f9d",
+      "qualityScore": 100
+    },
+    {
+      "name": "Deutschlandfunk | DLF | MP3 128k",
+      "url": "https://st01.sslstream.dlf.de/dlf/01/128/mp3/stream.mp3?aggregator=web",
+      "sourceStationUuid": "1c3e8be2-5b14-4933-bad3-87cbc227cba4",
+      "qualityScore": 100
+    },
+    {
+      "name": "Nostalgie HQ",
+      "url": "https://streaming.nrjaudio.fm/oua8a3w2dqao?origine=playernostalgie&aw_0_req.userConsentV2=&aw_0_1st.station=",
+      "sourceStationUuid": "d39ab442-6c34-4097-afd0-e298ac21e50c",
+      "qualityScore": 94
+    },
+    {
+      "name": "Radio Paradise Main Mix (EU) 320k AAC",
+      "url": "http://stream-uk1.radioparadise.com/aac-320",
+      "sourceStationUuid": "9617a958-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 92
+    },
+    {
+      "name": "Nrj Hits",
+      "url": "https://streaming.nrjaudio.fm/ou7xugf3s5gi?origine=playernrj&aw_0_req.userConsentV2=&aw_0_1st.station=NRJ-Hits",
+      "sourceStationUuid": "36eba167-5c51-4421-98f0-d2cda24be928",
+      "qualityScore": 97
+    },
+    {
+      "name": "Mirchi Top 20",
+      "url": "https://drive.uber.radio/uber/bollywoodnow/icecast.audio",
+      "sourceStationUuid": "6b36ba4f-6d29-4272-b3c0-9aeeb64e61ec",
+      "qualityScore": 100
+    },
+    {
+      "name": "LOS 40 Principales España",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/Los40.mp3",
+      "sourceStationUuid": "b81c57c3-eb05-47ac-a0ea-eb01a6960cc4",
+      "qualityScore": 100
+    },
+    {
+      "name": "Adroit Jazz Underground",
+      "url": "https://icecast.walmradio.com:8443/jazz",
+      "sourceStationUuid": "ea8059be-d119-4de3-b27b-0d9bd6aedb17",
+      "qualityScore": 100
+    },
+    {
+      "name": "Christmas Vinyl HD",
+      "url": "https://icecast.walmradio.com:8443/christmas",
+      "sourceStationUuid": "6eff3484-4ab4-4d36-bf27-9172c5aac15c",
+      "qualityScore": 100
+    },
+    {
+      "name": "# TOP 100 CLUB CHARTS - DANCE & DJ MIX RADIO - 24 HOURS NON-STOP MUSIC @ TikTok Hits, Ibiza House, Sunset Lounge, Melodic Music, EDM, Deep House, Dance Music, Techno & Hypertechno, Rave Charts, Top 40 Charts, Latin, Reggaeton Music, Moombahton, Urban Hits, HipHop, Party & Clubbing Radio, Trending Chartmusic, R&B, Urban, Mixtape - & LIVE DJ SET ",
+      "url": "https://breakz-2012-high.rautemusik.fm/?ref=radiobrowser-top100-clubcharts",
+      "sourceStationUuid": "dd98c499-a0c4-4019-a35e-99caa6940407",
+      "qualityScore": 100
+    },
+    {
+      "name": "SomaFM Groove Salad (128k MP3)",
+      "url": "https://ice6.somafm.com/groovesalad-128-mp3",
+      "sourceStationUuid": "960cf833-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 100
+    },
+    {
+      "name": "Mirchi Love",
+      "url": "https://drive.uber.radio/uber/bollywoodlove/icecast.audio",
+      "sourceStationUuid": "0e5dfcc8-99e2-4fed-a232-7f4bf23ba3c3",
+      "qualityScore": 100
+    },
+    {
+      "name": "WALM 2 HD",
+      "url": "https://icecast.walmradio.com:8443/walm2",
+      "sourceStationUuid": "64bb1467-2585-4454-a96f-34cfbc864d41",
+      "qualityScore": 100
+    },
+    {
+      "name": "SomaFM Secret Agent (128k MP3)",
+      "url": "https://ice2.somafm.com/secretagent-128-mp3",
+      "sourceStationUuid": "960c7c81-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 100
+    },
+    {
+      "name": "Radio 538",
+      "url": "http://playerservices.streamtheworld.com/api/livestream-redirect/RADIO538.mp3",
+      "sourceStationUuid": "fd059cc5-b538-41c1-ae76-b8778a84c3db",
+      "qualityScore": 92
+    },
+    {
+      "name": "Deutschlandfunk | DLF | AAC 192k",
+      "url": "https://st01.sslstream.dlf.de/dlf/01/high/aac/stream.aac?aggregator=web",
+      "sourceStationUuid": "717e3749-b9e8-4497-bd6a-61ccec935922",
+      "qualityScore": 100
+    },
+    {
+      "name": "Radio 24",
+      "url": "https://s7.everestcast.com:1155/stream",
+      "sourceStationUuid": "d3e8d3a0-d54e-4ae4-b8dc-45d57ad99074",
+      "qualityScore": 87
+    },
+    {
+      "name": "WALM HD",
+      "url": "https://icecast.walmradio.com:8443/walm",
+      "sourceStationUuid": "348dfc58-ce8c-413b-b264-0384f816344b",
+      "qualityScore": 100
+    },
+    {
+      "name": "RAC1",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/RAC_1.mp3",
+      "sourceStationUuid": "38a33fc0-be05-4c98-8c6a-ba3869575bc1",
+      "qualityScore": 96
+    },
+    {
+      "name": "Radio Udaan",
+      "url": "https://stream.radioudaan.com/listen/radio_udaan/radio.mp3",
+      "sourceStationUuid": "de7b0868-91ab-4b25-a8dc-9d5f82314212",
+      "qualityScore": 93
+    },
+    {
+      "name": "Intense Radio - We love Dance 256K",
+      "url": "https://secure.live-streams.nl/main",
+      "sourceStationUuid": "af6f51b1-0ca9-11ea-a87e-52543be04c81",
+      "qualityScore": 100
+    },
+    {
+      "name": "ORF Hitradio Ö3 | HQ",
+      "url": "https://orf-live.ors-shoutcast.at/oe3-q2a",
+      "sourceStationUuid": "e723f7f8-0db1-4bc5-a64c-64d8377f9f9a",
+      "qualityScore": 100
+    },
+    {
+      "name": "NIUS",
+      "url": "http://radio.nius.de/live?ref=radiobrowser",
+      "sourceStationUuid": "664e0f96-cdaa-4aa2-a362-1543e2dd2c36",
+      "qualityScore": 90
+    },
+    {
+      "name": " # RdMix Classic Rock 70s 80s 90s",
+      "url": "https://cast1.torontocast.com:4610/stream",
+      "sourceStationUuid": "7afae7e3-8d06-42f5-b59e-a52d6e09e60e",
+      "qualityScore": 100
     }
   ],
+  "skipped": [
+    {
+      "name": "102.7 KIIS FM",
+      "url": "https://stream.revma.ihrhls.com/zc185",
+      "sourceStationUuid": "c76686ca-a8b9-4db9-9839-1470c9599623",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "RTL",
+      "url": "https://live.m6radio.quortex.io/webM89Hc99XApzgfhXNX8ASN5/grouprtl/national/short/audio-64000/index.m3u8",
+      "sourceStationUuid": "042d3140-227c-4fac-9387-4903b692d5f2",
+      "qualityScore": 65,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "France Info",
+      "url": "http://direct.franceinfo.fr/live/franceinfo-midfi.mp3",
+      "sourceStationUuid": "1cfb151d-a341-11e9-a787-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Anon.FM",
+      "url": "https://icecast.anon.fm/radio",
+      "sourceStationUuid": "b6fa9d93-97bf-48b0-8624-e8f84b817823",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "CNN",
+      "url": "https://tunein.cdnstream1.com/2868_96.mp3",
+      "sourceStationUuid": "33178054-56cd-449c-8cf7-412cc7be936a",
+      "qualityScore": 65,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "MANGORADIO",
+      "url": "https://mangoradio.stream.laut.fm/mangoradio",
+      "sourceStationUuid": "78012206-1aa1-11e9-a80b-52543be04c81",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "BBC World Service",
+      "url": "http://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
+      "sourceStationUuid": "98adecf7-2683-4408-9be7-02d3f9098eb8",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Europe 1",
+      "url": "https://stream.europe1.fr/europe1.aac",
+      "sourceStationUuid": "dfcef843-6bf9-40f6-b3fe-2b224df86e48",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Rai Radio 1",
+      "url": "http://icestreaming.rai.it/1.mp3",
+      "sourceStationUuid": "96185693-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "France Inter",
+      "url": "https://stream.radiofrance.fr/franceinter/franceinter_hifi.m3u8?id=radiofrance",
+      "sourceStationUuid": "33960c43-0464-44b4-abfa-73591ebf647f",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "WALM - Old Time Radio",
+      "url": "https://icecast.walmradio.com:8443/otr",
+      "sourceStationUuid": "313046e3-b203-4b9d-bc3e-393da7d97126",
+      "qualityScore": 83,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Z100 - New York's #1 Hit Music Station WHTZ",
+      "url": "https://stream.revma.ihrhls.com/zc1469",
+      "sourceStationUuid": "ba3ad919-0516-485c-bce6-b27c4492ab14",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "FUN Radio",
+      "url": "http://icecast.funradio.fr/fun-1-44-128",
+      "sourceStationUuid": "9f756e2d-8e9b-45f5-8fc1-61573e23036b",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "KIIS FM 102.7",
+      "url": "https://stream.revma.ihrhls.com/zc185",
+      "sourceStationUuid": "644ac8ae-0ab4-41df-9a89-593e2493a2aa",
+      "qualityScore": 38,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "RFM",
+      "url": "http://stream.rfm.fr/rfm.mp3",
+      "sourceStationUuid": "2dffb353-5341-4438-b67b-83de8c3efbab",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "101 SMOOTH JAZZ",
+      "url": "http://jking.cdnstream1.com/b22139_128mp3",
+      "sourceStationUuid": "d28420a4-eccf-47a2-ace1-088c7e7cb7e0",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "NPR 24 Hour Program Stream",
+      "url": "http://npr-ice.streamguys1.com/live.mp3",
+      "sourceStationUuid": "7ba4c184-fc2b-11e9-bbf2-52543be04c81",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Radio Mirchi Hindi",
+      "url": "https://eu8.fastcast4u.com/proxy/clyedupq/stream",
+      "sourceStationUuid": "cdd3b5a0-47f6-46d5-8209-b78e8b10ff6e",
+      "qualityScore": 76,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Arabesk FM",
+      "url": "http://yayin.arabeskfm.biz:8042/",
+      "sourceStationUuid": "96201b3d-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 53,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "SWR3",
+      "url": "https://liveradio.swr.de/sw282p3/swr3/play.mp3",
+      "sourceStationUuid": "240d28b9-7858-48d2-a816-9cf8e1875fe8",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Rai Radio 1",
+      "url": "http://icestreaming.rai.it/1.mp3",
+      "sourceStationUuid": "370437b8-878d-4efd-b4f5-17f060a49a6e",
+      "qualityScore": 68,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Fox News Radio",
+      "url": "https://live.amperwave.net/direct/foxnewsradio-foxnewsradioaac-imc?source=fnr.web",
+      "sourceStationUuid": "510aeeac-e7a0-41c2-aea2-e572e811ffe7",
+      "qualityScore": 65,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "The Big 80s Station",
+      "url": "http://158.69.114.190:8065/;",
+      "sourceStationUuid": "f4bfa5d0-a403-11e8-abb8-52543be04c81",
+      "qualityScore": 70,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Red FM 93.5",
+      "url": "https://stream-174.zeno.fm/q97eczydqrhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJxOTdlY3p5ZHFyaHZ2IiwiaG9zdCI6InN0cmVhbS0xNzQuemVuby5mbSIsInJ0dGwiOjUsImp0aSI6InRhOHAxeTRDVDdHenYtN2NoeFQxRmciLCJpYXQiOjE3NDIwNDA3NDEsImV4cCI6MTc0MjA0MDgwMX0.MkjhfjpDcWKnjIHhgkq3SGxg9gH8U901CrsfPZ42PGM",
+      "sourceStationUuid": "bce9aa64-8fd5-434e-8c9d-3ee67c594a06",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Dance Wave!",
+      "url": "https://dancewave.online/dance.mp3",
+      "sourceStationUuid": "962cc6df-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Bollywood Gaane Purane",
+      "url": "https://stream.zeno.fm/6n6ewddtad0uv",
+      "sourceStationUuid": "e928bf7b-7de2-4447-87ec-369d1be1b9f5",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "إذاعة القرآن الكريم من القاهرة",
+      "url": "http://n12.radiojar.com/8s5u5tpdtwzuv?listening-from-radio-garden=1620219571863&rj-tok=AAABeTyl2zYARSWbLVnrEOlqGw&rj-ttl=5",
+      "sourceStationUuid": "8e63e8b6-4e70-4bc0-9f5d-07e8477a4480",
+      "qualityScore": 67,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": " CAPITAL - The UK's No.1 Hit Music Station",
+      "url": "https://media-ssl.musicradio.com/CapitalUK",
+      "sourceStationUuid": "4ad5bdc7-01e5-47c9-a1f9-751671b4707e",
+      "qualityScore": 75,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Skyrock",
+      "url": "http://icecast.skyrock.net/s/natio_mp3_128k",
+      "sourceStationUuid": "01b61e49-18bd-486d-b0e1-cb51cbaf9a6d",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Cadena SER España",
+      "url": "http://playerservices.streamtheworld.com/api/livestream-redirect/CADENASER.mp3",
+      "sourceStationUuid": "692a3b69-0f68-11ea-a87e-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "BBC Radio 4 (128k)",
+      "url": "http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d128000.norewind.m3u8",
+      "sourceStationUuid": "98137c2d-ce68-4e33-8cb7-ddf3692ecc9d",
+      "qualityScore": 49,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Kameme FM",
+      "url": "https://kamemefm-atunwadigital.streamguys1.com/kamemefm",
+      "sourceStationUuid": "ac15c045-6f16-4021-b35c-00b265b7201d",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "LBC UK",
+      "url": "http://media-ice.musicradio.com/LBCUK",
+      "sourceStationUuid": "6efe216d-bf7e-11e9-8502-52543be04c81",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "1LIVE",
+      "url": "http://wdr-1live-live.icecast.wdr.de/wdr/1live/live/mp3/128/stream.mp3",
+      "sourceStationUuid": "9606f727-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "NPO Radio 1",
+      "url": "http://icecast.omroep.nl/radio1-bb-mp3",
+      "sourceStationUuid": "96126f56-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "80s80s Radio",
+      "url": "http://regiocast.streamabc.net/regc-80s80smweb2517500-mp3-192-1672667?sABC=6n9p9321%230%23r30o443r1929r059s085628511796n57%23&aw_0_1st.playerid=&amsparams=playerid:;skey:1788646177",
+      "sourceStationUuid": "1b762b21-2ec6-412a-a231-fa34a96f4f99",
+      "qualityScore": 49,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Vivid Bharti ",
+      "url": "https://air.pc.cdn.bitgravity.com/air/live/pbaudio001/playlist.m3u8",
+      "sourceStationUuid": "902ea231-d537-4dc8-8708-6819418086d0",
+      "qualityScore": 55,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "DAMAR TURK FM",
+      "url": "https://live.radyositesihazir.com:10997/",
+      "sourceStationUuid": "f3dfbec0-8ddb-457c-94cd-368631337c0f",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "凤凰卫视资讯台",
+      "url": "http://playtv-live.ifeng.com/live/06OLEEWQKN4_audio.m3u8",
+      "sourceStationUuid": "dc722c5e-21a0-49be-8687-474638c95ca7",
+      "qualityScore": 49,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Virgin Radio Türkiye",
+      "url": "http://28503.live.streamtheworld.com/VIRGIN_RADIO_SC",
+      "sourceStationUuid": "960969eb-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Heart 80s",
+      "url": "https://media-ssl.musicradio.com/Heart80sMP3",
+      "sourceStationUuid": "c4077677-dc2f-11e9-a8ba-52543be04c81",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Red Fm",
+      "url": "https://funasia.streamguys1.com/live9",
+      "sourceStationUuid": "15812c43-c571-4770-9065-b64b4d5338d1",
+      "qualityScore": 79,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Radio Italia Solo Musica Italiana",
+      "url": "https://radioitaliasmi.akamaized.net/hls/live/2093120/RISMI/stream01/streamPlaylist.m3u8",
+      "sourceStationUuid": "216ee092-939d-43b6-8562-c646f73ad89f",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "esRadio",
+      "url": "http://livestreaming.esradio.fm/stream64.mp3",
+      "sourceStationUuid": "9611ecb1-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 53,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Radio 24 il sole 24 ore",
+      "url": "http://shoutcast2.radio24.it:8000/;",
+      "sourceStationUuid": "986c5985-41d7-11ea-a95e-52543be04c81",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Cadena 100",
+      "url": "http://cadena100-streamers-mp3.flumotion.com/cope/cadena100.mp3",
+      "sourceStationUuid": "960c37c6-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Rafi hit songs",
+      "url": "https://stream-143.zeno.fm/0zkr7x8ztm0uv?zs=WTPQx8TiQXSo11XU0iyTAQ",
+      "sourceStationUuid": "9ae30654-b1a6-4eff-81f3-6400d105b340",
+      "qualityScore": 71,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Power POP",
+      "url": "https://listen.powerapp.com.tr/powerpop/128/chunks.m3u8",
+      "sourceStationUuid": "fb1fd397-78fd-11ea-8a3b-52543be04c81",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Radyo 7",
+      "url": "http://46.20.3.250/;stream",
+      "sourceStationUuid": "df369586-40fc-11e9-aa55-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "90sonceagainradio",
+      "url": "https://stream.zeno.fm/rm4i9pdex3cuv",
+      "sourceStationUuid": "4fa18bc0-94f8-4589-942a-ed44abedb3bb",
+      "qualityScore": 51,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "COPE + Sevilla",
+      "url": "http://wecast09-h-cloud.flumotion.com/copesedes/sevilla-mas.mp3",
+      "sourceStationUuid": "09f4d466-1ab2-4b61-a180-96409adc5d80",
+      "qualityScore": 66,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": ".977 80s",
+      "url": "http://26433.live.streamtheworld.com:3690/977_80_SC",
+      "sourceStationUuid": "961b7325-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Hindi Gold Radio",
+      "url": "https://azuracast.vibesounds.in:8010/radio.mp3",
+      "sourceStationUuid": "7dd71b85-139b-4362-81b1-4206133a517c",
+      "qualityScore": 76,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "latamangeshkarradio",
+      "url": "https://stream.zeno.fm/87xam8pf7tzuv",
+      "sourceStationUuid": "7b130d03-6142-4de2-85db-a821b5949468",
+      "qualityScore": 51,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Nostalgic Bollywood 90s",
+      "url": "https://www.desizoneradio.com/relay3",
+      "sourceStationUuid": "8d500dcb-6352-4009-aae2-5a095021ff2a",
+      "qualityScore": 69,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "WDR 5",
+      "url": "http://wdr-wdr5-live.icecast.wdr.de/wdr/wdr5/live/mp3/128/stream.mp3",
+      "sourceStationUuid": "9605edb3-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "BIG 92.7 FM",
+      "url": "https://stream.zeno.fm/dbstwo3dvhhtv",
+      "sourceStationUuid": "3bf95cf7-69fd-4ae6-b30a-d833ab3ae77c",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "MSNBC",
+      "url": "https://tunein.cdnstream1.com/3511_96.mp3",
+      "sourceStationUuid": "0b2c57db-885d-46d8-bbee-0651449759f1",
+      "qualityScore": 65,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "181.FM - Old School HipHop/RnB",
+      "url": "http://listen.181fm.com/181-oldschool_128k.mp3",
+      "sourceStationUuid": "9627ddc0-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "KRAL TÜRK FM",
+      "url": "https://live.radyositesihazir.com/8032/stream",
+      "sourceStationUuid": "09f8922f-56bb-41bd-ad35-a7e54c5520e3",
+      "qualityScore": 78,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "RADIO BOLLYWOOD 90s",
+      "url": "https://stream.zeno.fm/rm4i9pdex3cuv",
+      "sourceStationUuid": "baae978e-a9d0-422c-8ad4-ec803da4ef8c",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "France Info",
+      "url": "http://icecast.radiofrance.fr/franceinfo-hifi.aac",
+      "sourceStationUuid": "31074f8a-e6f4-11e9-a96c-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Radio Kiss Kiss",
+      "url": "http://wma08.fluidstream.net:4610/",
+      "sourceStationUuid": "961756e4-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Hits Of Bollywood",
+      "url": "http://stream.zeno.fm/8ty8szwpwfeuv",
+      "sourceStationUuid": "6de7e6da-5c4f-4264-ab2d-bbc731219f7d",
+      "qualityScore": 45,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "RMF FM",
+      "url": "http://195.150.20.242:8000/rmf_fm",
+      "sourceStationUuid": "399b7c2a-6680-11e8-b15b-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "France Culture",
+      "url": "http://icecast.radiofrance.fr/franceculture-hifi.aac",
+      "sourceStationUuid": "6a1440b2-e6f0-11e9-a96c-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "FIP",
+      "url": "http://icecast.radiofrance.fr/fip-hifi.aac",
+      "sourceStationUuid": "932eb148-e6f6-11e9-a96c-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Europe 2",
+      "url": "http://europe2.lmn.fm/europe2.mp3",
+      "sourceStationUuid": "be1e97e2-064a-4710-9ce9-d792d8beb1ca",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Hit FM (UKraine) - 128kb/s",
+      "url": "http://195.95.206.17/HitFM",
+      "sourceStationUuid": "961949f3-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Iran International (HTTPS stream)",
+      "url": "https://stream.radiojar.com/iintl_c",
+      "sourceStationUuid": "37acc36e-e070-4225-9d9f-d3c3610470fd",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Jazz Radio Blues",
+      "url": "http://jazzblues.ice.infomaniak.ch/jazzblues-high.mp3",
+      "sourceStationUuid": "96102c22-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "KISS FM",
+      "url": "https://adhandler.kissfmradio.cires21.com/get_link?url=https://bbkissfm.kissfmradio.cires21.com/bbkissfm.mp3",
+      "sourceStationUuid": "743889d5-5472-4e9f-ac61-5f0f04e7efa8",
+      "qualityScore": 61,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Classic FM UK",
+      "url": "http://ice-the.musicradio.com/ClassicFMMP3",
+      "sourceStationUuid": "96063f25-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Metro FM",
+      "url": "http://27753.live.streamtheworld.com:3690/METRO_FMAAC_SC",
+      "sourceStationUuid": "0012c08a-31e7-48c6-87a9-7f64736e0a38",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "CCTV-13新闻伴音",
+      "url": "https://piccpndali.v.myalicdn.com/audio/cctv13_2.m3u8",
+      "sourceStationUuid": "2bf82625-6e78-445d-afff-e51e53c369a9",
+      "qualityScore": 53,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "KRAL FM",
+      "url": "https://dygedge2.radyotvonline.net/kralfm/playlist.m3u8?listenerid=29d0a6a85b59cea2ca801b70d2a3ebaf&awparams=companionAds%3Atrue",
+      "sourceStationUuid": "948408f4-0060-44fa-a26c-bf313f6c774d",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Radio Deejay",
+      "url": "https://4c4b867c89244861ac216426883d1ad0.msvdn.net/radiodeejay/radiodeejay/master_ma.m3u8",
+      "sourceStationUuid": "999ff951-68eb-4f4a-bec9-ed972b99d258",
+      "qualityScore": 83,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Chérie FM",
+      "url": "https://cdnradio.streamakaci.com/cheriefm1.mp3",
+      "sourceStationUuid": "f9ed1fa4-63d7-45a4-bdd6-48c5567f0f6b",
+      "qualityScore": 67,
+      "reason": "missing_geo"
+    },
+    {
+      "name": " Radio Navahang",
+      "url": "https://navairan.com/;stream.nsv",
+      "sourceStationUuid": "aa408a3b-3d07-415d-8af1-a60b64e07043",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "REYFM - #original",
+      "url": "https://listen.reyfm.de/original_192kbps.mp3",
+      "sourceStationUuid": "f592bcd7-c052-11e9-8502-52543be04c81",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Radio Zet",
+      "url": "http://zet-net-01.cdn.eurozet.pl:8400/",
+      "sourceStationUuid": "59e30dda-64bf-11ea-be63-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "RTL 102.5",
+      "url": "https://dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S97044836/tbbP8T1ZRPBL/playlist_audio.m3u8",
+      "sourceStationUuid": "675bd925-8b13-43fe-a1b9-43bb0f90fbbd",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Hits Of Lata Mangeshkar",
+      "url": "http://stream.zeno.fm/g95zm67prfhvv",
+      "sourceStationUuid": "6124c9b3-024c-4650-9c68-a5de9a7d89eb",
+      "qualityScore": 45,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Deutschlandfunk | DLF | OPUS 24k",
+      "url": "https://st01.sslstream.dlf.de/dlf/01/low/opus/stream.opus?aggregator=web",
+      "sourceStationUuid": "5a6946a2-f02f-4fd1-a16b-558c90150041",
+      "qualityScore": 83,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": " #100 BEST IBIZA DEEP HOUSE",
+      "url": "https://stream.zeno.fm/lwv6zqgtv1dtv",
+      "sourceStationUuid": "64d74c72-025e-4cea-8a32-906812691731",
+      "qualityScore": 75,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Ambient Sleeping Pill",
+      "url": "http://radio.stereoscenic.com/asp-h",
+      "sourceStationUuid": "961fa288-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "RMC",
+      "url": "https://hls-rmc.nextradiotv.com/no_ssai/128k/media.m3u8",
+      "sourceStationUuid": "da5f481e-f7d6-49b3-b213-514027740d39",
+      "qualityScore": 50,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Jazz 24",
+      "url": "https://knkx-live-a.edge.audiocdn.com/6285_256k",
+      "sourceStationUuid": "29f12cf8-fddc-481e-b7f2-d849e041daf7",
+      "qualityScore": 69,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "BBC Radio 5 Live (128k)",
+      "url": "http://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d128000.norewind.m3u8",
+      "sourceStationUuid": "cae35448-1285-4f12-b3e0-2f4fdde00002",
+      "qualityScore": 49,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Slow Turk",
+      "url": "https://radyo.duhnet.tv/ak_dtvh_slowturk",
+      "sourceStationUuid": "97f3bb39-24a0-461d-b282-b0ccae5a12c4",
+      "qualityScore": 75,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "talkSPORT",
+      "url": "https://radio.talksport.com/stream",
+      "sourceStationUuid": "9f5d0645-ae1e-4e9f-9b2f-91fa63d5b1fa",
+      "qualityScore": 55,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Europa Plus",
+      "url": "http://ep256.hostingradio.ru:8052/europaplus256.mp3",
+      "sourceStationUuid": "9622cd46-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 49,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": " Relax FM Chillout",
+      "url": "https://pub0201.101.ru/stream/trust/mp3/128/24?",
+      "sourceStationUuid": "95eff2f9-cb7a-4fe4-bb07-8c700719f8b6",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Radio 357",
+      "url": "https://n-11-21.dcs.redcdn.pl/sc/o2/radio357/live/radio357_pr.livx?preroll=0",
+      "sourceStationUuid": "d377fdb9-9136-47de-a1f4-6b02a1bc7f72",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Rock Antenne",
+      "url": "http://mp3channels.webradio.rockantenne.de/rockantenne",
+      "sourceStationUuid": "960594a6-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "RFI Afrique",
+      "url": "http://live02.rfi.fr/rfiafrique-64.mp3",
+      "sourceStationUuid": "960c2914-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Bayern 3",
+      "url": "https://dispatcher.rndfnk.com/br/br3/live/mp3/mid",
+      "sourceStationUuid": "0de82079-04e7-407b-b616-e0726eba5244",
+      "qualityScore": 82,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Radio 9090 90.9",
+      "url": "http://9090streaming.mobtada.com/9090FMEGYPT",
+      "sourceStationUuid": "961a5858-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Radio Sportiva ",
+      "url": "https://sportiva.inmystream.it/stream/sportiva",
+      "sourceStationUuid": "9ff8c9b6-34d5-4457-befd-bdad9c218217",
+      "qualityScore": 65,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Fnf.Fm Hindi",
+      "url": "http://192.99.8.192:5032/;stream",
+      "sourceStationUuid": "273c4a22-5a4a-11e8-b0ce-52543be04c81",
+      "qualityScore": 53,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Süper FM",
+      "url": "http://22673.live.streamtheworld.com/SUPER_FMAAC_SC",
+      "sourceStationUuid": "159e4625-43d8-4cda-b98c-819edfad8667",
+      "qualityScore": 47,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "CNR-1 中国之声",
+      "url": "https://lhttp.qtfm.cn/live/15318317/64k.mp3",
+      "sourceStationUuid": "835070cd-bf45-4e48-88a4-e9f9a0d7dd9e",
+      "qualityScore": 53,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "BBC Radio 1",
+      "url": "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/pc_hd_abr_v2/ak/bbc_radio_one.m3u8",
+      "sourceStationUuid": "fdbdc2b0-c184-437b-8643-9a5bfa45c253",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Radio RaiSport",
+      "url": "https://icecdn-19d24861e90342cc8decb03c24c8a419.msvdn.net/icecastRelay/S74167340/mmNY37FME5Zl/icecast",
+      "sourceStationUuid": "30494962-3178-42e2-9b3e-60aa397f83d9",
+      "qualityScore": 77,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "ایران‎  Radio Liberty (Iran) (official stream)",
+      "url": "https://stream.radiojar.com/cp13r2cpn3quv",
+      "sourceStationUuid": "b6eedfc6-4a4b-4899-852f-03dd833f1f1b",
+      "qualityScore": 75,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Alem FM",
+      "url": "http://turkmedya.radyotvonline.com/turkmedya/alemfm.stream/playlist.m3u8",
+      "sourceStationUuid": "4e758ac3-15ad-11e9-a80b-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Türkülerle Türkiye",
+      "url": "http://37.247.98.8/stream/22/;",
+      "sourceStationUuid": "360028f5-46ba-11ea-a860-52543be04c81",
+      "qualityScore": 70,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Your Classical - Relax",
+      "url": "http://relax.stream.publicradio.org/relax.mp3",
+      "sourceStationUuid": "960ac54b-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Radio Nova",
+      "url": "http://novazz.ice.infomaniak.ch/novazz-128.mp3",
+      "sourceStationUuid": "963fb390-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "kishorekumarradio",
+      "url": "https://stream.zeno.fm/0ghtfp8ztm0uv",
+      "sourceStationUuid": "c6a3534f-d974-4990-a53b-609614066163",
+      "qualityScore": 51,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Free FM Top 100 India",
+      "url": "https://stream.zeno.fm/a5h7vfret68uv",
+      "sourceStationUuid": "f1d7a979-b94d-4929-a4ca-758901029ecb",
+      "qualityScore": 73,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Radio Gaana",
+      "url": "https://sp14.instainternet.com/8044/stream",
+      "sourceStationUuid": "459908f6-58d2-438a-ac40-dbac3af8e0b6",
+      "qualityScore": 55,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "ROCK FM",
+      "url": "http://nashe1.hostingradio.ru/rock-128.mp3",
+      "sourceStationUuid": "961c96ef-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 49,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Radio 105 Network",
+      "url": "http://icecast.unitedradio.it/Radio105.mp3",
+      "sourceStationUuid": "9619ea14-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Ретро FM",
+      "url": "http://retroserver.streamr.ru:8043/retro256.mp3",
+      "sourceStationUuid": "964fade0-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 45,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Akaboozi FM 87.9",
+      "url": "http://162.244.80.52:8732/stream.mp3",
+      "sourceStationUuid": "9a8f7fb5-3159-11ea-afca-52543be04c81",
+      "qualityScore": 57,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": " 50s 60s RETRO HITS",
+      "url": "https://stream.zeno.fm/pxzwykxbluitv",
+      "sourceStationUuid": "5532c4d9-616e-4d62-a49f-984a13e3189c",
+      "qualityScore": 72,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Heart London 106.2 [MP3]",
+      "url": "http://ice-sov.musicradio.com/HeartLondonMP3",
+      "sourceStationUuid": "9608ade8-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Infowars",
+      "url": "http://stream-mp3.infowars.com/",
+      "sourceStationUuid": "961a4cdd-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 53,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": ".977 Country",
+      "url": "http://24293.live.streamtheworld.com/977_COUNTRY_SC",
+      "sourceStationUuid": "961d9b63-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Cadena Dial",
+      "url": "http://playerservices.streamtheworld.com/api/livestream-redirect/CADENADIAL.mp3",
+      "sourceStationUuid": "84c6f3cc-3c66-415d-aff5-050b5f330adc",
+      "qualityScore": 74,
+      "reason": "missing_geo"
+    },
+    {
+      "name": "Mosaique FM",
+      "url": "http://radio.mosaiquefm.net:8000/mosalive",
+      "sourceStationUuid": "9616a843-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 53,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "CLASSIC HITS RADIO 70 80 DiscoFunk ModernSoul Boogie",
+      "url": "https://radiopanther.radiolebowski.com/play",
+      "sourceStationUuid": "c93f9c76-2ad4-464d-bff4-7f46e95f2601",
+      "qualityScore": 53,
+      "reason": "low_bitrate"
+    }
+  ],
+  "duplicate": [],
+  "failed": [],
   "suspicious": []
 }
