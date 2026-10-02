@@ -95,7 +95,6 @@ export async function probeStationHealth(station: Station, options: StationHealt
   const healthMemoryDelta = healthMemoryBoost(station, now);
 
   if (!url) {
-    if (options.markMemory !== false) markStationUnhealthy(station, 'missing-stream-url', now);
     return {
       stationKey,
       stationName: station.name,
@@ -126,7 +125,6 @@ export async function probeStationHealth(station: Station, options: StationHealt
     const contentType = response.headers.get('content-type') ?? '';
 
     if (response.type === 'opaque') {
-      if (options.markMemory !== false) markStationUnhealthy(station, 'opaque-response', now);
       return {
         stationKey,
         stationName: station.name,
@@ -141,13 +139,12 @@ export async function probeStationHealth(station: Station, options: StationHealt
     }
 
     if (!response.ok && response.status !== 206) {
-      if (options.markMemory !== false) markStationUnhealthy(station, `http-${response.status}`, now);
       return {
         stationKey,
         stationName: station.name,
         countryCode: station.country_code,
         url,
-        status: response.status >= 500 ? 'degraded' : 'dead',
+        status: 'degraded',
         reason: 'http-error',
         httpStatus: response.status,
         contentType,
@@ -179,13 +176,12 @@ export async function probeStationHealth(station: Station, options: StationHealt
     const responseTimeMs = Date.now() - startedAt;
     const aborted = error instanceof DOMException && error.name === 'AbortError';
     const reason: StationHealthProbeReason = aborted ? 'timeout' : 'network-error';
-    if (options.markMemory !== false) markStationUnhealthy(station, reason, now);
     return {
       stationKey,
       stationName: station.name,
       countryCode: station.country_code,
       url,
-      status: aborted ? 'degraded' : 'dead',
+      status: 'degraded',
       reason,
       responseTimeMs,
       checkedAt,
