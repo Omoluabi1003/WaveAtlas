@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import NextLink from "next/link";
 import maplibregl, { type GeoJSONSource, type Map } from "maplibre-gl";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls, useReducedMotion } from "framer-motion";
 import {
   Check,
   Compass,
@@ -3597,9 +3597,56 @@ function MobileWanderSheet({ open, stations, current, onTravel, onClose }: { ope
 
 
 function MobileStationSheet({ station, stations, inventoryStats, setQuery, open, setOpen }: { station: Station; stations: Station[]; inventoryStats?: StationInventoryStats; setQuery: (q: string) => void; open: boolean; setOpen: (v: boolean) => void }) {
-  return <motion.section drag="y" dragConstraints={{ top: 0, bottom: 0 }} onDragEnd={(_, info) => setOpen(info.offset.y < -40 ? true : info.offset.y > 40 ? false : open)} initial={{ y: 680 }} animate={{ y: open ? 64 : 680 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="fixed inset-x-0 bottom-0 z-50 max-h-[92dvh] overflow-y-auto rounded-t-[2rem] border border-white/[0.12] bg-[rgba(8,17,29,0.86)] px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-3 shadow-2xl backdrop-blur-xl">
-    <button onClick={() => setOpen(!open)} className="mx-auto block h-1.5 w-14 rounded-full bg-white/30" aria-label="Toggle Destination Intelligence" />
-    <StationIntelligencePanel station={station} stations={stations} inventoryStats={inventoryStats} setQuery={setQuery} />
+  const controls = useDragControls();
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, setOpen]);
+
+  return <motion.section
+    drag="y"
+    dragControls={controls}
+    dragListener={false}
+    dragConstraints={{ top: 0, bottom: 0 }}
+    dragElastic={{ top: 0.08, bottom: 0.34 }}
+    onDragEnd={(_, info) => {
+      const collapse = info.offset.y > 72 || info.velocity.y > 520;
+      if (collapse) setOpen(false);
+    }}
+    initial={{ y: 680 }}
+    animate={{ y: open ? 64 : 680 }}
+    transition={{ type: "spring", damping: 30, stiffness: 280 }}
+    className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-[2rem] border border-white/[0.12] bg-[rgba(8,17,29,0.86)] shadow-2xl backdrop-blur-xl"
+    role="dialog"
+    aria-modal={open}
+    aria-label="Destination Intelligence"
+  >
+    <div className="sticky top-0 z-20 shrink-0 border-b border-white/[0.08] bg-[rgba(8,17,29,0.94)] px-4 pb-2 pt-2 backdrop-blur-xl">
+      <div
+        className="touch-none cursor-grab select-none py-1 active:cursor-grabbing"
+        onPointerDown={(event) => controls.start(event)}
+        aria-hidden="true"
+      >
+        <span className="mx-auto block h-1.5 w-16 rounded-full bg-white/35" />
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <button type="button" onClick={() => setOpen(!open)} className="min-w-0 rounded-xl px-1 py-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-expanded={open} aria-label={open ? "Collapse Destination Intelligence" : "Expand Destination Intelligence"}>
+          <span className="block font-display text-[11px] font-semibold uppercase tracking-[0.16em] text-gold">Destination Intelligence</span>
+          <span className="block text-[10px] text-ivory/55">Tap to {open ? "collapse" : "expand"} · drag handle down to collapse</span>
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.08] text-ivory transition hover:bg-white/[0.14] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label="Close Destination Intelligence">
+          <X className="size-4" />
+        </button>
+      </div>
+    </div>
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-2 [-webkit-overflow-scrolling:touch]">
+      <StationIntelligencePanel station={station} stations={stations} inventoryStats={inventoryStats} setQuery={setQuery} />
+    </div>
   </motion.section>;
 }
 
