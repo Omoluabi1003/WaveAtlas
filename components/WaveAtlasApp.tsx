@@ -21,6 +21,7 @@ import {
   Radio,
   Plane,
   Search,
+  Share2,
   Link,
   Signal,
   Trophy,
@@ -78,6 +79,7 @@ import { useNavigationEngine, type NavigationSelectionSource } from "@/lib/navig
 import { getSpeechRecognitionConstructor, parseVoiceCommand, type BrowserSpeechRecognition, type VoiceCommandIntent } from "@/lib/voice-command-engine";
 import { LiveTrackMetadataEngine, type LiveTrackMetadataState } from "@/lib/live-track-metadata-engine";
 import { applyGeoSelectionDecision, normalizeGeoClick, selectStationFromGeoClick } from "@/lib/geo-selection-engine";
+import { stationIdFromPath, stationPath, stationSharePayload } from "@/lib/station-deep-link";
 
 
 type BrowserAudioContextConstructor = typeof AudioContext;
@@ -563,6 +565,10 @@ function setCurrentStationAndDestination(station: Station, source: StationSelect
     geoPrecision: selectedGeo.precision,
   });
   player.setStation(station, source, version);
+  if (source === "manual" && typeof window !== "undefined") {
+    const path = stationPath(station);
+    if (window.location.pathname !== path) window.history.pushState({ stationId: stationKey(station) }, "", path);
+  }
   debugGeoClick("playback", {
     selectedStation: station.name,
     streamUrl: getStationStreamUrl(station),
@@ -1181,20 +1187,29 @@ function SaveStationButton({ station }: { station: Station }) {
   );
 }
 
-function ShareStationButton({ station }: { station: Station }) {
+function ShareStationButton({ station, compact = false }: { station: Station; compact?: boolean }) {
   const [copied, setCopied] = useState(false);
   const share = async () => {
-    const stationUuid = station.station_uuid;
-    if (!stationUuid) return;
-    const url = `${window.location.origin}?station=${encodeURIComponent(stationUuid)}`;
-    await navigator.clipboard.writeText(url);
+    const payload = stationSharePayload(station, window.location.origin);
+    window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_share_requested", stationId: stationKey(station) } }));
+    if (navigator.share) {
+      try {
+        await navigator.share(payload);
+        window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_share_completed", stationId: stationKey(station) } }));
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+    await navigator.clipboard.writeText(payload.url);
+    window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_link_copied", stationId: stationKey(station) } }));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   };
   return (
-    <button onClick={share} className="rounded-full border border-white/10 px-4 py-2 text-sm transition hover:bg-white/[0.08]">
-      {copied ? <Check className="mr-2 inline size-4 text-radio" /> : <Link className="mr-2 inline size-4" />}
-      {copied ? "Destination link copied" : "Share destination"}
+    <button type="button" onClick={(event) => { event.stopPropagation(); void share(); }} aria-label={`Share ${station.name}`} className={`${compact ? "grid size-10 shrink-0 place-items-center" : "px-4 py-2 text-sm"} rounded-full border border-white/10 transition hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold`}>
+      {copied ? <Check className={`${compact ? "" : "mr-2 inline"} size-4 text-radio`} /> : <Share2 className={`${compact ? "" : "mr-2 inline"} size-4`} />}
+      <span className={compact ? "sr-only" : undefined} aria-live="polite">{copied ? "Station link copied" : "Share"}</span>
     </button>
   );
 }
@@ -1565,6 +1580,10 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
     const hardFailure = ["audio_error", "network_error", "unsupported_media", "autoplay_blocked", "missing_url", "abort", "playback_error"].includes(errorType);
     const state = usePlayer.getState();
+    if (state.stationSelectionSource === "deeplink") {
+      setStatus(errorType === "autoplay_blocked" ? "blocked" : "failed", errorType === "autoplay_blocked" ? "Tap to Play: browsers require a click before live audio can start." : "This shared station could not start. Try Listen Live again.");
+      return false;
+    }
     const hasScopedQueue = state.scopedSearchSessionId > 0;
     if (failed.sourceType === "geoaudio") return playNextGeoAudioTrack(failed, "failed_track");
     const now = Date.now();
@@ -1791,6 +1810,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       usePlayer.getState().clearArrivalContext();
       debugTeleport("final station playing", { station: current.name, country: current.country_code, continent: stationContinent(current) });
       window.dispatchEvent(new CustomEvent("waveatlas:station-playing", { detail: { station: current, source: selectionSource } }));
+      if (selectionSource === "deeplink") window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_deeplink_play_started", stationId: stationKey(current) } }));
       if (selectionSource === "wanderer") {
         debugWanderer("final", { selectedStation: current.name, finalPlaybackState: "playing" });
         wandererResolving = false;
@@ -1838,7 +1858,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
         const message = error instanceof Error ? error.message : "Playback was blocked or the stream failed.";
         const isAutoplay = /user|gesture|allowed|interact/i.test(message);
         if (isAutoplay) {
-          markStationFailure(current, "autoplay_blocked", message);
+          if (selectionSource !== "deeplink") markStationFailure(current, "autoplay_blocked", message);
           if (selectionSource === "wanderer") wandererResolving = false;
           setStatus("blocked", "Tap to Play: browsers require a click before live audio can start.");
         } else {
@@ -3522,7 +3542,7 @@ function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: (
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
   return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/30 bg-[rgba(3,9,18,0.96)] p-2.5 text-white shadow-[0_26px_90px_rgba(0,0,0,.72),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
-    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)]">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></div><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
+    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)]">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></div><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
   </div>;
 }
 
@@ -4199,7 +4219,7 @@ function VoiceCommandButton({ compact = false, active = true, onIntent, onFeedba
   </div>;
 }
 
-export default function WaveAtlasApp({ stations, inventoryStats }: { stations: Station[]; inventoryStats?: StationInventoryStats }) {
+export default function WaveAtlasApp({ stations, inventoryStats, initialStation }: { stations: Station[]; inventoryStats?: StationInventoryStats; initialStation?: Station }) {
   const reducedMotion = useReducedMotion();
   const playerStatus = usePlayer((state) => state.status);
   const playerPlaying = usePlayer((state) => state.playing);
@@ -4247,9 +4267,9 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   const [desktopBasemap, setDesktopBasemap] = useState<BasemapKey>("atlasStreets");
   const [previousDesktopStation, setPreviousDesktopStation] = useState<Station | undefined>();
   const lastDesktopStationRef = useRef<Station | undefined>(undefined);
-  const [deepLinkUuid] = useState(() => {
+  const [deepLinkUuid, setDeepLinkUuid] = useState(() => {
     if (typeof window === "undefined") return "";
-    const value = new URLSearchParams(window.location.search).get("station")?.trim() || "";
+    const value = initialStation ? stationKey(initialStation) : stationIdFromPath(window.location.pathname) || new URLSearchParams(window.location.search).get("station")?.trim() || "";
     return /^[a-z0-9-]{8,80}$/i.test(value) ? value : "";
   });
   const initialStationPoolRef = useRef(stationPool);
@@ -4377,9 +4397,11 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
   useEffect(() => {
     const stationUuid = deepLinkUuid;
     if (!stationUuid) return;
-    const existing = initialStationPoolRef.current.find((station) => station.station_uuid === stationUuid);
+    const existing = (initialStation && stationKey(initialStation) === stationUuid ? initialStation : undefined) ?? initialStationPoolRef.current.find((station) => station.station_uuid === stationUuid || station.id === stationUuid);
     if (existing) {
+      setStationPool((prev) => prev.some((station) => stationKey(station) === stationKey(existing)) ? prev : [existing, ...prev]);
       setCurrentStationAndDestination(existing, "deeplink");
+      window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_deeplink_opened", stationId: stationKey(existing) } }));
       setDeepLinkStatus("idle");
       return;
     }
@@ -4394,6 +4416,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         if (station.station_uuid !== stationUuid) throw new Error("Station identity mismatch");
         setStationPool((prev) => prev.some((item) => item.station_uuid === stationUuid) ? prev : [station, ...prev]);
         setCurrentStationAndDestination(station, "deeplink");
+        window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_deeplink_opened", stationId: stationKey(station) } }));
         setDeepLinkStatus("idle");
       })
       .catch((error) => {
@@ -4401,7 +4424,16 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
         setDeepLinkStatus("unavailable");
       });
     return () => controller.abort();
-  }, [deepLinkUuid]);
+  }, [deepLinkUuid, initialStation]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const stationId = stationIdFromPath(window.location.pathname);
+      if (stationId) setDeepLinkUuid(stationId);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const loadCountryStations = useCallback(async (country: CountryResult, nextOffset = 0, tag = activeTag, request = countryLoadRequests.begin({ countryCode: country.code, countryName: country.name, tag })) => {
     setLoadingCountry(true);
@@ -4821,7 +4853,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
       <AudioEngine stations={stationPool} />
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
-      {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station unavailable or moved"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station UUID ${deepLinkUuid}.` : `No station matched UUID ${deepLinkUuid}. Return to discovery or search for another station.`}</p></div> : null}
+      {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station Not Found"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station ID ${deepLinkUuid}.` : `No station matched ${deepLinkUuid}. We did not substitute another signal.`}</p>{deepLinkStatus === "unavailable" ? <NextLink href="/" className="mt-3 inline-block rounded-full bg-radio px-4 py-2 font-bold text-midnight">Back to WaveAtlas discovery</NextLink> : null}</div> : null}
       {!mobileSettingsLayerOpen ? <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} /></div> : null}
       {voiceFeedback ? <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+118px)] z-[61] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-radio/20 bg-slate-950/86 px-3 py-2 text-center text-xs font-medium text-radio shadow-2xl backdrop-blur-xl md:hidden" role="status" aria-live="polite">{voiceFeedback}</div> : null}
       <AnimatePresence>
@@ -4960,6 +4992,7 @@ export default function WaveAtlasApp({ stations, inventoryStats }: { stations: S
           <button type="button" onClick={() => setPlayerVolume(playerVolume > 0 ? 0 : 1)} className="ml-auto grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-ivory/78 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={playerVolume > 0 ? "Mute player" : "Unmute player"}>
             {playerVolume > 0 ? <Volume2 className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /> : <VolumeX className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" />}
           </button>
+          <ShareStationButton station={current} compact />
         </div>
         <nav className="pointer-events-auto grid grid-cols-3 gap-1 rounded-full border border-white/20 bg-slate-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" aria-label="Primary desktop actions">
           {([[Newspaper,"Brief"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (value === "Teleport") { runDesktopTeleport(); } else if (value === "Brief") { setDesktopMode("Atlas"); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${((value === "Brief" && briefOpen) || desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</motion.button></div>; })}

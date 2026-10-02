@@ -384,6 +384,9 @@ function stationFromDatabase(row: Record<string, unknown>): Station {
 export async function fetchStationByUuid(stationUuid: string): Promise<Station | null> {
   const uuid = stationUuid.trim();
   if (!uuid) return null;
+  const collected = [...nonGeoAudioSeeds(), ...ariyoGeoAudioChannels, ...fallbackStations];
+  const local = collected.find((station) => station.station_uuid === uuid || station.id === uuid);
+  if (local) return local;
   const config = supabaseReadConfig();
   if (config) {
     const select = 'id,station_uuid,name,normalized_name,url,url_resolved,homepage,favicon,country,country_code,city,state,language,tags,codec,bitrate,latitude,longitude,votes,click_count,health_score,is_active,last_check_ok,last_checked_at,failure_count,response_time_ms';
@@ -403,7 +406,7 @@ export async function fetchStationByUuid(stationUuid: string): Promise<Station |
   } catch {
     // Deep links must fail closed instead of substituting a different station.
   }
-  return ariyoSeedStations.find((station) => station.station_uuid === uuid) ?? fallbackStations.find((station) => station.station_uuid === uuid) ?? null;
+  return null;
 }
 
 export { ariyoSeedStations, fallbackStations };
