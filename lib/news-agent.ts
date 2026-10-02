@@ -11,7 +11,8 @@ export type Headline = {
   country_code?: string;
 };
 
-export type BriefRequest = { city?: string; country?: string; country_code?: string; language?: string };
+export type BriefCategory = "front-page" | "local-pulse" | "culture" | "sports" | "radio-signal";
+export type BriefRequest = { city?: string; country?: string; country_code?: string; language?: string; category?: BriefCategory; station_name?: string };
 
 type ScoredHeadline = Headline & { score: number };
 
@@ -20,7 +21,7 @@ const CACHE_TTL_MS = 900_000;
 const GDELT_ENDPOINT = "https://api.gdeltproject.org/api/v2/doc/doc";
 
 function cacheKey(input: BriefRequest) {
-  return [input.city, input.country, input.country_code].map((part) => (part || "").trim().toLowerCase()).join("|");
+  return [input.city, input.country, input.country_code, input.category || "front-page", input.station_name].map((part) => (part || "").trim().toLowerCase()).join("|");
 }
 
 function decodeEntities(value = "") {
@@ -89,23 +90,65 @@ function rankAndDedupe(headlines: ScoredHeadline[], context: BriefRequest) {
   }).slice(0, 5).map(({ score: _score, ...headline }) => headline);
 }
 
+const CATEGORY_TERMS: Record<Exclude<BriefCategory, "front-page">, string[]> = {
+  "local-pulse": ["local", "city", "community", "council", "neighborhood", "district", "resident", "transport", "school", "business"],
+  culture: ["culture", "music", "film", "art", "festival", "heritage", "food", "fashion", "theatre", "entertainment"],
+  sports: ["sport", "sports", "football", "soccer", "basketball", "athletics", "tennis", "cricket", "league", "match"],
+  "radio-signal": ["radio", "broadcast", "broadcaster", "fm", "am", "media", "station", "airwaves", "presenter", "dj"],
+};
+
+function categoryMatches(headline: Headline, category: BriefCategory) {
+  if (category === "front-page") return true;
+  const haystack = `${headline.title} ${headline.summary || ""} ${headline.source}`.toLowerCase();
+  return CATEGORY_TERMS[category].some((term) => haystack.includes(term));
+}
+
+function categoryQuery(input: BriefRequest, category: BriefCategory) {
+  const place = [input.city && `"${input.city}"`, input.country && `"${input.country}"`].filter(Boolean).join(" ");
+  if (category === "local-pulse") return [place, "(local OR community OR city OR council OR neighborhood OR business)"].filter(Boolean).join(" ");
+  if (category === "culture") return [place, "(culture OR music OR film OR art OR festival OR heritage OR entertainment)"].filter(Boolean).join(" ");
+  if (category === "sports") return [place, "(sports OR football OR soccer OR basketball OR athletics OR tennis OR cricket)"].filter(Boolean).join(" ");
+  if (category === "radio-signal") return [place, input.station_name ? `"${input.station_name}"` : null, "(radio OR broadcast OR broadcaster OR FM OR media)"].filter(Boolean).join(" ");
+  return place;
+}
+
 export async function getBriefHeadlines(input: BriefRequest): Promise<Headline[]> {
-  const key = cacheKey(input);
+  const category = input.category || "front-page";
+  const normalizedInput = { ...input, category };
+  const key = cacheKey(normalizedInput);
   const hit = briefCache.get(key);
   if (hit && hit.expires > Date.now()) return hit.value;
+
   const sources = getNewsSources({ city: input.city, countryCode: input.country_code });
   const cityFeeds = sources.citySources.flatMap((source) => source.feeds);
   const countryFeeds = sources.countrySources.flatMap((source) => source.feeds);
   const globalFeeds = sources.globalSources.flatMap((source) => source.feeds);
   const cityCountryQuery = [input.city && `"${input.city}"`, input.country && `"${input.country}"`].filter(Boolean).join(" ");
-  const headlines = [
-    ...(await Promise.all(cityFeeds.map((feed) => fetchFeed(feed, input).catch(() => [])))).flat().map((item) => ({ ...item, score: item.score + 60 })),
-    ...(await Promise.all(countryFeeds.map((feed) => fetchFeed(feed, input).catch(() => [])))).flat().map((item) => ({ ...item, score: item.score + 35 })),
-    ...(cityCountryQuery ? await fetchGdelt(cityCountryQuery, input, 28).catch(() => []) : []),
-    ...(input.country ? await fetchGdelt(`"${input.country}" news`, input, 20).catch(() => []) : []),
-    ...(await Promise.all(globalFeeds.map((feed) => fetchFeed(feed, input).catch(() => [])))).flat().map((item) => ({ ...item, score: item.score + 6 })),
-  ];
-  const value = rankAndDedupe(headlines, input);
+
+  const cityItems = (await Promise.all(cityFeeds.map((feed) => fetchFeed(feed, normalizedInput).catch(() => [])))).flat();
+  const countryItems = (await Promise.all(countryFeeds.map((feed) => fetchFeed(feed, normalizedInput).catch(() => [])))).flat();
+  const globalItems = (await Promise.all(globalFeeds.map((feed) => fetchFeed(feed, normalizedInput).catch(() => [])))).flat();
+
+  const categorySpecific = category === "front-page"
+    ? []
+    : await fetchGdelt(categoryQuery(normalizedInput, category), normalizedInput, 55).catch(() => []);
+
+  const headlines: ScoredHeadline[] = category === "front-page"
+    ? [
+        ...cityItems.map((item) => ({ ...item, score: item.score + 60 })),
+        ...countryItems.map((item) => ({ ...item, score: item.score + 35 })),
+        ...(cityCountryQuery ? await fetchGdelt(cityCountryQuery, normalizedInput, 28).catch(() => []) : []),
+        ...(input.country ? await fetchGdelt(`"${input.country}" news`, normalizedInput, 20).catch(() => []) : []),
+        ...globalItems.map((item) => ({ ...item, score: item.score + 6 })),
+      ]
+    : [
+        ...cityItems.filter((item) => categoryMatches(item, category)).map((item) => ({ ...item, score: item.score + 70 })),
+        ...countryItems.filter((item) => categoryMatches(item, category)).map((item) => ({ ...item, score: item.score + 45 })),
+        ...categorySpecific,
+        ...globalItems.filter((item) => categoryMatches(item, category)).map((item) => ({ ...item, score: item.score + 8 })),
+      ];
+
+  const value = rankAndDedupe(headlines, normalizedInput);
   briefCache.set(key, { value, expires: Date.now() + CACHE_TTL_MS });
   return value;
 }
