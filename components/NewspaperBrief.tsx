@@ -15,6 +15,7 @@ import type { WorldContext } from "@/lib/world-engine/types";
 const CLIENT_CACHE_KEY = "waveatlas_daily_cache";
 const CLIENT_CACHE_TTL_MS = 900_000;
 const tabs = ["Front Page", "Local Pulse", "Culture", "Sports", "Radio Signal"] as const;
+const tabCategory = { "Front Page": "front-page", "Local Pulse": "local-pulse", Culture: "culture", Sports: "sports", "Radio Signal": "radio-signal" } as const;
 
 type CachedBrief = Record<string, { expires: number; headlines: Headline[] }>;
 
@@ -141,19 +142,12 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
   const [tab, setTab] = useState<(typeof tabs)[number]>("Front Page");
   const [editionClock] = useState(() => new Date());
   const sheetRef = useRef<HTMLElement | null>(null);
-  const key = useMemo(() => stationBriefKey(station), [station]);
+  const key = useMemo(() => `${stationBriefKey(station)}|${tabCategory[tab]}`, [station, tab]);
   const place = destination(station);
   const editionTitle = `${place.city.toUpperCase()} DAILY`;
   const localDate = useMemo(() => new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(editionClock), [editionClock]);
   const localTime = useMemo(() => localTimeForStation(station, editionClock) || (typeof station.longitude === "number" ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(editionClock.getTime() + Math.round(station.longitude / 15) * 3600_000)) : "Local time unavailable"), [editionClock, station]);
   const genre = stationGenre(station);
-
-  const visibleHeadlines = useMemo(() => {
-    if (tab === "Front Page") return headlines;
-    const lowerTab = tab.toLowerCase();
-    const filtered = headlines.filter((headline) => [headline.title, headline.summary, headline.source].filter(Boolean).join(" ").toLowerCase().includes(lowerTab.split(" ")[0]));
-    return filtered.length ? filtered : headlines.slice(tab === "Radio Signal" ? 0 : 1, tab === "Radio Signal" ? 3 : 5);
-  }, [headlines, tab]);
 
   useEffect(() => {
     if (!open) return;
@@ -165,7 +159,7 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
       setLoading(!cached);
       setError("");
     }, 0);
-    const params = new URLSearchParams({ city: place.city, country: place.country, country_code: station.country_code || "", language: station.language || "" });
+    const params = new URLSearchParams({ city: place.city, country: place.country, country_code: station.country_code || "", language: station.language || "", category: tabCategory[tab], station_name: station.name });
     fetch(`/api/brief?${params}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("WaveAtlas Daily unavailable");
@@ -183,7 +177,7 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [key, open, place.city, place.country, station.country_code, station.language, station.longitude]);
+  }, [key, open, place.city, place.country, station.country_code, station.language, station.longitude, station.name, tab]);
 
   useEffect(() => {
     if (!open) return;
@@ -221,8 +215,8 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
 
             {loading ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">Setting type and fetching open headlines without interrupting playback…</p> : null}
             {error ? <p className="mb-4 rounded-2xl border border-amber-700/30 bg-amber-200/35 p-4 font-serif text-sm text-amber-950">{error}</p> : null}
-            {!loading && !headlines.length ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">No fresh local headlines found yet. Try another destination or keep listening while the next edition forms.</p> : null}
-            <div className="grid max-w-full gap-x-6 gap-y-5 overflow-x-hidden lg:grid-cols-[minmax(32rem,1.15fr)_minmax(26rem,.85fr)]">{visibleHeadlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0 && tab === "Front Page"} />)}</div>
+            {!loading && !headlines.length ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">No verified {tab.toLowerCase()} stories are available for this destination right now. WaveAtlas will not substitute unrelated headlines.</p> : null}
+            <div className="grid max-w-full gap-x-6 gap-y-5 overflow-x-hidden lg:grid-cols-[minmax(32rem,1.15fr)_minmax(26rem,.85fr)]">{headlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0 && tab === "Front Page"} />)}</div>
             <footer className="mt-6 max-w-full overflow-x-hidden border-t-4 border-double border-[#151515]/70 pt-3 font-serif text-xs text-[#4A4033] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word]">
               <div className="grid gap-2 text-left sm:grid-cols-4"><span><b>Radio Signal:</b> {station.name}</span><span><b>Edition:</b> <span className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0.5 align-baseline"><span className="hidden shrink-0 text-[0.95em] leading-none sm:inline-flex" aria-label={flagLabel(station)}>{flagFor(station.country_code)}</span><span className="min-w-0">{place.city}, {place.country}</span></span></span><span><b>Genre:</b> {genre}</span><span><b>Local Time:</b> {localTime}</span></div>
               <p className="mt-3 text-center"><Newspaper className="mr-1 inline size-3" /> Open RSS + GDELT sources. Summaries and links only; full articles remain with publishers.</p>
