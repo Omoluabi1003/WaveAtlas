@@ -14,7 +14,8 @@
     "radio:validate": "npx tsx tests/radio-discovery.regression.ts",
     "test:aie": "npx tsx tests/atlas-intelligence-engine.regression.ts",
     "test:geo-selection": "npx tsx tests/geo-selection-engine.regression.ts",
-    "test:marquee": "npx tsx tests/marquee-motion.regression.ts"
+    "test:marquee": "npx tsx tests/marquee-motion.regression.ts",
+    "test:premier": "npx tsx tests/premier-fm-candidate.regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",
