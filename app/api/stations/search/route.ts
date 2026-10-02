@@ -21,7 +21,10 @@ export async function GET(req: NextRequest) {
   const language = p.get("language") ?? undefined;
   const tag = p.get("tag") ?? p.get("genre") ?? undefined;
 
-  const geoResolution = q && !tag ? await resolveGlobalGeoQuery(q) : null;
+  // An explicit country scope means the user is searching for a signal inside
+  // the current country, not asking WaveAtlas to reinterpret the query as a
+  // new geographic destination.
+  const geoResolution = q && !tag && !explicitCountryCode ? await resolveGlobalGeoQuery(q) : null;
 
   if (geoResolution?.ambiguous) {
     return NextResponse.json({
@@ -81,7 +84,15 @@ export async function GET(req: NextRequest) {
       limit,
       offset,
     });
-    const exactCountryStations = rankStations(stations, q).filter((station) => station.country_code === countryIntent.code);
+    const countryStations = stations.filter((station) => station.country_code === countryIntent.code);
+    const normalizedTerms = q.toLowerCase().split(/\s+/).filter(Boolean);
+    const matchingCountryStations = explicitCountryCode && q
+      ? countryStations.filter((station) => {
+          const haystack = `${station.name} ${station.city || ""} ${station.state || ""} ${station.country} ${station.language || ""} ${station.tags.join(" ")}`.toLowerCase();
+          return normalizedTerms.every((term) => haystack.includes(term));
+        })
+      : countryStations;
+    const exactCountryStations = rankStations(matchingCountryStations, q);
     return NextResponse.json({
       query: normalizedQuery,
       intent: "country",
