@@ -1438,7 +1438,7 @@ function GeoTrustCards({ station }: { station: Station }) {
 
 const SIGNAL_SPLASH_KEY = "waveatlas:splash-seen";
 const SIGNAL_SPLASH_PHASE_MS = 1000;
-const SIGNAL_SPLASH_DONE_MS = 8000;
+const SIGNAL_SPLASH_DONE_MS = 8000; // Branded initialization window before the Atlas becomes interactive.
 
 const signalInitializationPhases = [
   "Acquiring signal...",
