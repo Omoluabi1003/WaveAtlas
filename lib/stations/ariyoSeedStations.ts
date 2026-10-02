@@ -93,7 +93,7 @@ function ariyoSeedStation(input: AriyoSeedInput): Station {
 
 const sourceStations: AriyoSeedInput[] = [
   {
-    name: 'Premier 93.5 FM Ibadan',
+    name: 'Premier FM 93.5 Ibadan',
     id: 'ariyo-ai-premier-935-fm-ibadan',
     url: 'https://centova57.instainternet.com/proxy/premier?mp=/stream',
     url_resolved: 'https://centova57.instainternet.com/proxy/premier?mp=/stream',
