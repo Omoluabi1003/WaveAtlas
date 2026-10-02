@@ -3181,7 +3181,7 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
   const activeSearchRequestId = useRef(0);
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
+    if (q.length < 2 && !countryScope?.code) {
       activeSearchRequestId.current += 1;
       window.setTimeout(() => { setRemoteStations([]); setCountries([]); setResultMeta(null); setVisibleSearchCount(24); }, 0);
       return;
@@ -3226,7 +3226,7 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
   const canLoadMoreSearch = allStationResults.length > stationResults.length;
   const genres = Array.from(new Set(stations.flatMap((s) => s.tags).filter((tag) => tag.toLowerCase().includes(q)))).slice(0, 8);
   const languages = Array.from(new Set(stations.map((s) => s.language).filter((language) => language && language.toLowerCase().includes(q)))).slice(0, 8);
-  if (query.trim().length < 2) return null;
+  if (query.trim().length < 2 && !countryScope?.code) return null;
   return <div className="rounded-3xl border border-white/[0.12] bg-[rgba(8,17,29,0.82)] p-3 shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(1.15)]"><div className="mb-3 flex items-center justify-between px-1"><p className="font-display text-xs font-semibold text-gold">{countryScope?.name ? `Signals in ${countryScope.name}` : countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Destination results"}{allStationResults.length ? ` · ${stationResults.length}/${resultMeta?.totalAvailable ?? allStationResults.length}` : ""}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className={`grid gap-3 ${compact ? "" : "lg:grid-cols-[1.25fr_.75fr]"}`}><div>{stationResults.length ? <>{stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={(selected) => onStationSelect(selected, allStationResults)} />)}{canLoadMoreSearch ? <button type="button" onClick={() => setVisibleSearchCount((count) => count + 24)} className="mt-2 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight">Load More results</button> : null}</> : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No matching radio or GeoAudio channel found yet. Try a place, artist, provider, album, track, country, or genre."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
 }
 function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
@@ -3382,7 +3382,7 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, current, 
                   ref={inputRef}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search country, city, destination..."
+                  placeholder={countryScope ? `Search stations in ${countryScope.name}...` : "Search worldwide..."}
                   className="w-full min-w-0 bg-transparent text-base outline-none placeholder:text-ivory/45"
                 />
               </label>
@@ -3390,14 +3390,14 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, current, 
                 ×
               </button>
             </div>
-            <div className="flex flex-wrap items-center gap-2 pl-1">
-              <button type="button" onClick={() => setSearchWorldwide(false)} disabled={!current.country_code} className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${countryScope ? "border-radio/45 bg-radio/15 text-radio" : "border-white/10 bg-white/[0.04] text-ivory/65"}`} aria-pressed={Boolean(countryScope)}>
-                {flagFor(current.country_code)} {current.country || "Current country"}
-              </button>
-              <button type="button" onClick={() => setSearchWorldwide(true)} className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${searchWorldwide ? "border-sky/45 bg-sky/15 text-sky" : "border-white/10 bg-white/[0.04] text-ivory/65"}`} aria-pressed={searchWorldwide}>
-                🌍 Worldwide
-              </button>
-              <span className="min-w-0 flex-1 text-[11px] text-ivory/50">{countryScope ? `Searching radio signals in ${countryScope.name}` : "Searching the global atlas"}</span>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <div className="min-w-0">
+                <p className="font-display text-sm font-semibold text-gold">{countryScope ? `${flagFor(current.country_code)} Radio Signals in ${countryScope.name}` : "🌍 Worldwide Radio Search"}</p>
+                <p className="mt-0.5 text-[11px] text-ivory/55">{countryScope ? "Browse the country now, or type above to filter its stations." : "Search stations, cities, countries, genres, and languages across the atlas."}</p>
+              </div>
+              {current.country_code ? <button type="button" onClick={() => { setSearchWorldwide((value) => !value); setQuery(""); }} className="shrink-0 rounded-full border border-sky/25 bg-sky/10 px-3 py-2 text-xs font-semibold text-sky transition hover:border-sky/45" aria-pressed={searchWorldwide}>
+                {searchWorldwide ? `← ${current.country || "Country"}` : "Search Worldwide"}
+              </button> : null}
             </div>
             <div className="flex min-h-11 flex-wrap items-center justify-end gap-2 pl-1">
               <button type="button" onClick={closeWithBlur} className="min-h-11 shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-sky transition hover:border-sky/35 hover:bg-sky/10">
@@ -3407,7 +3407,7 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, current, 
             </div>
           </div>
           <div className="atlas-drawer-scroll mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6">
-            {query.trim() ? (
+            {query.trim() || countryScope ? (
               <GroupedSearchResults
                 query={query}
                 stations={stations}
@@ -3424,7 +3424,7 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, current, 
               />
             ) : (
               <p className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 text-sm font-medium leading-6 text-ivory/70">
-                Search for a country, city, or station.
+                Search for a country, city, station, genre, or language.
               </p>
             )}
           </div>
