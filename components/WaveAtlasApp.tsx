@@ -3686,6 +3686,16 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
   const settingsLayerOpen = mode === "Settings";
   const mobileSearchOverlayOpen = !settingsLayerOpen && (searchOverlayOpen || (voiceSearchOverlayRequest > 0 && Boolean(query.trim())));
+  useEffect(() => {
+    const openSearch = () => setSearchOverlayOpen(true);
+    window.addEventListener("waveatlas:open-mobile-search", openSearch);
+    return () => window.removeEventListener("waveatlas:open-mobile-search", openSearch);
+  }, []);
+  useEffect(() => {
+    const openBrief = () => setMode("Brief");
+    window.addEventListener("waveatlas:open-mobile-brief", openBrief);
+    return () => window.removeEventListener("waveatlas:open-mobile-brief", openBrief);
+  }, []);
   const selectionVersion = usePlayer((state) => state.selectionVersion);
   useEffect(() => {
     onSettingsLayerChange?.(settingsLayerOpen);
@@ -4842,8 +4852,18 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const focusSearchFromEmpty = useCallback(() => {
     setDesktopMode("Atlas");
     setDesktopDrawerCollapsed(false);
-    window.requestAnimationFrame(() => document.querySelector<HTMLInputElement>('input[placeholder="Search country, city, destination..."]')?.focus());
-  }, []);
+    if (window.matchMedia("(max-width: 767px)").matches && !usePlayer.getState().current) {
+      const queue = buildWandererCandidateQueue(stations);
+      const starter = queue[0];
+      if (!starter) return "Search is unavailable because no playable station inventory is loaded.";
+      setStationPool((prev) => uniqueStationCandidates([starter, ...queue, ...prev]));
+      setCurrentStationAndDestination(starter, "manual", queue);
+      window.setTimeout(() => window.dispatchEvent(new Event("waveatlas:open-mobile-search")), 180);
+      return "Opening the live station directory…";
+    }
+    window.requestAnimationFrame(() => document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus());
+    return "Opening station search…";
+  }, [stations]);
 
   const exploreNearbyFromEmpty = useCallback(() => {
     setDesktopMode("Explore");
@@ -4886,17 +4906,38 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const voiceSearchFromEmpty = useCallback(() => {
     setDesktopMode("Atlas");
     setDesktopDrawerCollapsed(false);
-    window.dispatchEvent(new Event("waveatlas:voice-search"));
-    if (!getSpeechRecognitionConstructor()) return "Voice Search is not available in this browser. The Atlas search drawer is open for manual search.";
-    return "Voice Search requested. If your browser asks, allow microphone access to continue.";
-  }, []);
+    if (window.matchMedia("(max-width: 767px)").matches && !usePlayer.getState().current) {
+      const queue = buildWandererCandidateQueue(stations);
+      const starter = queue[0];
+      if (!starter) return "Voice Search is unavailable because no playable station inventory is loaded.";
+      setStationPool((prev) => uniqueStationCandidates([starter, ...queue, ...prev]));
+      setCurrentStationAndDestination(starter, "manual", queue);
+      window.setTimeout(() => {
+        window.dispatchEvent(new Event("waveatlas:open-mobile-search"));
+        window.dispatchEvent(new Event("waveatlas:voice-search"));
+      }, 220);
+    } else {
+      window.dispatchEvent(new Event("waveatlas:voice-search"));
+    }
+    if (!getSpeechRecognitionConstructor()) return "Voice Search is not supported by this browser. Opening manual station search instead.";
+    return "Opening Voice Search…";
+  }, [stations]);
 
   const editorialPicksFromEmpty = useCallback(() => {
+    if (window.matchMedia("(max-width: 767px)").matches && !usePlayer.getState().current) {
+      const queue = buildWandererCandidateQueue(stations);
+      const starter = queue.find((station) => isCuratedStation(station)) ?? queue[0];
+      if (!starter) return "Editorial Picks are unavailable because no playable station inventory is loaded.";
+      setStationPool((prev) => uniqueStationCandidates([starter, ...queue, ...prev]));
+      setCurrentStationAndDestination(starter, "manual", queue);
+      window.setTimeout(() => window.dispatchEvent(new Event("waveatlas:open-mobile-brief")), 180);
+      return "Opening Editorial Picks…";
+    }
     setDesktopMode("Brief");
     setDesktopDrawerCollapsed(false);
     setBriefOpen(true);
-    return "Opening Daily Passport editorial picks.";
-  }, []);
+    return "Opening Editorial Picks…";
+  }, [stations]);
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
