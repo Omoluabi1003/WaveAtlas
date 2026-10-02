@@ -3542,7 +3542,7 @@ function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: (
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
   return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/30 bg-[rgba(3,9,18,0.96)] p-2.5 text-white shadow-[0_26px_90px_rgba(0,0,0,.72),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
-    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)]">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></div><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
+    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] active:scale-[0.86] active:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></div><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
   </div>;
 }
 
@@ -4981,7 +4981,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
               if (!player.current) setCurrentStationAndDestination(current);
               else player.toggle();
             }}
-            className="grid size-12 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_26px_rgba(54,245,162,.36)]"
+            className="grid size-12 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_26px_rgba(54,245,162,.36)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.04] hover:shadow-[0_0_34px_rgba(54,245,162,.48)] active:scale-[0.88] active:shadow-[0_0_16px_rgba(54,245,162,.28)] active:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none"
             aria-label="Play or pause current station"
           >
             {playerPlaying ? <Pause /> : <Play />}
