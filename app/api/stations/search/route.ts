@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
           return normalizedTerms.every((term) => haystack.includes(term));
         })
       : countryStations;
-    const exactCountryStations = rankStations(matchingCountryStations, q);
+    const exactCountryStations = q ? rankStations(matchingCountryStations, q) : matchingCountryStations;
     return NextResponse.json({
       query: normalizedQuery,
       intent: "country",
