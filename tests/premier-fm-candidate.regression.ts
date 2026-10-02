@@ -5,18 +5,21 @@ import { isVerifiedNigerianStation, mergeSeedStations, rankStations } from '../l
 
 const premier = ariyoSeedStations.find((station) => station.id === 'ariyo-ai-premier-935-fm-ibadan');
 assert.ok(premier, 'Premier FM must be present in the Ariyo curated catalog');
-assert.equal(premier.url, '');
-assert.equal(premier.url_resolved, '');
-assert.equal(premier.verification_status, 'candidate');
-assert.equal(premier.validation_status, 'needs_review');
-assert.equal(premier.is_active, false);
-assert.equal(premier.last_check_ok, false);
-assert.equal(getStationStreamUrl(premier), '');
-assert.equal(isVerifiedNigerianStation(premier), false);
-assert.notEqual(classifyStationTrust(premier), 'verified_nigerian_station');
+const transport = 'https://centova57.instainternet.com/proxy/premier?mp=/stream';
+assert.equal(premier.url, transport);
+assert.equal(premier.url_resolved, transport);
+assert.equal(premier.verification_status, 'verified');
+assert.equal(premier.validation_status, 'verified');
+assert.equal(premier.is_active, true);
+assert.equal(premier.last_check_ok, true);
+assert.equal(premier.codec, 'AAC');
+assert.equal(premier.bitrate, 48);
+assert.equal(getStationStreamUrl(premier), transport);
+assert.equal(isVerifiedNigerianStation(premier), true);
+assert.equal(classifyStationTrust(premier), 'verified_nigerian_station');
 
 const catalog = mergeSeedStations([], ariyoSeedStations);
-assert.ok(catalog.some((station) => station.id === premier.id), 'reference candidates without streams remain discoverable');
+assert.ok(catalog.some((station) => station.id === premier.id), 'runtime-verified Premier transport remains discoverable');
 for (const query of ['Premier FM', 'Premier 93.5', 'Ibadan radio', 'Oyo radio', 'Yoruba radio', 'Radio Nigeria', 'FRCN', 'Nigeria radio']) {
   const ranked = rankStations(catalog.filter((station) => `${station.name} ${station.city} ${station.state} ${station.country} ${station.language} ${station.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase().split(' ')[0])), query);
   assert.ok(ranked.some((station) => station.id === premier.id), `Premier must surface for ${query}`);

@@ -24,6 +24,8 @@ type AriyoSeedInput = {
   url_resolved?: string;
   curation_source?: string;
   include_default_nigeria_tags?: boolean;
+  codec?: string;
+  bitrate?: number;
 };
 
 function slugify(value: string) {
@@ -69,8 +71,8 @@ function ariyoSeedStation(input: AriyoSeedInput): Station {
     city: input.city,
     language: input.language ?? (isNigeria ? 'English, Pidgin' : 'English'),
     tags,
-    codec: input.url ? (input.url.includes('.m3u8') || input.url.includes('.m3u') ? 'HLS' : 'MP3') : 'Unknown',
-    bitrate: input.url ? (input.url.includes('.m3u8') ? 320 : 128) : 0,
+    codec: input.codec ?? (input.url ? (input.url.includes('.m3u8') || input.url.includes('.m3u') ? 'HLS' : 'MP3') : 'Unknown'),
+    bitrate: input.bitrate ?? (input.url ? (input.url.includes('.m3u8') ? 320 : 128) : 0),
     latitude: input.latitude,
     longitude: input.longitude,
     votes: isNigeria ? 26000 : isAfrica ? 20000 : 14000,
@@ -93,8 +95,8 @@ const sourceStations: AriyoSeedInput[] = [
   {
     name: 'Premier 93.5 FM Ibadan',
     id: 'ariyo-ai-premier-935-fm-ibadan',
-    url: '',
-    url_resolved: '',
+    url: 'https://centova57.instainternet.com/proxy/premier?mp=/stream',
+    url_resolved: 'https://centova57.instainternet.com/proxy/premier?mp=/stream',
     city: 'Ibadan',
     state: 'Oyo',
     country: 'Nigeria',
@@ -103,14 +105,16 @@ const sourceStations: AriyoSeedInput[] = [
     longitude: 3.947,
     language: 'Yoruba, English',
     homepage: 'https://radionigeriafm.com/premier/',
-    verification_status: 'candidate',
-    validation_status: 'needs_review',
-    is_active: false,
-    last_check_ok: false,
+    verification_status: 'verified',
+    validation_status: 'verified',
+    is_active: true,
+    last_check_ok: true,
+    codec: 'AAC',
+    bitrate: 48,
     curation_source: 'Ariyo AI / FRCN',
     include_default_nigeria_tags: false,
-    validation_reason: 'Official Radio Nigeria reference station. Live audio endpoint requires runtime discovery and playback validation; official HTML pages must not be used as stream URLs.',
-    tags: ['oyo', 'ibadan', 'yoruba', 'public radio', 'frcn', 'federal radio corporation of nigeria', 'radio nigeria', 'news', 'talk', 'culture', 'education', 'community', 'southwest nigeria', '93.5 fm', 'your dependable companion', 'moniya transmitter', 'broadcasting house dugbe', 'candidate stream discovery'],
+    validation_reason: 'Runtime player transport captured from Radoxo and browser-verified for 34 seconds on 2026-10-02 (audio/aacp, Shoutcast; loadstart, playing, and continuous timeupdate events observed).',
+    tags: ['oyo', 'ibadan', 'yoruba', 'public radio', 'frcn', 'federal radio corporation of nigeria', 'radio nigeria', 'news', 'talk', 'culture', 'education', 'community', 'southwest nigeria', '93.5 fm', 'your dependable companion', 'moniya transmitter', 'broadcasting house dugbe', 'runtime transport verified', 'manual-playback-verified', 'shoutcast'],
   },
   { name: 'Jay 101.9 FM Jos', id: 'ariyo-ai-jay-1019-fm-jos', url: 'https://stream2.rcast.net/69640/', city: 'Jos', state: 'Plateau', country: 'Nigeria', country_code: 'NG', latitude: 9.8965, longitude: 8.8583, language: 'English', homepage: 'https://jayfm.ng/', tags: ['plateau', 'jos', 'talk', 'news', 'entertainment', 'sports', 'lifestyle', 'hits', 'local radio', 'official stream verified 2026-06-24', 'radio garden matched', 'rcast', 'tier 1 curated atlas', 'startup eligible', 'teleport eligible', 'wanderer eligible', 'favorite eligible'] },
   { name: 'Agidigbo 88.7 FM Ibadan', id: 'ariyo-ai-agidigbo-887-fm-ibadan', url: 'https://agidigbostream.com.ng/radio/8000/radio.mp3', city: 'Ibadan', state: 'Oyo', country: 'Nigeria', country_code: 'NG', latitude: 7.3775, longitude: 3.947, language: 'Yoruba, English, Pidgin', homepage: 'https://agidigbo887fm.com/', tags: ['oyo', 'ibadan', 'yoruba', 'news', 'talk', 'current affairs', 'local radio', 'community'] },
