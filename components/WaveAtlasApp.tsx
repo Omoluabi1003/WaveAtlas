@@ -3172,7 +3172,7 @@ function GeoAudioChannelInspector({ station }: { station: Station }) {
   </section>;
 }
 
-function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelect, setQuery, compact = false }: { query: string; stations: Station[]; onStationSelect: (station: Station, candidates: Station[]) => void; onCountrySelect: (country: CountrySelectPayload) => void; setQuery: (q: string) => void; compact?: boolean }) {
+function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelect, setQuery, compact = false, countryScope }: { query: string; stations: Station[]; onStationSelect: (station: Station, candidates: Station[]) => void; onCountrySelect: (country: CountrySelectPayload) => void; setQuery: (q: string) => void; compact?: boolean; countryScope?: { code: string; name: string } | null }) {
   const [remoteStations, setRemoteStations] = useState<Station[]>([]);
   const [countries, setCountries] = useState<CountryResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -3199,7 +3199,7 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
       setLoading(true);
       try {
         const [stationRes, countryRes] = await Promise.all([
-            fetch(`/api/stations/search?q=${encodeURIComponent(q)}&limit=500`, { signal: controller.signal }),
+            fetch(`/api/stations/search?q=${encodeURIComponent(q)}&limit=500${countryScope?.code ? `&countryCode=${encodeURIComponent(countryScope.code)}&country=${encodeURIComponent(countryScope.name)}` : ""}`, { signal: controller.signal }),
           fetch(`/api/countries/search?q=${encodeURIComponent(q)}`, { signal: controller.signal }),
         ]);
         if (requestId !== activeSearchRequestId.current) return;
@@ -3217,9 +3217,9 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
       } finally { if (!controller.signal.aborted && requestId === activeSearchRequestId.current) setLoading(false); }
     }, 220);
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [query]);
+  }, [countryScope?.code, countryScope?.name, query]);
   const q = query.trim().toLowerCase();
-  const localMatches = stations.filter((s) => `${s.name} ${s.country} ${s.language} ${s.tags.join(" ")}`.toLowerCase().includes(q));
+  const localMatches = stations.filter((s) => (!countryScope?.code || s.country_code === countryScope.code) && `${s.name} ${s.city || ""} ${s.state || ""} ${s.country} ${s.language} ${s.tags.join(" ")}`.toLowerCase().includes(q));
   const countryIntentActive = resultMeta?.intent === "country" && resultMeta.query === q;
   const allStationResults = remoteStations.length || countryIntentActive ? remoteStations : localMatches;
   const stationResults = allStationResults.slice(0, visibleSearchCount);
@@ -3227,7 +3227,7 @@ function GroupedSearchResults({ query, stations, onStationSelect, onCountrySelec
   const genres = Array.from(new Set(stations.flatMap((s) => s.tags).filter((tag) => tag.toLowerCase().includes(q)))).slice(0, 8);
   const languages = Array.from(new Set(stations.map((s) => s.language).filter((language) => language && language.toLowerCase().includes(q)))).slice(0, 8);
   if (query.trim().length < 2) return null;
-  return <div className="rounded-3xl border border-white/[0.12] bg-[rgba(8,17,29,0.82)] p-3 shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(1.15)]"><div className="mb-3 flex items-center justify-between px-1"><p className="font-display text-xs font-semibold text-gold">{countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Destination results"}{allStationResults.length ? ` · ${stationResults.length}/${resultMeta?.totalAvailable ?? allStationResults.length}` : ""}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className={`grid gap-3 ${compact ? "" : "lg:grid-cols-[1.25fr_.75fr]"}`}><div>{stationResults.length ? <>{stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={(selected) => onStationSelect(selected, allStationResults)} />)}{canLoadMoreSearch ? <button type="button" onClick={() => setVisibleSearchCount((count) => count + 24)} className="mt-2 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight">Load More results</button> : null}</> : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No matching radio or GeoAudio channel found yet. Try a place, artist, provider, album, track, country, or genre."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
+  return <div className="rounded-3xl border border-white/[0.12] bg-[rgba(8,17,29,0.82)] p-3 shadow-[0_16px_48px_rgba(0,0,0,0.35)] backdrop-blur-[18px] [backdrop-filter:blur(18px)_saturate(1.15)]"><div className="mb-3 flex items-center justify-between px-1"><p className="font-display text-xs font-semibold text-gold">{countryScope?.name ? `Signals in ${countryScope.name}` : countryIntentActive && resultMeta?.countryName ? `Stations in ${resultMeta.countryName}` : "Destination results"}{allStationResults.length ? ` · ${stationResults.length}/${resultMeta?.totalAvailable ?? allStationResults.length}` : ""}</p>{loading ? <span className="text-xs font-semibold text-sky">{countryIntentActive && resultMeta?.countryName ? `Acquiring ${resultMeta.countryName} signals…` : "Searching…"}</span> : null}</div><div className={`grid gap-3 ${compact ? "" : "lg:grid-cols-[1.25fr_.75fr]"}`}><div>{stationResults.length ? <>{stationResults.map((station) => <SearchResultStationCard key={station.id} station={station} onSelect={(selected) => onStationSelect(selected, allStationResults)} />)}{canLoadMoreSearch ? <button type="button" onClick={() => setVisibleSearchCount((count) => count + 24)} className="mt-2 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight">Load More results</button> : null}</> : <p className="rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-medium text-slate-300">{countryIntentActive && resultMeta?.countryName ? `No active stations found for ${resultMeta.countryName} yet. Try Load More, check another genre, or let Station Steward Agent refresh this region.` : "No matching radio or GeoAudio channel found yet. Try a place, artist, provider, album, track, country, or genre."}</p>}</div><div className="grid content-start gap-3"><SearchGroup title="Countries" items={countries.slice(0, 6).map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, meta: `${c.station_count.toLocaleString()} stations`, action: () => onCountrySelect(c) }))} /><SearchGroup title="Genres" items={genres.map((g) => ({ key: g, label: g, meta: "Search format", action: () => setQuery(g) }))} /><SearchGroup title="Languages" items={languages.map((l) => ({ key: l, label: l, meta: "Search language", action: () => setQuery(l) }))} /></div></div></div>;
 }
 function SearchGroup({ title, items }: { title: string; items: { key: string; label: string; meta: string; action: () => void }[] }) {
   return <div className="rounded-3xl border border-white/[0.08] bg-[rgba(20,28,42,0.82)] p-4 shadow-lg"><p className="font-display text-xs font-semibold text-gold">{title}</p><div className="mt-3 space-y-2">{items.length ? items.map((item) => <button key={item.key} onClick={item.action} className="flex w-full items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.06] px-3 py-2 text-left text-[#E5E7EB] hover:border-sky/40 hover:bg-white/[0.1]"><span><b className="block text-sm">{item.label}</b><span className="text-xs text-white/[0.72]">{item.meta}</span></span><MapPin className="size-4 text-gold" /></button>) : <p className="text-sm text-ivory/45">No matches yet.</p>}</div></div>;
@@ -3333,7 +3333,9 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   </>;
 }
 
-function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, onCountrySelect, onStationSelect, voiceControl }: { open: boolean; query: string; setQuery: (q: string) => void; stations: Station[]; onClose: () => void; onCountrySelect: (country: CountrySelectPayload) => void; onStationSelect: (station: Station, candidates?: Station[]) => void; voiceControl?: ReactNode }) {
+function MobileSearchCommandOverlay({ open, query, setQuery, stations, current, onClose, onCountrySelect, onStationSelect, voiceControl }: { open: boolean; query: string; setQuery: (q: string) => void; stations: Station[]; current: Station; onClose: () => void; onCountrySelect: (country: CountrySelectPayload) => void; onStationSelect: (station: Station, candidates?: Station[]) => void; voiceControl?: ReactNode }) {
+  const [searchWorldwide, setSearchWorldwide] = useState(false);
+  const countryScope = !searchWorldwide && current.country_code ? { code: current.country_code, name: current.country || current.country_code } : null;
   const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     if (!open) return;
@@ -3388,6 +3390,15 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, 
                 ×
               </button>
             </div>
+            <div className="flex flex-wrap items-center gap-2 pl-1">
+              <button type="button" onClick={() => setSearchWorldwide(false)} disabled={!current.country_code} className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${countryScope ? "border-radio/45 bg-radio/15 text-radio" : "border-white/10 bg-white/[0.04] text-ivory/65"}`} aria-pressed={Boolean(countryScope)}>
+                {flagFor(current.country_code)} {current.country || "Current country"}
+              </button>
+              <button type="button" onClick={() => setSearchWorldwide(true)} className={`min-h-9 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${searchWorldwide ? "border-sky/45 bg-sky/15 text-sky" : "border-white/10 bg-white/[0.04] text-ivory/65"}`} aria-pressed={searchWorldwide}>
+                🌍 Worldwide
+              </button>
+              <span className="min-w-0 flex-1 text-[11px] text-ivory/50">{countryScope ? `Searching radio signals in ${countryScope.name}` : "Searching the global atlas"}</span>
+            </div>
             <div className="flex min-h-11 flex-wrap items-center justify-end gap-2 pl-1">
               <button type="button" onClick={closeWithBlur} className="min-h-11 shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-sky transition hover:border-sky/35 hover:bg-sky/10">
                 Cancel
@@ -3409,6 +3420,7 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, onClose, 
                   onCountrySelect(country);
                 }}
                 setQuery={setQuery}
+                countryScope={countryScope}
               />
             ) : (
               <p className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 text-sm font-medium leading-6 text-ivory/70">
@@ -3739,7 +3751,7 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     )}
     {mobileGlobeFallbackReason ? <div className="pointer-events-none fixed left-4 top-[calc(env(safe-area-inset-top)+92px)] z-40 max-w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gold/20 bg-slate-950/70 px-3 py-2 text-[11px] text-ivory/70 shadow-xl backdrop-blur-xl"><b className="block text-gold">2D atlas fallback active</b>{mobileGlobeFallbackReason}</div> : null}
     {mode !== "Dial" ? <MobileHeaderCard viewportOffsetTop={visualViewport.viewportOffsetTop} onOpenSearch={() => setSearchOverlayOpen(true)} onOpenSettings={() => setMode("Settings")} /> : null}
-    <MobileSearchCommandOverlay open={mobileSearchOverlayOpen} query={query} setQuery={setQuery} stations={stations} onClose={() => { countryLoadRequests.abort({ reason: "mobile search closed" }); setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station, candidates = [station]) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setScopedStationAndDestination(station, "manual", candidates); }, 250); }} voiceControl={settingsLayerOpen ? undefined : <VoiceCommandButton compact active={mobileSearchOverlayOpen} onIntent={onVoiceIntent} onFeedback={onVoiceFeedback} />} />
+    <MobileSearchCommandOverlay open={mobileSearchOverlayOpen} query={query} setQuery={setQuery} stations={stations} current={current} onClose={() => { countryLoadRequests.abort({ reason: "mobile search closed" }); setSearchOverlayOpen(false); setQuery(""); }} onCountrySelect={(country) => { setSearchOverlayOpen(false); window.setTimeout(() => { onCountrySelect(country); onQueryComplete(); }, 250); }} onStationSelect={(station, candidates = [station]) => { setSearchOverlayOpen(false); setQuery(""); window.setTimeout(() => { onQueryComplete(); setScopedStationAndDestination(station, "manual", candidates); }, 250); }} voiceControl={settingsLayerOpen ? undefined : <VoiceCommandButton compact active={mobileSearchOverlayOpen} onIntent={onVoiceIntent} onFeedback={onVoiceFeedback} />} />
     <SelectedStationTheater station={current} />
     {wandererActive ? <button onClick={() => setWandererActive(false)} className="fixed bottom-[176px] left-4 z-[56] rounded-full border border-radio/30 bg-slate-950/90 px-4 py-2 text-xs font-medium text-radio shadow-xl backdrop-blur-xl">Wanderer Mode · Exit Wanderer</button> : null}
     <MobileWanderSheet open={wanderOpen} stations={stations} current={current} onTravel={handleTravel} onClose={() => setWanderOpen(false)} />
