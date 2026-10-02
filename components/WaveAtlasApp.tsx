@@ -185,6 +185,37 @@ function playPremiumTeleportClick() {
   }
 }
 
+function playTransportClick() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContextConstructor = window.AudioContext ?? (window as Window & { webkitAudioContext?: BrowserAudioContextConstructor }).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+    const context = new AudioContextConstructor();
+    const now = context.currentTime;
+    const duration = 0.045;
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.026, now + 0.003);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    master.connect(context.destination);
+
+    const oscillator = context.createOscillator();
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(980, now);
+    oscillator.frequency.exponentialRampToValueAtTime(620, now + 0.025);
+    const oscillatorGain = context.createGain();
+    oscillatorGain.gain.setValueAtTime(0.12, now);
+    oscillatorGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
+    oscillator.connect(oscillatorGain).connect(master);
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+
+    window.setTimeout(() => void context.close().catch(() => undefined), Math.ceil(duration * 1000) + 30);
+  } catch {
+    // Transport feedback is best-effort and must never block playback.
+  }
+}
+
 type LatLng = { lat: number; lng: number };
 type CountryResult = {
   name: string;
@@ -3540,7 +3571,7 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
 
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
   const { playing, status, toggle, setStation } = usePlayer();
-  const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
+  const play = () => { playTransportClick(); if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
   return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/30 bg-[rgba(3,9,18,0.96)] p-2.5 text-white shadow-[0_26px_90px_rgba(0,0,0,.72),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
     <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] active:scale-[0.86] active:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></div><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
   </div>;
@@ -4977,6 +5008,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
             onClick={() => {
+              playTransportClick();
               const player = usePlayer.getState();
               if (!player.current) setCurrentStationAndDestination(current);
               else player.toggle();
