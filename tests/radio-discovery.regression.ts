@@ -8,7 +8,8 @@ assert.equal(normalizeUrl('HTTPS://Example.com/live.mp3#frag'), 'https://example
 assert.equal(hasValidCoordinates(-23.55, -46.63), true);
 assert.equal(hasValidCoordinates(0, 0), false);
 assert.equal(rejectReason(base), undefined);
-assert.equal(rejectReason({ ...base, bitrate: 64 }), 'low_bitrate');
+assert.equal(rejectReason({ ...base, bitrate: 32 }, 64, false), 'low_bitrate');
+assert.equal(rejectReason({ ...base, bitrate: 64, geo_lat: undefined, geo_long: undefined }, 64, false), undefined);
 assert.equal(rejectReason({ ...base, name: 'casino spam fm' }), 'suspicious_name');
 assert.ok(qualityScore(base) >= 80);
 const station = candidateToStation(base, '2026-07-09T00:00:00.000Z');

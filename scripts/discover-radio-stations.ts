@@ -8,26 +8,42 @@ const API_BASE = process.env.RADIO_BROWSER_API_BASE ?? 'https://de1.api.radio-br
 const USER_AGENT = process.env.RADIO_DISCOVERY_USER_AGENT ?? 'WaveAtlasGlobalRadioDiscovery/1.0 (https://github.com/Omoluabi1003/WaveAtlas)';
 const DRY_RUN = process.env.RADIO_DISCOVERY_DRY_RUN !== 'false';
 const MAX_ADD = Math.min(50, Math.max(0, Number(process.env.RADIO_DISCOVERY_MAX_ADD ?? '50')));
-const PAGES = Math.max(1, Number(process.env.RADIO_DISCOVERY_PAGES ?? '2'));
+const PAGES = Math.max(1, Number(process.env.RADIO_DISCOVERY_PAGES ?? '1'));
 const PAGE_SIZE = Math.min(500, Math.max(1, Number(process.env.RADIO_DISCOVERY_PAGE_SIZE ?? '100')));
-const MIN_BITRATE = Number(process.env.RADIO_DISCOVERY_MIN_BITRATE ?? '128');
-const REQUIRE_GEO = process.env.RADIO_DISCOVERY_REQUIRE_GEO !== 'false';
+const MIN_BITRATE = Number(process.env.RADIO_DISCOVERY_MIN_BITRATE ?? '64');
+const REQUIRE_GEO = process.env.RADIO_DISCOVERY_REQUIRE_GEO === 'true';
+const COUNTRIES_PER_RUN = Math.max(1, Number(process.env.RADIO_DISCOVERY_COUNTRIES_PER_RUN ?? '12'));
 const SIGNAL_TIMEOUT_MS = Number(process.env.RADIO_DISCOVERY_SIGNAL_TIMEOUT_MS ?? '8000');
 
 type ReportItem = { name?: string; url?: string; sourceStationUuid?: string; reason?: string; qualityScore?: number };
 type Report = { generatedAt: string; dryRun: boolean; source: string; fetched: number; added: ReportItem[]; skipped: ReportItem[]; duplicate: ReportItem[]; failed: ReportItem[]; suspicious: ReportItem[] };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function fetchCandidates() {
+async function fetchCountryInventory() {
+  const res = await fetch(`${API_BASE}/countries`, { headers: { 'User-Agent': USER_AGENT } });
+  if (!res.ok) throw new Error(`Radio Browser countries returned ${res.status}`);
+  return (await res.json() as { name?: string; iso_3166_1?: string; stationcount?: number }[])
+    .filter((country) => country.iso_3166_1 && Number(country.stationcount ?? 0) > 0)
+    .sort((a, b) => Number(a.stationcount ?? 0) - Number(b.stationcount ?? 0));
+}
+
+async function fetchCandidates(existingCountryCounts: Map<string, number>) {
+  const countries = await fetchCountryInventory();
+  const underCovered = countries
+    .map((country) => ({ ...country, code: country.iso_3166_1!.toUpperCase(), covered: existingCountryCounts.get(country.iso_3166_1!.toUpperCase()) ?? 0 }))
+    .sort((a, b) => (a.covered / Math.max(1, Number(a.stationcount))) - (b.covered / Math.max(1, Number(b.stationcount))) || a.covered - b.covered)
+    .slice(0, COUNTRIES_PER_RUN);
   const out: RadioBrowserCandidate[] = [];
-  for (let page = 0; page < PAGES; page++) {
-    const query = new URLSearchParams({ hidebroken: 'true', order: 'clicktrend', reverse: 'true', limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) });
-    const res = await fetch(`${API_BASE}/stations/search?${query}`, { headers: { 'User-Agent': USER_AGENT } });
-    if (!res.ok) throw new Error(`Radio Browser returned ${res.status}`);
-    out.push(...await res.json() as RadioBrowserCandidate[]);
-    await sleep(Number(process.env.RADIO_DISCOVERY_RATE_LIMIT_MS ?? '1100'));
+  for (const country of underCovered) {
+    for (let page = 0; page < PAGES; page++) {
+      const query = new URLSearchParams({ countrycode: country.code, hidebroken: 'true', order: 'clicktrend', reverse: 'true', limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) });
+      const res = await fetch(`${API_BASE}/stations/search?${query}`, { headers: { 'User-Agent': USER_AGENT } });
+      if (!res.ok) continue;
+      out.push(...await res.json() as RadioBrowserCandidate[]);
+      await sleep(Number(process.env.RADIO_DISCOVERY_RATE_LIMIT_MS ?? '650'));
+    }
   }
-  return out;
+  return { candidates: out, countries: underCovered.map((country) => ({ code: country.code, name: country.name, available: country.stationcount, covered: country.covered })) };
 }
 
 async function validateStream(url: string) {
@@ -64,7 +80,13 @@ async function main() {
   const metadata: DiscoveryMetadata[] = JSON.parse(await readFile('lib/stations/discoveredRadioMetadata.json', 'utf8').catch(() => '[]'));
   let candidates: RadioBrowserCandidate[] = [];
   try {
-    candidates = await fetchCandidates();
+    const countryCounts = new Map<string, number>();
+    for (const station of [...ariyoSeedStations, ...campusAtlasStations, ...discoveredRadioStations]) {
+      const code = station.country_code?.toUpperCase();
+      if (code) countryCounts.set(code, (countryCounts.get(code) ?? 0) + 1);
+    }
+    const discovery = await fetchCandidates(countryCounts);
+    candidates = discovery.candidates;
   } catch (error) {
     report.failed.push({ reason: `candidate_fetch_failed: ${error instanceof Error ? error.message : String(error)}` });
     await writeReports(report);
@@ -87,6 +109,8 @@ async function main() {
     if (report.added.length >= MAX_ADD) break;
   }
   await writeReports(report);
+  // Additive-only invariant: accepted starts with the complete existing discovered registry.
+  // The steward may append verified stations but never removes an existing entry.
   if (!DRY_RUN && report.added.length) await writeGenerated(accepted, metadata);
   console.log(`WaveAtlas radio discovery: added=${report.added.length} skipped=${report.skipped.length} duplicate=${report.duplicate.length} failed=${report.failed.length} suspicious=${report.suspicious.length} dryRun=${DRY_RUN}`);
 }
