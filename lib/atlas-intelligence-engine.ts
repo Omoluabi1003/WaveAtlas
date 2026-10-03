@@ -1,3 +1,4 @@
+import { scheduledHealthBoost } from './agents/station-health-policy';
 import type { Station } from './stations';
 
 export type StationReliabilityTier = 'Platinum' | 'Gold' | 'Silver' | 'Bronze' | 'Quarantine';
@@ -72,7 +73,7 @@ function validationFreshness(station: Station, now = Date.now()) {
 }
 
 export function calculateStationReliabilityIndex(station: Station, context: Partial<AtlasDecisionContext> = {}): { score: number; tier: StationReliabilityTier; inputs: Record<string, number> } {
-  const streamHealth = station.last_check_ok === false || !station.is_active ? 0 : clamp(station.health_score);
+  const streamHealth = station.last_check_ok === false || !station.is_active ? 0 : clamp(station.health_score + scheduledHealthBoost(station));
   const playability = station.is_active && (station.url_resolved || station.url) ? 100 : 0;
   const historicalUptime = clamp(100 - station.failure_count * 18);
   const metadata = clamp(context.metadataConfidence ?? stationMetadataConfidence(station));

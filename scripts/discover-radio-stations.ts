@@ -1,3 +1,5 @@
+import { probeStream } from '../lib/agents/stream-probe';
+import { fallbackStations } from '../lib/stations';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { candidateToStation, existingStationKeys, isDuplicateCandidate, normalizeUrl, qualityScore, rejectReason, type DiscoveryMetadata, type RadioBrowserCandidate } from '../lib/radio-discovery';
 import { discoveredRadioStations } from '../lib/stations/discoveredRadioStations';
@@ -8,6 +10,7 @@ const API_BASE = process.env.RADIO_BROWSER_API_BASE ?? 'https://de1.api.radio-br
 const USER_AGENT = process.env.RADIO_DISCOVERY_USER_AGENT ?? 'WaveAtlasGlobalRadioDiscovery/1.0 (https://github.com/Omoluabi1003/WaveAtlas)';
 const DRY_RUN = process.env.RADIO_DISCOVERY_DRY_RUN !== 'false';
 const MAX_ADD = Math.min(50, Math.max(0, Number(process.env.RADIO_DISCOVERY_MAX_ADD ?? '50')));
+const MAX_PROBES = Math.min(150, Math.max(1, Number(process.env.RADIO_DISCOVERY_MAX_PROBES ?? '80')));
 const PAGES = Math.max(1, Number(process.env.RADIO_DISCOVERY_PAGES ?? '1'));
 const PAGE_SIZE = Math.min(500, Math.max(1, Number(process.env.RADIO_DISCOVERY_PAGE_SIZE ?? '100')));
 const MIN_BITRATE = Number(process.env.RADIO_DISCOVERY_MIN_BITRATE ?? '64');
@@ -16,11 +19,11 @@ const COUNTRIES_PER_RUN = Math.max(1, Number(process.env.RADIO_DISCOVERY_COUNTRI
 const SIGNAL_TIMEOUT_MS = Number(process.env.RADIO_DISCOVERY_SIGNAL_TIMEOUT_MS ?? '8000');
 
 type ReportItem = { name?: string; url?: string; sourceStationUuid?: string; reason?: string; qualityScore?: number };
-type Report = { generatedAt: string; dryRun: boolean; source: string; fetched: number; added: ReportItem[]; skipped: ReportItem[]; duplicate: ReportItem[]; failed: ReportItem[]; suspicious: ReportItem[] };
+type Report = { generatedAt: string; dryRun: boolean; source: string; countries: { code: string; name?: string; available?: number; covered: number }[]; fetched: number; added: ReportItem[]; skipped: ReportItem[]; duplicate: ReportItem[]; failed: ReportItem[]; suspicious: ReportItem[] };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function fetchCountryInventory() {
-  const res = await fetch(`${API_BASE}/countries`, { headers: { 'User-Agent': USER_AGENT } });
+  const res = await fetch(`${API_BASE}/countries`, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`Radio Browser countries returned ${res.status}`);
   return (await res.json() as { name?: string; iso_3166_1?: string; stationcount?: number }[])
     .filter((country) => country.iso_3166_1 && Number(country.stationcount ?? 0) > 0)
@@ -31,32 +34,20 @@ async function fetchCandidates(existingCountryCounts: Map<string, number>) {
   const countries = await fetchCountryInventory();
   const underCovered = countries
     .map((country) => ({ ...country, code: country.iso_3166_1!.toUpperCase(), covered: existingCountryCounts.get(country.iso_3166_1!.toUpperCase()) ?? 0 }))
-    .sort((a, b) => (a.covered / Math.max(1, Number(a.stationcount))) - (b.covered / Math.max(1, Number(b.stationcount))) || a.covered - b.covered)
-    .slice(0, COUNTRIES_PER_RUN);
+    .sort((a, b) => (a.covered / Math.max(1, Number(a.stationcount))) - (b.covered / Math.max(1, Number(b.stationcount))) || a.covered - b.covered);
+  const offset = countries.length ? (Math.floor(Date.now() / 86400000) * COUNTRIES_PER_RUN) % countries.length : 0;
+  const selectedCountries = [...underCovered.slice(offset), ...underCovered.slice(0, offset)].slice(0, COUNTRIES_PER_RUN);
   const out: RadioBrowserCandidate[] = [];
-  for (const country of underCovered) {
+  for (const country of selectedCountries) {
     for (let page = 0; page < PAGES; page++) {
       const query = new URLSearchParams({ countrycode: country.code, hidebroken: 'true', order: 'clicktrend', reverse: 'true', limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) });
-      const res = await fetch(`${API_BASE}/stations/search?${query}`, { headers: { 'User-Agent': USER_AGENT } });
+      const res = await fetch(`${API_BASE}/stations/search?${query}`, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(8000) });
       if (!res.ok) continue;
       out.push(...await res.json() as RadioBrowserCandidate[]);
       await sleep(Number(process.env.RADIO_DISCOVERY_RATE_LIMIT_MS ?? '650'));
     }
   }
-  return { candidates: out, countries: underCovered.map((country) => ({ code: country.code, name: country.name, available: country.stationcount, covered: country.covered })) };
-}
-
-async function validateStream(url: string) {
-  const headers = { 'User-Agent': USER_AGENT, Range: 'bytes=0-4095', Accept: '*/*' };
-  const signal = AbortSignal.timeout(SIGNAL_TIMEOUT_MS);
-  try {
-    const head = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': USER_AGENT }, redirect: 'follow', signal });
-    if (head.ok || [401, 403, 405].includes(head.status)) return { ok: head.status < 500, status: head.status, resolvedUrl: head.url };
-  } catch {}
-  try {
-    const get = await fetch(url, { method: 'GET', headers, redirect: 'follow', signal: AbortSignal.timeout(SIGNAL_TIMEOUT_MS) });
-    return { ok: get.ok || get.status === 206, status: get.status, resolvedUrl: get.url };
-  } catch (error) { return { ok: false, status: 0, error: error instanceof Error ? error.message : String(error) }; }
+  return { candidates: out, countries: selectedCountries.map((country) => ({ code: country.code, name: country.name, available: country.stationcount, covered: country.covered })) };
 }
 
 async function writeGenerated(stations: ReturnType<typeof candidateToStation>[], metadata: DiscoveryMetadata[]) {
@@ -74,19 +65,22 @@ async function writeReports(report: Report) {
 
 async function main() {
   const generatedAt = new Date().toISOString();
-  const report: Report = { generatedAt, dryRun: DRY_RUN, source: API_BASE, fetched: 0, added: [], skipped: [], duplicate: [], failed: [], suspicious: [] };
-  const keys = existingStationKeys([...ariyoSeedStations, ...campusAtlasStations, ...discoveredRadioStations]);
+  const report: Report = { generatedAt, dryRun: DRY_RUN, source: API_BASE, countries: [], fetched: 0, added: [], skipped: [], duplicate: [], failed: [], suspicious: [] };
+  const keys = existingStationKeys([...ariyoSeedStations, ...campusAtlasStations, ...discoveredRadioStations, ...fallbackStations]);
   const accepted = [...discoveredRadioStations];
-  const metadata: DiscoveryMetadata[] = JSON.parse(await readFile('lib/stations/discoveredRadioMetadata.json', 'utf8').catch(() => '[]'));
+  const metadata: DiscoveryMetadata[] = JSON.parse(await readFile('lib/stations/discoveredRadioMetadata.json', 'utf8'));
+  for (const item of metadata) keys.sourceUuids.add(item.sourceStationUuid);
+  if (![MAX_ADD, MAX_PROBES, PAGES, PAGE_SIZE, MIN_BITRATE, COUNTRIES_PER_RUN, SIGNAL_TIMEOUT_MS].every(Number.isFinite)) throw new Error('Invalid discovery configuration.');
   let candidates: RadioBrowserCandidate[] = [];
   try {
     const countryCounts = new Map<string, number>();
-    for (const station of [...ariyoSeedStations, ...campusAtlasStations, ...discoveredRadioStations]) {
+    for (const station of [...ariyoSeedStations, ...campusAtlasStations, ...discoveredRadioStations, ...fallbackStations]) {
       const code = station.country_code?.toUpperCase();
       if (code) countryCounts.set(code, (countryCounts.get(code) ?? 0) + 1);
     }
     const discovery = await fetchCandidates(countryCounts);
     candidates = discovery.candidates;
+    report.countries = discovery.countries;
   } catch (error) {
     report.failed.push({ reason: `candidate_fetch_failed: ${error instanceof Error ? error.message : String(error)}` });
     await writeReports(report);
@@ -95,15 +89,19 @@ async function main() {
     return;
   }
   report.fetched = candidates.length;
+  let probes = 0;
   for (const c of candidates) {
+    if (report.added.length >= MAX_ADD || probes >= MAX_PROBES) break;
     const item = { name: c.name, url: c.url_resolved || c.url, sourceStationUuid: c.stationuuid, qualityScore: qualityScore(c) };
     const reason = rejectReason(c, MIN_BITRATE, REQUIRE_GEO);
     if (reason) { (reason === 'suspicious_name' ? report.suspicious : report.skipped).push({ ...item, reason }); continue; }
     if (isDuplicateCandidate(c, keys)) { report.duplicate.push({ ...item, reason: 'duplicate_existing_station' }); continue; }
-    const signal = await validateStream(c.url_resolved || c.url || '');
-    if (!signal.ok) { report.failed.push({ ...item, reason: `stream_validation_failed_${signal.status}` }); continue; }
+    probes++;
+    const signal = await probeStream(c.url_resolved || c.url || '', SIGNAL_TIMEOUT_MS);
+    if (!signal.ok) { report.failed.push({ ...item, reason: `stream_validation_failed_${signal.reason}` }); continue; }
+    if (isDuplicateCandidate({ ...c, url_resolved: signal.resolvedUrl }, keys)) { report.duplicate.push({ ...item, reason: 'duplicate_resolved_stream' }); continue; }
     const station = candidateToStation({ ...c, url_resolved: signal.resolvedUrl || c.url_resolved }, generatedAt);
-    accepted.push(station); keys.urls.add(normalizeUrl(station.url_resolved || station.url)); keys.names.add(station.normalized_name || ''); keys.sourceUuids.add(c.stationuuid || station.station_uuid);
+    accepted.push(station); keys.urls.add(normalizeUrl(station.url_resolved || station.url)); keys.names.add(`${station.country_code}:${station.normalized_name || ''}`); keys.sourceUuids.add(c.stationuuid || station.station_uuid);
     metadata.push({ stationUuid: station.station_uuid, discoverySource: 'radio-browser', sourceStationUuid: c.stationuuid || '', verifiedAt: generatedAt, lastSignalCheck: generatedAt, qualityScore: qualityScore(c), resolvedUrl: signal.resolvedUrl });
     report.added.push(item);
     if (report.added.length >= MAX_ADD) break;
