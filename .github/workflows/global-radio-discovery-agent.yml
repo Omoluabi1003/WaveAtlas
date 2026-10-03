@@ -13,7 +13,7 @@ on:
         type: boolean
         default: true
   schedule:
-    - cron: '17 4 * * *'
+    - cron: '17 */8 * * *'
     - cron: '43 */8 * * *'
     - cron: '29 */8 * * *'
   pull_request:
@@ -82,7 +82,7 @@ jobs:
         run: bash scripts/publish-agent-report.sh chore/waveatlas-stream-health-agent lib/stations/stationHealthSnapshot.json reports/station-health-report.json reports/station-health-report.md
 
   discover:
-    if: (github.event_name == 'schedule' && github.event.schedule == '17 4 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","station-discovery"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 */8 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","station-discovery"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -98,10 +98,10 @@ jobs:
         run: npm run radio:discover
         env:
           RADIO_DISCOVERY_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
-          RADIO_DISCOVERY_MAX_ADD: '40'
-          RADIO_DISCOVERY_MAX_PROBES: '80'
-          RADIO_DISCOVERY_COUNTRIES_PER_RUN: '12'
-          RADIO_DISCOVERY_MIN_BITRATE: '64'
+          RADIO_DISCOVERY_MAX_ADD: '50'
+          RADIO_DISCOVERY_MAX_PROBES: '150'
+          RADIO_DISCOVERY_COUNTRIES_PER_RUN: '24'
+          RADIO_DISCOVERY_MIN_BITRATE: '0'
           RADIO_DISCOVERY_REQUIRE_GEO: 'false'
       - run: npm run radio:validate
       - run: npm run test:agents

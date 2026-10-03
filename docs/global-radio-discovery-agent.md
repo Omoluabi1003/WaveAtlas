@@ -4,11 +4,11 @@ Nine bounded background roles use the existing station catalogs: two stream work
 
 ## Station Discovery Agent
 
-`scripts/discover-radio-stations.ts` orders countries by coverage and rotates the daily scan across that inventory in the public Radio Browser directory. It deduplicates against seed, campus, fallback, and previously discovered stations and source UUID provenance. It also checks the resolved stream URL for duplicates; matching names in different countries remain eligible. URL path and query case are preserved. Accepted stations are appended to the complete existing generated catalog. Missing or malformed provenance stops the run rather than silently replacing it.
+`scripts/discover-radio-stations.ts` orders countries by coverage and rotates the eight-hour scan across that inventory in the public Radio Browser directory. It deduplicates against seed, campus, fallback, and previously discovered stations and source UUID provenance. It also checks the resolved stream URL for duplicates; matching names in different countries remain eligible. URL path and query case are preserved. Accepted stations are appended to the complete existing generated catalog. Missing or malformed provenance stops the run rather than silently replacing it.
 
 A GET probe must return sampled MPEG/AAC/Ogg/FLAC/WAV audio evidence. HTTP 401/403, HTML, empty responses, and unverified playlists do not qualify as working streams. A short sample is evidence of availability at that time, not a guarantee of uninterrupted playback, browser codec support, or CORS availability. Existing playlist stations are preserved. New playlist support needs a separate reviewed resolver.
 
-DNS addresses are checked and pinned to each connection; private/local addresses, embedded credentials, unsupported schemes, and unsafe redirects are blocked. Each probe samples at most 4096 bytes, cancels its response, follows at most four redirects, and has an eight-second deadline including DNS and body sampling. Daily runs inspect at most 80 candidate streams and append at most 40 verified additions.
+DNS addresses are checked and pinned to each connection; private/local addresses, embedded credentials, unsupported schemes, and unsafe redirects are blocked. Each probe samples at most 4096 bytes, cancels its response, follows at most four redirects, and has an eight-second deadline including DNS and body sampling. Scheduled runs inspect at most 150 candidate streams across 24 countries and append at most 50 verified additions. Low or unknown directory bitrates are eligible; actual sampled audio is still required.
 
 ```bash
 npm run radio:discover:dry
@@ -28,7 +28,7 @@ Fresh healthy evidence provides a small ranking boost. A single failed check has
 
 ## Schedule, review, and deployment
 
-`.github/workflows/global-radio-discovery-agent.yml` checks health every eight hours and discovers stations daily at 04:17 UTC. Seven operational roles run every eight hours at minute 29. Manual runs can choose all roles, either stream worker, or the operational group; manual dry-run is enabled by default. GitHub schedules can be delayed, and Actions must be enabled. Reports are published to scoped review branches with compare links in the job summary. This works when repository settings disallow Actions from creating pull requests. Reports also upload as artifacts. The built-in workflow token is used, with write permissions limited to the scheduled worker jobs.
+`.github/workflows/global-radio-discovery-agent.yml` checks health every eight hours and discovers stations every eight hours at minute 17 UTC. Seven operational roles run every eight hours at minute 29. Manual runs can choose all roles, either stream worker, or the operational group; manual dry-run is enabled by default. GitHub schedules can be delayed, and Actions must be enabled. Reports are published to scoped review branches with compare links in the job summary. This works when repository settings disallow Actions from creating pull requests. Reports also upload as artifacts. The built-in workflow token is used, with write permissions limited to the scheduled worker jobs.
 
 Stream workers validate tests, TypeScript, and a production build before publishing a scoped review branch. Operational workers validate tests and TypeScript and upload reports before publishing a scoped report review branch. Health evidence and station additions enter the live app only after their review PR is merged and the hosting deployment succeeds. Workers do not automatically merge or publish additions. The generated health snapshot starts empty: no activity, successful checks, or uptime figures are invented. `/api/agents/status` exposes measured health freshness and verified-addition counts, without starting scans.
 
@@ -39,9 +39,9 @@ Stream workers validate tests, TypeScript, and a production build before publish
 | `RADIO_DISCOVERY_DRY_RUN` | `true` | Disable explicitly to append verified additions. |
 | `RADIO_DISCOVERY_MAX_ADD` | `50` | Maximum additions, capped at 50. |
 | `RADIO_DISCOVERY_MAX_PROBES` | `80` | Stream probes per run, capped at 150. |
-| `RADIO_DISCOVERY_MIN_BITRATE` | `64` | Minimum candidate bitrate. |
+| `RADIO_DISCOVERY_MIN_BITRATE` | `0` | Minimum candidate bitrate. |
 | `RADIO_DISCOVERY_REQUIRE_GEO` | `false` | Require actual coordinates when enabled. |
-| `RADIO_DISCOVERY_COUNTRIES_PER_RUN` | `12` | Undercovered countries per run. |
+| `RADIO_DISCOVERY_COUNTRIES_PER_RUN` | `12` | Countries per run in coverage-ordered rotation (24 in the workflow). |
 | `RADIO_DISCOVERY_PAGES` | `1` | Directory pages per country. |
 | `RADIO_DISCOVERY_PAGE_SIZE` | `100` | Candidates per page, capped at 500. |
 | `STATION_HEALTH_LIMIT` | `120` | Unique streams per batch, capped at 250. |
