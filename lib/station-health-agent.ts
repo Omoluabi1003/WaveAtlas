@@ -111,9 +111,10 @@ export async function probeStationHealth(station: Station, options: StationHealt
   const fetcher = options.fetcher ?? fetch;
   const startedAt = Date.now();
   const { controller, timeout } = abortAfter(timeoutMs);
+  let response: Response | undefined;
 
   try {
-    const response = await fetcher(url, {
+    response = await fetcher(url, {
       method: 'GET',
       signal: controller.signal,
       headers: {
@@ -188,6 +189,8 @@ export async function probeStationHealth(station: Station, options: StationHealt
       healthMemoryDelta,
     };
   } finally {
+    controller.abort();
+    await response?.body?.cancel().catch(() => undefined);
     clearTimeout(timeout);
   }
 }

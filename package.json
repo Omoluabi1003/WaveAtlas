@@ -16,7 +16,9 @@
     "test:geo-selection": "npx tsx tests/geo-selection-engine.regression.ts",
     "test:marquee": "npx tsx tests/marquee-motion.regression.ts",
     "test:premier": "npx tsx tests/premier-fm-candidate.regression.ts",
-    "test:station-links": "npx tsx tests/station-deep-link.regression.ts"
+    "test:station-links": "npx tsx tests/station-deep-link.regression.ts",
+    "radio:health": "node --import tsx scripts/check-station-health.ts",
+    "test:agents": "node --import tsx tests/background-agents.regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",

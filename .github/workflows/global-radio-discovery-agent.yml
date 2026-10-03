@@ -1,13 +1,53 @@
-name: Global Radio Discovery Agent
+name: WaveAtlas Background Agents
 
 on:
   workflow_dispatch:
+    inputs:
+      agent:
+        description: Agent to run
+        type: choice
+        options: [both, stream-health, station-discovery]
+        default: both
+      dry_run:
+        description: Produce reports without proposing catalog changes
+        type: boolean
+        default: true
   schedule:
     - cron: '17 4 * * *'
+    - cron: '43 */8 * * *'
+  pull_request:
+    paths: ['lib/**', 'scripts/**', 'tests/**', 'app/api/agents/**', 'package*.json', '.github/workflows/global-radio-discovery-agent.yml']
+  push:
+    branches: [main]
+    paths: ['lib/**', 'scripts/**', 'tests/**', 'app/api/agents/**', 'package*.json', '.github/workflows/global-radio-discovery-agent.yml']
+
+permissions:
+  contents: read
+concurrency:
+  group: waveatlas-agents-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
 
 jobs:
-  discover:
+  verify:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:agents
+      - run: npm run radio:validate
+      - run: npm run typecheck
+      - run: npm run build
+
+  health:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.agent != 'station-discovery')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
       pull-requests: write
@@ -18,23 +58,76 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Discovery dry run
-        run: npm run radio:discover:dry
-      - name: Discovery write run
+      - name: Check a rotating catalog batch
+        run: npm run radio:health
+        env:
+          STATION_HEALTH_LIMIT: '120'
+          STATION_HEALTH_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+      - run: npm run test:agents
+      - run: npm run typecheck
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: station-health-report
+          path: reports/station-health-report.*
+          retention-days: 14
+      - uses: peter-evans/create-pull-request@v6
+        if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
+        with:
+          commit-message: 'chore: refresh measured station health'
+          title: 'chore: review WaveAtlas station health evidence'
+          body-path: reports/station-health-report.md
+          branch: chore/waveatlas-stream-health-agent
+          delete-branch: true
+          add-paths: |
+            lib/stations/stationHealthSnapshot.json
+            reports/station-health-report.json
+            reports/station-health-report.md
+
+  discover:
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 4 * * *') || (github.event_name == 'workflow_dispatch' && inputs.agent != 'stream-health')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Discover and sample verified audio streams
         run: npm run radio:discover
         env:
-          RADIO_DISCOVERY_DRY_RUN: 'false'
+          RADIO_DISCOVERY_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
           RADIO_DISCOVERY_MAX_ADD: '40'
+          RADIO_DISCOVERY_MAX_PROBES: '80'
           RADIO_DISCOVERY_COUNTRIES_PER_RUN: '12'
           RADIO_DISCOVERY_MIN_BITRATE: '64'
           RADIO_DISCOVERY_REQUIRE_GEO: 'false'
       - run: npm run radio:validate
+      - run: npm run test:agents
       - run: npm run typecheck
-      - uses: peter-evans/create-pull-request@v6
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          commit-message: 'chore: update discovered radio stations'
-          title: 'chore: update discovered radio stations'
+          name: radio-discovery-report
+          path: reports/radio-discovery-report.*
+          retention-days: 14
+      - uses: peter-evans/create-pull-request@v6
+        if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
+        with:
+          commit-message: 'chore: append verified discovered radio stations'
+          title: 'chore: review verified WaveAtlas station additions'
           body-path: reports/radio-discovery-report.md
-          labels: station-steward,automated-discovery
           branch: chore/global-radio-discovery-agent
           delete-branch: true
+          add-paths: |
+            lib/stations/discoveredRadioStations.ts
+            lib/stations/discoveredRadioMetadata.json
+            reports/radio-discovery-report.json
+            reports/radio-discovery-report.md

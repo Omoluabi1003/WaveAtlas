@@ -1,3 +1,4 @@
+import { scheduledHealthBoost } from './agents/station-health-policy';
 import { isVerifiedNigerianStation, type Station } from '@/lib/stations';
 
 export const STATION_HEALTH_STORAGE_KEYS = {
@@ -94,10 +95,10 @@ export function queueCuratedStationRetest(station: Station, now = Date.now()) {
 
 export function healthMemoryBoost(station: Station, now = Date.now()) {
   const record = readStationHealthMemory(now)[stationHealthKey(station)];
-  if (!record) return 0;
+  if (!record) return scheduledHealthBoost(station, now);
   const recentSuccess = record.lastSuccessAt && now - record.lastSuccessAt < STATION_HEALTH_TTL_MS;
   const verifiedNigerian = isVerifiedNigerianStation(station);
   const recentFailure = Boolean(record.degradedUntil && now < record.degradedUntil);
   const penalty = record.failureKind === 'soft' && verifiedNigerian ? Math.min(12, 4 + record.failures * 2) : Math.min(85, 35 + record.failures * 15);
-  return (recentSuccess ? Math.min(30, 12 + record.successes * 4) : 0) - (recentFailure ? penalty : 0);
+  return scheduledHealthBoost(station, now) + (recentSuccess ? Math.min(30, 12 + record.successes * 4) : 0) - (recentFailure ? penalty : 0);
 }

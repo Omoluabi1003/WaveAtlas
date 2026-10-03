@@ -15,7 +15,7 @@ export function slugifyStation(value: string) {
   return normalizeStationName(value).replace(/\s+/g, '-').replace(/^-|-$/g, '') || 'radio-station';
 }
 export function normalizeUrl(url = '') {
-  try { const parsed = new URL(url.trim()); parsed.hash = ''; return parsed.toString().replace(/\/$/, '').toLowerCase(); } catch { return ''; }
+  try { const parsed = new URL(url.trim()); parsed.hash = ''; return parsed.toString().replace(/\/$/, ''); } catch { return ''; }
 }
 export function hasValidCoordinates(lat?: number, lon?: number) {
   return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat!) <= 90 && Math.abs(lon!) <= 180 && !(lat === 0 && lon === 0);
@@ -37,7 +37,8 @@ export function rejectReason(c: RadioBrowserCandidate, minimumBitrate = 128, req
   const url = c.url_resolved || c.url || '';
   if (!name) return 'missing_name';
   if (SPAM.test(name)) return 'suspicious_name';
-  if (!normalizeUrl(url)) return 'missing_or_invalid_stream_url';
+  if (!normalizeUrl(url) || !/^https?:\/\//i.test(url)) return 'missing_or_invalid_stream_url';
+  if (!/^[A-Z]{2}$/i.test(c.countrycode || '')) return 'missing_country_code';
   if (c.lastcheckok !== 1) return 'lastcheck_not_ok';
   if ((c.bitrate ?? 0) < minimumBitrate) return 'low_bitrate';
   if (requireGeo && !hasValidCoordinates(c.geo_lat, c.geo_long)) return 'missing_geo';
@@ -47,12 +48,12 @@ export function rejectReason(c: RadioBrowserCandidate, minimumBitrate = 128, req
 export function existingStationKeys(stations: Station[]) {
   return {
     urls: new Set(stations.map((s) => normalizeUrl(s.url_resolved || s.url)).filter(Boolean)),
-    names: new Set(stations.map((s) => normalizeStationName(s.name)).filter(Boolean)),
+    names: new Set(stations.map((s) => `${s.country_code.toUpperCase()}:${normalizeStationName(s.name)}`).filter(Boolean)),
     sourceUuids: new Set(stations.map((s) => s.station_uuid).filter(Boolean)),
   };
 }
 export function isDuplicateCandidate(c: RadioBrowserCandidate, keys: ReturnType<typeof existingStationKeys>) {
-  return keys.urls.has(normalizeUrl(c.url_resolved || c.url)) || keys.names.has(normalizeStationName(c.name || '')) || (!!c.stationuuid && keys.sourceUuids.has(c.stationuuid));
+  return keys.urls.has(normalizeUrl(c.url_resolved || c.url)) || keys.names.has(`${(c.countrycode || '').toUpperCase()}:${normalizeStationName(c.name || '')}`) || (!!c.stationuuid && keys.sourceUuids.has(c.stationuuid));
 }
 export function candidateToStation(c: RadioBrowserCandidate, verifiedAt: string): Station {
   const name = (c.name || 'Unknown station').replace(/[\s_-]+/g, ' ').trim();
