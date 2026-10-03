@@ -8,7 +8,7 @@ function formatDate(value?: string) {
 }
 
 function cleanSummary(value?: string) {
-  if (!value) return "A developing story from this destination, selected from open RSS and GDELT signals.";
+  if (!value) return "Open the publisher’s article for the full report; no summary was supplied.";
   return value.replace(/\s+/g, " ").trim();
 }
 
