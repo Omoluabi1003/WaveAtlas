@@ -1,6 +1,6 @@
 # WaveAtlas background agents
 
-Two bounded background workers use the existing station catalogs. They require no AI provider, database, paid API key, or visitor access token. They run outside listener requests and never delete, retire, or disable existing stations.
+Nine bounded background roles use the existing station catalogs: two stream workers and seven operational roles. They require no AI provider, database, paid API key, or visitor access token. They run outside listener requests and never delete, retire, or disable existing stations.
 
 ## Station Discovery Agent
 
@@ -28,9 +28,9 @@ Fresh healthy evidence provides a small ranking boost. A single failed check has
 
 ## Schedule, review, and deployment
 
-`.github/workflows/global-radio-discovery-agent.yml` checks health every eight hours and discovers stations daily at 04:17 UTC. Manual runs can choose either worker or both; manual dry-run is enabled by default. GitHub schedules can be delayed, and Actions must be enabled. The repository's existing Actions permission to create pull requests must be enabled for review proposals; reports still upload if proposal creation fails. The built-in workflow token is used, with write permissions limited to the scheduled worker jobs.
+`.github/workflows/global-radio-discovery-agent.yml` checks health every eight hours and discovers stations daily at 04:17 UTC. Seven operational roles run every eight hours at minute 29. Manual runs can choose all roles, either stream worker, or the operational group; manual dry-run is enabled by default. GitHub schedules can be delayed, and Actions must be enabled. The repository's existing Actions permission to create pull requests must be enabled for review proposals; reports still upload if proposal creation fails. The built-in workflow token is used, with write permissions limited to the scheduled worker jobs.
 
-Each worker validates tests, TypeScript, and a production build before opening a scoped review PR. Health evidence and station additions enter the live app only after their review PR is merged and the hosting deployment succeeds. Workers do not automatically merge or publish additions. The generated health snapshot starts empty: no activity, successful checks, or uptime figures are invented. `/api/agents/status` exposes measured health freshness and verified-addition counts, without starting scans.
+Stream workers validate tests, TypeScript, and a production build before opening a scoped review PR. Operational workers validate tests and TypeScript and upload reports before proposing report updates. Health evidence and station additions enter the live app only after their review PR is merged and the hosting deployment succeeds. Workers do not automatically merge or publish additions. The generated health snapshot starts empty: no activity, successful checks, or uptime figures are invented. `/api/agents/status` exposes measured health freshness and verified-addition counts, without starting scans.
 
 ## Configuration
 
@@ -48,3 +48,23 @@ Each worker validates tests, TypeScript, and a production build before opening a
 | `STATION_HEALTH_DRY_RUN` | `false` | Reports only when true. |
 
 The legacy Supabase Station Steward remains separate and is neither invoked nor given new privileges by these workers.
+
+## Seven operational roles
+
+These are deterministic, evidence-based workers adapted from the ETL GIS AgentOS roles. They do not call a language model, invent market research, or claim to produce income. All run sequentially in one scheduled job, with independent failure handling and an executive summary. They do not modify the station catalog.
+
+| Role | WaveAtlas task |
+| --- | --- |
+| Geography Quality | Inspect resolved precision and geography warnings without changing coordinates. |
+| Catalog Analytics | Count bundled country coverage and fresh, stale, or missing audio evidence. |
+| Project Intelligence | Produce a prioritized backlog with remaining issue counts. |
+| Partnership Opportunities | Prepare broadcaster partnership drafts for bundled catalog gaps. No unverified contacts or outreach. |
+| Growth Intelligence | Draft station spotlights only for streams with fresh audio evidence. |
+| Operations Quality | Flag repeated stream references, invalid metadata, and missing schedule configuration. |
+| Executive Intelligence | Aggregate completed roles, failures, and next decisions. |
+
+`npm run agents:operate` writes JSON and Markdown reports and a compact status snapshot. `OPERATIONAL_AGENTS_DRY_RUN=true` writes reports only. Reports are uploaded as `operational-agents-report` workflow artifacts for 30 days even if creating a review PR is unavailable. Updated public status is deployed after the report PR is merged; it represents the last released report, not a live process heartbeat. Reports older than 24 hours show as stale. A failed role does not prevent the other roles from finishing, but causes the job to fail after reports are saved.
+
+The deployment commit tagged `[agents-bootstrap]` starts all worker jobs once on push to main. Normal pushes run verification only. Thereafter schedules operate without this chat or an open browser. GitHub-hosted job history and artifacts are the current execution record; `/api/agents/status` shows deployed snapshots.
+
+Coverage analysis describes the bundled catalog, not all stations available through live directory search. Audience, revenue, payment, and external lead data are unavailable. Growth and opportunity results remain drafts for human review. The News Agent and Signal Review remain request-driven; the legacy database Station Steward remains separate because it can retire records and requires Supabase configuration. The seven operational roles plus health and discovery cover the deployment requested here without enabling those database writes.

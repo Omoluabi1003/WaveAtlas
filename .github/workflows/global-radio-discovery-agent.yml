@@ -6,8 +6,8 @@ on:
       agent:
         description: Agent to run
         type: choice
-        options: [both, stream-health, station-discovery]
-        default: both
+        options: [all, both, stream-health, station-discovery, operations]
+        default: all
       dry_run:
         description: Produce reports without proposing catalog changes
         type: boolean
@@ -15,6 +15,7 @@ on:
   schedule:
     - cron: '17 4 * * *'
     - cron: '43 */8 * * *'
+    - cron: '29 */8 * * *'
   pull_request:
     paths: ['lib/**', 'scripts/**', 'tests/**', 'app/api/agents/**', 'app/api/brief/**', 'components/NewspaperBrief.tsx', 'components/NewspaperHeadline.tsx', 'package*.json', '.github/workflows/global-radio-discovery-agent.yml']
   push:
@@ -40,13 +41,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:agents
+      - run: npm run test:operations
       - run: npm run test:brief
       - run: npm run radio:validate
       - run: npm run typecheck
       - run: npm run build
 
   health:
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.agent != 'station-discovery')
+    if: (github.event_name == 'schedule' && github.event.schedule != '29 */8 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","stream-health"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -65,6 +67,7 @@ jobs:
           STATION_HEALTH_LIMIT: '120'
           STATION_HEALTH_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
       - run: npm run test:agents
+      - run: npm run test:operations
       - run: npm run typecheck
       - run: npm run build
       - uses: actions/upload-artifact@v4
@@ -87,7 +90,7 @@ jobs:
             reports/station-health-report.md
 
   discover:
-    if: (github.event_name == 'schedule' && github.event.schedule == '17 4 * * *') || (github.event_name == 'workflow_dispatch' && inputs.agent != 'stream-health')
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 4 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","station-discovery"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -111,6 +114,7 @@ jobs:
           RADIO_DISCOVERY_REQUIRE_GEO: 'false'
       - run: npm run radio:validate
       - run: npm run test:agents
+      - run: npm run test:operations
       - run: npm run typecheck
       - run: npm run build
       - uses: actions/upload-artifact@v4
@@ -132,3 +136,41 @@ jobs:
             lib/stations/discoveredRadioMetadata.json
             reports/radio-discovery-report.json
             reports/radio-discovery-report.md
+
+  operations:
+    if: (github.event_name == 'schedule' && github.event.schedule == '29 */8 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","operations"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:operations
+      - run: npm run agents:operate
+        env:
+          OPERATIONAL_AGENTS_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+      - run: npm run typecheck
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: operational-agents-report
+          path: reports/operational-agents.*
+          retention-days: 30
+      - uses: peter-evans/create-pull-request@v6
+        if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
+        with:
+          commit-message: 'chore: refresh WaveAtlas operational reports'
+          title: 'chore: review WaveAtlas operational findings and drafts'
+          body: 'Seven operational roles completed catalog audits and prepared advisory drafts. Review the report artifact before acting on recommendations. No stations, campaigns, or financial records are changed.'
+          branch: chore/waveatlas-operational-agents
+          delete-branch: true
+          add-paths: |
+            lib/agents/operational-status.json
+            reports/operational-agents.json
+            reports/operational-agents.md
