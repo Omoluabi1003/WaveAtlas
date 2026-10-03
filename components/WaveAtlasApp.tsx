@@ -1,5 +1,7 @@
 "use client";
 
+import { bindPlaybackMediaSession } from "@/lib/playback-media-session";
+
 import "maplibre-gl/dist/maplibre-gl.css";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -1684,6 +1686,16 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     element.volume = 1;
     element.muted = false;
     audio.current = element;
+    const unbindMediaSession = bindPlaybackMediaSession({
+      read: () => usePlayer.getState(),
+      subscribe: (refresh) => usePlayer.subscribe(refresh),
+      play: () => { const state = usePlayer.getState(); if (state.current && state.status !== "playing") state.toggle(); },
+      pause: () => { element.pause(); usePlayer.getState().setStatus("paused"); },
+      session: "mediaSession" in navigator ? navigator.mediaSession : undefined,
+      Metadata: typeof MediaMetadata !== "undefined" ? MediaMetadata : undefined,
+      document,
+      audio: element,
+    });
     const onError = () => {
       const failed = usePlayer.getState().current;
       if (failed) skipToNextCandidate(failed, element.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ? "unsupported_media" : "audio_error", element.error?.message);
@@ -1691,6 +1703,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     element.addEventListener("error", onError);
 
     return () => {
+      unbindMediaSession();
       element.removeEventListener("error", onError);
       element.pause();
       element.removeAttribute("src");
