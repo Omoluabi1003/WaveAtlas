@@ -32,7 +32,7 @@ async function main() {
       { title: 'Nigeria parliament demands a fresh start', url: 'https://publisher.example/general', domain: 'publisher.example' },
       { title: 'Toronto football team reaches final', url: 'https://publisher.example/toronto', domain: 'publisher.example' },
     ] }));
-    return new Response(`<rss><channel>${fixtures.map(([title, id]) => `<item><title>${title}</title><link>https://publisher.example/${id}</link><description>${title}</description></item>`).join('')}</channel></rss>`);
+    return new Response(`<rss><channel>${fixtures.map(([title, id]) => `<item><title>${title}</title><link>https://publisher.example/${id}</link><description>${title}</description><media:thumbnail url="https://images.publisher.example/${id}.jpg" /></item>`).join('')}</channel></rss>`);
   }) as typeof fetch;
   try {
     const sections: Record<string, string[]> = {};
@@ -44,6 +44,7 @@ async function main() {
     assert.deepEqual(sections.culture, [fixtures[1][0]]);
     assert.deepEqual(sections.sports, [fixtures[2][0]]);
     assert.deepEqual(sections['radio-signal'], [fixtures[3][0]]);
+    assert.equal((await getBriefHeadlines({ ...place, category: 'sports' }))[0].imageUrl, 'https://images.publisher.example/sports.jpg');
     global.fetch = (async () => { throw new Error('Provider unavailable'); }) as typeof fetch;
     assert.deepEqual(await getBriefHeadlines({ ...place, city: 'Osogbo', category: 'sports' }), []);
     assert.deepEqual((await getBriefHeadlines({ ...place, category: 'sports' })).map((item) => item.title), sections.sports);
