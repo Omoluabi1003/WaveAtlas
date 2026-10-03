@@ -53,7 +53,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -76,18 +75,9 @@ jobs:
           name: station-health-report
           path: reports/station-health-report.*
           retention-days: 14
-      - uses: peter-evans/create-pull-request@v6
+      - name: Publish health review branch
         if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
-        with:
-          commit-message: 'chore: refresh measured station health'
-          title: 'chore: review WaveAtlas station health evidence'
-          body-path: reports/station-health-report.md
-          branch: chore/waveatlas-stream-health-agent
-          delete-branch: true
-          add-paths: |
-            lib/stations/stationHealthSnapshot.json
-            reports/station-health-report.json
-            reports/station-health-report.md
+        run: bash scripts/publish-agent-report.sh chore/waveatlas-stream-health-agent lib/stations/stationHealthSnapshot.json reports/station-health-report.json reports/station-health-report.md
 
   discover:
     if: (github.event_name == 'schedule' && github.event.schedule == '17 4 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","station-discovery"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
@@ -95,7 +85,6 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -123,19 +112,9 @@ jobs:
           name: radio-discovery-report
           path: reports/radio-discovery-report.*
           retention-days: 14
-      - uses: peter-evans/create-pull-request@v6
+      - name: Publish discovery review branch
         if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
-        with:
-          commit-message: 'chore: append verified discovered radio stations'
-          title: 'chore: review verified WaveAtlas station additions'
-          body-path: reports/radio-discovery-report.md
-          branch: chore/global-radio-discovery-agent
-          delete-branch: true
-          add-paths: |
-            lib/stations/discoveredRadioStations.ts
-            lib/stations/discoveredRadioMetadata.json
-            reports/radio-discovery-report.json
-            reports/radio-discovery-report.md
+        run: bash scripts/publish-agent-report.sh chore/global-radio-discovery-agent lib/stations/discoveredRadioStations.ts lib/stations/discoveredRadioMetadata.json reports/radio-discovery-report.json reports/radio-discovery-report.md
 
   operations:
     if: (github.event_name == 'schedule' && github.event.schedule == '29 */8 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","operations"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
@@ -143,7 +122,6 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -162,15 +140,6 @@ jobs:
           name: operational-agents-report
           path: reports/operational-agents.*
           retention-days: 30
-      - uses: peter-evans/create-pull-request@v6
+      - name: Publish operational review branch
         if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
-        with:
-          commit-message: 'chore: refresh WaveAtlas operational reports'
-          title: 'chore: review WaveAtlas operational findings and drafts'
-          body: 'Seven operational roles completed catalog audits and prepared advisory drafts. Review the report artifact before acting on recommendations. No stations, campaigns, or financial records are changed.'
-          branch: chore/waveatlas-operational-agents
-          delete-branch: true
-          add-paths: |
-            lib/agents/operational-status.json
-            reports/operational-agents.json
-            reports/operational-agents.md
+        run: bash scripts/publish-agent-report.sh chore/waveatlas-operational-agents lib/agents/operational-status.json reports/operational-agents.json reports/operational-agents.md
