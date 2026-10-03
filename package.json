@@ -19,7 +19,7 @@
     "test:station-links": "npx tsx tests/station-deep-link.regression.ts",
     "radio:health": "node --import tsx scripts/check-station-health.ts",
     "test:agents": "node --import tsx tests/background-agents.regression.ts",
-    "test:brief": "node --import tsx tests/brief-editorial.regression.ts && node --import tsx tests/brief-tabs.regression.ts",
+    "test:brief": "node --import tsx tests/editorial-image.regression.ts && node --import tsx tests/brief-editorial.regression.ts && node --import tsx tests/brief-tabs.regression.ts",
     "agents:operate": "node --import tsx scripts/run-operational-agents.ts",
     "test:operations": "node --import tsx tests/operational-agents.regression.ts",
     "test:media-session": "node --import tsx tests/playback-media-session.regression.ts",

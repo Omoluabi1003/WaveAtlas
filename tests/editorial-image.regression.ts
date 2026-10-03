@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { editorialImageUrl, rssEditorialImage } from '../lib/editorial-image';
+assert.equal(editorialImageUrl('https://cdn.publisher.com/photo.jpg?a=1&amp;b=2'), 'https://cdn.publisher.com/photo.jpg?a=1&b=2');
+for (const url of ['http://publisher.com/photo.jpg', 'javascript:alert(1)', 'https://user:pass@publisher.com/x', 'https://127.0.0.1/x', 'https://[::1]/x', 'https://localhost/x', 'https://intranet.local/x', 'https://publisher.com:8080/x', 'https://publisher.com/' + 'x'.repeat(2100)]) assert.equal(editorialImageUrl(url), undefined, url);
+assert.equal(rssEditorialImage('<media:thumbnail url="https://cdn.publisher.com/one.jpg" />'), 'https://cdn.publisher.com/one.jpg');
+assert.equal(rssEditorialImage('<media:content medium="image" url="https://cdn.publisher.com/asset?id=1" />'), 'https://cdn.publisher.com/asset?id=1');
+assert.equal(rssEditorialImage('<enclosure type="image/jpeg" url="https://cdn.publisher.com/photo.jpg" />'), 'https://cdn.publisher.com/photo.jpg');
+assert.equal(rssEditorialImage('<enclosure type="audio/mpeg" url="https://cdn.publisher.com/show.mp3" />'), undefined);
+assert.equal(rssEditorialImage('<media:content medium="video" url="https://cdn.publisher.com/video.mp4" />'), undefined);
+assert.equal(rssEditorialImage('<media:content url="https://cdn.publisher.com/video.mp4" />'), undefined);
+assert.equal(rssEditorialImage('<media:thumbnail url="https://127.0.0.1/x" /><media:thumbnail url="https://cdn.publisher.com/valid.jpg" />'), 'https://cdn.publisher.com/valid.jpg');
+console.log('Editorial images: publisher thumbnails, enclosure types, missing images, HTTPS boundaries and video exclusion passed.');

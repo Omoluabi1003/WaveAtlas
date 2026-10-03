@@ -1,3 +1,4 @@
+import { editorialImageUrl, rssEditorialImage } from './editorial-image';
 import { headlineMatchesBrief } from './brief-editorial';
 import { getNewsSources, type NewsFeed, type NewsFeedScope } from "@/lib/news-source-registry";
 
@@ -7,6 +8,7 @@ export type Headline = {
   url: string;
   summary?: string;
   publishedAt?: string;
+  imageUrl?: string;
   city?: string;
   country?: string;
   country_code?: string;
@@ -43,6 +45,7 @@ function parseRss(xml: string, feed: NewsFeed, context: BriefRequest): Headline[
       source: feed.name,
       url: link,
       summary: tagValue(item, "description") || tagValue(item, "summary"),
+      imageUrl: rssEditorialImage(item),
       publishedAt: tagValue(item, "pubDate") || tagValue(item, "published") || tagValue(item, "updated"),
       city: context.city,
       country: context.country,
@@ -68,6 +71,7 @@ async function fetchGdelt(query: string, context: BriefRequest, score: number): 
     url: article.url || "",
     summary: undefined,
     publishedAt: article.seendate,
+    imageUrl: editorialImageUrl(article.socialimage),
     city: context.city,
     country: context.country,
     country_code: context.country_code,

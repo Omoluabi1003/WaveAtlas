@@ -13,6 +13,7 @@ import { BackgroundRotationProvider } from "@/components/background-rotation-pro
 import { ServiceWorkerDiagnostics } from "@/components/ServiceWorkerDiagnostics";
 import { fontBody, fontDisplay, fontMono } from "@/app/fonts";
 import "./globals.css";
+import "./fonts.css";
 
 export const viewport: Viewport = {
   width: "device-width",
