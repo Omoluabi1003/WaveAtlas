@@ -13,7 +13,7 @@ const MAX_ADD = Math.min(50, Math.max(0, Number(process.env.RADIO_DISCOVERY_MAX_
 const MAX_PROBES = Math.min(150, Math.max(1, Number(process.env.RADIO_DISCOVERY_MAX_PROBES ?? '80')));
 const PAGES = Math.max(1, Number(process.env.RADIO_DISCOVERY_PAGES ?? '1'));
 const PAGE_SIZE = Math.min(500, Math.max(1, Number(process.env.RADIO_DISCOVERY_PAGE_SIZE ?? '100')));
-const MIN_BITRATE = Number(process.env.RADIO_DISCOVERY_MIN_BITRATE ?? '64');
+const MIN_BITRATE = Number(process.env.RADIO_DISCOVERY_MIN_BITRATE ?? '0');
 const REQUIRE_GEO = process.env.RADIO_DISCOVERY_REQUIRE_GEO === 'true';
 const COUNTRIES_PER_RUN = Math.max(1, Number(process.env.RADIO_DISCOVERY_COUNTRIES_PER_RUN ?? '12'));
 const SIGNAL_TIMEOUT_MS = Number(process.env.RADIO_DISCOVERY_SIGNAL_TIMEOUT_MS ?? '8000');
@@ -35,7 +35,7 @@ async function fetchCandidates(existingCountryCounts: Map<string, number>) {
   const underCovered = countries
     .map((country) => ({ ...country, code: country.iso_3166_1!.toUpperCase(), covered: existingCountryCounts.get(country.iso_3166_1!.toUpperCase()) ?? 0 }))
     .sort((a, b) => (a.covered / Math.max(1, Number(a.stationcount))) - (b.covered / Math.max(1, Number(b.stationcount))) || a.covered - b.covered);
-  const offset = countries.length ? (Math.floor(Date.now() / 86400000) * COUNTRIES_PER_RUN) % countries.length : 0;
+  const offset = countries.length ? (Math.floor(Date.now() / (8 * 60 * 60 * 1000)) * COUNTRIES_PER_RUN) % countries.length : 0;
   const selectedCountries = [...underCovered.slice(offset), ...underCovered.slice(0, offset)].slice(0, COUNTRIES_PER_RUN);
   const out: RadioBrowserCandidate[] = [];
   for (const country of selectedCountries) {
