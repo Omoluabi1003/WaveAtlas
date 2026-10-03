@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Newspaper, Radio, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NewspaperHeadline } from "@/components/NewspaperHeadline";
-import type { Headline } from "@/lib/news-agent";
+import type { BriefCategory, Headline } from "@/lib/news-agent";
 import { stationContinent } from "@/lib/discovery/station-picker";
 import { stationGenre } from "@/lib/discovery/history";
 import { localTimeForStation } from "@/lib/smart-time-copy";
@@ -12,7 +12,7 @@ import { flagFor, type Station, type StationInventoryStats } from "@/lib/station
 import { formatEditorialNumber, guardEditorialCopy } from "@/lib/editorial-guardrail";
 import type { WorldContext } from "@/lib/world-engine/types";
 
-const CLIENT_CACHE_KEY = "waveatlas_daily_cache";
+const CLIENT_CACHE_KEY = "waveatlas_daily_cache_v2";
 const CLIENT_CACHE_TTL_MS = 900_000;
 const tabs = ["Front Page", "Local Pulse", "Culture", "Sports", "Radio Signal"] as const;
 const tabCategory = { "Front Page": "front-page", "Local Pulse": "local-pulse", Culture: "culture", Sports: "sports", "Radio Signal": "radio-signal" } as const;
@@ -29,14 +29,14 @@ function flagLabel(station: Station) {
 
 function stationBriefKey(station: Station) {
   const place = destination(station);
-  return [place.city, place.country, station.country_code || ""].map((part) => part.trim().toLowerCase()).join("|");
+  return [place.city, place.country, station.country_code || "", station.station_uuid || station.id, station.name, station.language || ""].map((part) => part.trim().toLowerCase()).join("|");
 }
 
 function readCache(key: string) {
   try {
     const cache = JSON.parse(window.localStorage.getItem(CLIENT_CACHE_KEY) || "{}") as CachedBrief;
     const hit = cache[key];
-    return hit && hit.expires > Date.now() ? hit.headlines : null;
+    return hit && hit.expires > Date.now() && Array.isArray(hit.headlines) ? hit.headlines : null;
   } catch {
     return null;
   }
@@ -138,11 +138,15 @@ function DailyPassportStrip({ station, stations = [], inventoryStats, enabled }:
 export function NewspaperBrief({ station, stations = [], inventoryStats, open, onClose }: { station: Station; stations?: Station[]; inventoryStats?: StationInventoryStats; open: boolean; onClose: () => void }) {
   const [headlines, setHeadlines] = useState<Headline[]>([]);
   const [loading, setLoading] = useState(false);
+  const [resultKey, setResultKey] = useState("");
   const [error, setError] = useState("");
   const [tab, setTab] = useState<(typeof tabs)[number]>("Front Page");
   const [editionClock] = useState(() => new Date());
   const sheetRef = useRef<HTMLElement | null>(null);
   const key = useMemo(() => `${stationBriefKey(station)}|${tabCategory[tab]}`, [station, tab]);
+  const currentHeadlines = resultKey === key ? headlines : [];
+  const currentError = resultKey === key ? error : "";
+  const isLoading = loading || resultKey !== key;
   const place = destination(station);
   const editionTitle = `${place.city.toUpperCase()} DAILY`;
   const localDate = useMemo(() => new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(editionClock), [editionClock]);
@@ -153,9 +157,11 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
     if (!open) return;
     const cached = readCache(key);
     const controller = new AbortController();
+    let settled = false;
     window.setTimeout(() => {
-      if (controller.signal.aborted) return;
-      if (cached) setHeadlines(cached);
+      if (controller.signal.aborted || settled) return;
+      setResultKey(key);
+      setHeadlines(cached || []);
       setLoading(!cached);
       setError("");
     }, 0);
@@ -163,15 +169,23 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
     fetch(`/api/brief?${params}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("WaveAtlas Daily unavailable");
-        return (await res.json()) as { headlines: Headline[] };
+        return (await res.json()) as { headlines: Headline[]; category: BriefCategory };
       })
       .then((data) => {
-        setHeadlines(data.headlines || []);
-        writeCache(key, data.headlines || []);
+        if (controller.signal.aborted) return;
+        if (data.category !== tabCategory[tab] || !Array.isArray(data.headlines)) throw new Error("Unexpected brief section");
+        settled = true;
+        setResultKey(key);
+        setHeadlines(data.headlines);
+        setError("");
+        writeCache(key, data.headlines);
       })
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        setError("The presses are quiet for this destination right now. Radio keeps playing while we look for fresher local signals.");
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        settled = true;
+        setResultKey(key);
+        setHeadlines(cached || []);
+        setError("This section could not be refreshed. Radio keeps playing while we look for relevant stories.");
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -209,14 +223,17 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
 
             <DailyPassportStrip station={station} stations={stations} inventoryStats={inventoryStats} enabled={open} />
 
-            <nav className="my-3 flex max-w-full flex-wrap gap-2 overflow-x-hidden border-y border-slate-900/25 py-2 lg:my-3">
-              {tabs.map((item) => <button key={item} onClick={() => setTab(item)} className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] ${tab === item ? "bg-slate-950 text-white" : "text-[#4A4033]"}`}>{item}</button>)}
+            <nav role="tablist" aria-label="Brief sections" className="my-3 flex max-w-full flex-wrap gap-2 overflow-x-hidden border-y border-slate-900/25 py-2 lg:my-3">
+              {tabs.map((item) => <button type="button" role="tab" id={`brief-tab-${tabCategory[item]}`} aria-selected={tab === item} aria-controls="brief-section" key={item} onClick={() => setTab(item)} className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] ${tab === item ? "bg-slate-950 text-white" : "text-[#4A4033]"}`}>{item}</button>)}
             </nav>
 
-            {loading ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">Setting type and fetching open headlines without interrupting playback…</p> : null}
-            {error ? <p className="mb-4 rounded-2xl border border-amber-700/30 bg-amber-200/35 p-4 font-serif text-sm text-amber-950">{error}</p> : null}
-            {!loading && !headlines.length ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">No verified {tab.toLowerCase()} stories are available for this destination right now. WaveAtlas will not substitute unrelated headlines.</p> : null}
-            <div className="grid max-w-full gap-x-6 gap-y-5 overflow-x-hidden lg:grid-cols-[minmax(32rem,1.15fr)_minmax(26rem,.85fr)]">{headlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0 && tab === "Front Page"} />)}</div>
+            <section id="brief-section" role="tabpanel" aria-labelledby={`brief-tab-${tabCategory[tab]}`} aria-busy={isLoading}>
+            <h3 className="mb-3 font-serif text-lg font-bold">{tab}</h3>
+            {isLoading ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">Setting type and fetching open headlines without interrupting playback…</p> : null}
+            {currentError ? <p className="mb-4 rounded-2xl border border-amber-700/30 bg-amber-200/35 p-4 font-serif text-sm text-amber-950">{currentError}</p> : null}
+            {!isLoading && !currentError && !currentHeadlines.length ? <p className="rounded-2xl border border-slate-900/15 bg-white/30 p-4 font-serif text-sm text-[#4A4033]">No verified {tab.toLowerCase()} stories are available for this destination right now. WaveAtlas will not substitute unrelated headlines.</p> : null}
+            <div className="grid max-w-full gap-x-6 gap-y-5 overflow-x-hidden lg:grid-cols-[minmax(32rem,1.15fr)_minmax(26rem,.85fr)]">{currentHeadlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0 && tab === "Front Page"} />)}</div>
+            </section>
             <footer className="mt-6 max-w-full overflow-x-hidden border-t-4 border-double border-[#151515]/70 pt-3 font-serif text-xs text-[#4A4033] [hyphens:auto] [overflow-wrap:anywhere] [word-break:break-word]">
               <div className="grid gap-2 text-left sm:grid-cols-4"><span><b>Radio Signal:</b> {station.name}</span><span><b>Edition:</b> <span className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0.5 align-baseline"><span className="hidden shrink-0 text-[0.95em] leading-none sm:inline-flex" aria-label={flagLabel(station)}>{flagFor(station.country_code)}</span><span className="min-w-0">{place.city}, {place.country}</span></span></span><span><b>Genre:</b> {genre}</span><span><b>Local Time:</b> {localTime}</span></div>
               <p className="mt-3 text-center"><Newspaper className="mr-1 inline size-3" /> Open RSS + GDELT sources. Summaries and links only; full articles remain with publishers.</p>

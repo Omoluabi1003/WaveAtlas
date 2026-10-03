@@ -16,10 +16,10 @@ on:
     - cron: '17 4 * * *'
     - cron: '43 */8 * * *'
   pull_request:
-    paths: ['lib/**', 'scripts/**', 'tests/**', 'app/api/agents/**', 'package*.json', '.github/workflows/global-radio-discovery-agent.yml']
+    paths: ['lib/**', 'scripts/**', 'tests/**', 'app/api/agents/**', 'app/api/brief/**', 'components/NewspaperBrief.tsx', 'components/NewspaperHeadline.tsx', 'package*.json', '.github/workflows/global-radio-discovery-agent.yml']
   push:
     branches: [main]
-    paths: ['lib/**', 'scripts/**', 'tests/**', 'app/api/agents/**', 'package*.json', '.github/workflows/global-radio-discovery-agent.yml']
+    paths: ['lib/**', 'scripts/**', 'tests/**', 'app/api/agents/**', 'app/api/brief/**', 'components/NewspaperBrief.tsx', 'components/NewspaperHeadline.tsx', 'package*.json', '.github/workflows/global-radio-discovery-agent.yml']
 
 permissions:
   contents: read
@@ -40,6 +40,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:agents
+      - run: npm run test:brief
       - run: npm run radio:validate
       - run: npm run typecheck
       - run: npm run build
