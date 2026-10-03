@@ -1,5 +1,7 @@
 "use client";
 
+import { ButtonFeedbackSettings } from "@/components/ButtonFeedback";
+
 import { bindPlaybackMediaSession } from "@/lib/playback-media-session";
 
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -84,7 +86,6 @@ import { applyGeoSelectionDecision, normalizeGeoClick, selectStationFromGeoClick
 import { stationIdFromPath, stationPath, stationSharePayload } from "@/lib/station-deep-link";
 
 
-type BrowserAudioContextConstructor = typeof AudioContext;
 
 function playerLocationLine(station: Station) {
   return [station.city || station.state, station.country].filter(Boolean).join(" · ") || "Global signal";
@@ -135,87 +136,6 @@ function buildGeoAudioTrackStation(channel: Station, itemIndex: number): Station
       highlightedQueueItemId: trackId,
     } : channel.geoAudio,
   };
-}
-
-function playPremiumTeleportClick() {
-  if (typeof window === "undefined") return;
-  try {
-    const AudioContextConstructor = window.AudioContext ?? (window as Window & { webkitAudioContext?: BrowserAudioContextConstructor }).webkitAudioContext;
-    if (!AudioContextConstructor) return;
-    const context = new AudioContextConstructor();
-    const now = context.currentTime;
-    const duration = 0.07;
-    const master = context.createGain();
-    master.gain.setValueAtTime(0.0001, now);
-    master.gain.exponentialRampToValueAtTime(0.055, now + 0.006);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    master.connect(context.destination);
-
-    const body = context.createOscillator();
-    body.type = "triangle";
-    body.frequency.setValueAtTime(1180, now);
-    body.frequency.exponentialRampToValueAtTime(760, now + 0.032);
-    const bodyGain = context.createGain();
-    bodyGain.gain.setValueAtTime(0.18, now);
-    bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
-    body.connect(bodyGain).connect(master);
-
-    const samples = Math.max(1, Math.floor(context.sampleRate * duration));
-    const buffer = context.createBuffer(1, samples, context.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < samples; i += 1) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / samples);
-    }
-    const noise = context.createBufferSource();
-    noise.buffer = buffer;
-    const filter = context.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.setValueAtTime(2400, now);
-    filter.Q.setValueAtTime(9, now);
-    const noiseGain = context.createGain();
-    noiseGain.gain.setValueAtTime(0.09, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.028);
-    noise.connect(filter).connect(noiseGain).connect(master);
-
-    body.start(now);
-    noise.start(now);
-    body.stop(now + duration);
-    noise.stop(now + duration);
-    window.setTimeout(() => void context.close().catch(() => undefined), Math.ceil(duration * 1000) + 40);
-  } catch {
-    // Tactile audio is best-effort; teleporting must never depend on sound playback.
-  }
-}
-
-function playTransportClick() {
-  if (typeof window === "undefined") return;
-  try {
-    const AudioContextConstructor = window.AudioContext ?? (window as Window & { webkitAudioContext?: BrowserAudioContextConstructor }).webkitAudioContext;
-    if (!AudioContextConstructor) return;
-    const context = new AudioContextConstructor();
-    const now = context.currentTime;
-    const duration = 0.045;
-    const master = context.createGain();
-    master.gain.setValueAtTime(0.0001, now);
-    master.gain.exponentialRampToValueAtTime(0.026, now + 0.003);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    master.connect(context.destination);
-
-    const oscillator = context.createOscillator();
-    oscillator.type = "triangle";
-    oscillator.frequency.setValueAtTime(980, now);
-    oscillator.frequency.exponentialRampToValueAtTime(620, now + 0.025);
-    const oscillatorGain = context.createGain();
-    oscillatorGain.gain.setValueAtTime(0.12, now);
-    oscillatorGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
-    oscillator.connect(oscillatorGain).connect(master);
-    oscillator.start(now);
-    oscillator.stop(now + duration);
-
-    window.setTimeout(() => void context.close().catch(() => undefined), Math.ceil(duration * 1000) + 30);
-  } catch {
-    // Transport feedback is best-effort and must never block playback.
-  }
 }
 
 type LatLng = { lat: number; lng: number };
@@ -3156,7 +3076,7 @@ function SearchResultStationCard({ station, onSelect }: { station: Station; onSe
     onSelect(station);
   };
   return <div className="mb-3 rounded-[18px] border border-white/[0.08] bg-[rgba(20,28,42,0.82)] p-4 text-left shadow-lg transition hover:border-gold/50 hover:bg-[rgba(28,38,58,0.9)]">
-    <button type="button" onClick={selectStation} className="w-full text-left active:scale-[0.99]"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><b className="block truncate text-base font-medium text-[#F8FAFC]">{station.name}</b><p className="mt-1 text-xs font-medium text-white/[0.72]">{location || "Global"} · {isGeoAudio ? station.geoAudio?.albumTitle ?? "GeoAudio album" : station.language || "Unknown language"}</p>{isGeoAudio && station.geoAudio ? <p className="mt-1 text-[11px] font-medium text-gold/80">Provider/producer: {station.geoAudio.provider} · Studio: {station.geoAudio.studio}</p> : null}</div><span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-medium ${isGeoAudio ? "bg-gold/15 text-gold" : "bg-emerald-500/15 text-emerald-300"}`}>{isGeoAudio ? "GeoAudio Channel" : <><span className={`mr-1 inline-block size-2 rounded-full ${health.dot}`} />{health.label}</>}</span></div><div className="mt-3 flex flex-wrap gap-2">{showCampusAtlasBadge ? <span className="rounded-full border border-sky-300/25 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold text-sky-200">campus-atlas</span> : null}<span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.codec || "Unknown codec"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{isGeoAudio ? `${trackCount} tracks` : station.bitrate ? `${station.bitrate} kbps` : "Live stream"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.country_code}</span>{highlightedTrack ? <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] font-semibold text-gold">Matched: {highlightedTrack}</span> : null}{station.tags.slice(0, 2).map((tag) => <span key={tag} className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{tag}</span>)}</div></button>
+    <button type="button" onClick={selectStation} className="w-full text-left"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><b className="block truncate text-base font-medium text-[#F8FAFC]">{station.name}</b><p className="mt-1 text-xs font-medium text-white/[0.72]">{location || "Global"} · {isGeoAudio ? station.geoAudio?.albumTitle ?? "GeoAudio album" : station.language || "Unknown language"}</p>{isGeoAudio && station.geoAudio ? <p className="mt-1 text-[11px] font-medium text-gold/80">Provider/producer: {station.geoAudio.provider} · Studio: {station.geoAudio.studio}</p> : null}</div><span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-medium ${isGeoAudio ? "bg-gold/15 text-gold" : "bg-emerald-500/15 text-emerald-300"}`}>{isGeoAudio ? "GeoAudio Channel" : <><span className={`mr-1 inline-block size-2 rounded-full ${health.dot}`} />{health.label}</>}</span></div><div className="mt-3 flex flex-wrap gap-2">{showCampusAtlasBadge ? <span className="rounded-full border border-sky-300/25 bg-sky-400/10 px-3 py-1 text-[11px] font-semibold text-sky-200">campus-atlas</span> : null}<span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.codec || "Unknown codec"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{isGeoAudio ? `${trackCount} tracks` : station.bitrate ? `${station.bitrate} kbps` : "Live stream"}</span><span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{station.country_code}</span>{highlightedTrack ? <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] font-semibold text-gold">Matched: {highlightedTrack}</span> : null}{station.tags.slice(0, 2).map((tag) => <span key={tag} className="rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[11px] font-semibold text-[#E5E7EB]">{tag}</span>)}</div></button>
     {isGeoAudio && station.geoAudio ? <div className="mt-3 border-t border-white/10 pt-3"><button type="button" onClick={() => setTracksOpen((value) => !value)} className="flex w-full items-center justify-between rounded-2xl border border-gold/20 bg-gold/10 px-3 py-2 text-left text-xs font-bold uppercase tracking-[0.12em] text-gold"><span>{station.geoAudio.queueLabel || "Journey"} / Track List · {trackCount}</span><span>{tracksOpen ? "Hide" : "View"} <ChevronDown className="inline size-3" /></span></button>{tracksOpen ? <div className="mt-2 max-h-52 space-y-1 overflow-y-auto pr-1">{station.geoAudio.tracks.map((track, index) => { const playable = Boolean(track.url); const active = playable && ((current?.station_uuid === station.station_uuid && currentUrl === track.url) || station.geoAudio?.highlightedQueueItemId === `${station.station_uuid}-track-${index + 1}`); return <button key={`${track.title}-${index}`} type="button" onClick={() => playable && selectGeoAudioQueueItem(station, index)} disabled={!playable} aria-disabled={!playable} className={`w-full rounded-xl px-3 py-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-45 ${active ? "bg-gold/15 text-gold" : playable ? "bg-white/[0.04] text-ivory/76 hover:bg-white/[0.08]" : "bg-white/[0.025] text-ivory/50"}`}><span className="mr-2 opacity-60">{index + 1}.</span>{track.title}{playable ? null : <span className="ml-2 text-rose-300/80">Unavailable</span>}</button>; })}</div> : null}</div> : null}
   </div>;
 }
@@ -3596,9 +3516,9 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
 
 function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: () => void }) {
   const { playing, status, toggle, setStation } = usePlayer();
-  const play = () => { playTransportClick(); if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
+  const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
   return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/30 bg-[rgba(3,9,18,0.96)] p-2.5 text-white shadow-[0_26px_90px_rgba(0,0,0,.72),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
-    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] active:scale-[0.86] active:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></div><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
+    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></div><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
   </div>;
 }
 
@@ -3680,7 +3600,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   const status = usePlayer((state) => state.status);
   const pulseTeleport = !reducedMotion && (status === "idle" || status === "playing") && mode !== "Brief" && mode !== "Add Signal";
   const commands = [[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const;
-  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel} whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) { playPremiumTeleportClick(); onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
+  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel}  transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) {  onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, allStations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest, onVoiceIntent, onVoiceFeedback, startupPreferences, onStartupPreferencesChange, onSettingsLayerChange }: { stations: Station[]; allStations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountrySelectPayload) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number; onVoiceIntent: (intent: VoiceCommandIntent) => void; onVoiceFeedback: (message: string) => void; startupPreferences: StartupPreferences; onStartupPreferencesChange: (preferences: StartupPreferences) => void; onSettingsLayerChange?: (open: boolean) => void }) {
@@ -3834,6 +3754,8 @@ function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atla
     </div>
 
 
+
+    <ButtonFeedbackSettings />
 
     {startupPreferences && onStartupPreferencesChange ? <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
       <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-radio/80">Startup behavior</p>
@@ -4707,7 +4629,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const runDesktopTeleport = useCallback(() => {
     if (desktopTeleporting) return;
     countryLoadRequests.abort({ reason: "desktop teleport superseded country load" });
-    playPremiumTeleportClick();
+
     setDesktopTeleporting(true);
     setWandererActive(false);
     const request = playbackRequests.begin("teleport");
@@ -5121,12 +5043,12 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
             onClick={() => {
-              playTransportClick();
+
               const player = usePlayer.getState();
               if (!player.current) setCurrentStationAndDestination(current);
               else player.toggle();
             }}
-            className="grid size-12 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_26px_rgba(54,245,162,.36)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.04] hover:shadow-[0_0_34px_rgba(54,245,162,.48)] active:scale-[0.88] active:shadow-[0_0_16px_rgba(54,245,162,.28)] active:brightness-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none"
+            className="grid size-12 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_26px_rgba(54,245,162,.36)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.04] hover:shadow-[0_0_34px_rgba(54,245,162,.48)] active:shadow-[0_0_16px_rgba(54,245,162,.28)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none"
             aria-label="Play or pause current station"
           >
             {playerPlaying ? <Pause /> : <Play />}
@@ -5140,7 +5062,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
           <ShareStationButton station={current} compact />
         </div>
         <nav className="pointer-events-auto grid grid-cols-3 gap-1 rounded-full border border-white/20 bg-slate-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" aria-label="Primary desktop actions">
-          {([[Newspaper,"Brief"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" whileTap={isTeleport && !reducedMotion ? { scale: 0.96 } : undefined} transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (value === "Teleport") { runDesktopTeleport(); } else if (value === "Brief") { setDesktopMode("Atlas"); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${((value === "Brief" && briefOpen) || desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</motion.button></div>; })}
+          {([[Newspaper,"Brief"],[Plane,"Teleport"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"]] as const).map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseDesktopTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (value === "Teleport") { runDesktopTeleport(); } else if (value === "Brief") { setDesktopMode("Atlas"); setBriefOpen((open) => !open); } else if (value === "Wanderer" || value === "Exit Wanderer") { setWandererActive((active) => !active); } else { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(value); } }} className={`pointer-events-auto relative z-[1] w-full rounded-full px-3 py-2 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${((value === "Brief" && briefOpen) || desktopMode === label || ((label === "Wanderer" || label === "Exit Wanderer") && wandererActive)) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={`${label as string} command`}><I className="mx-auto mb-0.5 size-4" />{isTeleport && desktopTeleporting ? "Teleporting…" : label as string}</motion.button></div>; })}
         </nav>
       </div> : null}
     </main>

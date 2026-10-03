@@ -37,3 +37,17 @@
 @media (prefers-reduced-motion:reduce){.station-pulse-marker .station-pulse-ring{animation-duration:5.2s!important;opacity:.6}.station-pulse-marker .station-beacon-core{animation-duration:3.2s!important}.station-pulse-marker .station-beacon-glow{animation-duration:4.6s!important;opacity:.78}}
 
 .waveatlas-auto-marquee{position:relative;display:block;max-width:100%;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.waveatlas-auto-marquee__measure{position:absolute;inset-block-start:0;inset-inline-start:0;visibility:hidden;pointer-events:none;white-space:nowrap}.waveatlas-auto-marquee__text{display:inline-block;min-width:0;overflow:visible;text-overflow:clip;vertical-align:bottom}.waveatlas-auto-marquee__track{display:inline-flex;min-width:max-content;gap:2.75rem;vertical-align:bottom}.waveatlas-auto-marquee.is-overflowing{mask-image:linear-gradient(90deg,transparent 0,#000 .85rem,#000 calc(100% - .85rem),transparent 100%)}.waveatlas-auto-marquee.is-overflowing .waveatlas-auto-marquee__track{animation:waveatlas-auto-marquee-scroll 14s linear infinite;will-change:transform}.waveatlas-auto-marquee.is-overflowing .waveatlas-auto-marquee__text{overflow:visible;text-overflow:clip}.waveatlas-auto-marquee.is-overflowing:hover .waveatlas-auto-marquee__track,.waveatlas-auto-marquee.is-overflowing:active .waveatlas-auto-marquee__track{animation-play-state:paused}@keyframes waveatlas-auto-marquee-scroll{0%,14%{transform:translate3d(0,0,0)}86%,100%{transform:translate3d(calc(-1 * var(--waveatlas-marquee-distance,0px)),0,0)}}@media (prefers-reduced-motion:reduce){.waveatlas-auto-marquee.is-overflowing{mask-image:none}.waveatlas-auto-marquee.is-overflowing .waveatlas-auto-marquee__track{display:block;animation:none;will-change:auto}.waveatlas-auto-marquee.is-overflowing .waveatlas-auto-marquee__text{max-width:100%;overflow:hidden;text-overflow:ellipsis}.waveatlas-auto-marquee__text--ghost{display:none}}
+
+/* Consistent phone-style press feedback, independent of motion-library transforms. */
+[data-waveatlas-feedback-root] :is(button,[role="button"],[role="tab"],a[href]):not(:disabled):not([aria-disabled="true"]):not([data-feedback="off"]):active {
+  scale: .97;
+  filter: brightness(1.18);
+}
+[data-waveatlas-feedback-root] [data-waveatlas-tap="true"] {
+  outline: 2px solid rgba(0,214,143,.65);
+  outline-offset: 2px;
+  filter: brightness(1.16);
+}
+@media (prefers-reduced-motion:reduce) {
+  [data-waveatlas-feedback-root] :is(button,[role="button"],[role="tab"],a[href]):active { scale: 1; }
+}
