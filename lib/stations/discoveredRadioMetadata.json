@@ -1,1 +1,56 @@
-[]
+[
+  {
+    "stationUuid": "radio-browser-sensuelle-radio-82e7a00e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "82e7a00e-54ec-45ea-8ae7-8a2b459084c2",
+    "verifiedAt": "2026-10-03T18:22:46.080Z",
+    "lastSignalCheck": "2026-10-03T18:22:46.080Z",
+    "qualityScore": 84,
+    "resolvedUrl": "https://radio10.pro-fhi.net/radio/9169/stream.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-blau-leipzig-trocken-320kbps-20694c6b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "20694c6b-f51f-4b6a-b852-9028e4964116",
+    "verifiedAt": "2026-10-03T18:22:46.080Z",
+    "lastSignalCheck": "2026-10-03T18:22:46.080Z",
+    "qualityScore": 77,
+    "resolvedUrl": "http://icecast.radioblau.de:8000/blau_320_dry"
+  },
+  {
+    "stationUuid": "radio-browser-radio-baidoa-89-5-fm-bf6d651c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bf6d651c-c4e1-4b1a-81a7-93ae33fe98a3",
+    "verifiedAt": "2026-10-03T18:22:46.080Z",
+    "lastSignalCheck": "2026-10-03T18:22:46.080Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://stream-175.surfernetwork.com/yxsfn746kg8uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ5eHNmbjc0NmtnOHV2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjVhZjN0UXMwU1ZlWUttM0pnVXRZSVEiLCJpYXQiOjE3OTEwNTE3NzgsImV4cCI6MTc5MTA1MTgzOH0.Yg8cqEY9NQmSfTc-PigTFYDrWtLM7J0j9C3eYEgXCkU"
+  },
+  {
+    "stationUuid": "radio-browser-kalofiama-o-e-amanaki-1b452f6a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1b452f6a-7b71-48f3-9e46-4b0d03acff25",
+    "verifiedAt": "2026-10-03T18:22:46.080Z",
+    "lastSignalCheck": "2026-10-03T18:22:46.080Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://stream-179.surfernetwork.com/v4kaet5ab1ntv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ2NGthZXQ1YWIxbnR2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Ik5IUDdoQ1JsU1I2Tmdmcjc5b1FZb3ciLCJpYXQiOjE3OTEwNTE3NzgsImV4cCI6MTc5MTA1MTgzOH0.6DRvTN06-SKD4gedP2GtWhZ0EuI5kwqxVpVOXJabh20"
+  },
+  {
+    "stationUuid": "radio-browser-letio-tonga-a2299a7e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a2299a7e-60d8-4736-8605-35f10fc01bef",
+    "verifiedAt": "2026-10-03T18:22:46.080Z",
+    "lastSignalCheck": "2026-10-03T18:22:46.080Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://stream-290.surfernetwork.com/wnd22q3485quv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ3bmQyMnEzNDg1cXV2IiwiaG9zdCI6InN0cmVhbS0yOTAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlhBWkdLb29GUTc2YWMxTHc4b3NRNVEiLCJpYXQiOjE3OTEwNTE3NzgsImV4cCI6MTc5MTA1MTgzOH0.5zM9n5zXnLBYJHn7WXGYLy5m6TOgkIFWnFONyR-orcM"
+  },
+  {
+    "stationUuid": "radio-browser-antenna-web-tonga-d8008736",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d8008736-e9dc-45fd-99b5-22193590e9c7",
+    "verifiedAt": "2026-10-03T18:22:46.080Z",
+    "lastSignalCheck": "2026-10-03T18:22:46.080Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://halo.streamerr.co/listen/italiavera/stream.mp3"
+  }
+]

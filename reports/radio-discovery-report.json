@@ -1,15 +1,375 @@
 {
-  "generatedAt": "2026-07-09T18:44:24.557Z",
-  "dryRun": true,
+  "generatedAt": "2026-10-03T18:22:46.080Z",
+  "dryRun": false,
   "source": "https://de1.api.radio-browser.info/json",
-  "fetched": 0,
-  "added": [],
-  "skipped": [],
-  "duplicate": [],
-  "failed": [
+  "countries": [
     {
-      "reason": "candidate_fetch_failed: fetch failed"
+      "code": "TF",
+      "name": "The French Southern Territories",
+      "available": 3,
+      "covered": 0
+    },
+    {
+      "code": "TJ",
+      "name": "Tajikistan",
+      "available": 3,
+      "covered": 0
+    },
+    {
+      "code": "BI",
+      "name": "Burundi",
+      "available": 4,
+      "covered": 0
+    },
+    {
+      "code": "BZ",
+      "name": "Belize",
+      "available": 4,
+      "covered": 0
+    },
+    {
+      "code": "CF",
+      "name": "The Central African Republic",
+      "available": 4,
+      "covered": 0
+    },
+    {
+      "code": "LA",
+      "name": "The Lao Peoples Democratic Republic",
+      "available": 4,
+      "covered": 0
+    },
+    {
+      "code": "LI",
+      "name": "Liechtenstein",
+      "available": 4,
+      "covered": 0
+    },
+    {
+      "code": "NE",
+      "name": "The Niger",
+      "available": 4,
+      "covered": 0
+    },
+    {
+      "code": "PW",
+      "name": "Palau",
+      "available": 4,
+      "covered": 0
+    },
+    {
+      "code": "SL",
+      "name": "Sierra Leone",
+      "available": 4,
+      "covered": 0
+    },
+    {
+      "code": "SO",
+      "name": "Somalia",
+      "available": 4,
+      "covered": 0
+    },
+    {
+      "code": "TO",
+      "name": "Tonga",
+      "available": 4,
+      "covered": 0
     }
   ],
+  "fetched": 42,
+  "added": [
+    {
+      "name": "sensuelle radio",
+      "url": "https://forwardmystream.com/sensuelleradio",
+      "sourceStationUuid": "82e7a00e-54ec-45ea-8ae7-8a2b459084c2",
+      "qualityScore": 84
+    },
+    {
+      "name": "Radio BLAU Leipzig (trocken 320kbps)",
+      "url": "http://icecast.radioblau.de:8000/blau_320_dry",
+      "sourceStationUuid": "20694c6b-f51f-4b6a-b852-9028e4964116",
+      "qualityScore": 77
+    },
+    {
+      "name": "Radio Baidoa 89.5 FM",
+      "url": "https://stream-175.surfernetwork.com/yxsfn746kg8uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ5eHNmbjc0NmtnOHV2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJydHRsIjo1LCJqdGkiOiJQeWZaeGFwR1FWR0FDX0hxbFJLaWVRIiwiaWF0IjoxNzg4MTAyOTYwLCJleHAiOjE3ODgxMDMwMjB9._YM_xfAQTKIpG857boiVsWdUI1II_jUevptsGOnJXYY",
+      "sourceStationUuid": "bf6d651c-c4e1-4b1a-81a7-93ae33fe98a3",
+      "qualityScore": 86
+    },
+    {
+      "name": "Kalofiama 'O E 'Amanaki",
+      "url": "https://stream.zeno.fm/v4kaet5ab1ntv",
+      "sourceStationUuid": "1b452f6a-7b71-48f3-9e46-4b0d03acff25",
+      "qualityScore": 89
+    },
+    {
+      "name": "Letio Tonga",
+      "url": "https://stream.zeno.fm/wnd22q3485quv",
+      "sourceStationUuid": "a2299a7e-60d8-4736-8605-35f10fc01bef",
+      "qualityScore": 70
+    },
+    {
+      "name": "Antenna Web Tonga",
+      "url": "https://halo.streamerr.co/listen/italiavera/stream.mp3",
+      "sourceStationUuid": "d8008736-e9dc-45fd-99b5-22193590e9c7",
+      "qualityScore": 86
+    }
+  ],
+  "skipped": [
+    {
+      "name": "NRJ VOIRON",
+      "url": "http://cdn.nrjaudio.fm/adwz2/fr/30001/mp3_128.mp3",
+      "sourceStationUuid": "d02585c2-893d-42bd-9bad-f90e66e55e4c",
+      "qualityScore": 61,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "6eae7415-2363-4f39-bf78-96631662c8a7",
+      "qualityScore": 51,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "The Holy Quran  by Sheikh Mahmoud Al-Husari",
+      "url": "https://qurango.net/radio/mahmoud_khalil_alhussary_warsh",
+      "sourceStationUuid": "38e0e800-2b33-4e45-a3bb-eeb1b8e70e1d",
+      "qualityScore": 79,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "d0ff9c77-1806-4845-b260-fc88b5cc1524",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RADIO MARIA BURUNDI",
+      "url": "http://dreamsiteradiocp.com:8058/stream",
+      "sourceStationUuid": "433d25b8-5f8f-11e9-a622-52543be04c81",
+      "qualityScore": 53,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Heaven FM Radio (Burundi)",
+      "url": "http://stream.zeno.fm/eequgfw72hhvv",
+      "sourceStationUuid": "4547f10b-1b17-41cc-ba91-2c986b956731",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Maria Burundi",
+      "url": "http://57.129.49.167:8082/stream",
+      "sourceStationUuid": "70346d63-1d45-4127-a0b8-ccb91a8ed8d3",
+      "qualityScore": 47,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "3e6ad5b8-c452-4e7c-b647-d7af7d2f330f",
+      "qualityScore": 54,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Krem Radio",
+      "url": "http://159.65.32.199:8016/;",
+      "sourceStationUuid": "4095e825-d5bf-4a00-b224-76fab0620019",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "https://stream.svobodnoe.media/freemp3",
+      "url": "https://stream.svobodnoe.media/freemp3",
+      "sourceStationUuid": "d5478022-4b6b-41ac-aad0-b0406764c71d",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Riddim Radio",
+      "url": "https://stream.zeno.fm/nw7xmuzasyduv",
+      "sourceStationUuid": "1c49165c-70f5-4ef7-8743-633a0cdc6b5d",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "5ad8d4d7-510d-491e-9a79-d2a718ce7129",
+      "qualityScore": 52,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Ndeke Luka",
+      "url": "https://stream.radiondekeluka.org/ndekeluka",
+      "sourceStationUuid": "fc8196f6-4b51-4c00-891a-6ddde79b2a60",
+      "qualityScore": 55,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Radio Ndeke Luka FM",
+      "url": "http://stream.radiondekeluka.org:8001/ndekeluka",
+      "sourceStationUuid": "4f36078b-bdc9-4e65-827c-599c49d377e2",
+      "qualityScore": 51,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Mambokadzi DreamRadio",
+      "url": "https://cast3.asurahosting.com/proxy/dreamradio/stream.mp3",
+      "sourceStationUuid": "85d63c4c-4b6e-4336-91af-f877209ccfd2",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "7e22291d-8062-49e2-932a-cfc13c35b9f0",
+      "qualityScore": 51,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Lao National Radio 103.7",
+      "url": "https://radio.lnr.org.la/fm103",
+      "sourceStationUuid": "6f2c8848-d39e-4e07-8a9c-046c2356c5de",
+      "qualityScore": 56,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Lao National Radio 94.3",
+      "url": "https://radio.lnr.org.la/fm94",
+      "sourceStationUuid": "59e8d07e-6314-44da-8728-df85cbea0537",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "f462440e-3fdd-47e0-b683-12d616bf76a4",
+      "qualityScore": 52,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Toki Pona Radio",
+      "url": "https://kute.pona.la/stream/tpr",
+      "sourceStationUuid": "270cb70d-5278-4ea8-b6e3-c410760157b8",
+      "qualityScore": 48,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "151e2fa8-ce5b-4d4b-87fd-6f8421c02b82",
+      "qualityScore": 53,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Vaterland",
+      "url": "https://radiostream.radiobutler.com/7e9d5eb6-9249-4c7a-9f1c-6d4b9c7a48a8",
+      "sourceStationUuid": "0e837c0b-7b98-4e5c-b4e4-27b8b12c506d",
+      "qualityScore": 62,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Wadata Radio 107.4 Niamey",
+      "url": "http://stream.zeno.fm/1y2c3qbgbchvv",
+      "sourceStationUuid": "a365ffa2-138a-41ac-8e4f-c80b46e03584",
+      "qualityScore": 63,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "de16d421-d18e-4fd9-b3c7-288f5e4aff8f",
+      "qualityScore": 52,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "UpBeat Radio",
+      "url": "https://live.upbeat.pw/",
+      "sourceStationUuid": "51fa8080-c95e-4560-b1ce-5271a63cbaeb",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "51af3757-66fb-47c3-ac91-9beb21995e5b",
+      "qualityScore": 52,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "UpBeat Radio",
+      "url": "https://live.upbeat.pw/",
+      "sourceStationUuid": "926025d8-6753-4185-8f10-764aa7b5766c",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "UpBeat.pw",
+      "url": "https://live.upbeat.pw/",
+      "sourceStationUuid": "9ac434c6-1e25-47df-9d07-97a960ec2025",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Choice FM 93.3",
+      "url": "http://stream.zeno.fm/ct0gvk9149puv",
+      "sourceStationUuid": "dbffe503-a05b-407c-bffd-c0b394c80f7d",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Sierra Network Radio",
+      "url": "http://45.79.181.148:8004/;",
+      "sourceStationUuid": "e5962055-cc81-4b12-87cd-3e31244195fd",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "bde3d03d-6565-480b-a370-a2ac9c9a8551",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Sierra Network Radio",
+      "url": "http://45.79.181.148:8004/;",
+      "sourceStationUuid": "f3cbe38a-5d84-4ad6-a1a5-ba263d4681b9",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Idaacadda Subaxnimo VOA",
+      "url": "https://av.voanews.com/clips/VSO/2021/04/29/20210429-033000-VSO065-program_48k.mp3",
+      "sourceStationUuid": "56e9c7e6-b4b6-4204-8547-ab41e0ef7495",
+      "qualityScore": 47,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "اذاعة القرآن الكريم",
+      "url": "http://stream.radiojar.com/0tpy1h0kxtzuv",
+      "sourceStationUuid": "315a122b-ea8e-4e5c-894a-20ef9d32221a",
+      "qualityScore": 39,
+      "reason": "low_bitrate"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "6e4af45e-f3eb-4075-8afb-8f36edd6a332",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abdulbasit Abdulsamad",
+      "url": "https://radio.mp3islam.com/listen/abdulbasit/radio.mp3",
+      "sourceStationUuid": "f1c7a9a5-d768-43b6-b6b7-e38be942858a",
+      "qualityScore": 52,
+      "reason": "invalid_geo"
+    }
+  ],
+  "duplicate": [],
+  "failed": [],
   "suspicious": []
 }
