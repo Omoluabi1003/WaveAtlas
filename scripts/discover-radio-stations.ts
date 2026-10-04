@@ -5,6 +5,7 @@ import { candidateToStation, existingStationKeys, isDuplicateCandidate, normaliz
 import { discoveredRadioStations } from '../lib/stations/discoveredRadioStations';
 import { ariyoSeedStations } from '../lib/stations/ariyoSeedStations';
 import { campusAtlasStations } from '../lib/stations/campusAtlasStations';
+import { republicCongoStations } from '../lib/stations/republicCongoStations';
 
 const API_BASE = process.env.RADIO_BROWSER_API_BASE ?? 'https://de1.api.radio-browser.info/json';
 const USER_AGENT = process.env.RADIO_DISCOVERY_USER_AGENT ?? 'WaveAtlasGlobalRadioDiscovery/1.0 (https://github.com/Omoluabi1003/WaveAtlas)';
