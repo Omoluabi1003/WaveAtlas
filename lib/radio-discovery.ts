@@ -1,6 +1,7 @@
 import { ariyoSeedStations } from './stations/ariyoSeedStations';
 import { campusAtlasStations } from './stations/campusAtlasStations';
 import { discoveredRadioStations } from './stations/discoveredRadioStations';
+import { republicCongoStations } from './stations/republicCongoStations';
 import type { Station } from './stations';
 
 export type RadioBrowserCandidate = Partial<Record<'stationuuid'|'name'|'url'|'url_resolved'|'homepage'|'favicon'|'country'|'countrycode'|'state'|'language'|'tags'|'codec', string>> & { bitrate?: number; geo_lat?: number; geo_long?: number; votes?: number; clickcount?: number; clicktrend?: number; lastcheckok?: number; lastchecktime_iso8601?: string };
@@ -61,4 +62,4 @@ export function candidateToStation(c: RadioBrowserCandidate, verifiedAt: string)
   const url = c.url_resolved || c.url || '';
   return { id, station_uuid: id, name, normalized_name: normalizeStationName(name), url, url_resolved: c.url_resolved || url, homepage: c.homepage, favicon: c.favicon || '', country: c.country || 'Global', country_code: (c.countrycode || 'UN').toUpperCase(), state: c.state, language: c.language || 'Unknown', tags: [...new Set((c.tags || '').split(',').map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 8).concat(['radio browser', 'global discovery']))], codec: c.codec || 'Unknown', bitrate: c.bitrate || 0, latitude: c.geo_lat, longitude: c.geo_long, votes: c.votes || 0, click_count: c.clickcount || 0, health_score: Math.max(70, qualityScore(c)), is_active: true, last_check_ok: true, last_checked_at: verifiedAt, failure_count: 0, response_time_ms: 0, curation_source: 'radio-browser', curation_tier: 'radio_browser', source_confidence: qualityScore(c) / 100, verification_status: 'verified', validation_status: 'verified', validation_reason: 'Validated by WaveAtlas global radio discovery agent.' };
 }
-export function allRuntimeStations() { return [...ariyoSeedStations, ...campusAtlasStations, ...discoveredRadioStations]; }
+export function allRuntimeStations() { return [...ariyoSeedStations, ...campusAtlasStations, ...republicCongoStations, ...discoveredRadioStations]; }

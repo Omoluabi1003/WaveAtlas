@@ -1,0 +1,77 @@
+import type { Station } from '../stations';
+
+const verifiedAt = '2026-10-03T21:54:00-04:00';
+
+// Republic of the Congo (Congo-Brazzaville, ISO CG) only.
+// These are deliberately separated from Democratic Republic of the Congo (ISO CD).
+// Direct stream endpoints were independently checked before inclusion.
+export const republicCongoStations: Station[] = [
+  {
+    id: 'cg-radio-mucodec',
+    station_uuid: 'cg-radio-mucodec',
+    name: 'Radio MUCODEC',
+    normalized_name: 'radio mucodec',
+    url: 'https://cdnradio.streamakaci.com/radiomucodec.mp3',
+    url_resolved: 'https://cdnradio.streamakaci.com/radiomucodec.mp3',
+    homepage: 'https://mucodec.com/radio_MUCODEC/index.php',
+    favicon: '',
+    country: 'Republic of the Congo',
+    country_code: 'CG',
+    state: 'Brazzaville',
+    city: 'Brazzaville',
+    language: 'French',
+    tags: ['news', 'talk', 'sports', 'congolese music', 'waveatlas-curated', 'verified'],
+    codec: 'MP3',
+    bitrate: 128,
+    latitude: -4.2634,
+    longitude: 15.2429,
+    votes: 0,
+    click_count: 0,
+    health_score: 98,
+    is_active: true,
+    last_check_ok: true,
+    last_checked_at: verifiedAt,
+    failure_count: 0,
+    response_time_ms: 0,
+    curation_source: 'waveatlas-republic-congo-verification',
+    curation_tier: 'curated_atlas',
+    source_confidence: 0.99,
+    verification_status: 'verified',
+    validation_status: 'verified',
+    validation_reason: 'Direct HTTPS audio/mpeg mount verified active; broadcaster identifies service as Congo 100.3 FM.'
+  },
+  {
+    id: 'cg-rtas-pointe-noire',
+    station_uuid: 'cg-rtas-pointe-noire',
+    name: 'Radio-Télévision Armée du Salut',
+    normalized_name: 'radio television armee du salut',
+    url: 'https://stream.zeno.fm/k7fy7ha5u0hvv',
+    url_resolved: 'https://stream.zeno.fm/k7fy7ha5u0hvv',
+    homepage: 'https://worldradiomap.com/cg/play/rtas',
+    favicon: '',
+    country: 'Republic of the Congo',
+    country_code: 'CG',
+    state: 'Pointe-Noire',
+    city: 'Pointe-Noire',
+    language: 'French',
+    tags: ['christian', 'religious', 'community', 'waveatlas-curated', 'verified'],
+    codec: 'MP3',
+    bitrate: 0,
+    latitude: -4.7692,
+    longitude: 11.8664,
+    votes: 0,
+    click_count: 0,
+    health_score: 96,
+    is_active: true,
+    last_check_ok: true,
+    last_checked_at: verifiedAt,
+    failure_count: 0,
+    response_time_ms: 0,
+    curation_source: 'waveatlas-republic-congo-verification',
+    curation_tier: 'curated_atlas',
+    source_confidence: 0.97,
+    verification_status: 'verified',
+    validation_status: 'verified',
+    validation_reason: 'Direct Zeno HTTPS stream resolved to an active audio delivery endpoint during verification.'
+  }
+];

@@ -23,7 +23,8 @@
     "agents:operate": "node --import tsx scripts/run-operational-agents.ts",
     "test:operations": "node --import tsx tests/operational-agents.regression.ts",
     "test:media-session": "node --import tsx tests/playback-media-session.regression.ts",
-    "test:button-feedback": "node --import tsx tests/button-feedback.regression.ts"
+    "test:button-feedback": "node --import tsx tests/button-feedback.regression.ts",
+    "test:congo": "npx tsx tests/republic-congo-stations.regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",
