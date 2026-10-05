@@ -19,12 +19,18 @@ uniform sampler2D uClouds;
 uniform vec2 uRotation;
 uniform vec3 uSun;
 uniform float uDrift;
+uniform float uNightMode;
+uniform vec2 uNightTexel;
 const float PI = 3.141592653589793;
 vec3 worldNormal(vec3 local) {
   float sl = sin(uRotation.x), cl = cos(uRotation.x);
   float so = sin(uRotation.y), co = cos(uRotation.y);
   float forward = local.z * cl - local.y * sl;
   return vec3(local.x * co + forward * so, local.y * cl + local.z * sl, forward * co - local.x * so);
+}
+float cityLight(vec2 uv) {
+  vec3 night = texture2D(uNight, vec2(fract(uv.x), clamp(uv.y,0.0,1.0))).rgb;
+  return smoothstep(0.16, 0.70, dot(night, vec3(0.2126,0.7152,0.0722)));
 }
 void main() {
   float radius2 = dot(vPosition, vPosition);
@@ -33,21 +39,26 @@ void main() {
   vec3 normal = worldNormal(vec3(vPosition, depth));
   vec2 uv = vec2(fract(0.5 + atan(normal.x, normal.z) / (2.0 * PI)), 0.5 - asin(clamp(normal.y, -1.0, 1.0)) / PI);
   float incidence = dot(normal, uSun);
-  float daylight = smoothstep(-0.12, 0.16, incidence);
+  float daylight = smoothstep(-0.12, 0.16, incidence) * (1.0 - uNightMode);
   vec3 day = texture2D(uDay, uv).rgb;
   vec3 night = texture2D(uNight, uv).rgb;
   vec2 cloudUV = vec2(fract(uv.x + uDrift), uv.y);
   float cloud = smoothstep(0.12, 0.85, texture2D(uClouds, cloudUV).r) * 0.72;
   float shadow = texture2D(uClouds, vec2(fract(cloudUV.x + 0.003), cloudUV.y + 0.001)).r;
   day *= (0.52 + 0.48 * max(incidence, 0.0)) * (1.0 - shadow * 0.13);
-  vec3 color = mix(night * 0.82 + day * 0.035, day, daylight);
+  float city = cityLight(uv);
+  vec2 stepUV = uNightTexel * 2.2;
+  float glow = (cityLight(uv + vec2(stepUV.x,0.0)) + cityLight(uv - vec2(stepUV.x,0.0)) + cityLight(uv + vec2(0.0,stepUV.y)) + cityLight(uv - vec2(0.0,stepUV.y))) * 0.25;
+  vec3 cityColor = vec3(1.0,0.76,0.38) * city * 1.30 + vec3(0.90,0.52,0.16) * glow * 0.38;
+  vec3 nightSurface = night * vec3(0.20,0.27,0.42) + day * 0.035 + cityColor;
+  vec3 color = mix(nightSurface, day, daylight);
   float ocean = smoothstep(0.02, 0.13, day.b - max(day.r, day.g));
   vec3 view = worldNormal(vec3(0.0, 0.0, 1.0));
   float glint = pow(max(dot(normal, normalize(uSun + view + vec3(0.00001))), 0.0), 65.0);
   color += vec3(0.60, 0.74, 0.90) * glint * ocean * daylight * (1.0 - cloud) * 0.35;
-  color = mix(color, vec3(0.12) + vec3(0.78, 0.81, 0.85) * daylight, cloud);
+  color = mix(color, vec3(0.025,0.035,0.055) + vec3(0.78, 0.81, 0.85) * daylight, cloud * mix(0.48,1.0,daylight));
   float rim = pow(1.0 - depth, 3.0);
-  color += vec3(0.07, 0.26, 0.52) * rim * (0.18 + 0.82 * daylight);
+  color += vec3(0.07, 0.26, 0.52) * rim * (0.35 + 0.65 * daylight);
   float alpha = smoothstep(0.0, 0.008, 1.0 - radius2);
   gl_FragColor = vec4(color, alpha);
 }
@@ -79,6 +90,7 @@ export class RealisticEarth {
   private textures: WebGLTexture[] = [];
   private uniforms = new Map<string, WebGLUniformLocation | null>();
   private ready = false;
+  private nightReady = false;
   private disposed = false;
   private lost = false;
   private lastSolarMinute = -1;
@@ -131,8 +143,9 @@ export class RealisticEarth {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
     const position = gl.getAttribLocation(this.program, "aPosition");
     gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
-    for (const name of ["uDay", "uNight", "uClouds", "uRotation", "uSun", "uDrift"]) this.uniforms.set(name, gl.getUniformLocation(this.program, name));
+    for (const name of ["uDay", "uNight", "uClouds", "uRotation", "uSun", "uDrift", "uNightMode", "uNightTexel"]) this.uniforms.set(name, gl.getUniformLocation(this.program, name));
     const width = this.mobile || gl.getParameter(gl.MAX_TEXTURE_SIZE) < 2048 ? 1024 : 2048;
+    gl.uniform2f(this.uniforms.get("uNightTexel")!, 1 / width, 2 / width);
     for (const [index, name] of ["day", "night", "clouds"].entries()) {
       const texture = gl.createTexture();
       if (!texture) throw new Error("Earth texture allocation failed");
@@ -151,13 +164,14 @@ export class RealisticEarth {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         if (gl.getError() !== gl.NO_ERROR) throw new Error("Earth texture upload failed");
         if (index === 0) this.ready = true;
+        if (index === 1) this.nightReady = true;
       }).catch(() => { if (index === 0) this.ready = false; });
     }
   }
 
   /** Returns null while loading or after any GPU failure; the caller draws its existing globe. */
-  render(rotation: GlobeRotation, diameter: number, at: number, motionAt: number, reducedMotion: boolean): HTMLCanvasElement | null {
-    if (!this.ready || this.disposed || this.lost || this.gl.isContextLost()) return null;
+  render(rotation: GlobeRotation, diameter: number, at: number, motionAt: number, reducedMotion: boolean, nightMode = false): HTMLCanvasElement | null {
+    if (!this.ready || (nightMode && !this.nightReady) || this.disposed || this.lost || this.gl.isContextLost()) return null;
     const gl = this.gl;
     try {
       const size = Math.max(64, Math.min(this.mobile ? 768 : 1280, Math.round(diameter)));
@@ -173,6 +187,7 @@ export class RealisticEarth {
       gl.uniform2f(this.uniforms.get("uRotation")!, rotation.rotX, rotation.rotY);
       gl.uniform3fv(this.uniforms.get("uSun")!, this.sun);
       gl.uniform1f(this.uniforms.get("uDrift")!, this.drift);
+      gl.uniform1f(this.uniforms.get("uNightMode")!, nightMode ? 1 : 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       if (gl.getError() !== gl.NO_ERROR) { this.ready = false; return null; }
       return this.canvas;

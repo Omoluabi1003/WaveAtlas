@@ -16,3 +16,9 @@ Only resampling and WebP compression were applied. Mobile textures are 1024×512
 The native WebGL surface shares the existing orthographic camera and composites beneath the existing country borders, labels, signals, and interaction canvas. A failed shader, missing day texture, unsupported GPU, or lost context leaves the bundled canvas geography in place. Optional cloud/night texture failures leave their black placeholder active and do not remove land.
 
 Opt out with `NEXT_PUBLIC_WAVEATLAS_REALISTIC_EARTH=false`, or force the existing globe with `NEXT_PUBLIC_WAVEATLAS_FORCE_LEGACY_RENDERER=true`, then rebuild. The satellite surface is enabled by default only for the Photorealistic Globe basemap; other basemaps retain their existing appearance.
+
+## Cinematic night view and automatic appearance
+
+City cores and their restrained glow are derived from the existing NASA night texture, not invented settlements or live electricity measurements. Photorealistic Globe retains the actual solar terminator. Night Globe, or a manual Night appearance override on the Photorealistic Globe, is an explicit full-night visualization of the same geographic imagery. Auto retains natural globe sunlight. Station beacons are still drawn separately above the surface.
+
+Settings offers Auto, Day, and Night interface appearance. Auto uses current UTC and the listener's coordinates with the existing NOAA approximation and a -0.833-degree solar-altitude threshold; without coordinates it follows the operating-system color preference. These transition times are approximate. The application requests location automatically only when browser permission is already granted, or when the listener presses Use local sunrise and sunset. Appearance coordinates remain in session memory. Manual choices are saved locally and override automatic changes. Vector street maps follow appearance; satellite, terrain, and explicit night imagery remain the chosen map styles.
