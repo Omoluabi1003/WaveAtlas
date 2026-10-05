@@ -209,7 +209,7 @@ assert.match(
 );
 const cloudDrawIndex = blueMarble.indexOf("drawPhotorealisticCloudLayer(ctx");
 const boundaryDrawIndex = blueMarble.indexOf(
-  "drawPhotorealisticCountryBoundaries(ctx",
+  "drawGlobeBoundaries(",
   cloudDrawIndex,
 );
 const beaconDrawIndex = blueMarble.indexOf(
