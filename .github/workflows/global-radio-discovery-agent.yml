@@ -25,7 +25,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: waveatlas-agents-${{ github.ref }}-${{ github.event_name }}
+  group: waveatlas-agents-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -40,6 +40,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run test:queen
       - run: npm run test:agents
       - run: npm run test:operations
       - run: npm run test:brief
@@ -49,10 +50,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
-  health:
-    if: (github.event_name == 'schedule' && github.event.schedule != '29 */8 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","stream-health"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
+  queen:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     permissions:
       contents: write
     steps:
@@ -62,86 +63,43 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Check a rotating catalog batch
-        run: npm run radio:health
+      - run: npm run test:queen
+      - name: Restore shared execution memory
+        run: |
+          if git ls-remote --exit-code --heads origin chore/waveatlas-queen-memory; then
+            git fetch origin chore/waveatlas-queen-memory
+            mkdir -p reports
+            git show FETCH_HEAD:reports/queen-memory.json > reports/queen-memory.json
+          fi
+      - name: Coordinate existing workers without paid model calls
+        id: coordinate
+        run: npm run agents:queen
         env:
+          QUEEN_AGENT: ${{ inputs.agent || 'all' }}
+          QUEEN_SCHEDULE: ${{ github.event.schedule }}
+          QUEEN_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
           STATION_HEALTH_LIMIT: '120'
-          STATION_HEALTH_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
-      - run: npm run test:agents
-      - run: npm run test:operations
-      - run: npm run typecheck
-      - run: npm run build
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: station-health-report
-          path: reports/station-health-report.*
-          retention-days: 14
-      - name: Publish health review branch
-        if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
-        run: bash scripts/publish-agent-report.sh chore/waveatlas-stream-health-agent lib/stations/stationHealthSnapshot.json reports/station-health-report.json reports/station-health-report.md
-
-  discover:
-    if: (github.event_name == 'schedule' && github.event.schedule == '17 */8 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","station-discovery"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Discover and sample verified audio streams
-        run: npm run radio:discover
-        env:
-          RADIO_DISCOVERY_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
           RADIO_DISCOVERY_MAX_ADD: '50'
           RADIO_DISCOVERY_MAX_PROBES: '150'
           RADIO_DISCOVERY_COUNTRIES_PER_RUN: '24'
           RADIO_DISCOVERY_MIN_BITRATE: '0'
           RADIO_DISCOVERY_REQUIRE_GEO: 'false'
-      - run: npm run radio:validate
+      - name: Save execution memory even when a worker fails
+        if: always() && steps.coordinate.outcome != 'skipped'
+        run: |
+          if test -f reports/queen-memory.json; then
+            bash scripts/publish-agent-report.sh chore/waveatlas-queen-memory reports/queen-memory.json
+          fi
       - run: npm run test:agents
       - run: npm run test:operations
+      - run: npm run radio:validate
       - run: npm run typecheck
       - run: npm run build
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: radio-discovery-report
-          path: reports/radio-discovery-report.*
-          retention-days: 14
-      - name: Publish discovery review branch
-        if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
-        run: bash scripts/publish-agent-report.sh chore/global-radio-discovery-agent lib/stations/discoveredRadioStations.ts lib/stations/discoveredRadioMetadata.json reports/radio-discovery-report.json reports/radio-discovery-report.md
-
-  operations:
-    if: (github.event_name == 'schedule' && github.event.schedule == '29 */8 * * *') || (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","both","operations"]'), inputs.agent)) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run test:operations
-      - run: npm run agents:operate
-        env:
-          OPERATIONAL_AGENTS_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
-      - run: npm run typecheck
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: operational-agents-report
-          path: reports/operational-agents.*
-          retention-days: 30
-      - name: Publish operational review branch
-        if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
-        run: bash scripts/publish-agent-report.sh chore/waveatlas-operational-agents lib/agents/operational-status.json reports/operational-agents.json reports/operational-agents.md
+      - name: Publish validated changes for review
+        if: success() && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
+        run: |
+          paths=(reports/queen-report.json)
+          for file in lib/stations/stationHealthSnapshot.json lib/stations/discoveredRadioStations.ts lib/stations/discoveredRadioMetadata.json lib/agents/operational-status.json reports/station-health-report.json reports/station-health-report.md reports/radio-discovery-report.json reports/radio-discovery-report.md reports/operational-agents.json reports/operational-agents.md; do
+            if test -f "$file"; then paths+=("$file"); fi
+          done
+          bash scripts/publish-agent-report.sh chore/waveatlas-queen-reports "${paths[@]}"

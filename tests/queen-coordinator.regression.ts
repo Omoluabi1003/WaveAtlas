@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { emptyQueenMemory, planWorkers, readQueenMemory } from '../lib/agents/queen-coordinator';
+assert.deepEqual(planWorkers('both'), ['stream-health', 'station-discovery']);
+assert.deepEqual(planWorkers('all', '29 */8 * * *'), ['operations']);
+assert.deepEqual(planWorkers('all', '43 */8 * * *'), ['stream-health']);
+assert.deepEqual(planWorkers('all', '17 */8 * * *'), ['stream-health', 'station-discovery']);
+assert.throws(() => planWorkers('unknown'));
+assert.throws(() => readQueenMemory({}));
+const now = Date.now(), memory = emptyQueenMemory();
+memory.cooldowns['https://failed.example/live'] = new Date(now + 1000).toISOString();
+memory.cooldowns['https://expired.example/live'] = new Date(now - 1).toISOString();
+assert.equal(Object.keys(readQueenMemory(memory, now).cooldowns).length, 1);
+assert.equal(Object.keys(readQueenMemory(memory, now + 1001).cooldowns).length, 0);
+memory.runs = Array.from({ length: 120 }, () => ({ at: new Date(now).toISOString(), worker: 'operations', success: false }));
+assert.equal(readQueenMemory(memory, now).runs.length, 90);
+console.log('Queen routing, bounded memory, cooldown expiry, and invalid-input rejection passed.');

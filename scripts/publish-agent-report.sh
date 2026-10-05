@@ -3,7 +3,7 @@ set -euo pipefail
 agent_branch="$1"
 shift
 case "$agent_branch" in
-  chore/waveatlas-stream-health-agent|chore/global-radio-discovery-agent|chore/waveatlas-operational-agents) ;;
+  chore/waveatlas-stream-health-agent|chore/global-radio-discovery-agent|chore/waveatlas-operational-agents|chore/waveatlas-queen-memory|chore/waveatlas-queen-reports) ;;
   *) echo 'Unexpected report branch' >&2; exit 1 ;;
 esac
 # Generated review branches contain only the caller's explicit artifact paths.
