@@ -6,6 +6,7 @@ import {
   type GeoPermissibleObjects,
   type GeoProjection as D3GeoProjection,
 } from "d3-geo";
+import { useAppearance } from "@/hooks/useSolarAppearance";
 import { drawGlobeBoundaries, loadStateBoundaries } from "@/lib/globe-boundaries";
 import { RealisticEarth } from "@/lib/realistic-earth";
 import countryBoundaries from "@/lib/data/natural-earth-countries.json";
@@ -1295,7 +1296,8 @@ export default function BlueMarbleGlobe({
   const publicDrawCache = useRef<{ updatedAt: number; points: PublicSignal[] }>({ updatedAt: 0, points: [] });
   useEffect(() => { publicSignalRef.current = publicSignalState; publicDrawCache.current.updatedAt = 0; }, [publicSignalState]);
   const publicHitTargets = useRef<Array<{ point: PublicSignal; x: number; y: number }>>([]);
-  const effectiveBasemap: GlobeBasemapKey = basemap;
+  const appearanceMode = useAppearance((s) => s.mode);
+  const effectiveBasemap: GlobeBasemapKey = basemap === "photorealistic" && appearanceMode === "night" ? "night" : basemap;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -2378,13 +2380,14 @@ export default function BlueMarbleGlobe({
         cx,
         cy,
       ).precision(mobile || profile.lowPower ? 0.85 : 0.45);
-      const texturedEarth = photorealisticPreview
+      const texturedEarth = (photorealisticPreview || runtime.basemap === "night")
         ? realisticEarth?.render(
             { rotX: s.rotX, rotY: s.rotY },
             r * 2 * (stableSizeRef.current?.dpr ?? 1),
             Date.now(),
             now,
             s.disabledMotion,
+            runtime.basemap === "night",
           )
         : null;
       if (Boolean(texturedEarth) !== satelliteActive || !wrap.hasAttribute("data-earth-renderer")) {
@@ -2409,7 +2412,8 @@ export default function BlueMarbleGlobe({
         ctx.fillStyle = ocean;
         ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
       }
-      if (!photorealisticPreview && runtime.landShapes.length) {
+      if (texturedEarth && !photorealisticPreview) ctx.drawImage(texturedEarth, cx - r, cy - r, r * 2, r * 2);
+      if (!photorealisticPreview && !texturedEarth && runtime.landShapes.length) {
         const path = geoPath(projection, ctx);
         const shapesToDraw = runtime.landShapes;
 
@@ -2447,7 +2451,7 @@ export default function BlueMarbleGlobe({
       ctx.lineWidth = mobile || profile.lowPower ? 0.45 : 0.7;
       const latStep = mobile || profile.lowPower ? 30 : 15;
       const lngStep = mobile || profile.lowPower ? 30 : 15;
-      if (!photorealisticPreview) {
+      if (!photorealisticPreview && !texturedEarth) {
         for (let lat = -75; lat <= 75; lat += latStep) {
           ctx.beginPath();
           let started = false;
@@ -2495,7 +2499,7 @@ export default function BlueMarbleGlobe({
           ctx.fill();
         }
       }
-      if (runtime.basemap === "night") {
+      if (runtime.basemap === "night" && !texturedEarth) {
         const lights =
           mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;
         for (const light of lights) {

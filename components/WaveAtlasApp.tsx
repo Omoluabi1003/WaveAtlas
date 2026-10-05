@@ -1,5 +1,8 @@
 "use client";
 
+import AppearanceControls from "@/components/AppearanceControls";
+import { useAppearance, useSolarAppearance } from "@/hooks/useSolarAppearance";
+import { appearanceStreetBasemap } from "@/lib/solar-appearance";
 import { ButtonFeedbackSettings } from "@/components/ButtonFeedback";
 
 import { bindPlaybackMediaSession } from "@/lib/playback-media-session";
@@ -2067,7 +2070,7 @@ function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === 
 const globeBasemapStyles: Record<GlobeBasemapKey, { label: string; name: string; description: string }> = {
   photorealistic: { label: "🌍 Photorealistic Globe", name: "Photorealistic Globe", description: "Realistic Earth texture, clouds, atmosphere, city lights, directional light, and ocean depth." },
   blueMarble: { label: "🌊 Blue Marble Globe", name: "Blue Marble Globe", description: "Procedural oceans, landmasses, borders, labels, and live beacon." },
-  night: { label: "🌃 Night Globe", name: "Night Globe", description: "Dark Earth with country outlines, city-light style points, and live beacon." },
+  night: { label: "🌃 Night Globe", name: "Night Globe", description: "Cinematic NASA city lights with a warm urban glow, atmospheric edge, and live beacon." },
   signal: { label: "📡 Signal Globe", name: "Signal Globe", description: "Minimal navy globe with grid, country outlines, and live beacon." },
 };
 function getInitialGlobeBasemap(): GlobeBasemapKey { if (typeof window === "undefined") return "photorealistic"; const saved = window.localStorage.getItem(GLOBE_BASEMAP_STORAGE_KEY) as GlobeBasemapKey | null; return saved && saved in globeBasemapStyles ? saved : "photorealistic"; }
@@ -2354,7 +2357,9 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   const container = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<Map | null>(null);
   const [internalBasemap, setInternalBasemap] = useState<BasemapKey>(() => getInitialBasemap(mobile));
-  const basemap = controlledBasemap ?? internalBasemap;
+  const requestedBasemap = controlledBasemap ?? internalBasemap;
+  const appearance = useAppearance((s) => s.resolved);
+  const basemap = appearanceStreetBasemap(requestedBasemap, appearance) as BasemapKey;
   const setBasemap = onBasemapChange ?? setInternalBasemap;
   const initialBasemap = useRef(basemap);
   const initialTransitionContext = useRef(initialContext);
@@ -3764,6 +3769,7 @@ function UtilityLinksPanel({ compact = false, atlasView, onChooseAtlasView, atla
 
 
 
+    <AppearanceControls />
     <ButtonFeedbackSettings />
 
     {startupPreferences && onStartupPreferencesChange ? <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
@@ -4264,6 +4270,7 @@ function VoiceCommandButton({ compact = false, active = true, onIntent, onFeedba
 }
 
 export default function WaveAtlasApp({ stations, inventoryStats, initialStation }: { stations: Station[]; inventoryStats?: StationInventoryStats; initialStation?: Station }) {
+  const appearance = useSolarAppearance();
   usePublicSignalPolling();
   const reducedMotion = useReducedMotion();
   const playerStatus = usePlayer((state) => state.status);
@@ -4924,7 +4931,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
           .includes(query.toLowerCase()),
     );
   return (
-    <>
+    <div className="waveatlas-app" data-wa-appearance={appearance}>
       <style jsx global>{`@keyframes teleportPulse { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(1.08); opacity: 0; } } @media (prefers-reduced-motion: reduce) { .animate-\[teleportPulse_2\.8s_ease-out_infinite\] { animation: none !important; } }`}</style>
       <AudioEngine stations={stationPool} />
       {!activeStation ? <><PublicSignalPanel mobile showMobileLauncher onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /><PublicSignalPanel onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /></> : null}
@@ -5077,6 +5084,6 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         </nav>
       </div> : null}
     </main>
-    </>
+    </div>
   );
 }

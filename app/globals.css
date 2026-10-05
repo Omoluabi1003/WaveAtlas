@@ -51,3 +51,12 @@
 @media (prefers-reduced-motion:reduce) {
   [data-waveatlas-feedback-root] :is(button,[role="button"],[role="tab"],a[href]):active { scale: 1; }
 }
+
+/* Daylight panels retain ivory text contrast while the globe stays geographically lit. */
+.waveatlas-app{--wa-panel:#07111f;--wa-muted-panel:#0b1827}
+.waveatlas-app[data-wa-appearance="day"]{--wa-panel:#183449;--wa-muted-panel:#21435a;color-scheme:light}
+.waveatlas-app[data-wa-appearance="night"]{color-scheme:dark}
+.waveatlas-app[data-wa-appearance="day"] [class*="bg-slate-950/"]{background-color:rgba(24,52,73,.94)}
+.waveatlas-app[data-wa-appearance="day"] .glass{background:linear-gradient(135deg,rgba(127,190,216,.23),rgba(24,52,73,.85))}
+.waveatlas-app [class*="bg-slate-950/"]{transition:background-color .8s ease,border-color .8s ease}
+@media(prefers-reduced-motion:reduce){.waveatlas-app [class*="bg-slate-950/"]{transition:none}}

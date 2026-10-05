@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { appearanceStreetBasemap, resolveSolarAppearance, validAppearanceMode } from "../lib/solar-appearance";
+import { subsolarPoint } from "../lib/earth-lighting";
+const at = Date.parse("2026-10-05T12:00:00Z"), sun = subsolarPoint(at);
+const opposite = {lat:-sun.lat,lng:sun.lng>0?sun.lng-180:sun.lng+180};
+assert.equal(resolveSolarAppearance("auto",sun,at,true),"day");
+assert.equal(resolveSolarAppearance("auto",opposite,at,false),"night");
+assert.equal(resolveSolarAppearance("night",sun,at,false),"night");
+assert.equal(resolveSolarAppearance("day",opposite,at,true),"day");
+assert.equal(resolveSolarAppearance("auto",null,at,true),"night");
+assert.equal(resolveSolarAppearance("auto",null,at,false),"day");
+assert.equal(resolveSolarAppearance("auto",{lat:NaN,lng:0},at,true),"night");
+assert.equal(validAppearanceMode("corrupt"),"auto");
+assert.equal(appearanceStreetBasemap("atlasStreets","night"),"atlas");
+assert.equal(appearanceStreetBasemap("atlas","day"),"atlasStreets");
+for(const map of ["satellite","terrain","night"])assert.equal(appearanceStreetBasemap(map,"day"),map);
+const florida={lat:27.24,lng:-80.83};
+assert.equal(resolveSolarAppearance("auto",florida,Date.parse("2026-10-05T06:00:00Z"),false),"night");
+assert.equal(resolveSolarAppearance("auto",florida,Date.parse("2026-10-05T16:00:00Z"),true),"day");
+// Polar day/night must work without attempting a nonexistent sunrise schedule.
+assert.equal(resolveSolarAppearance("auto",{lat:89,lng:0},Date.parse("2026-06-21T00:00:00Z"),true),"day");
+assert.equal(resolveSolarAppearance("auto",{lat:89,lng:0},Date.parse("2026-12-21T12:00:00Z"),false),"night");
+console.log("Solar appearance: local daylight, manual priority, device fallback, polar seasons, and map preservation pass.");
