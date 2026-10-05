@@ -1,0 +1,295 @@
+{
+  "generatedAt": "2026-10-05T06:15:54.621Z",
+  "catalogSize": 57,
+  "checked": 57,
+  "healthy": 10,
+  "degraded": 47,
+  "preserved": true,
+  "results": [
+    {
+      "name": "Metro FM - Johannesburg",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "5FM - Johannesburg",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "BBC Radio 1 - London",
+      "status": "degraded",
+      "reason": "http-410"
+    },
+    {
+      "name": "CBC Radio One - Toronto",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "Cool FM - Abuja",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "Cool FM 96.9 Lagos",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "Premier FM 93.5 Ibadan",
+      "status": "healthy",
+      "reason": "audio-aac"
+    },
+    {
+      "name": "ABC Radio Sydney",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "City FM 105.1 Lagos",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "FIP",
+      "status": "healthy",
+      "reason": "audio-mpeg"
+    },
+    {
+      "name": "France Info",
+      "status": "healthy",
+      "reason": "audio-mpeg"
+    },
+    {
+      "name": "Agidigbo 88.7 FM Ibadan",
+      "status": "healthy",
+      "reason": "audio-mpeg"
+    },
+    {
+      "name": "NPR News - Washington, DC",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "Tokyo FM",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "Radio K",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "Cool FM Lagos",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "Wazobia FM Lagos",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "KALX Berkeley",
+      "status": "healthy",
+      "reason": "audio-mpeg"
+    },
+    {
+      "name": "KLSU",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "NPR News",
+      "status": "healthy",
+      "reason": "audio-mpeg"
+    },
+    {
+      "name": "KWVA",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "WRAS Album 88",
+      "status": "healthy",
+      "reason": "audio-mpeg"
+    },
+    {
+      "name": "WERS",
+      "status": "healthy",
+      "reason": "audio-mpeg"
+    },
+    {
+      "name": "Splash FM 105.5 Ibadan",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "BBC World Service",
+      "status": "healthy",
+      "reason": "audio-mpeg"
+    },
+    {
+      "name": "RayPower 100.5 FM Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Top Radio 90.9 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Inspiration FM 92.3 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Soundcity 98.5 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Wazobia FM 95.1 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Fresh FM 105.9 Ibadan",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Classic FM 97.3 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Traffic Radio 96.1 FM Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Rhythm FM 93.7 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Beat FM 99.9 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Bond FM 92.9 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Urban 96 FM Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Eko FM 89.7 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Faaji FM 106.5 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "WFUV",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "WPTS",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "Freedom FM 99.5 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Smooth 98.1 FM Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "Nigeria Info FM 99.3 Lagos",
+      "status": "degraded",
+      "reason": "http-403"
+    },
+    {
+      "name": "WRUV",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "WSUM",
+      "status": "degraded",
+      "reason": "network-or-invalid-url"
+    },
+    {
+      "name": "Jay 101.9 FM Jos",
+      "status": "degraded",
+      "reason": "http-500"
+    },
+    {
+      "name": "Arise News Radio",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "WIUX",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "Joy FM - Accra",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "MANGORADIO",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "KCOU",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "KVRX",
+      "status": "healthy",
+      "reason": "audio-mpeg"
+    },
+    {
+      "name": "WOUB",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "Brila FM 88.9 Lagos",
+      "status": "degraded",
+      "reason": "timeout"
+    },
+    {
+      "name": "Wazobia FM - Lagos",
+      "status": "degraded",
+      "reason": "http-404"
+    },
+    {
+      "name": "Capital FM - Nairobi",
+      "status": "degraded",
+      "reason": "timeout"
+    }
+  ]
+}
