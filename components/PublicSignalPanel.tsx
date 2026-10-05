@@ -20,11 +20,14 @@ export default function PublicSignalPanel({ mobile = false, showMobileLauncher =
   const client = useSyncExternalStore(subscribeClient, clientSnapshot, serverSnapshot);
   const state = usePublicSignals();
   const panelRef = useRef<HTMLElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const points = useMemo(() => visiblePublicSignals(state), [state]);
   const contacts = useMemo(() => [...points].sort((a, b) => anchor ? signalDistanceKm(anchor, a) - signalDistanceKm(anchor, b) : b.observedAt.localeCompare(a.observedAt)).slice(0, 30), [points, anchor]);
   const selected = state.selected && points.find(p => p.id === state.selected?.id);
   const expanded = state.panelOpen || Boolean(selected);
   const close = state.closePanel;
+  const selectedId = selected?.id;
+  useEffect(() => { if (expanded && selectedId) scrollRef.current?.scrollTo({ top: 0 }); }, [expanded, selectedId]);
 
   useEffect(() => {
     if (!client || !expanded || window.matchMedia("(max-width: 767px)").matches !== mobile) return;
@@ -75,7 +78,7 @@ export default function PublicSignalPanel({ mobile = false, showMobileLauncher =
             <div><h2 className="text-base font-semibold tracking-tight">World signals</h2><p className="mt-0.5 text-xs text-ivory/60">Explore Earth and space</p></div>
             <button type="button" onClick={close} aria-label="Close World signals" className="grid size-11 shrink-0 place-items-center rounded-full border border-white/10 bg-white/5 text-ivory/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-radio"><X className="size-4" /></button>
           </header>
-          <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+          <div ref={scrollRef} className="min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-[max(24px,env(safe-area-inset-bottom))]">
             <p className="mb-4 text-xs leading-5 text-ivory/65">Choose the signals to display on your atlas.</p>
             {selected ? <article className="mb-4 rounded-2xl border border-radio/25 bg-radio/5 p-4">
               <div className="flex items-start justify-between gap-2"><h3 className="font-semibold">{selected.title}</h3><button type="button" aria-label="Clear selected signal" onClick={() => state.select(null)} className="shrink-0 p-2"><X className="size-4" /></button></div>
@@ -98,7 +101,7 @@ export default function PublicSignalPanel({ mobile = false, showMobileLauncher =
                 </div>;
               })}
             </div>
-            {contacts.length ? <><h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ivory/60">{anchor ? "Closest to your station" : "Recent reports"} · {Math.min(30, points.length)} of {points.length}</h3>{contacts.map(p => <button type="button" key={p.id} onClick={() => { state.select(p); if (!mobile) onLocate(p); panelRef.current?.querySelector("article")?.scrollIntoView({ block: "nearest" }); }} className="mb-1 block min-h-11 w-full rounded-xl p-3 text-left text-xs hover:bg-white/5"><span className="block" style={{ color: SIGNAL_LAYERS[p.layer].color }}>{p.title}</span><span className="mt-1 block text-ivory/50">{anchor ? `${Math.round(signalDistanceKm(anchor, p)).toLocaleString()} km · ` : ""}{SIGNAL_LAYERS[p.layer].source}</span></button>)}</> : Object.values(state.enabled).some(Boolean) ? <p className="text-xs text-ivory/55">No reports to plot. Check the layer status above.</p> : null}
+            {contacts.length ? <><h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ivory/60">{anchor ? "Closest to your station" : "Recent reports"} · {Math.min(30, points.length)} of {points.length}</h3>{contacts.map(p => <button type="button" key={p.id} onClick={() => { state.select(p); if (!mobile) onLocate(p); }} className="mb-1 block min-h-11 w-full rounded-xl p-3 text-left text-xs hover:bg-white/5"><span className="block" style={{ color: SIGNAL_LAYERS[p.layer].color }}>{p.title}</span><span className="mt-1 block text-ivory/50">{anchor ? `${Math.round(signalDistanceKm(anchor, p)).toLocaleString()} km · ` : ""}{SIGNAL_LAYERS[p.layer].source}</span></button>)}</> : Object.values(state.enabled).some(Boolean) ? <p className="text-xs text-ivory/55">No reports to plot. Check the layer status above.</p> : null}
             <p className="mt-4 text-[11px] leading-4 text-ivory/45">Up to 200 recent points per report layer. Coverage varies by source. These reports are not an emergency warning service.</p>
           </div>
         </section>
