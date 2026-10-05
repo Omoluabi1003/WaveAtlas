@@ -6,6 +6,7 @@ import {
   type GeoPermissibleObjects,
   type GeoProjection as D3GeoProjection,
 } from "d3-geo";
+import { RealisticEarth } from "@/lib/realistic-earth";
 import countryBoundaries from "@/lib/data/natural-earth-countries.json";
 import { isoCountryCentroids } from "@/lib/geotruth-resolver";
 import { flagFor, type Station } from "@/lib/stations";
@@ -791,13 +792,15 @@ function drawPhotorealisticCountryBoundaries(
     landShapes: LandShape[];
     mobile: boolean;
     lowPower: boolean;
+    detail?: number;
   },
 ) {
-  const { projection, landShapes, mobile, lowPower } = options;
+  const { projection, landShapes, mobile, lowPower, detail } = options;
   if (!landShapes.length) return;
   const path = geoPath(projection, ctx);
   ctx.save();
-  ctx.strokeStyle = "rgba(226,242,255,0.42)";
+  const alpha = detail === undefined ? 0.42 : 0.10 + Math.min(1, Math.max(0, detail - 1)) * 0.25;
+  ctx.strokeStyle = `rgba(226,242,255,${alpha})`;
   ctx.lineWidth = mobile || lowPower ? 0.48 : 0.72;
   ctx.shadowColor = "rgba(15,23,42,0.45)";
   ctx.shadowBlur = mobile ? 0 : 1.2;
@@ -1854,6 +1857,7 @@ export default function BlueMarbleGlobe({
     let then = performance.now();
     let painted = false;
     let globeInteractive = false;
+    let satelliteActive = false;
     const transitionStats = {
       active: false,
       startedAt: 0,
@@ -1873,6 +1877,7 @@ export default function BlueMarbleGlobe({
             );
         }, MOBILE_FALLBACK_MS)
       : 0;
+    const realisticEarth = RealisticEarth.create(mobile || profile.lowPower);
     const cloudLayer = cloudLayerRef.current;
     const initializeCloudLayer = () => {
       if (cloudLayer.cloudStatus !== "idle" || !PHOTOREALISTIC_CLOUDS_ENABLED)
@@ -2395,29 +2400,36 @@ export default function BlueMarbleGlobe({
         cx,
         cy,
       ).precision(mobile || profile.lowPower ? 0.85 : 0.45);
+      const texturedEarth = photorealisticPreview
+        ? realisticEarth?.render(
+            { rotX: s.rotX, rotY: s.rotY },
+            r * 2 * (stableSizeRef.current?.dpr ?? 1),
+            Date.now(),
+            now,
+            s.disabledMotion,
+          )
+        : null;
+      if (Boolean(texturedEarth) !== satelliteActive || !wrap.hasAttribute("data-earth-renderer")) {
+        satelliteActive = Boolean(texturedEarth);
+        wrap.setAttribute("data-earth-renderer", satelliteActive ? "satellite-webgl" : "canvas-fallback");
+      }
       if (photorealisticPreview) {
-        drawPhotorealisticSurface(ctx, {
-          projection,
-          cx,
-          cy,
-          r,
-          now,
-          quality: globeQuality,
-          landShapes: runtime.landShapes,
-          mobile,
-          lowPower: profile.lowPower,
-          reducedMotion: s.disabledMotion,
-        });
-        drawPhotorealisticCloudLayer(ctx, {
-          projection,
-          clouds: cloudLayer,
-          now,
-          mobile,
-          reducedMotion: s.disabledMotion,
-          travelActive: s.travelActive,
-        });
+        if (texturedEarth) {
+          ctx.drawImage(texturedEarth, cx - r, cy - r, r * 2, r * 2);
+        } else {
+          drawPhotorealisticSurface(ctx, {
+            projection, cx, cy, r, now, quality: globeQuality,
+            landShapes: runtime.landShapes, mobile,
+            lowPower: profile.lowPower, reducedMotion: s.disabledMotion,
+          });
+          drawPhotorealisticCloudLayer(ctx, {
+            projection, clouds: cloudLayer, now, mobile,
+            reducedMotion: s.disabledMotion, travelActive: s.travelActive,
+          });
+        }
         drawPhotorealisticCountryBoundaries(ctx, {
           projection,
+          detail: texturedEarth ? s.zoom : undefined,
           landShapes: runtime.landShapes,
           mobile,
           lowPower: profile.lowPower,
@@ -2496,7 +2508,7 @@ export default function BlueMarbleGlobe({
           ctx.stroke();
         }
       }
-      if (photorealisticPreview) {
+      if (photorealisticPreview && !texturedEarth) {
         const lights =
           mobile || profile.lowPower ? CITY_LIGHTS.slice(0, 9) : CITY_LIGHTS;
         for (const light of lights) {
@@ -2532,7 +2544,7 @@ export default function BlueMarbleGlobe({
         }
       }
       ctx.restore();
-      if (photorealisticPreview) {
+      if (photorealisticPreview && !texturedEarth) {
         ctx.save();
         ctx.strokeStyle = "rgba(125,211,252,0.28)";
         ctx.lineWidth = mobile ? 5 : 8;
@@ -3127,6 +3139,7 @@ export default function BlueMarbleGlobe({
       canvas.addEventListener("contextlost", onContextLost);
     raf = requestAnimationFrame(draw);
     return () => {
+      realisticEarth?.dispose();
       cloudLayer.loadToken += 1;
       cloudLayer.systems = [];
       cloudLayer.cloudStatus = "idle";
