@@ -54,7 +54,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable}`}>
-      <body><ButtonFeedback /><ServiceWorkerDiagnostics /><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
+      <body>
+        <script src="/browser-compatibility.js" async />
+        <div id="waveatlas-compatibility-help" style={{ position: "fixed", left: 12, right: 12, bottom: 12, zIndex: 120, padding: 16, borderRadius: 16, background: "#08111D", color: "#F7F5EF", border: "1px solid #D4A64A", fontFamily: "Arial, sans-serif" }}>
+          Having trouble opening the atlas? <a href="/listen" style={{ color: "#00D68F", textDecoration: "underline", display: "inline-block", padding: "8px 12px" }}>Open the lightweight player</a>
+        </div>
+        <ButtonFeedback /><ServiceWorkerDiagnostics /><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
     </html>
   );
 }
