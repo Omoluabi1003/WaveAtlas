@@ -5,10 +5,12 @@ import { SIGNAL_LAYERS, type PublicSignal, type SignalLayer, type SignalSnapshot
 
 type LayerState = { status: "idle" | "loading" | "ready" | "unavailable"; snapshot?: SignalSnapshot };
 type State = {
+  panelOpen: boolean; openPanel: () => void; closePanel: () => void;
   enabled: Record<SignalLayer, boolean>; layers: Record<SignalLayer, LayerState>; selected: PublicSignal | null;
   toggle: (layer: SignalLayer) => void; select: (point: PublicSignal | null) => void;
 };
 export const usePublicSignals = create<State>((set) => ({
+  panelOpen: false, openPanel: () => set({ panelOpen: true }), closePanel: () => set({ panelOpen: false, selected: null }),
   enabled: { earthquakes: false, events: false, iss: false },
   layers: { earthquakes: { status: "idle" }, events: { status: "idle" }, iss: { status: "idle" } }, selected: null,
   toggle: layer => set(state => ({ enabled: { ...state.enabled, [layer]: !state.enabled[layer] }, selected: state.selected?.layer === layer ? null : state.selected })),
