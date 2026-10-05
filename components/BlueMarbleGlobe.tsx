@@ -6,6 +6,7 @@ import {
   type GeoPermissibleObjects,
   type GeoProjection as D3GeoProjection,
 } from "d3-geo";
+import { drawGlobeBoundaries, loadStateBoundaries } from "@/lib/globe-boundaries";
 import { RealisticEarth } from "@/lib/realistic-earth";
 import countryBoundaries from "@/lib/data/natural-earth-countries.json";
 import { isoCountryCentroids } from "@/lib/geotruth-resolver";
@@ -781,33 +782,6 @@ function drawPhotorealisticCloudLayer(
       ctx.restore();
     }
     ctx.restore();
-  }
-  ctx.restore();
-}
-
-function drawPhotorealisticCountryBoundaries(
-  ctx: CanvasRenderingContext2D,
-  options: {
-    projection: D3GeoProjection;
-    landShapes: LandShape[];
-    mobile: boolean;
-    lowPower: boolean;
-    detail?: number;
-  },
-) {
-  const { projection, landShapes, mobile, lowPower, detail } = options;
-  if (!landShapes.length) return;
-  const path = geoPath(projection, ctx);
-  ctx.save();
-  const alpha = detail === undefined ? 0.42 : 0.10 + Math.min(1, Math.max(0, detail - 1)) * 0.25;
-  ctx.strokeStyle = `rgba(226,242,255,${alpha})`;
-  ctx.lineWidth = mobile || lowPower ? 0.48 : 0.72;
-  ctx.shadowColor = "rgba(15,23,42,0.45)";
-  ctx.shadowBlur = mobile ? 0 : 1.2;
-  for (const shape of landShapes) {
-    ctx.beginPath();
-    path(shape.feature);
-    ctx.stroke();
   }
   ctx.restore();
 }
@@ -1858,6 +1832,10 @@ export default function BlueMarbleGlobe({
     let painted = false;
     let globeInteractive = false;
     let satelliteActive = false;
+    let stateBoundaries: GeoPermissibleObjects | null = null;
+    let boundaryLoading = false;
+    let boundaryRetryAt = 0;
+    let boundariesDisposed = false;
     const transitionStats = {
       active: false,
       startedAt: 0,
@@ -2427,13 +2405,6 @@ export default function BlueMarbleGlobe({
             reducedMotion: s.disabledMotion, travelActive: s.travelActive,
           });
         }
-        drawPhotorealisticCountryBoundaries(ctx, {
-          projection,
-          detail: texturedEarth ? s.zoom : undefined,
-          landShapes: runtime.landShapes,
-          mobile,
-          lowPower: profile.lowPower,
-        });
       } else {
         ctx.fillStyle = ocean;
         ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
@@ -2455,20 +2426,18 @@ export default function BlueMarbleGlobe({
           ctx.fill("evenodd");
         }
 
-        ctx.strokeStyle = photorealisticPreview
-          ? "rgba(234,244,255,0.28)"
-          : runtime.basemap === "night"
-            ? "rgba(125,211,252,0.25)"
-            : runtime.basemap === "signal"
-              ? "rgba(125,211,252,0.38)"
-              : "rgba(125,211,252,0.30)";
-        ctx.lineWidth = mobile || profile.lowPower ? 0.42 : 0.65;
-        for (const shape of shapesToDraw) {
-          ctx.beginPath();
-          path(shape.feature);
-          ctx.stroke();
-        }
       }
+      if (s.zoom > 1.18 && !stateBoundaries && !boundaryLoading && now >= boundaryRetryAt) {
+        boundaryLoading = true;
+        void loadStateBoundaries()
+          .then((boundaries) => { if (!boundariesDisposed) stateBoundaries = boundaries; })
+          .catch(() => { boundaryRetryAt = performance.now() + 15000; })
+          .finally(() => { boundaryLoading = false; });
+      }
+      drawGlobeBoundaries(
+        ctx, projection, runtime.landShapes.map((shape) => shape.feature),
+        stateBoundaries, s.zoom, mobile || profile.lowPower,
+      );
       ctx.strokeStyle =
         runtime.basemap === "signal"
           ? "rgba(56,189,248,0.24)"
@@ -3139,6 +3108,7 @@ export default function BlueMarbleGlobe({
       canvas.addEventListener("contextlost", onContextLost);
     raf = requestAnimationFrame(draw);
     return () => {
+      boundariesDisposed = true;
       realisticEarth?.dispose();
       cloudLayer.loadToken += 1;
       cloudLayer.systems = [];
