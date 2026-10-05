@@ -1,5 +1,7 @@
 "use client";
 
+import { readBrowserStorage, writeBrowserStorage } from "@/lib/browser-storage";
+
 import AppearanceControls from "@/components/AppearanceControls";
 import { useAppearance, useSolarAppearance } from "@/hooks/useSolarAppearance";
 import { appearanceStreetBasemap } from "@/lib/solar-appearance";
@@ -44,7 +46,7 @@ import {
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
-import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { isoCountryCentroids, type ResolvedStationGeo } from "@/lib/geotruth-resolver";
 import { BRAND, DEVELOPER_ATTRIBUTION, WAVEATLAS_LOGO_PATH } from "@/lib/branding";
@@ -193,7 +195,7 @@ function readStartupPreferences(): StartupPreferences {
 
 function persistStartupPreferences(preferences: StartupPreferences) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STARTUP_PREFERENCES_KEY, JSON.stringify(preferences));
+  writeBrowserStorage("local", STARTUP_PREFERENCES_KEY, JSON.stringify(preferences));
 }
 
 function stationPersistentId(station: Station) {
@@ -642,12 +644,12 @@ async function startNearbyTimeToFirstAudioDiscovery(seedStations: Station[], anc
 }
 
 function readHasCompletedArrival() {
-  return typeof window !== "undefined" && window.sessionStorage.getItem(ARRIVAL_COMPLETED_SESSION_KEY) === "true";
+  return readBrowserStorage("session", ARRIVAL_COMPLETED_SESSION_KEY) === "true";
 }
 
 function markArrivalCompleted() {
   if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(ARRIVAL_COMPLETED_SESSION_KEY, "true");
+  writeBrowserStorage("session", ARRIVAL_COMPLETED_SESSION_KEY, "true");
   window.dispatchEvent(new Event(ARRIVAL_COMPLETED_EVENT));
 }
 
@@ -1110,7 +1112,7 @@ function StreamHealthBadge({ station }: { station: Station }) {
 }
 
 function readFavoriteStationIds() {
-  const raw = window.localStorage.getItem("waveatlas:favorites");
+  const raw = readBrowserStorage("local", "waveatlas:favorites");
   if (!raw) return [] as string[];
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -1410,13 +1412,15 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
   const [visible, setVisible] = useState(true);
   const [phase, setPhase] = useState(0);
   const completed = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
   const dismiss = useCallback(() => {
     if (completed.current) return;
     completed.current = true;
     try { window.sessionStorage.setItem(SIGNAL_SPLASH_KEY, "true"); } catch { /* Splash persistence is optional. */ }
     setVisible(false);
-    onComplete?.();
-  }, [onComplete]);
+    onCompleteRef.current?.();
+  }, []);
   useEffect(() => {
     const phaseTimer = window.setInterval(() => setPhase((p) => (p + 1) % signalInitializationPhases.length), SIGNAL_SPLASH_PHASE_MS);
     const doneTimer = window.setTimeout(dismiss, SIGNAL_SPLASH_DONE_MS);
@@ -1443,6 +1447,7 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
         <p className="mt-1 text-[11px] font-medium tracking-[0.18em] text-gold/65">WaveAtlas™ creator credit</p>
       </div>
     </div>
+    <button type="button" onClick={dismiss} className="absolute right-6 top-6 rounded-full border border-white/20 bg-slate-950/70 px-5 py-3 text-sm font-semibold text-ivory focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold">Skip introduction</button>
     <p className="absolute bottom-8 left-1/2 w-full max-w-sm -translate-x-1/2 px-6 text-center text-[11px] font-medium tracking-wide text-ivory/35 sm:bottom-10">Initializing the global radio atlas</p>
   </motion.div> : null}</AnimatePresence>;
 }
@@ -1468,8 +1473,9 @@ function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch, o
     setActionMessage(`${label} requested…`);
     if (loadingTimer.current) window.clearTimeout(loadingTimer.current);
     loadingTimer.current = window.setTimeout(() => setPendingAction(label), 200);
-    Promise.resolve()
-      .then(action)
+    let result: ReturnType<EmptyAtlasActionHandler>;
+    try { result = action(); } catch (error) { result = Promise.reject(error); }
+    Promise.resolve(result)
       .then((message) => {
         setActionMessage(message || `${label} is ready. If nothing changed, try again or use Search to start exploring.`);
       })
@@ -1484,7 +1490,7 @@ function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch, o
       });
   }, []);
   useEffect(() => () => { if (loadingTimer.current) window.clearTimeout(loadingTimer.current); }, []);
-  return <div className="grid h-full min-h-[100dvh] place-items-center overflow-hidden bg-[radial-gradient(circle_at_50%_35%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_52%,#031713)] px-5 text-center text-ivory">
+  return <div className="empty-atlas grid h-full min-h-screen place-items-center overflow-y-auto bg-[radial-gradient(circle_at_50%_35%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_52%,#031713)] px-5 text-center text-ivory">
     <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] [background-size:56px_56px]" />
     <div className="relative max-w-3xl rounded-[2rem] border border-white/10 bg-slate-950/45 p-6 shadow-[0_28px_90px_rgba(0,0,0,.45)] backdrop-blur-2xl sm:p-8">
       <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-radio">Empty Atlas</p>
@@ -2066,19 +2072,19 @@ const basemapStyles: Record<BasemapKey, { label: string; name: string; descripti
   night: { label: "🌃 Night", name: "Night Lights", description: "Earth at night", style: { version: 8, sources: { nasa: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/2012-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / VIIRS City Lights" } }, layers: [{ id: "viirs-night-lights", type: "raster", source: "nasa" }] } },
   blueMarble: { label: "🌊 Blue Marble", name: "Blue Marble", description: "Clean global Earth aesthetic", style: { version: 8, sources: { marble: { type: "raster", tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/2004-08-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"], tileSize: 256, attribution: "NASA GIBS / Blue Marble" } }, layers: [{ id: "blue-marble", type: "raster", source: "marble" }] } },
 };
-function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
+function getInitialBasemap(mobile: boolean): BasemapKey { if (typeof window === "undefined") return DEFAULT_BASEMAP; const saved = readBrowserStorage("local", BASEMAP_STORAGE_KEY) as BasemapKey | null; return saved && saved in basemapStyles ? saved : DEFAULT_BASEMAP; }
 const globeBasemapStyles: Record<GlobeBasemapKey, { label: string; name: string; description: string }> = {
   photorealistic: { label: "🌍 Photorealistic Globe", name: "Photorealistic Globe", description: "Realistic Earth texture, clouds, atmosphere, city lights, directional light, and ocean depth." },
   blueMarble: { label: "🌊 Blue Marble Globe", name: "Blue Marble Globe", description: "Procedural oceans, landmasses, borders, labels, and live beacon." },
   night: { label: "🌃 Night Globe", name: "Night Globe", description: "Cinematic NASA city lights with a warm urban glow, atmospheric edge, and live beacon." },
   signal: { label: "📡 Signal Globe", name: "Signal Globe", description: "Minimal navy globe with grid, country outlines, and live beacon." },
 };
-function getInitialGlobeBasemap(): GlobeBasemapKey { if (typeof window === "undefined") return "photorealistic"; const saved = window.localStorage.getItem(GLOBE_BASEMAP_STORAGE_KEY) as GlobeBasemapKey | null; return saved && saved in globeBasemapStyles ? saved : "photorealistic"; }
+function getInitialGlobeBasemap(): GlobeBasemapKey { if (typeof window === "undefined") return "photorealistic"; const saved = readBrowserStorage("local", GLOBE_BASEMAP_STORAGE_KEY) as GlobeBasemapKey | null; return saved && saved in globeBasemapStyles ? saved : "photorealistic"; }
 function getInitialAtlasView(): AtlasViewMode {
   if (typeof window === "undefined") return "globe";
-  const saved = window.localStorage.getItem(ATLAS_VIEW_STORAGE_KEY);
+  const saved = readBrowserStorage("local", ATLAS_VIEW_STORAGE_KEY);
   if (saved === "map" || saved === "globe") return saved;
-  if (saved) window.localStorage.removeItem(ATLAS_VIEW_STORAGE_KEY);
+  if (saved) { try { window.localStorage.removeItem(ATLAS_VIEW_STORAGE_KEY); } catch { /* View preference is optional. */ } }
   return "globe";
 }
 function persistAtlasView(view: AtlasViewMode) {
@@ -2624,7 +2630,7 @@ function readTeleportHistory(): TeleportHistory {
 }
 function rememberJourneyStop(station: Station) {
   rememberTeleport(station);
-  persistArrival(station, stationContinent(station), window.localStorage);
+  try { persistArrival(station, stationContinent(station), window.localStorage); } catch { /* Journey history must not block station selection. */ }
 }
 
 function rememberTeleport(station: Station) {
@@ -3213,8 +3219,8 @@ function SignalDial({ mapContext, selectedCountry, stations, current, mobile = f
   const pulseActive = !prefersReducedMotion && (playbackStatus === "idle" || playbackStatus === "playing") && state === "idle";
   const lockAnchor = useMemo(() => getCandidateLockAnchor(current, stations), [current, stations]);
   useEffect(() => {
-    if (compact || !pulseActive || typeof window === "undefined" || window.localStorage.getItem(TELEPORT_HINT_KEY)) return;
-    window.localStorage.setItem(TELEPORT_HINT_KEY, "true");
+    if (compact || !pulseActive || typeof window === "undefined" || readBrowserStorage("local", TELEPORT_HINT_KEY)) return;
+    writeBrowserStorage("local", TELEPORT_HINT_KEY, "true");
     const showTimer = window.setTimeout(() => setShowTeleportHint(true), 0);
     const hideTimer = window.setTimeout(() => setShowTeleportHint(false), 3500);
     return () => { window.clearTimeout(showTimer); window.clearTimeout(hideTimer); };
@@ -4044,10 +4050,15 @@ function microphoneBlockedMessage() {
   return "Microphone permission is blocked. Re-enable the microphone for this site in your browser settings, then press Retry. Manual search and playback still work.";
 }
 
+const subscribeBrowserReady = () => () => {};
+const browserReadySnapshot = () => true;
+const browserServerSnapshot = () => false;
+
 function VoiceCommandButton({ compact = false, active = true, onIntent, onFeedback }: VoiceCommandButtonProps) {
-  const [supported] = useState(() => Boolean(getSpeechRecognitionConstructor()));
+  const browserReady = useSyncExternalStore(subscribeBrowserReady, browserReadySnapshot, browserServerSnapshot);
+  const supported = browserReady && Boolean(getSpeechRecognitionConstructor());
   const [listening, setListening] = useState(false);
-  const [message, setMessage] = useState(() => getSpeechRecognitionConstructor() ? VOICE_TOOLTIP_DEFAULT_MESSAGE : "Voice commands are unavailable in this browser.");
+  const [message, setMessage] = useState("Voice commands are unavailable in this browser.");
   const [microphonePermission, setMicrophonePermission] = useState<MicrophonePermissionState>(() => supported ? "unknown" : "unsupported");
   const permissionStatusRef = useRef<PermissionStatus | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -4108,12 +4119,12 @@ function VoiceCommandButton({ compact = false, active = true, onIntent, onFeedba
   }, [supported]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void refreshMicrophonePermission(), 0);
+    const timer = window.setTimeout(() => { resetLocalTooltip(); void refreshMicrophonePermission(); }, 0);
     return () => {
       window.clearTimeout(timer);
       if (permissionStatusRef.current) permissionStatusRef.current.onchange = null;
     };
-  }, [refreshMicrophonePermission]);
+  }, [refreshMicrophonePermission, resetLocalTooltip]);
 
   useEffect(() => {
     const Recognition = getSpeechRecognitionConstructor();
@@ -4281,13 +4292,13 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const [stationPool, setStationPool] = useState(stations);
   const [arrival, setArrival] = useState<ArrivalDestination | undefined>();
   const [arrivalVisible, setArrivalVisible] = useState(false);
-  const [hasCompletedArrival, setHasCompletedArrival] = useState(readHasCompletedArrival);
+  const [hasCompletedArrival, setHasCompletedArrival] = useState(false);
   const arrivalStation = usePlayer((s) => s.arrivalStation);
   const replacementReason = usePlayer((s) => s.replacementReason);
-  const [splashVisible, setSplashVisible] = useState(() => typeof window !== "undefined" && window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) !== "true");
-  const [splashComplete, setSplashComplete] = useState(() => typeof window === "undefined" || window.sessionStorage.getItem(SIGNAL_SPLASH_KEY) === "true");
-  const [startupPreferences, setStartupPreferences] = useState<StartupPreferences>(readStartupPreferences);
-  const [startupPreview] = useState(() => stations[Math.floor(Math.random() * Math.max(1, stations.length))]);
+  const [splashVisible, setSplashVisible] = useState(true);
+  const [splashComplete, setSplashComplete] = useState(false);
+  const [startupPreferences, setStartupPreferences] = useState<StartupPreferences>(defaultStartupPreferences);
+  const startupPreview = stations[0];
   const activeStation = usePlayer((s) => s.current);
   const current = activeStation ?? startupPreview ?? stationPool[0] ?? stations[0];
   const [query, setQuery] = useState("");
@@ -4305,7 +4316,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const [voiceFocusNonce, setVoiceFocusNonce] = useState(0);
   const voiceSearchRequestRef = useRef(0);
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
-  const [desktopMode, setDesktopMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "add-signal" ? "Add Signal" : "Atlas");
+  const [desktopMode, setDesktopMode] = useState("Atlas");
   const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(true);
   const [desktopRailVisible, setDesktopRailVisible] = useState(true);
   const [briefOpen, setBriefOpen] = useState(false);
@@ -4314,20 +4325,34 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
   const [desktopTransitionContext, setDesktopTransitionContext] = useState<AtlasTransitionContext | null>(null);
   const [desktopTeleporting, setDesktopTeleporting] = useState(false);
-  const [desktopGlobeBasemap, setDesktopGlobeBasemap] = useState<GlobeBasemapKey>(getInitialGlobeBasemap);
+  const [desktopGlobeBasemap, setDesktopGlobeBasemap] = useState<GlobeBasemapKey>("photorealistic");
   const [desktopAtlasView, setDesktopAtlasView] = useState<AtlasViewMode>("globe");
   const [desktopBasemap, setDesktopBasemap] = useState<BasemapKey>("atlasStreets");
   const [previousDesktopStation, setPreviousDesktopStation] = useState<Station | undefined>();
   const lastDesktopStationRef = useRef<Station | undefined>(undefined);
-  const [deepLinkUuid, setDeepLinkUuid] = useState(() => {
-    if (typeof window === "undefined") return "";
-    const value = initialStation ? stationKey(initialStation) : stationIdFromPath(window.location.pathname) || new URLSearchParams(window.location.search).get("station")?.trim() || "";
-    return /^[a-z0-9-]{8,80}$/i.test(value) ? value : "";
-  });
+  const [deepLinkUuid, setDeepLinkUuid] = useState(initialStation ? stationKey(initialStation) : "");
   const initialStationPoolRef = useRef(stationPool);
   const [closerStationPrompt, setCloserStationPrompt] = useState<CloserStationPromptState | null>(null);
   const closerPromptTimerRef = useRef<number | null>(null);
   const closerPromptLastShownRef = useRef<{ at: number; location?: UserGeoPoint } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      const seen = readBrowserStorage("session", SIGNAL_SPLASH_KEY) === "true";
+      setSplashVisible(!seen);
+      setSplashComplete(seen);
+      setHasCompletedArrival(readHasCompletedArrival());
+      setStartupPreferences(readStartupPreferences());
+      setDesktopGlobeBasemap(getInitialGlobeBasemap());
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("mode") === "add-signal") setDesktopMode("Add Signal");
+      const id = initialStation ? stationKey(initialStation) : stationIdFromPath(window.location.pathname) || params.get("station")?.trim() || "";
+      if (/^[a-z0-9-]{8,80}$/i.test(id)) setDeepLinkUuid(id);
+    });
+    return () => { active = false; };
+  }, [initialStation]);
 
   const clearVoiceFeedback = useCallback(() => {
     if (voiceFeedbackTimerRef.current !== null) {
@@ -4427,8 +4452,8 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
 
   useEffect(() => {
     if (!activeStation || typeof window === "undefined") return;
-    window.localStorage.setItem(LAST_STATION_ID_KEY, stationPersistentId(activeStation));
-    persistArrival(activeStation, stationContinent(activeStation), window.localStorage);
+    writeBrowserStorage("local", LAST_STATION_ID_KEY, stationPersistentId(activeStation));
+    try { persistArrival(activeStation, stationContinent(activeStation), window.localStorage); } catch { /* Playback does not require saved history. */ }
   }, [activeStation]);
 
 
@@ -4899,15 +4924,19 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
     const revealRail = () => {
       setDesktopRailVisible(true);
       if (hideTimer) window.clearTimeout(hideTimer);
-      hideTimer = window.setTimeout(() => setDesktopRailVisible(false), 8000);
+      if (activeStation) hideTimer = window.setTimeout(() => setDesktopRailVisible(false), 8000);
     };
     revealRail();
-    window.addEventListener("mousemove", revealRail, { passive: true });
+    window.addEventListener("pointermove", revealRail, { passive: true });
+    window.addEventListener("pointerdown", revealRail, { passive: true });
+    window.addEventListener("keydown", revealRail);
     return () => {
-      window.removeEventListener("mousemove", revealRail);
+      window.removeEventListener("pointermove", revealRail);
+      window.removeEventListener("pointerdown", revealRail);
+      window.removeEventListener("keydown", revealRail);
       if (hideTimer) window.clearTimeout(hideTimer);
     };
-  }, []);
+  }, [activeStation]);
 
   const desktopDrawerWorkflows = new Set(["Favorites", "Explore", "Add Signal", "Settings", "History"]);
   const desktopDrawerActive = query.trim().length > 0 || Boolean(selectedCountry) || desktopDrawerWorkflows.has(desktopMode);
@@ -4951,7 +4980,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         </motion.div> : null}
       </AnimatePresence>
       {activeStation ? <MobileAtlasShell stations={stationPool} allStations={stations} current={activeStation} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} onSettingsLayerChange={setMobileSettingsLayerOpen} /> : <div className="md:hidden"><EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /></div>}
-    <main className="hidden h-screen min-h-[720px] w-full overflow-hidden bg-slate-950 md:block">
+    <main className="hidden h-screen min-h-0 w-full overflow-hidden bg-slate-950 md:block">
       <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
           WaveAtlas™
@@ -4970,7 +4999,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
         {activeStation ? <SelectedStationTheater station={activeStation} /> : null}
       </div>
-      <section className="pointer-events-none fixed left-[calc(50%+120px)] top-[calc(env(safe-area-inset-top)+1.5rem)] z-50 w-[min(520px,calc(100vw-31rem))] -translate-x-1/2">
+      <section aria-label="Desktop station search" className="desktop-station-search pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+1.5rem)] z-50 w-[min(520px,calc(100vw-36rem))] -translate-x-1/2">
         <div className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/40 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl">
           <div className="flex items-center gap-3">
             <Search className="shrink-0 text-sky" />
@@ -4979,7 +5008,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
               onChange={(e) => { setDesktopDrawerCollapsed(false); setQuery(e.target.value); }}
               onFocus={() => { if (desktopDrawerActive) setDesktopDrawerCollapsed(false); }}
               placeholder="Search country, city, destination..."
-              className="w-full bg-transparent outline-none placeholder:text-ivory/45"
+              className="min-w-0 w-full bg-transparent outline-none placeholder:text-ivory/45"
             />
             <VoiceCommandButton active={!desktopDrawerActive && !briefOpen} onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} />
           </div>
