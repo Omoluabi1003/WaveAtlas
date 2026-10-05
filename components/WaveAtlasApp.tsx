@@ -2,6 +2,8 @@
 
 import { readBrowserStorage, writeBrowserStorage } from "@/lib/browser-storage";
 
+import { stationNightNotice } from "@/lib/station-night-notice";
+
 import AppearanceControls from "@/components/AppearanceControls";
 import { useAppearance, useSolarAppearance } from "@/hooks/useSolarAppearance";
 import { appearanceStreetBasemap } from "@/lib/solar-appearance";
@@ -27,6 +29,7 @@ import {
   Languages,
   MapPin,
   Mic,
+  Moon,
   Navigation,
   Pause,
   Play,
@@ -3389,7 +3392,7 @@ function MobileSearchCommandOverlay({ open, query, setQuery, stations, current, 
 
 
 type AtlasToastKind = "status" | "alert";
-type AtlasToastEventDetail = { title: string; subtitle?: string; kind?: AtlasToastKind; id?: string; countryCode?: string };
+type AtlasToastEventDetail = { night?: boolean; title: string; subtitle?: string; kind?: AtlasToastKind; id?: string; countryCode?: string };
 
 const ATLAS_TOAST_EVENT = "waveatlas:atlas-toast";
 const ATLAS_TOAST_DURATION_MS = 6000;
@@ -3423,9 +3426,11 @@ function buildAtlasToast(station: Station, override?: Partial<AtlasToastEventDet
     : isCuratedStation(station)
       ? "Curator's Picks"
       : undefined;
+  const nightNotice = stationNightNotice(station, Date.now());
   return {
-    title: `You've landed in ${stationPlaceLabel(station)}.`,
-    subtitle: uniqueToastParts([languageLine, soundLine, signalLine]).slice(0, 3).join(" • "),
+    night: Boolean(nightNotice),
+    title: nightNotice?.title ?? `You've landed in ${stationPlaceLabel(station)}.`,
+    subtitle: nightNotice?.subtitle ?? uniqueToastParts([languageLine, soundLine, signalLine]).slice(0, 3).join(" • "),
     kind: "status",
     id: `station-${stationKey(station)}`,
     countryCode: station.country_code,
@@ -3448,7 +3453,8 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
   const [visible, setVisible] = useState(true);
   const [paused, setPaused] = useState(false);
   const toastKey = toast.id ?? `${toast.title}-${toast.subtitle ?? ""}`;
-  const toastFlag = toast.kind !== "alert" && toast.countryCode ? flagFor(toast.countryCode) : null;
+  const nightToast = toast.night && toast.kind !== "alert";
+  const toastFlag = !nightToast && toast.kind !== "alert" && toast.countryCode ? flagFor(toast.countryCode) : null;
 
   useEffect(() => {
     const onTravel = (event: Event) => setGlobeTravelActive(Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active));
@@ -3466,6 +3472,24 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
     if (globeTravelActive && mobile) window.setTimeout(updateToast, 120);
     else window.queueMicrotask(updateToast);
   }, [globeTravelActive, mobile, source, station.station_uuid, station.id, station]);
+
+  useEffect(() => {
+    let wasNight = Boolean(stationNightNotice(station, Date.now()));
+    const checkNight = () => {
+      if (document.visibilityState === "hidden") return;
+      const notice = stationNightNotice(station, Date.now());
+      const isNight = Boolean(notice);
+      if (isNight && !wasNight && notice && usePlayer.getState().status !== "failed") {
+        setToast({ ...notice, night: true, kind: "status", id: `night-${stationKey(station)}` });
+        setVisible(true);
+        setPaused(false);
+      }
+      wasNight = isNight;
+    };
+    const timer = window.setInterval(checkNight, 60000);
+    document.addEventListener("visibilitychange", checkNight);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", checkNight); };
+  }, [station]);
 
   useEffect(() => {
     if (playerStatus !== "failed" || !playerError) return;
@@ -3490,9 +3514,9 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
 
   useEffect(() => {
     if (!visible || paused) return;
-    const timer = window.setTimeout(() => setVisible(false), ATLAS_TOAST_DURATION_MS);
+    const timer = window.setTimeout(() => setVisible(false), nightToast ? 4500 : ATLAS_TOAST_DURATION_MS);
     return () => window.clearTimeout(timer);
-  }, [paused, toastKey, visible]);
+  }, [nightToast, paused, toastKey, visible]);
 
   return (
     <AnimatePresence mode="wait">
@@ -3513,7 +3537,7 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
           aria-label="Station notification"
         >
           <div className="flex items-start gap-3">
-            {toastFlag && mobile ? (
+            {nightToast ? <Moon className="mt-0.5 size-4 shrink-0 text-[#C8D3E0]" aria-hidden="true" /> : toastFlag && mobile ? (
               <span className="mt-0.5 grid size-4 shrink-0 place-items-center text-[15px] leading-none" aria-hidden="true">
                 {toastFlag}
               </span>
