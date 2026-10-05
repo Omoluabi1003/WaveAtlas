@@ -60,3 +60,27 @@
 .waveatlas-app[data-wa-appearance="day"] .glass{background:linear-gradient(135deg,rgba(127,190,216,.23),rgba(24,52,73,.85))}
 .waveatlas-app [class*="bg-slate-950/"]{transition:background-color .8s ease,border-color .8s ease}
 @media(prefers-reduced-motion:reduce){.waveatlas-app [class*="bg-slate-950/"]{transition:none}}
+
+/* Keep discovery below the fixed header, including short desktop viewports. */
+.empty-atlas {
+  position: relative;
+  min-height: 100vh;
+  padding: 8rem 1.25rem 5rem;
+}
+@supports (height: 100dvh) {
+  .empty-atlas { min-height: 100dvh; }
+}
+@media (min-width: 768px) {
+  .empty-atlas { padding: 7.5rem 2rem 5rem 6.5rem; }
+}
+@media (max-height: 620px) {
+  .empty-atlas { align-items: start; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .desktop-station-search {
+    top: calc(env(safe-area-inset-top) + 5.5rem);
+    left: calc(50% + 2.5rem);
+    width: calc(100vw - 9rem);
+  }
+  .empty-atlas { padding-top: 11.5rem; }
+}
