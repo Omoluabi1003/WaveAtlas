@@ -32,6 +32,9 @@ import {
   AtlasInteractionEngine,
   type AtlasInteractionGeometry,
 } from "@/lib/atlas-interaction-engine";
+import PublicSignalPanel from "@/components/PublicSignalPanel";
+import { usePublicSignals, usePublicSignalPolling, visiblePublicSignals } from "@/hooks/usePublicSignals";
+import { SIGNAL_LAYERS, type PublicSignal } from "@/lib/public-signals";
 import { logStationGeoTruthHealthReport } from "@/lib/station-geotruth-health";
 
 type CountryResult = {
@@ -1331,6 +1334,12 @@ export default function BlueMarbleGlobe({
   basemap = "photorealistic",
   selectionVersion,
 }: Props) {
+  usePublicSignalPolling();
+  const publicSignalState = usePublicSignals();
+  const publicSignalRef = useRef(publicSignalState);
+  const publicDrawCache = useRef<{ updatedAt: number; points: PublicSignal[] }>({ updatedAt: 0, points: [] });
+  useEffect(() => { publicSignalRef.current = publicSignalState; publicDrawCache.current.updatedAt = 0; }, [publicSignalState]);
+  const publicHitTargets = useRef<Array<{ point: PublicSignal; x: number; y: number }>>([]);
   const effectiveBasemap: GlobeBasemapKey = basemap;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -2628,6 +2637,21 @@ export default function BlueMarbleGlobe({
             stats: nextSignals.stats,
           });
       }
+      publicHitTargets.current = [];
+      const signalNow = Date.now();
+      if (signalNow - publicDrawCache.current.updatedAt > 1000) publicDrawCache.current = { updatedAt: signalNow, points: visiblePublicSignals(publicSignalRef.current, signalNow) };
+      for (const point of publicDrawCache.current.points) {
+        const p = project(point.lat, point.lng, projection);
+        if (p.z < 0.03) continue;
+        publicHitTargets.current.push({ point, x: p.x, y: p.y });
+        ctx.save();
+        ctx.fillStyle = SIGNAL_LAYERS[point.layer].color;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, point.id === publicSignalRef.current.selected?.id ? 8 : point.layer === "iss" ? 6 : 4, 0, TAU);
+        ctx.fill(); ctx.stroke(); ctx.restore();
+      }
       if (runtime.signalClusters.length && s.zoom >= 1.16 && s.zoom < 1.9) {
         for (const cluster of runtime.signalClusters.slice(
           0,
@@ -3264,6 +3288,9 @@ export default function BlueMarbleGlobe({
     pinchDistance.current = null;
     const s = state.current;
     s.dragging = pointers.current.size > 0;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const tap = Math.hypot(event.clientX - s.downX, event.clientY - s.downY) < 8 && !s.downOverOverlay && !s.dragging;
+    const signalHit = tap ? publicHitTargets.current.map(hit => ({ ...hit, distance: Math.hypot(hit.x - (event.clientX - rect.left), hit.y - (event.clientY - rect.top)) })).sort((a, b) => a.distance - b.distance).find(hit => hit.distance < 12) : undefined;
     const result = getInteractionEngine().pointerUp({
       pointerId: event.pointerId,
       clientX: event.clientX,
@@ -3274,6 +3301,7 @@ export default function BlueMarbleGlobe({
         event.clientY,
       ),
     });
+    if (signalHit) { usePublicSignals.getState().select(signalHit.point); return; }
     debugGlobeClick({
       ...result.diagnostics,
       event: result.kind === "destination" ? result.event.type : result.kind,
@@ -3336,6 +3364,14 @@ export default function BlueMarbleGlobe({
       data-globe-travel-active="false"
       className={`${mobile ? "waveatlas-globe-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}
     >
+      <PublicSignalPanel mobile={mobile} anchor={currentPoint} onLocate={point => {
+        const s = state.current;
+        const rotation = focusRotationForPoint(point);
+        s.travelStartX = s.rotX; s.travelStartY = s.rotY; s.travelStartZoom = s.zoom;
+        s.targetX = rotation.rotX; s.targetY = rotation.rotY; s.targetZoom = 1.2;
+        s.focusStartedAt = performance.now(); s.focusDuration = s.disabledMotion ? 0 : 1200;
+        s.verificationPending = false; s.travelActive = !s.disabledMotion;
+      }} />
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing"

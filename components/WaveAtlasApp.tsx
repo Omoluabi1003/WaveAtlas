@@ -8,6 +8,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import NextLink from "next/link";
+import PublicSignalMapLayer, { PUBLIC_SIGNAL_MAP_LAYER } from "@/components/PublicSignalMapLayer";
 import maplibregl, { type GeoJSONSource, type Map } from "maplibre-gl";
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from "framer-motion";
 import {
@@ -2396,6 +2397,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", resize);
     const clickCountry = (event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+      if (m.getLayer(PUBLIC_SIGNAL_MAP_LAYER) && m.queryRenderedFeatures(event.point, { layers: [PUBLIC_SIGNAL_MAP_LAYER] }).length) return;
       const clickLatLng = mapEventLngLat(m, event);
       debugGeoClick("event", { view: "map", rawEventType: event.type, hasLngLat: Boolean(event.lngLat), clickLatLng });
       const country = countryResultFromMapClick(m, event, clickLatLng);
@@ -2517,7 +2519,8 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     return (
       <div className="fixed inset-0 z-0 h-[100dvh] w-full overflow-hidden bg-slate-950">
         <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
-        <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
+        <PublicSignalMapLayer map={map} mobile={mobile} anchor={geo.lat !== null && geo.lng !== null ? { lat: geo.lat, lng: geo.lng } : null} />
+      <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
         <ActiveStationBeacon map={map} geo={geo} status={status} />
         <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
         <div className={`map-atmosphere-overlay tone-${geo.tone} status-${status} pointer-events-none absolute inset-0`} />
@@ -2531,6 +2534,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
   return (
     <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
+      <PublicSignalMapLayer map={map} mobile={mobile} anchor={geo.lat !== null && geo.lng !== null ? { lat: geo.lat, lng: geo.lng } : null} />
       <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
       <ActiveStationBeacon map={map} geo={geo} status={status} />
       <MapStyleController map={map} basemap={basemap} onResize={camera.resizeThenReapplyIntended} />
