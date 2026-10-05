@@ -3009,7 +3009,7 @@ function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings 
           WaveAtlas™
         </b>
         <div className="flex items-center gap-2">
-        <button type="button" onClick={() => usePublicSignals.getState().openPanel()} className="pointer-events-auto flex min-h-11 items-center gap-1.5 rounded-full border border-sky-200/40 bg-sky-950 px-3 text-xs font-semibold text-white" aria-label="Open World signals"><Globe2 className="size-4" />World</button>
+        <button type="button" onClick={() => usePublicSignals.getState().openPanel()} className="pointer-events-auto flex min-h-11 items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/45 px-3 text-xs font-semibold text-ivory/80 shadow-xl backdrop-blur-2xl transition hover:border-radio/30 hover:text-radio" aria-label="Open World signals"><Globe2 className="size-4" />World</button>
         <button type="button" onClick={onOpenSettings} className="pointer-events-auto grid size-11 place-items-center rounded-full border border-white/10 bg-slate-950/45 text-ivory shadow-xl backdrop-blur-2xl transition hover:border-radio/30 hover:text-radio" aria-label="Open settings">
           <Settings className="size-4" />
         </button>
@@ -4927,7 +4927,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
     <>
       <style jsx global>{`@keyframes teleportPulse { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(1.08); opacity: 0; } } @media (prefers-reduced-motion: reduce) { .animate-\[teleportPulse_2\.8s_ease-out_infinite\] { animation: none !important; } }`}</style>
       <AudioEngine stations={stationPool} />
-      {!activeStation ? <><PublicSignalPanel mobile onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /><PublicSignalPanel onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /></> : null}
+      {!activeStation ? <><PublicSignalPanel mobile showMobileLauncher onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /><PublicSignalPanel onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /></> : null}
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station Not Found"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station ID ${deepLinkUuid}.` : `No station matched ${deepLinkUuid}. We did not substitute another signal.`}</p>{deepLinkStatus === "unavailable" ? <NextLink href="/" className="mt-3 inline-block rounded-full bg-radio px-4 py-2 font-bold text-midnight">Back to WaveAtlas discovery</NextLink> : null}</div> : null}
