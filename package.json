@@ -28,7 +28,8 @@
     "test:public-signals": "node --import tsx tests/public-signals.regression.ts",
     "agents:queen": "node --import tsx scripts/run-queen-coordinator.ts",
     "test:queen": "node --import tsx tests/queen-coordinator.regression.ts",
-    "test:landmasses": "node --import tsx tests/globe-landmasses.regression.ts"
+    "test:landmasses": "node --import tsx tests/globe-landmasses.regression.ts",
+    "test:earth": "node --import tsx tests/earth-lighting.regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",
