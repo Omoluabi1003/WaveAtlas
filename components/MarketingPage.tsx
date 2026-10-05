@@ -17,7 +17,7 @@ const nav = [
 
 export function MarketingPage({ eyebrow = "WaveAtlas™", title, description, children }: MarketingPageProps) {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(0,214,143,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(245,183,0,0.16),transparent_28%),#06111f] px-5 py-6 text-ivory sm:px-8">
+    <main className="h-[100dvh] min-h-screen overflow-y-auto overscroll-y-contain bg-[radial-gradient(circle_at_top_left,rgba(0,214,143,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(245,183,0,0.16),transparent_28%),#06111f] px-5 py-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-ivory [-webkit-overflow-scrolling:touch] sm:h-auto sm:min-h-screen sm:overflow-y-visible sm:px-8">
       <div className="mx-auto max-w-6xl">
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-full border border-white/10 bg-slate-950/45 px-4 py-3 shadow-2xl backdrop-blur-2xl">
           <Link href="/" className="font-display text-lg font-bold text-white">{BRAND.name}™</Link>
