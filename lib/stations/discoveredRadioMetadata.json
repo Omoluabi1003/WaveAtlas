@@ -1,1 +1,452 @@
-[]
+[
+  {
+    "stationUuid": "radio-browser-101-1-yes-fm-manila-d617ca3d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d617ca3d-4458-4c94-9a5f-65106263ec51",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://azura.yesfm.com.ph/listen/yes_fm_manila/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-mellow-94-7-bfm-29d089db",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "29d089db-7676-4f24-b16b-f5cdc5b9c07e",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 74,
+    "resolvedUrl": "https://streamer.radio.co/sec36cd5f1/listen"
+  },
+  {
+    "stationUuid": "radio-browser-101-7-your-love-fm-e47c0813",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e47c0813-93e0-45e7-9d82-d68bffff3032",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://radio.1017yourlovefm.com/listen/sanibpwersa/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-imix-radio-fb544cc2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fb544cc2-9eba-4abe-ac1c-ab9daf8488ba",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 93,
+    "resolvedUrl": "https://stream-175.surfernetwork.com/sbmi7cx5z8buv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJzYm1pN2N4NXo4YnV2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Ik8taG90RDRUU1F5QlhqN2dsZVpVOUEiLCJpYXQiOjE3OTExNzkxNDUsImV4cCI6MTc5MTE3OTIwNX0.-S81e5tLQxE_DePNLY4DsqvtlKis1l0THUwRybF8X6A"
+  },
+  {
+    "stationUuid": "radio-browser-clubmix-3702ba9c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3702ba9c-e1fa-446e-9afe-dfdd1d16b42e",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 98,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/vztn8ux96zhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ2enRuOHV4OTZ6aHZ2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkpSWHZxaklWUVVtd2lnUjQ4cFY3eUEiLCJpYXQiOjE3OTExNzkxNDUsImV4cCI6MTc5MTE3OTIwNX0.E2As4VZWrxVQrdgDHln5fJAJBxoDPqwXiGKfIkO21SY"
+  },
+  {
+    "stationUuid": "radio-browser-play-90-s-b162d016",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b162d016-5628-42cf-8fb1-22866ba5f065",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 92,
+    "resolvedUrl": "http://live.playradio.org:9090/90HD"
+  },
+  {
+    "stationUuid": "radio-browser-radio-zu-70d48cfd",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "70d48cfd-eedd-400a-8b7a-881e7015fc3f",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 75,
+    "resolvedUrl": "http://zuicast.digitalag.ro:9420/zu"
+  },
+  {
+    "stationUuid": "radio-browser-pescobar-radio-5e063320",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5e063320-07d6-4d99-a434-f34e7e2a7431",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://listen.radioking.com/radio/701141/stream/766385"
+  },
+  {
+    "stationUuid": "radio-browser-atmospheric-dnb-s0urce-c4eb7648",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c4eb7648-e867-4545-bdda-71b1368db779",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 99,
+    "resolvedUrl": "https://brokenbeats.net/stream/aac"
+  },
+  {
+    "stationUuid": "radio-browser-radio-impuls-romania-00d1815f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "00d1815f-8752-472b-8e1f-805431e96952",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 97,
+    "resolvedUrl": "https://live.radio-impuls.ro/stream"
+  },
+  {
+    "stationUuid": "radio-browser-balcan-radio-manele-braila-f7b86492",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f7b86492-e83d-48df-858b-f0eace7fd637",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://radio.sonicpanel.ro/8112/stream"
+  },
+  {
+    "stationUuid": "radio-browser-dance-fm-da7c8174",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "da7c8174-3e94-4fa7-966a-cf9907a4b0d1",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 75,
+    "resolvedUrl": "https://edge126.rcs-rds.ro/profm/dancefm.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-clasic-radio-opera-bucuresti-5d682126",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5d682126-0312-4215-b137-d1d333854362",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://live.radioclasic.com/listen/radio_clasic_opera/live.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-fun-radio-romania-6aa20383",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6aa20383-4ee2-4e28-a42b-b20ecb6f7a0b",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 83,
+    "resolvedUrl": "http://online.webcastradio.ro/fun"
+  },
+  {
+    "stationUuid": "radio-browser-radio-cafe-ro-923bb3f3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "923bb3f3-4264-482b-a1e9-7df4b8b94862",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 66,
+    "resolvedUrl": "http://live.radiocafe.ro:8048/live.aac"
+  },
+  {
+    "stationUuid": "radio-browser-romania-antena-satelor-701e5bbd",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "701e5bbd-5384-468a-a564-179de50e5544",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://stream4.srr.ro:8443/antena-satelor"
+  },
+  {
+    "stationUuid": "radio-browser-romantic-radio-849f0b1c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "849f0b1c-3f34-4005-9114-ecabb8c46503",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 65,
+    "resolvedUrl": "https://azuraromantic.space/listen/radio_romantic/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-acustic-radio-c57670ff",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c57670ff-eb19-49a2-8a79-d84dd8e855c4",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://stream-178.surfernetwork.com/xmgnc6mcwnhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ4bWduYzZtY3duaHZ2IiwiaG9zdCI6InN0cmVhbS0xNzguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjloRlVLWXpCVDZxelpNRXdqejBmYVEiLCJpYXQiOjE3OTExNzkxNTUsImV4cCI6MTc5MTE3OTIxNX0.JeMmbnaKjLrTV-ubUFjKLLrwDIcQJ2yrK9COGobtm0Q"
+  },
+  {
+    "stationUuid": "radio-browser-clasic-radio-chopin-bucuresti-b5857153",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b5857153-18f6-4df8-8c8b-df0dd1a680b5",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://live.radioclasic.com/listen/radio_clasic_chopin/live.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-romania-actualitati-8158142a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8158142a-c13e-4073-ace3-ab574f0285bb",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://stream4.srr.ro:8443/romania-actualitati"
+  },
+  {
+    "stationUuid": "radio-browser-prob-radio-e1651914",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e1651914-bd89-4cbb-a80a-18892f8a2757",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 83,
+    "resolvedUrl": "http://live.radioprob.ro:8888/stream"
+  },
+  {
+    "stationUuid": "radio-browser-clasic-radio-80-bucuresti-e95208ba",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e95208ba-34b6-4d5b-bb74-4700656962be",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://live.radioclasic.com/listen/radio_clasic_80/live.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-super-manele-57edf0e2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "57edf0e2-6f3b-4103-981a-2e9d1e4294a2",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://stream-288.surfernetwork.com/w8461rwck5zuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ3ODQ2MXJ3Y2s1enV2IiwiaG9zdCI6InN0cmVhbS0yODguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImtNa29YdUxJUmRLSGV5WHNVUFBlclEiLCJpYXQiOjE3OTExNzkxNjAsImV4cCI6MTc5MTE3OTIyMH0.2WuH5BFF9jiTrdXpZE5VaNSNAWkerhxsVLCSAvCsYio"
+  },
+  {
+    "stationUuid": "radio-browser-radio-teatru-rominia-braila-7f8b3cdd",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7f8b3cdd-a719-4082-964d-faa03550f098",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://stream-179.surfernetwork.com/cb4dyqnat4itv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJjYjRkeXFuYXQ0aXR2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjJXeEktMFlhUjRLVjJ4SGN5bXIwTXciLCJpYXQiOjE3OTExNzkxNjAsImV4cCI6MTc5MTE3OTIyMH0.MELij_BJjNB6DhCZH3Z0dbVew-jkaZGf9MIdpSsWRNk"
+  },
+  {
+    "stationUuid": "radio-browser-radio-brasov-96523f02",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "96523f02-cbd3-48bd-aabb-76fc651d840a",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://live.radiobrasov.ro/stream.mp3?nocache=${Math.random()}"
+  },
+  {
+    "stationUuid": "radio-browser-radio-deea-748d830c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "748d830c-d934-41e8-bd14-870add931e1d",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 91,
+    "resolvedUrl": "http://radiocdn.nxthost.com/radio-deea"
+  },
+  {
+    "stationUuid": "radio-browser-clasic-radio-greek-music-bucuresti-70cb3c8a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "70cb3c8a-c441-4665-8bc6-ad965833f319",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://live.radioclasic.com/listen/radio_clasic_greek/live.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-love-marilena-galati-66cd5760",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "66cd5760-0907-4f1a-9431-dbb5d4c9d160",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://radio.sonicpanel.ro/8068/stream"
+  },
+  {
+    "stationUuid": "radio-browser-clasic-radio-mozart-bucuresti-237f28d3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "237f28d3-cfc3-4fa2-9311-b8590308b3c6",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://live.radioclasic.com/listen/radio_clasic_mozart/live.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-clasic-radio-relax-bucuresti-df4e340a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "df4e340a-4aad-48b0-a418-0df0345d9056",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://live.radioclasic.com/listen/radio_clasic_relax/live.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-adjud-fm-2c1ab1f5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2c1ab1f5-d9d8-4fcd-a59f-9df26ac98d1f",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://live.adjudfm.ro:8000/adjudfm.aac"
+  },
+  {
+    "stationUuid": "radio-browser-radioplay-trance-romania-cluj-napoca-00f47d7b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "00f47d7b-876c-463d-b457-b5bca2e1edba",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://mscp1.gazduireradio.ro:1220/stream"
+  },
+  {
+    "stationUuid": "radio-browser-tokfm-0013eb82",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0013eb82-2dea-41f7-9534-936d0b2721b7",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://radiostream.pl/tuba10-1.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-republika-f837704e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f837704e-40df-4302-b546-c8401348e51c",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://ssl-1.radiotvrepublika.pl:12698/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-zet-chilli-14b795df",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "14b795df-4210-49e2-b491-189523b49f4d",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://ch04.cdn.eurozet.pl/chi-net.mp3?redirected=04"
+  },
+  {
+    "stationUuid": "radio-browser-smoothjazz-com-pl-320k-mp3-53241c38",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "53241c38-4a74-4beb-9514-1033913d1ede",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://bcast.vigormultimedia.com:48888/sjcompl320mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-z-ote-przeboje-dc835e53",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "dc835e53-1d9f-4c0f-b6ee-ffea5c672ec0",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://radiostream.pl/tuba8904-1.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-party-kana-g-owny-68c4dc06",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "68c4dc06-824c-4a00-9f76-a13e181c6f2d",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://s2.radioparty.pl:8015/stream?nocache=4171"
+  },
+  {
+    "stationUuid": "radio-browser-radio-club-dj-f0ca8aff",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f0ca8aff-861f-497c-a1d1-4a82bb4471ac",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 84,
+    "resolvedUrl": "http://4stream.pl:18272/stream"
+  },
+  {
+    "stationUuid": "radio-browser-eska-rock-6ea3930c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6ea3930c-5bbd-4231-9e6a-ab225d753a74",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 58,
+    "resolvedUrl": "http://n07-eu.rcs.revma.com/1nnezw8qz7zuv?rj-ttl=5&rj-tok=AAABoQqiVgIArQsMMfsQ31jKcw"
+  },
+  {
+    "stationUuid": "radio-browser-radio-eska-krakow-257d0088",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "257d0088-3b8d-4b9c-9092-4507bef630fd",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 92,
+    "resolvedUrl": "http://ic1.smcdn.pl/2070-1.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-z-ote-przeboje-wroc-aw-6a2591f4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6a2591f4-7286-4c65-a7bd-6c491b6e672b",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://radiostream.pl/tuba9-1.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-nowy-swiat-6dcc981e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6dcc981e-4602-401c-b175-7649736e2f11",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://go-audio.toya.net.pl/63214"
+  },
+  {
+    "stationUuid": "radio-browser-radio-maryja-4d4dfe3d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4d4dfe3d-7641-4ae9-9afa-aefaa950a4f3",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 67,
+    "resolvedUrl": "http://51.68.135.155/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-bielsko-e7b08b46",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e7b08b46-1855-49ec-84f8-c4bcb0d6bd95",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 65,
+    "resolvedUrl": "https://n02-us.rcs.revma.com/062uq3z3kwzuv?rj-ttl=5&rj-tok=AAABoQqiYewAOntT2zzIpbEUdA"
+  },
+  {
+    "stationUuid": "radio-browser-radio-eska-2-kultowe-polskie-f2de2bab",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f2de2bab-2574-45b1-8228-4a439078eaa8",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://ic2.smcdn.pl/6040-1.aac"
+  },
+  {
+    "stationUuid": "radio-browser-rmf-fm-polska-86329383",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "86329383-66ef-4156-ba8d-6ac8d3778cc5",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 77,
+    "resolvedUrl": "https://rs101-krk-cyfronet.rmfstream.pl/RMFFM48"
+  },
+  {
+    "stationUuid": "radio-browser-radio-eska-warszawa-c52a1932",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c52a1932-bb22-4927-9d47-62147e26d908",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 68,
+    "resolvedUrl": "http://ic1.smcdn.pl/2380-2.aac"
+  },
+  {
+    "stationUuid": "radio-browser-cyberstacja-8e3cd071",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8e3cd071-7175-412d-8e6d-900492ee595e",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://sc.cyberstacja.pl:8000/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-plus-d6a5c066",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d6a5c066-62c8-4f88-bd72-2b9b03330f2a",
+    "verifiedAt": "2026-10-05T05:45:15.580Z",
+    "lastSignalCheck": "2026-10-05T05:45:15.580Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://pl02.cdn.eurozet.pl/plu-waw.mp3?redirected=02"
+  }
+]

@@ -1,14 +1,1993 @@
 {
-  "generatedAt": "2026-07-09T18:44:24.557Z",
-  "dryRun": true,
+  "generatedAt": "2026-10-05T05:45:15.580Z",
+  "dryRun": false,
   "source": "https://de1.api.radio-browser.info/json",
-  "fetched": 0,
-  "added": [],
-  "skipped": [],
-  "duplicate": [],
+  "countries": [
+    {
+      "code": "PH",
+      "name": "The Philippines",
+      "available": 1104,
+      "covered": 0
+    },
+    {
+      "code": "RO",
+      "name": "Romania",
+      "available": 1142,
+      "covered": 0
+    },
+    {
+      "code": "PL",
+      "name": "Poland",
+      "available": 1221,
+      "covered": 0
+    },
+    {
+      "code": "IN",
+      "name": "India",
+      "available": 1247,
+      "covered": 0
+    },
+    {
+      "code": "AR",
+      "name": "Argentina",
+      "available": 1262,
+      "covered": 0
+    },
+    {
+      "code": "ES",
+      "name": "Spain",
+      "available": 1468,
+      "covered": 0
+    },
+    {
+      "code": "NL",
+      "name": "The Netherlands",
+      "available": 1556,
+      "covered": 0
+    },
+    {
+      "code": "BR",
+      "name": "Brazil",
+      "available": 1783,
+      "covered": 0
+    },
+    {
+      "code": "IT",
+      "name": "Italy",
+      "available": 1865,
+      "covered": 0
+    },
+    {
+      "code": "GR",
+      "name": "Greece",
+      "available": 2301,
+      "covered": 0
+    },
+    {
+      "code": "CN",
+      "name": "China",
+      "available": 2334,
+      "covered": 0
+    },
+    {
+      "code": "MX",
+      "name": "Mexico",
+      "available": 2996,
+      "covered": 0
+    },
+    {
+      "code": "RU",
+      "name": "The Russian Federation",
+      "available": 3253,
+      "covered": 0
+    },
+    {
+      "code": "DE",
+      "name": "Germany",
+      "available": 6475,
+      "covered": 0
+    },
+    {
+      "code": "AU",
+      "name": "Australia",
+      "available": 2193,
+      "covered": 1
+    },
+    {
+      "code": "FR",
+      "name": "France",
+      "available": 3875,
+      "covered": 2
+    },
+    {
+      "code": "CA",
+      "name": "Canada",
+      "available": 1608,
+      "covered": 1
+    },
+    {
+      "code": "GB",
+      "name": "The United Kingdom Of Great Britain And Northern Ireland",
+      "available": 2508,
+      "covered": 2
+    },
+    {
+      "code": "US",
+      "name": "The United States Of America",
+      "available": 8380,
+      "covered": 17
+    },
+    {
+      "code": "JP",
+      "name": "Japan",
+      "available": 224,
+      "covered": 1
+    },
+    {
+      "code": "ZA",
+      "name": "South Africa",
+      "available": 259,
+      "covered": 2
+    },
+    {
+      "code": "GH",
+      "name": "Ghana",
+      "available": 113,
+      "covered": 1
+    },
+    {
+      "code": "KE",
+      "name": "Kenya",
+      "available": 83,
+      "covered": 1
+    },
+    {
+      "code": "NG",
+      "name": "Nigeria",
+      "available": 100,
+      "covered": 29
+    }
+  ],
+  "fetched": 2352,
+  "added": [
+    {
+      "name": "101.1 Yes FM Manila",
+      "url": "https://azura.yesfm.com.ph/listen/yes_fm_manila/radio.mp3",
+      "sourceStationUuid": "d617ca3d-4458-4c94-9a5f-65106263ec51",
+      "qualityScore": 90
+    },
+    {
+      "name": "Mellow 94.7 BFM",
+      "url": "https://streamer.radio.co/sec36cd5f1/listen",
+      "sourceStationUuid": "29d089db-7676-4f24-b16b-f5cdc5b9c07e",
+      "qualityScore": 74
+    },
+    {
+      "name": "101.7 Your Love FM",
+      "url": "https://radio.1017yourlovefm.com/listen/sanibpwersa/radio.mp3",
+      "sourceStationUuid": "e47c0813-93e0-45e7-9d82-d68bffff3032",
+      "qualityScore": 92
+    },
+    {
+      "name": "iMix Radio",
+      "url": "https://stream.zeno.fm/sbmi7cx5z8buv",
+      "sourceStationUuid": "fb544cc2-9eba-4abe-ac1c-ab9daf8488ba",
+      "qualityScore": 93
+    },
+    {
+      "name": "Clubmix",
+      "url": "https://stream.zeno.fm/vztn8ux96zhvv",
+      "sourceStationUuid": "3702ba9c-e1fa-446e-9afe-dfdd1d16b42e",
+      "qualityScore": 98
+    },
+    {
+      "name": "Play 90's",
+      "url": "http://live.playradio.org:9090/90HD",
+      "sourceStationUuid": "b162d016-5628-42cf-8fb1-22866ba5f065",
+      "qualityScore": 92
+    },
+    {
+      "name": "Radio Zu",
+      "url": "http://zuicast.digitalag.ro:9420/zu",
+      "sourceStationUuid": "70d48cfd-eedd-400a-8b7a-881e7015fc3f",
+      "qualityScore": 75
+    },
+    {
+      "name": "Pescobar Radio",
+      "url": "https://listen.radioking.com/radio/701141/stream/766385",
+      "sourceStationUuid": "5e063320-07d6-4d99-a434-f34e7e2a7431",
+      "qualityScore": 91
+    },
+    {
+      "name": "Atmospheric dnb s0urce",
+      "url": "https://brokenbeats.net/stream/aac",
+      "sourceStationUuid": "c4eb7648-e867-4545-bdda-71b1368db779",
+      "qualityScore": 99
+    },
+    {
+      "name": "Radio Impuls Romania",
+      "url": "https://live.radio-impuls.ro/stream",
+      "sourceStationUuid": "00d1815f-8752-472b-8e1f-805431e96952",
+      "qualityScore": 97
+    },
+    {
+      "name": "Balcan Radio Manele -Brăila",
+      "url": "https://radio.sonicpanel.ro/8112/stream",
+      "sourceStationUuid": "f7b86492-e83d-48df-858b-f0eace7fd637",
+      "qualityScore": 90
+    },
+    {
+      "name": "Dance FM",
+      "url": "https://edge126.rcs-rds.ro/profm/dancefm.mp3",
+      "sourceStationUuid": "da7c8174-3e94-4fa7-966a-cf9907a4b0d1",
+      "qualityScore": 75
+    },
+    {
+      "name": "Clasic Radio_Opera -București",
+      "url": "https://live.radioclasic.com/listen/radio_clasic_opera/live.mp3",
+      "sourceStationUuid": "5d682126-0312-4215-b137-d1d333854362",
+      "qualityScore": 91
+    },
+    {
+      "name": "FUN Radio Romania",
+      "url": "http://online.webcastradio.ro/fun",
+      "sourceStationUuid": "6aa20383-4ee2-4e28-a42b-b20ecb6f7a0b",
+      "qualityScore": 83
+    },
+    {
+      "name": "Radio Cafe RO",
+      "url": "http://live.radiocafe.ro:8048/live.aac",
+      "sourceStationUuid": "923bb3f3-4264-482b-a1e9-7df4b8b94862",
+      "qualityScore": 66
+    },
+    {
+      "name": "ROMÂNIA  Antena Satelor",
+      "url": "https://stream4.srr.ro:8443/antena-satelor",
+      "sourceStationUuid": "701e5bbd-5384-468a-a564-179de50e5544",
+      "qualityScore": 91
+    },
+    {
+      "name": "Romantic Radio",
+      "url": "https://radio-romantic.ro/stream",
+      "sourceStationUuid": "849f0b1c-3f34-4005-9114-ecabb8c46503",
+      "qualityScore": 65
+    },
+    {
+      "name": "Acustic Radio",
+      "url": "https://stream.zeno.fm/xmgnc6mcwnhvv",
+      "sourceStationUuid": "c57670ff-eb19-49a2-8a79-d84dd8e855c4",
+      "qualityScore": 90
+    },
+    {
+      "name": "Clasic Radio_Chopin -București",
+      "url": "https://live.radioclasic.com/listen/radio_clasic_chopin/live.mp3",
+      "sourceStationUuid": "b5857153-18f6-4df8-8c8b-df0dd1a680b5",
+      "qualityScore": 90
+    },
+    {
+      "name": "Radio România Actualități",
+      "url": "https://stream4.srr.ro:8443/romania-actualitati",
+      "sourceStationUuid": "8158142a-c13e-4073-ace3-ab574f0285bb",
+      "qualityScore": 79
+    },
+    {
+      "name": "ProB Radio",
+      "url": "http://live.radioprob.ro:8888/stream",
+      "sourceStationUuid": "e1651914-bd89-4cbb-a80a-18892f8a2757",
+      "qualityScore": 83
+    },
+    {
+      "name": "Clasic Radio_80 -București",
+      "url": "https://live.radioclasic.com/listen/radio_clasic_80/live.mp3",
+      "sourceStationUuid": "e95208ba-34b6-4d5b-bb74-4700656962be",
+      "qualityScore": 90
+    },
+    {
+      "name": "Super Manele",
+      "url": "https://stream.zeno.fm/w8461rwck5zuv",
+      "sourceStationUuid": "57edf0e2-6f3b-4103-981a-2e9d1e4294a2",
+      "qualityScore": 92
+    },
+    {
+      "name": "radio teatru romînia -Brăila",
+      "url": "https://stream-179.surfernetwork.com/cb4dyqnat4itv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJjYjRkeXFuYXQ0aXR2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Im9vUkhBNjFEVHB1VXNiRlh0VGdDNWciLCJpYXQiOjE3OTA4NjY0MjIsImV4cCI6MTc5MDg2NjQ4Mn0.bNS6i6vEXeW_LAnKMdVc4PYeEtis8QBCFQpuJ9O3qJk",
+      "sourceStationUuid": "7f8b3cdd-a719-4082-964d-faa03550f098",
+      "qualityScore": 90
+    },
+    {
+      "name": "Radio Brașov",
+      "url": "https://live.radiobrasov.ro/stream.mp3?nocache=${Math.random()}",
+      "sourceStationUuid": "96523f02-cbd3-48bd-aabb-76fc651d840a",
+      "qualityScore": 86
+    },
+    {
+      "name": "Radio DEEA",
+      "url": "http://radiocdn.nxthost.com/radio-deea",
+      "sourceStationUuid": "748d830c-d934-41e8-bd14-870add931e1d",
+      "qualityScore": 91
+    },
+    {
+      "name": "Clasic Radio_Greek Music -București",
+      "url": "https://live.radioclasic.com/listen/radio_clasic_greek/live.mp3",
+      "sourceStationUuid": "70cb3c8a-c441-4665-8bc6-ad965833f319",
+      "qualityScore": 90
+    },
+    {
+      "name": "Love Marilena Galați",
+      "url": "https://radio.sonicpanel.ro/8068/stream",
+      "sourceStationUuid": "66cd5760-0907-4f1a-9431-dbb5d4c9d160",
+      "qualityScore": 90
+    },
+    {
+      "name": "Clasic Radio_Mozart -București",
+      "url": "https://live.radioclasic.com/listen/radio_clasic_mozart/live.mp3",
+      "sourceStationUuid": "237f28d3-cfc3-4fa2-9311-b8590308b3c6",
+      "qualityScore": 90
+    },
+    {
+      "name": "Clasic Radio_Relax -București",
+      "url": "https://live.radioclasic.com/listen/radio_clasic_relax/live.mp3",
+      "sourceStationUuid": "df4e340a-4aad-48b0-a418-0df0345d9056",
+      "qualityScore": 90
+    },
+    {
+      "name": "Adjud FM",
+      "url": "https://live.adjudfm.ro:8000/adjudfm.aac",
+      "sourceStationUuid": "2c1ab1f5-d9d8-4fcd-a59f-9df26ac98d1f",
+      "qualityScore": 90
+    },
+    {
+      "name": "RadioPlay Trance Romania -Cluj Napoca",
+      "url": "https://mscp1.gazduireradio.ro:1220/stream",
+      "sourceStationUuid": "00f47d7b-876c-463d-b457-b5bca2e1edba",
+      "qualityScore": 90
+    },
+    {
+      "name": "TokFM",
+      "url": "https://radiostream.pl/tuba10-1.mp3",
+      "sourceStationUuid": "0013eb82-2dea-41f7-9534-936d0b2721b7",
+      "qualityScore": 100
+    },
+    {
+      "name": "Radio Republika",
+      "url": "https://ssl-1.radiotvrepublika.pl:12698/stream",
+      "sourceStationUuid": "f837704e-40df-4302-b546-c8401348e51c",
+      "qualityScore": 100
+    },
+    {
+      "name": " Radio ZET Chilli ",
+      "url": "https://ch.cdn.eurozet.pl/chi-net.mp3",
+      "sourceStationUuid": "14b795df-4210-49e2-b491-189523b49f4d",
+      "qualityScore": 96
+    },
+    {
+      "name": "SmoothJazz.com.pl 320k MP3",
+      "url": "https://bcast.vigormultimedia.com:48888/sjcompl320mp3",
+      "sourceStationUuid": "53241c38-4a74-4beb-9514-1033913d1ede",
+      "qualityScore": 100
+    },
+    {
+      "name": "Radio Złote Przeboje",
+      "url": "https://radiostream.pl/tuba8904-1.mp3",
+      "sourceStationUuid": "dc835e53-1d9f-4c0f-b6ee-ffea5c672ec0",
+      "qualityScore": 90
+    },
+    {
+      "name": "Radio Party - Kanał Główny",
+      "url": "https://s2.radioparty.pl:8015/stream?nocache=4171",
+      "sourceStationUuid": "68c4dc06-824c-4a00-9f76-a13e181c6f2d",
+      "qualityScore": 100
+    },
+    {
+      "name": "RADIO CLUB DJ",
+      "url": "http://4stream.pl:18272/stream",
+      "sourceStationUuid": "f0ca8aff-861f-497c-a1d1-4a82bb4471ac",
+      "qualityScore": 84
+    },
+    {
+      "name": "ESKA ROCK",
+      "url": "http://n07-eu.rcs.revma.com/1nnezw8qz7zuv",
+      "sourceStationUuid": "6ea3930c-5bbd-4231-9e6a-ab225d753a74",
+      "qualityScore": 58
+    },
+    {
+      "name": "Radio Eska Kraków",
+      "url": "http://ic1.smcdn.pl/2070-1.mp3",
+      "sourceStationUuid": "257d0088-3b8d-4b9c-9092-4507bef630fd",
+      "qualityScore": 92
+    },
+    {
+      "name": "Radio Złote Przeboje Wrocław",
+      "url": "https://radiostream.pl/tuba9-1.mp3",
+      "sourceStationUuid": "6a2591f4-7286-4c65-a7bd-6c491b6e672b",
+      "qualityScore": 96
+    },
+    {
+      "name": "Radio Nowy Świat",
+      "url": "https://go-audio.toya.net.pl/63214",
+      "sourceStationUuid": "6dcc981e-4602-401c-b175-7649736e2f11",
+      "qualityScore": 69
+    },
+    {
+      "name": "Radio Maryja",
+      "url": "http://51.68.135.155/stream",
+      "sourceStationUuid": "4d4dfe3d-7641-4ae9-9afa-aefaa950a4f3",
+      "qualityScore": 67
+    },
+    {
+      "name": "Radio Bielsko",
+      "url": "https://stream.rcs.revma.com/062uq3z3kwzuv",
+      "sourceStationUuid": "e7b08b46-1855-49ec-84f8-c4bcb0d6bd95",
+      "qualityScore": 65
+    },
+    {
+      "name": "Radio Eska 2 Kultowe Polskie",
+      "url": "https://waw.ic.smcdn.pl/6040-1.aac",
+      "sourceStationUuid": "f2de2bab-2574-45b1-8228-4a439078eaa8",
+      "qualityScore": 71
+    },
+    {
+      "name": "Rmf Fm Polska",
+      "url": "https://rs101-krk-cyfronet.rmfstream.pl/RMFFM48",
+      "sourceStationUuid": "86329383-66ef-4156-ba8d-6ac8d3778cc5",
+      "qualityScore": 77
+    },
+    {
+      "name": "Radio ESKA Warszawa",
+      "url": "http://waw.ic.smcdn.pl/2380-2.aac",
+      "sourceStationUuid": "c52a1932-bb22-4927-9d47-62147e26d908",
+      "qualityScore": 68
+    },
+    {
+      "name": "CYBERStacja",
+      "url": "https://sc.cyberstacja.pl:8000/radio.mp3",
+      "sourceStationUuid": "8e3cd071-7175-412d-8e6d-900492ee595e",
+      "qualityScore": 92
+    },
+    {
+      "name": "Radio Plus",
+      "url": "https://pl02.cdn.eurozet.pl/plu-waw.mp3?redirected=02",
+      "sourceStationUuid": "d6a5c066-62c8-4f88-bd72-2b9b03330f2a",
+      "qualityScore": 100
+    }
+  ],
+  "skipped": [
+    {
+      "name": "Barangay LS 97.1 Manila",
+      "url": "http://28093.live.streamtheworld.com:3690/MORFM_S01AAC_SC",
+      "sourceStationUuid": "604bb4af-ccf6-47bd-819e-7d1accd15e05",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Star FM Manila",
+      "url": "https://stream-13.zeno.fm/g1pmt17nz9duv",
+      "sourceStationUuid": "9c9368a3-8f90-4fc8-ba49-1127f9861d2f",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "90.7 Love Radio - DZMB",
+      "url": "https://azura.loveradio.com.ph/listen/love_radio_manila/radio.mp3",
+      "sourceStationUuid": "42d08428-c760-4a28-b484-3cf0fb03f496",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Christmas Radio Philippines - Powered By www.amfmph.net",
+      "url": "https://us1.amfmph.com/ssl/christmasradio?mp=/stream&1641738050672",
+      "sourceStationUuid": "e945e96d-a8e7-44eb-92d0-e6aa4272a212",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Easy Rock Manila",
+      "url": "https://azura.easyrock.com.ph/listen/easy_rock_manila/radio.mp3",
+      "sourceStationUuid": "f4305944-ac27-4b1e-981d-744d509220c0",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "96.3 WRocK CEBU",
+      "url": "http://136.243.44.41:8010/stream",
+      "sourceStationUuid": "cbcc86da-c968-427d-9777-1596b3f499d5",
+      "qualityScore": 54,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Win Radio Manila",
+      "url": "https://stream-31.zeno.fm/2ss1hgnu6hhvv",
+      "sourceStationUuid": "91d4bd6e-fc70-4d77-a563-99682073a7ba",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "98.3 Love Radio Dagupan",
+      "url": "https://loveradiodagupan.radioca.st/",
+      "sourceStationUuid": "247aa6ff-f402-4b81-8ebb-21fa00791ef5",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Love Radio Manila",
+      "url": "https://azura.loveradio.com.ph/listen/love_radio_manila/radio.mp3",
+      "sourceStationUuid": "69ad1d66-f789-402f-8d9e-9a7ae14ce93f",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DZRH",
+      "url": "https://azura.dzrh.com.ph/listen/dzrh_manila/radio.mp3",
+      "sourceStationUuid": "2940f5dc-195e-4547-ab7a-f33ae2f70f41",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DWWW 774",
+      "url": "https://stream.zeno.fm/kc3cct89sxquv",
+      "sourceStationUuid": "9c271a44-c6c7-46b6-a67c-805e04f7b1e1",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DWPM RADYO SAIS TRENTA ",
+      "url": "http://209.126.124.126:8852/stream",
+      "sourceStationUuid": "bccab20d-a566-494b-a620-fd2b31bd41d5",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "91.5 Win Radio Manila",
+      "url": "http://stream.zeno.fm/2ss1hgnu6hhvv#livestream",
+      "sourceStationUuid": "05c16752-7a33-4b53-a0b5-469d747516a0",
+      "qualityScore": 64,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "96.3 Easy Rock - DWRK",
+      "url": "https://azura.easyrock.com.ph/listen/easy_rock_manila/radio.mp3",
+      "sourceStationUuid": "349828f2-1822-487f-8b40-ec1b860ec687",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Wild FM Davao",
+      "url": "http://148.72.153.65:9244/stream",
+      "sourceStationUuid": "a27b8341-5b0f-4b8c-a061-e37b083c3236",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DWIZ 882 Manila",
+      "url": "http://142.44.212.114:9079/stream",
+      "sourceStationUuid": "ead8fbed-3f80-416b-943c-ff3e66ad3314",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "90s Pinoy Alternative",
+      "url": "https://cast3.my-control-panel.com/proxy/ronald/stream",
+      "sourceStationUuid": "dae9feeb-8565-4c50-b2d1-5781081fccb8",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "102.7 Star FM Manila - DWSM",
+      "url": "https://stream-288.surfernetwork.com/g1pmt17nz9duv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJnMXBtdDE3bno5ZHV2IiwiaG9zdCI6InN0cmVhbS0yODguc3VyZmVybmV0d29yay5jb20iLCJydHRsIjo1LCJqdGkiOiJMaXZRVVVnMVJBNllJVm1CMzZweXlRIiwiaWF0IjoxNzgxNjc4NzM0LCJleHAiOjE3ODE2Nzg3OTR9.5G1wZmONFqXySurSj1Oj6_UtSmcJMwlc6JJy2oL7fX8",
+      "sourceStationUuid": "3e293cd1-7490-41e1-9b9d-2679dcff5a08",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DZMM Radyo Patrol 630",
+      "url": "http://209.126.124.126:8852/stream",
+      "sourceStationUuid": "3ddccbd3-8691-4bb2-a3cf-38e632e1042e",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Tunog Pinoy Power FM",
+      "url": "http://streamnavs.net:8143/live",
+      "sourceStationUuid": "36351c6c-bccc-404c-bf6d-35ed4c799b9b",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Wild FM Iloilo",
+      "url": "http://148.72.153.65:9253/stream",
+      "sourceStationUuid": "07e06768-cbc0-4483-b435-4a4a2125152a",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Brigada News FM Cebu",
+      "url": "http://18.141.67.248:8026/stream/1/",
+      "sourceStationUuid": "32e1b2c1-5e76-47cc-abc7-002fa205bf86",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DYHP 612 RMN Cebu",
+      "url": "https://de3.amfmph.com/ssl/rmncebu?mp=%2Fstream",
+      "sourceStationUuid": "27993f09-c8ba-4369-9e42-2e4729e8cd45",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "103.1 MOR Baguio",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/MORFM_S01AAC.aac",
+      "sourceStationUuid": "f6db08d9-342a-4b96-8d1a-7881be058975",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Bombo Radyo Iloilo",
+      "url": "https://stream.zenolive.com/gzudz59nz9duv",
+      "sourceStationUuid": "9be45c80-d20b-4ae5-a6cb-0ac53856086f",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "MOR 101.9 FM",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/MORFM_S01.mp3",
+      "sourceStationUuid": "a90bf48e-c689-4394-a22b-a4980689cedf",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "105.5 RADIO ONE LITE",
+      "url": "https://stream-178.zeno.fm/r8pmp16khf9uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJyOHBtcDE2a2hmOXV2IiwiaG9zdCI6InN0cmVhbS0xNzguemVuby5mbSIsInJ0dGwiOjUsImp0aSI6IktRRHREM1ZjVElxN3hfWFRra3A4X1EiLCJpYXQiOjE3ODAzMDk0NDQsImV4cCI6MTc4MDMwOTUwNH0.jF2jnAwv16igOcpKToSdZhBMic7GscoiRoJcNl5dmXk",
+      "sourceStationUuid": "8d139cda-edd1-462c-96ba-9a3486dfcf17",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "97.9 Home Radio Manila",
+      "url": "http://142.44.212.114:9071/stream",
+      "sourceStationUuid": "1da0b790-aa59-44c5-93d7-55a80b953c9b",
+      "qualityScore": 50,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Mellow 94.7 BFM - DWLL",
+      "url": "https://streamer.radio.co/sec36cd5f1/listen",
+      "sourceStationUuid": "551b653c-628d-4800-beb8-b3f4264d7a47",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "92.3 Radyo5 True FM",
+      "url": "https://qp-pldt-live-grp-05-prod.akamaized.net/out/u/radyo5_qp.m3u8",
+      "sourceStationUuid": "71623064-347c-4e85-8136-148115d350f2",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "ABS-CBN All Radio 101.9 FM",
+      "url": "http://209.126.124.126:8872/stream",
+      "sourceStationUuid": "b1701098-8044-4c86-bb46-881c2a0ce1bd",
+      "qualityScore": 49,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Pinoy Rap Radio",
+      "url": "https://stream.zeno.fm/0cdp55nqam0uv",
+      "sourceStationUuid": "50bbdb2d-c7f8-4ebc-8110-34728e04e8ef",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Energy FM Naga",
+      "url": "https://stream.zeno.fm/klewk28qlqquv",
+      "sourceStationUuid": "5b822425-43b7-4b0c-b3af-a419ebf4e8b4",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": " 81.7 Happy Pikz FM | Ang Radio ng Masa",
+      "url": "http://s3.voscast.com:11272/stream/1/",
+      "sourceStationUuid": "592e0ef8-dbf8-40ca-8b3e-c3dce3fde4db",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "979 Home Radio Manila",
+      "url": "http://142.44.212.114:9071/stream",
+      "sourceStationUuid": "bf42e95b-3b98-40e6-a4af-84d7bbed51c3",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "FM Radio Manila",
+      "url": "http://209.126.124.126:8872/stream",
+      "sourceStationUuid": "051ee815-6240-4410-8d3c-18ce449b8a93",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RJ FM 100.3",
+      "url": "http://111.125.87.226:8000/rjfm",
+      "sourceStationUuid": "a8ecafb3-6c00-4fdf-969c-609c4d00dd43",
+      "qualityScore": 43,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Hope FM Kenya",
+      "url": "https://a5.asurahosting.com:7530/radio.mp3",
+      "sourceStationUuid": "0839fc8f-00d6-40ec-8d52-f9f82e217852",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Budots FM 98.9",
+      "url": "https://stream-171.zeno.fm/2uhuu5hvzqzuv?zs=oGfN_quRRSyJUGCfzxagdw",
+      "sourceStationUuid": "9163367a-1602-4e61-9e4f-04c9ba79d088",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Aksyon Radyo Iloilo",
+      "url": "http://148.251.43.149:8213/stream",
+      "sourceStationUuid": "d25579bc-048a-46c5-bcc5-b7dcc50c412c",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "106.7 LITE FM MEGA MANILA",
+      "url": "https://stream.zeno.fm/kc3cct89sxquv",
+      "sourceStationUuid": "303f1172-846e-4eaf-ba02-ce471c91d343",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "89.1 LOVE FM",
+      "url": "https://eu8.fastcast4u.com/proxy/lovefmradio?mp=/1&1729057858413",
+      "sourceStationUuid": "446e64bc-1030-431f-a244-7e35e4a6c168",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Aksyon Radyo Tacloban",
+      "url": "http://142.4.216.144:8279/stream",
+      "sourceStationUuid": "4fb8bda3-1c8d-4ee6-afb4-0ade104af818",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Dream Radio Tacloban",
+      "url": "http://streamnavs.net:8133/live",
+      "sourceStationUuid": "a7e5cb12-70fb-40c7-b8d5-172f94aea2b1",
+      "qualityScore": 49,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Brigada News FM Zamboanga",
+      "url": "http://18.141.67.248:8018/stream/1/",
+      "sourceStationUuid": "10524829-e730-471e-b056-d40b55dd2061",
+      "qualityScore": 48,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "MOR Entertainment",
+      "url": "http://22283.live.streamtheworld.com:3690/MORFM_S01AAC_SC",
+      "sourceStationUuid": "57de316c-b492-4bfe-97ee-8bf1b533bf16",
+      "qualityScore": 51,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "105.5 SMOOTH RADIO HD",
+      "url": "https://stream-178.zeno.fm/r8pmp16khf9uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJyOHBtcDE2a2hmOXV2IiwiaG9zdCI6InN0cmVhbS0xNzguemVuby5mbSIsInJ0dGwiOjUsImp0aSI6IktRRHREM1ZjVElxN3hfWFRra3A4X1EiLCJpYXQiOjE3ODAzMDk0NDQsImV4cCI6MTc4MDMwOTUwNH0.jF2jnAwv16igOcpKToSdZhBMic7GscoiRoJcNl5dmXk",
+      "sourceStationUuid": "ac8e189b-ab44-42d0-8c34-14382513472c",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "101.1 Yes FM Manila",
+      "url": "https://azura.yesfm.com.ph/listen/yes_fm_manila/radio.mp3",
+      "sourceStationUuid": "23b18873-9071-460d-9571-3410c6177fe0",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Win Radio Naga",
+      "url": "https://stream.zeno.fm/sxzgyqjtehntv",
+      "sourceStationUuid": "76a75e23-1ac3-4936-919a-f81f1a820ff1",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Bee 927 Bohol",
+      "url": "https://cast3.asurahosting.com/proxy/victorjr/bee927fmbohol",
+      "sourceStationUuid": "2cc0119f-5ab4-4deb-9e6d-b27c950ef7b3",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DZRH News FM GenSan",
+      "url": "http://198.27.74.142:6137/stream",
+      "sourceStationUuid": "c244cb3f-b1de-4a29-bc87-a25b9525c468",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "FMR News Radio 92.3 Manila",
+      "url": "http://209.126.124.126:8852/stream",
+      "sourceStationUuid": "ef34d975-2db4-45ac-b3f3-90680e7a7841",
+      "qualityScore": 50,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Emotions ",
+      "url": "https://stream.zeno.fm/03v7z8edgphvv.mp3",
+      "sourceStationUuid": "f9efce30-a2d5-4375-8539-c3d138b1e6cc",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "XFM 96.7 BACOLOD",
+      "url": "https://us1.amfmph.com/ssl/xfmbacolod?mp=/live",
+      "sourceStationUuid": "0399bc73-e7c7-4472-9462-542da2bc1015",
+      "qualityScore": 56,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Easy Rock Cebu",
+      "url": "http://easyrockcebu.radioca.st:8219/stream",
+      "sourceStationUuid": "25cc3acf-52a4-4e3a-b3cb-cf64a9519d3b",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Abante Radyo",
+      "url": "https://stream.radio.co/s97e866418/listen",
+      "sourceStationUuid": "5f8cb6c6-bc5c-41e6-bd4d-ff18bddc9331",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Dream Radio Tacloban",
+      "url": "http://streamnavs.net:8133/live",
+      "sourceStationUuid": "773f1369-23d3-40fc-b058-906c15ab6a53",
+      "qualityScore": 45,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "702 Dzas",
+      "url": "http://sg-icecast.eradioportal.com:8000/febc_dzas",
+      "sourceStationUuid": "caf06089-a877-4ac4-8e59-693037bfd50a",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Win Radio Davao",
+      "url": "https://stream-42.zeno.fm/1noxhem5qpkuv",
+      "sourceStationUuid": "d3d4cb0a-3f9f-4281-9fe4-9d9cf3da0ab7",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "iFM Iloilo",
+      "url": "http://62.138.18.102:8288/stream",
+      "sourceStationUuid": "9369e5bd-ee34-41cf-a9ae-20993724d013",
+      "qualityScore": 64,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "MORe Manila 101.9 FM - DZMV",
+      "url": "http://209.126.124.126:8872/stream",
+      "sourceStationUuid": "2995e3a6-4ea6-442c-9281-93a4d475a59a",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Mellow 94.7 BFM Manila",
+      "url": "https://streamer.radio.co/sec36cd5f1/listen",
+      "sourceStationUuid": "76645586-387e-49e0-a291-549fea7ace5a",
+      "qualityScore": 51,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Home Radio Manila",
+      "url": "http://142.44.212.114:9071/stream",
+      "sourceStationUuid": "a453c884-1a69-4dd3-bb67-ad002cde311f",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "MOR Entertainment",
+      "url": "https://stream-37.zeno.fm/26ea0anpms8uv",
+      "sourceStationUuid": "96d56356-354d-4a2e-97a7-25483f992be2",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "100.7 Love Radio Lucena",
+      "url": "https://loveradiolucena.radioca.st/",
+      "sourceStationUuid": "8fe01b99-827d-4162-81da-ae5823e39b7e",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DWIZ 882",
+      "url": "http://dwizmanila.radioca.st:9079/stream",
+      "sourceStationUuid": "4363d380-c4c0-435c-b62e-da4ecec75c3e",
+      "qualityScore": 53,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Star FM Manila",
+      "url": "https://stream-13.zeno.fm/g1pmt17nz9duv",
+      "sourceStationUuid": "227a35f7-b84c-49f1-807a-672e89799e3c",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RAYSLAND CEBU",
+      "url": "http://173.208.146.230:8002/stream",
+      "sourceStationUuid": "1f9758b7-c125-4cc4-a35c-385e8ed35453",
+      "qualityScore": 64,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "IDMZ SAYAW PINOY!",
+      "url": "https://cast3.asurahosting.com/proxy/idmzsayawpinoy/stream",
+      "sourceStationUuid": "59d92165-5022-41c9-a31a-d61c0b5dbeb7",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DZMM Radyo Patrol 630",
+      "url": "http://209.126.124.126:8852/stream",
+      "sourceStationUuid": "e5e72efa-9134-46e9-841b-5e451f8108dd",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Love Radio Bacolod",
+      "url": "http://loveradiobacolod.radioca.st:8088/stream",
+      "sourceStationUuid": "ece6cfbc-aa87-4b1b-9af5-7d2a6d983133",
+      "qualityScore": 50,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Aksyon Radyo Pangasinan",
+      "url": "http://148.251.43.149:8238/stream",
+      "sourceStationUuid": "5a020c18-771a-4eef-b999-105a996705b1",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "105.9 True FM",
+      "url": "https://radio.tv5.com.ph/truefm/audio.stream/playlist.m3u8",
+      "sourceStationUuid": "e1844997-7eab-4371-abb6-c03b1d04ee83",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Love Radio Baguio",
+      "url": "http://138.201.198.218:8252/stream",
+      "sourceStationUuid": "13d88c56-a41f-46fc-8c31-ccf2f52ceb34",
+      "qualityScore": 50,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "101.1 Yes FM - DWYS",
+      "url": "https://azura.yesfm.com.ph/listen/yes_fm_manila/radio.mp3",
+      "sourceStationUuid": "1f4fd143-b2fb-480a-b25a-9c5fbf129164",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "B 107.9 FM Tacloban",
+      "url": "http://streamnavs.net:8147/stream",
+      "sourceStationUuid": "a2d9683c-aa42-491a-9b18-00ec18b973ef",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Love Radio Naga",
+      "url": "http://138.201.52.248:8070/stream",
+      "sourceStationUuid": "97109335-def5-4e60-97ba-a8583ec46876",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": " Radyo Katribu Philippines Teleradyo",
+      "url": "https://io.radyoph.com:8020/katribu",
+      "sourceStationUuid": "b23241a8-5b48-4754-889e-4158ebda3bcd",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Jungle Radio",
+      "url": "https://dj.radyoph.com:8020/jungleradio",
+      "sourceStationUuid": "0c01a3b0-94d0-4643-9f20-d851dcb0cf18",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DepEd Radio Learning English 89.1 FM - HD3",
+      "url": "https://voa-ingest.akamaized.net/hls/live/2035234/160_342L/playlist.m3u8",
+      "sourceStationUuid": "ce5a4a02-88bb-4e79-809e-63f971059bfe",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radyo Natin Nationwide",
+      "url": "https://visayas.radyonatinfm.com:8000/stream",
+      "sourceStationUuid": "70230b40-d053-4441-af72-b72f674eb7dd",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Yes FM Dagupan",
+      "url": "http://5.9.13.39:10300/stream",
+      "sourceStationUuid": "0789dd55-8153-44a7-9a0c-07696c42c8a9",
+      "qualityScore": 48,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Home Radio Legazpi",
+      "url": "http://142.44.212.114:9373/stream",
+      "sourceStationUuid": "d83ad333-40e4-47b4-b757-1b759c2b8713",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Win FM Manila",
+      "url": "https://stream-31.zeno.fm/2ss1hgnu6hhvv",
+      "sourceStationUuid": "ea8b53c7-ca7a-49d6-9c01-fca6a6cf0942",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "106.7 True FM - DWET",
+      "url": "https://radio.tv5.com.ph/truefm/audio.stream/playlist.m3u8",
+      "sourceStationUuid": "bd1aca93-f603-4bea-92fe-2fdd2eb7f964",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Jeepney Pinoy Radio",
+      "url": "https://usa5.fastcast4u.com/proxy/mcbnjpr?mp=/1",
+      "sourceStationUuid": "a0e09e89-48de-45a6-ba37-0519a5e232cf",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "MYX Philippines",
+      "url": "http://22283.live.streamtheworld.com:3690/MYXFM_SC",
+      "sourceStationUuid": "d86e83b0-1e1c-4a9c-b018-19682c879dc3",
+      "qualityScore": 53,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "105.5 BiG SOUND fm, San Fernando City, La Union",
+      "url": "http://162.220.162.10:8011/stream",
+      "sourceStationUuid": "0c7a8e93-8642-4e53-9ad7-7185b1d0aaee",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "101.5 BiG SOUND FM - DWWG",
+      "url": "http://162.220.162.10:8184/stream",
+      "sourceStationUuid": "997ad08f-0570-4176-b129-be0c7f2d6c3f",
+      "qualityScore": 64,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "GV 99.1",
+      "url": "https://edge.mixlr.com/channel/gtqpn?listening-from-radio-garden=1654604184",
+      "sourceStationUuid": "dc608ea2-161e-4876-9cf0-11b0422d0f2b",
+      "qualityScore": 50,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "105.5 SKY RADIO",
+      "url": "https://cast.skyradio105.com/proxy/skyradio105/stream",
+      "sourceStationUuid": "0943be1f-9401-489f-9863-78ea48f792fd",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "103.1 LITE FM - DWVA",
+      "url": "https://stream-178.zeno.fm/r8pmp16khf9uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJyOHBtcDE2a2hmOXV2IiwiaG9zdCI6InN0cmVhbS0xNzguemVuby5mbSIsInRtIjpmYWxzZSwicnR0bCI6NSwianRpIjoiWnNlblZkQTNUaXE3UkFhXy1OaHJmZyIsImlhdCI6MTc3NTk5MTc0NCwiZXhwIjoxNzc1OTkxODA0fQ.ds0pf7JWT67FfqMWuimjGOjQWirdes3-Wvaxmk4rp8Q",
+      "sourceStationUuid": "9c258090-085a-47aa-a022-ca2d4d238a8a",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Love Radio Cebu",
+      "url": "http://loveradiocebu.radioca.st:8033/stream",
+      "sourceStationUuid": "f6bd95f7-3c9c-4fbc-a121-5909d6457081",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Brigada News FM Pagadian",
+      "url": "https://pagadianstream.brigadanews.ph/",
+      "sourceStationUuid": "d3d8a2ae-30a1-4aa4-89dc-2191b37dda65",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Deep House Radio - Bucharest Romania",
+      "url": "http://live.dancemusic.ro:7000/radio.mp3",
+      "sourceStationUuid": "f65094f5-2cae-4d4e-ab4a-12f2e7d274bb",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Romania Actualități",
+      "url": "http://89.238.227.6:8006/;",
+      "sourceStationUuid": "960e71a1-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Magic Fm",
+      "url": "https://live.magicfm.ro/magicfm.aacp",
+      "sourceStationUuid": "d33eb5f1-6250-4a28-a39a-b5f85f12c92a",
+      "qualityScore": 56,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DIGI FM",
+      "url": "http://edge76.rdsnet.ro:84/digifm/digifm.mp3",
+      "sourceStationUuid": "9618e0b5-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 49,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Kiss Fm",
+      "url": "https://live.kissfm.ro/kissfm.aacp",
+      "sourceStationUuid": "5c7a7785-6f77-4819-87c0-8776138fe996",
+      "qualityScore": 61,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Dance FM 89.5 Bucharest",
+      "url": "http://edge126.rdsnet.ro:84/profm/dancefm.mp3",
+      "sourceStationUuid": "9618ea0c-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 49,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Kiss Fm Ro",
+      "url": "https://live.kissfm.ro/kissfm.aacp",
+      "sourceStationUuid": "99ac4423-0307-11ea-bbf2-52543be04c81",
+      "qualityScore": 61,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Digi24FM",
+      "url": "https://edge76.rcs-rds.ro/digifm/digi24fm.mp3",
+      "sourceStationUuid": "73ee836b-e9f2-4758-9cd6-2886da6db476",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Europa FM",
+      "url": "http://astreaming.europafm.ro:8000/europafm_aacp48k",
+      "sourceStationUuid": "961d41f3-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Pro FM",
+      "url": "http://edge126.rdsnet.ro:84/profm/profm.mp3",
+      "sourceStationUuid": "960ee76f-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 49,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Europa FM Romania",
+      "url": "https://astreaming.edi.ro:8443/EuropaFM_aac",
+      "sourceStationUuid": "c63f7402-f143-4f92-9cc9-e2d49f2a0bc5",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio MANELE",
+      "url": "https://play.wrhradios.com/8044/stream",
+      "sourceStationUuid": "063759b2-3420-4a70-8b6b-a0462147128a",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio România Cultural",
+      "url": "http://stream2.srr.ro:8012/",
+      "sourceStationUuid": "961b6ef1-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Europa FM",
+      "url": "https://astreaming.edi.ro:8443/EuropaFM_aac",
+      "sourceStationUuid": "3abea4dd-b270-430b-b18e-8954bbafbe12",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio ZU",
+      "url": "https://live7digi.antenaplay.ro/radiozu/radiozu-48000.m3u8",
+      "sourceStationUuid": "7912ccbd-e75d-425c-85b9-0b2ac2a4b213",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Magic FM Romania",
+      "url": "https://live.magicfm.ro/magicfm.aacp",
+      "sourceStationUuid": "5e7667bc-98db-4772-be99-cf6e2e10d73f",
+      "qualityScore": 58,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Magic Party Mix",
+      "url": "https://live.magicfm.ro/magic.party.mix",
+      "sourceStationUuid": "0ae51e4d-6c87-467f-b630-85548b428310",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Cafe Romania",
+      "url": "http://live.radiocafe.ro:8048/live.aac",
+      "sourceStationUuid": "f90ef2e5-4681-493a-bfa0-15627e3fb248",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Chill FM Romania",
+      "url": "http://edge126.rdsnet.ro:84/profm/chillfm.mp3",
+      "sourceStationUuid": "17d22fdd-f566-11e9-bbf2-52543be04c81",
+      "qualityScore": 49,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Magic FM 90s Hits",
+      "url": "https://live.kissfm.ro/Magic-90s",
+      "sourceStationUuid": "a1616faa-dab5-40a6-a4a7-7ee9644fc38d",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Guerrilla",
+      "url": "http://live.guerrillaradio.ro:8010/guerrilla.aac",
+      "sourceStationUuid": "961ae516-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RockFM",
+      "url": "https://live.rockfm.ro/rockfm.aacp",
+      "sourceStationUuid": "e76147c6-7657-11ea-b1cf-52543be04c81",
+      "qualityScore": 63,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Digi FM",
+      "url": "https://edge76.rcs-rds.ro/digifm/digifm.mp3",
+      "sourceStationUuid": "ea2bd72b-71e2-42f3-8a56-aa2b3d445ea3",
+      "qualityScore": 54,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Disco Mix",
+      "url": "https://play.discomix.ro/8002/stream",
+      "sourceStationUuid": "ba12510c-33f1-40a9-add1-45516d73b197",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Virgin Radio Romania",
+      "url": "https://astreaming.edi.ro:8443/VirginRadio_aac",
+      "sourceStationUuid": "1d6d9870-b554-4919-a0a9-93457d3de6da",
+      "qualityScore": 61,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DJ Radio Romania",
+      "url": "https://stream.djradio.ro/radio/8000/stream.mp3",
+      "sourceStationUuid": "76033286-f219-4693-bd11-a8ada3408a91",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "DEEP HOUSE ENERGY",
+      "url": "https://fra-pioneer01.dedicateware.com:2930//stream",
+      "sourceStationUuid": "2f5a5628-1b99-49e9-bb5c-b58b6d1dc2ff",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Manele Premium",
+      "url": "http://88.198.70.25:8894/;",
+      "sourceStationUuid": "8256be22-e128-4c80-92dc-5660f5cbbc77",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Lautaru Populara",
+      "url": "http://live.radiolautaru.ro:9000/;stream.nsv",
+      "sourceStationUuid": "eac07293-c67d-11e8-a498-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Romantic FM",
+      "url": "http://zuicast.digitalag.ro:9420/romanticfm",
+      "sourceStationUuid": "e9b4c510-73c5-4f81-a63f-ac916f15c8e3",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Minimal Techno Radio & Track Discovery - ROminimal.club",
+      "url": "https://r4.rominimal.club/listen/rominimal.club/radio2.m4a",
+      "sourceStationUuid": "f7a27449-af1b-470e-aa50-bc5f1df79f4e",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "90s 3nergy",
+      "url": "https://s11.ssl-stream.com:8807/stream",
+      "sourceStationUuid": "6b640433-b72e-4eae-aa2d-f1ee19a9374d",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RADIO MANELE PETRECERE",
+      "url": "https://ssl.servereradio.ro/8123/stream",
+      "sourceStationUuid": "cc5a46e8-a73f-43eb-8aa3-84107dc123be",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Kiss Fm",
+      "url": "https://live.kissfm.ro/kissfm.aacp",
+      "sourceStationUuid": "06fe3f3e-9bb1-4d96-9aa7-c103af2817c2",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Magic FM 80s HIts",
+      "url": "https://live.kissfm.ro/Magic-80s",
+      "sourceStationUuid": "9f6625fe-b0a4-4f27-a876-fe53d7460226",
+      "qualityScore": 56,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Pescobar Radio",
+      "url": "https://play.radioking.io/pescobar",
+      "sourceStationUuid": "6d4f60a9-fafa-474a-8917-8999fd1db5b5",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Rock FM Romania",
+      "url": "https://live.rockfm.ro/rockfm.aacp",
+      "sourceStationUuid": "83a18260-6d4f-4859-b7a0-30b41d0dc9e1",
+      "qualityScore": 52,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Magic FM Party Mix",
+      "url": "https://live.kissfm.ro/magic.party.mix",
+      "sourceStationUuid": "dafe7154-c2cd-4c53-bf41-fbfd746d7bee",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Magic FM ",
+      "url": "https://live.magicfm.ro/magicfm.aacp",
+      "sourceStationUuid": "162edc5a-2882-4958-9063-44a51b430e06",
+      "qualityScore": 56,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Oldies Romania ",
+      "url": "http://listen.radiooldies.ro:9200/;",
+      "sourceStationUuid": "3c98d6c2-f370-4171-920a-883d938cb3f3",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "FM Radio Manele",
+      "url": "http://a.fmradiomanele.ro:8054/stream",
+      "sourceStationUuid": "f8c19e4d-9e0c-45ed-b414-5b86af802303",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Kiss Hits From The 10s",
+      "url": "https://live.kissfm.ro/kiss.hits.from.the.10s",
+      "sourceStationUuid": "5fbcfdde-3e5a-4b52-a3ed-827694879e60",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "EuropaFM",
+      "url": "http://astreaming.edi.ro:8000/EuropaFM_aac",
+      "sourceStationUuid": "ae81beef-726e-4fbd-9c80-20d3237e2967",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Pro Manele",
+      "url": "http://radiopromanele.zapto.org:8000/;",
+      "sourceStationUuid": "6995bf61-f197-4b0e-9b07-60b612df3a46",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Trinitas",
+      "url": "http://81.196.25.70:8000/",
+      "sourceStationUuid": "961326aa-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 53,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "One FM Dance",
+      "url": "https://live.onefm.ro/onefm.aacp",
+      "sourceStationUuid": "0c7f9b48-f144-413c-a223-4758100d3e19",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "GoldFM",
+      "url": "http://80.86.106.110:8002/",
+      "sourceStationUuid": "960e6dcb-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Play Radio 91.6",
+      "url": "http://live.playradio.org:9090/FMHD",
+      "sourceStationUuid": "52fec34e-b4fa-4a5a-96cf-e17ffa9bd76d",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "EBS | Movie Soundtracks",
+      "url": "https://azura.ebsmedia.ro/listen/movies/movies128.mp3",
+      "sourceStationUuid": "db61d84c-620c-4e56-b262-cbbe0909c828",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Vacanța - Gold ",
+      "url": "https://stream4.srr.ro:8443/gold_rv",
+      "sourceStationUuid": "2108005f-4085-48c4-a41e-6a6b3d4adfbe",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Național FM",
+      "url": "http://live2.nationalfm.ro:8001/;",
+      "sourceStationUuid": "c49c0d0c-f611-41d6-b66d-6b5c9fdd7cc4",
+      "qualityScore": 48,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Nostalgia Radio",
+      "url": "https://live.radionostalgia.ro:8443/nostalgia.aac",
+      "sourceStationUuid": "e455cc17-efcf-4575-8a3c-42feee4412a6",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Teatru Radiofonic România",
+      "url": "https://asculta.teatruradiofonic.com/teatru",
+      "sourceStationUuid": "6dff1b65-11e6-40a5-814d-de2c4227fc7b",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Manele FM",
+      "url": "http://a.fmradiomanele.ro:8054/;",
+      "sourceStationUuid": "9641c132-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Hot Style",
+      "url": "http://mp3.radiohot.ro:8000/stream",
+      "sourceStationUuid": "340f1262-9415-4147-927b-4c15d599d88b",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Rock Fm Hard Rock",
+      "url": "https://live.rockfm.ro/hard.rock",
+      "sourceStationUuid": "2eb897a7-b86b-4bb2-b245-94a43829b7e5",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Noise Tech House",
+      "url": "https://techhouselive.radionoise.ro:9118/stream",
+      "sourceStationUuid": "bce5878d-ae5c-4e8b-888c-787b0c66ea24",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Jazz FM Romania",
+      "url": "https://s4.radio.co/s1e25bf273/listen",
+      "sourceStationUuid": "a9a91426-0679-44a0-8791-d67f847dfe23",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Magic FM Relax",
+      "url": "https://live.kissfm.ro/magic.lite",
+      "sourceStationUuid": "024f84fa-c110-40ac-b769-70be5669f779",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Lăutaru",
+      "url": "http://live.radiolautaru.ro:9000/;",
+      "sourceStationUuid": "901dd847-925d-4720-8e18-809d50ffa6d8",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RADIO Petrecere",
+      "url": "https://ssl.servereradio.ro/8123/stream",
+      "sourceStationUuid": "97298e49-7279-4ab4-b24f-ab212ee4c59d",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Europa FM",
+      "url": "http://astreaming.europafm.ro:8000/europafm_aacp48k?nocache=1775795565858",
+      "sourceStationUuid": "eaa9562e-1f0f-4407-9948-9e0daae9e5ec",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Romantic- Modern Talking",
+      "url": "https://stream.pcradio.ru/Modern_Talking-hi",
+      "sourceStationUuid": "8fbc6368-8527-4a95-aeb6-aadab7d9a349",
+      "qualityScore": 43,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Manele Romania",
+      "url": "http://petrecere.fmradiomanele.ro:8123/;stream.nsv",
+      "sourceStationUuid": "7444c624-fabe-4f75-b12e-1d827d82c018",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Antena satelor",
+      "url": "http://89.238.227.6:8042/",
+      "sourceStationUuid": "960e8eb0-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "FMV FIT Radio Medium Energy",
+      "url": "https://radio.webicdp.com/listen/fmvfitradiomediumenergy/radio.mp3",
+      "sourceStationUuid": "78e5e094-fafd-49c0-83ad-b7758413bb82",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Folclor",
+      "url": "https://ssl.omegahost.ro/8092/stream",
+      "sourceStationUuid": "213c4d3a-8b38-404b-81de-5b5f1e726a25",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Magic FM",
+      "url": "https://live.magicfm.ro/magicfm.aacp",
+      "sourceStationUuid": "da2706a1-8aa7-46f4-907f-aee51b56dfad",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Tequila Manele Romania",
+      "url": "https://petrecere.radiotequila.ro/7000/stream",
+      "sourceStationUuid": "dcae60bc-ffb7-403b-9a42-30be18b42fc0",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RMF FM",
+      "url": "http://195.150.20.242:8000/rmf_fm",
+      "sourceStationUuid": "399b7c2a-6680-11e8-b15b-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Zet",
+      "url": "http://zet-net-01.cdn.eurozet.pl:8400/",
+      "sourceStationUuid": "59e30dda-64bf-11ea-be63-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio 357",
+      "url": "https://n-11-21.dcs.redcdn.pl/sc/o2/radio357/live/radio357_pr.livx?preroll=0",
+      "sourceStationUuid": "d377fdb9-9136-47de-a1f4-6b02a1bc7f72",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Nowy Świat",
+      "url": "https://go-audio.toya.net.pl/63214",
+      "sourceStationUuid": "d81fd5d3-4c24-4768-88b3-57954e77c0e7",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RMF FM",
+      "url": "http://195.150.20.9/RMFFM48",
+      "sourceStationUuid": "960d9241-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "ESKA ROCK",
+      "url": "https://ic2.smcdn.pl/5380-1.mp3#ESKA_ROCK",
+      "sourceStationUuid": "bf487b2b-503c-42c3-b088-9b5d679fdf29",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Antyradio",
+      "url": "https://n-4-2.dcs.redcdn.pl/sc/o2/Eurozet/live/antyradio.livx?audio=5",
+      "sourceStationUuid": "9617d67b-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Anty Radio",
+      "url": "https://an.cdn.eurozet.pl/ant-web.mp3?t=1713710188361",
+      "sourceStationUuid": "6bf03632-07d9-4112-8119-03588ec8f556",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio RMF MAXXX",
+      "url": "https://rs9-krk2-cyfronet.rmfstream.pl/RMFMAXXX48",
+      "sourceStationUuid": "65cd1362-71ab-4829-8a4a-f530caf3a465",
+      "qualityScore": 59,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "VOX FM",
+      "url": "http://ic2.smcdn.pl/3990-1.mp3",
+      "sourceStationUuid": "c101cf0d-9385-452f-96f8-ad46425f89d3",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Polskie Radio Jedynka",
+      "url": "http://mp3.polskieradio.pl:8900/;.mp3",
+      "sourceStationUuid": "964558ba-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio RMF FM",
+      "url": "https://rs201-krk-cyfronet.rmfstream.pl/rmf_fm",
+      "sourceStationUuid": "97b1aec1-dad3-4551-8cc5-07965bbcb93f",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "ESKA GORĄCA 100 ",
+      "url": "http://ic1.smcdn.pl/6120-1.mp3",
+      "sourceStationUuid": "592947b7-c949-4e9f-8797-1e93b2158a19",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Polskie Radio 24",
+      "url": "http://stream3.polskieradio.pl:8080/;.mp3",
+      "sourceStationUuid": "75b823fc-f95f-4b88-a2e1-737750ac8ad9",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "ESKA - Gorąca 20",
+      "url": "https://waw.ic.smcdn.pl/6130-1.mp3",
+      "sourceStationUuid": "f56fc0e0-8d6e-43df-9253-bfa03cb9a067",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radioparty.pl Dj Mixes Party",
+      "url": "http://djmixes.radioparty.pl:8035/",
+      "sourceStationUuid": "96113f20-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Pogoda",
+      "url": "https://radiostream.pl/tuba140-1.mp3",
+      "sourceStationUuid": "b6be7550-8e04-42c3-8641-126c08eab71c",
+      "qualityScore": 79,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "VOX FM 128",
+      "url": "https://ic2.smcdn.pl/3990-1.mp3",
+      "sourceStationUuid": "c62a050f-cfd4-4fc5-8c93-ebaf0bc84738",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "VOX DJ Mix",
+      "url": "http://waw.ic.smcdn.pl/6020-1.mp3",
+      "sourceStationUuid": "912cadec-4484-4b09-8d71-9e3e45c8826b",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "PR TRÓJKA ",
+      "url": "https://stream13.polskieradio.pl/pr3/pr3.sdp/playlist.m3u8",
+      "sourceStationUuid": "dfceead0-dc99-4c3c-bce5-b53db7658626",
+      "qualityScore": 81,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Wnet",
+      "url": "http://audio.radiownet.pl:8000/stream",
+      "sourceStationUuid": "9610ee68-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radia Zet ",
+      "url": "http://zet-net-01.cdn.eurozet.pl:8400/",
+      "sourceStationUuid": "aedcfbaa-e39b-4066-a1b3-9f22e4ad2197",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RMF FM",
+      "url": "http://31.192.216.8/rmf_fm",
+      "sourceStationUuid": "47c5dd82-470a-11e9-aa55-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio RMF MAXX",
+      "url": "http://rs202-krk.rmfstream.pl/RMFMAXXX48",
+      "sourceStationUuid": "253a580c-5591-4ec4-9605-af2b5d7a145d",
+      "qualityScore": 55,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "TOK FM",
+      "url": "https://radiostream.pl/tuba10-1.mp3#TOK_FM",
+      "sourceStationUuid": "c7915f33-f401-4ab4-9f49-dcc1cce15ed6",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radioparty.pl Energy2000",
+      "url": "http://energy2000.radioparty.pl:8005/",
+      "sourceStationUuid": "9611404d-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "357",
+      "url": "https://n-11-26.dcs.redcdn.pl/sc/o2/radio357/live/radio357_pr.livx?preroll=0",
+      "sourceStationUuid": "fbbccfc2-a610-44ec-bd43-7a356a247b54",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Złote Przeboje Poznań",
+      "url": "http://radiostream.pl/tuba8926-1.mp3",
+      "sourceStationUuid": "ad320b38-45a1-44a2-bba4-7fb7fb8cb41c",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Rmf Fm",
+      "url": "http://195.150.20.7/rmf_fm",
+      "sourceStationUuid": "2081e30b-0ae2-4194-8c86-46f0ca7c1321",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "ESKA POZNAŃ ",
+      "url": "https://ic2.smcdn.pl/2140-1.aac",
+      "sourceStationUuid": "64e5a5d1-8b04-419c-b350-28f056818282",
+      "qualityScore": 65,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Italo4you 256kbps",
+      "url": "http://s0.radiohost.pl:8018/stream",
+      "sourceStationUuid": "d7bb11de-0f8d-4832-93e7-3061b1adfd33",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Polskie Radio - Czwórka (Program 4) (AAC+)",
+      "url": "http://stream3.polskieradio.pl:8956/;",
+      "sourceStationUuid": "963456fb-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Polskie Radio Katowice",
+      "url": "http://stream4.nadaje.com:9212/radiokatowice",
+      "sourceStationUuid": "961b32f7-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Nowy Świat 256k",
+      "url": "https://go-audio.toya.net.pl/63214",
+      "sourceStationUuid": "90877e51-c905-431d-aad2-cf7bea939a7b",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RMF Classic",
+      "url": "http://31.192.216.8/RMFCLASSIC48",
+      "sourceStationUuid": "960dc513-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 53,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Meloradio FM",
+      "url": "https://r.dcs.redcdn.pl/sc/o2/Eurozet/live/meloradio.livx?audio=5",
+      "sourceStationUuid": "a43fe2f5-0c29-436d-bb19-1512f86fcd2b",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio ZET",
+      "url": "https://hub.radiostream.pl/stream.pls?radio=8400&type=none&dist=zet&app=none&coding=aac&redirect=true",
+      "sourceStationUuid": "1c142460-76ad-4100-a9cb-a76eff76d821",
+      "qualityScore": 59,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Eska Warszawa",
+      "url": "https://waw.ic.smcdn.pl/2380-1.mp3",
+      "sourceStationUuid": "3d5ae3c4-6d05-415b-a0eb-d21ca56be0ea",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "JEDYNKA ",
+      "url": "http://stream3.polskieradio.pl:8900/;",
+      "sourceStationUuid": "05094fb8-9fd1-491c-9f02-ca4d52a2f488",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RMF 80s",
+      "url": "http://195.150.20.9/80S",
+      "sourceStationUuid": "960f6b39-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio ZET",
+      "url": "https://r.dcs.redcdn.pl/sc/o2/Eurozet/live/audio.livx?audio=5",
+      "sourceStationUuid": "621f9bd0-b91e-414d-b72b-7b8f2374183f",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Minimal Mix Radio",
+      "url": "http://orion.shoutca.st:8750/",
+      "sourceStationUuid": "96166d6e-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "ESKA - Summer City",
+      "url": "https://waw.ic.smcdn.pl/6120-1.mp3",
+      "sourceStationUuid": "0f0c7bbc-c43d-4be3-88ee-03bec56016f7",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Muzyczne Radio",
+      "url": "http://stream3.technologicznie.net/muzyczne_radio_192.mp3",
+      "sourceStationUuid": "45047af4-56c2-47fe-b322-af6f6b67c111",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Polskie Radio Trójka",
+      "url": "https://stream13.polskieradio.pl/pr3/pr3.sdp/chunklist_w476233979.m3u8",
+      "sourceStationUuid": "7eb13e53-ddc3-46a6-8b42-fa71c84c5954",
+      "qualityScore": 47,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Zloteprzeboje",
+      "url": "https://radiostream.pl/tuba8904-1.mp3",
+      "sourceStationUuid": "86632585-f76d-4cac-b771-d2c6902366c3",
+      "qualityScore": 81,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RMF24",
+      "url": "http://rmfstream1.interia.pl/rmf_24",
+      "sourceStationUuid": "7c207b66-3cac-43ce-b884-8876d196d0c9",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RMF Dance",
+      "url": "http://31.192.216.10/DANCE",
+      "sourceStationUuid": "960f7041-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RMF Polskie przeboje",
+      "url": "http://195.150.20.8/PPRZEBOJE",
+      "sourceStationUuid": "960f824a-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 57,
+      "reason": "invalid_geo"
+    }
+  ],
+  "duplicate": [
+    {
+      "name": "101.7 Your Love FM",
+      "url": "https://radio.1017yourlovefm.com/listen/sanibpwersa/radio.mp3",
+      "sourceStationUuid": "490f5ee9-ac98-4200-99a3-3a5f3c6e1c7d",
+      "qualityScore": 87,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Dance FM",
+      "url": "http://edge126.rdsnet.ro:84/profm/dancefm.mp3",
+      "sourceStationUuid": "97991c3a-688a-48c8-afb5-56761ecd5ad5",
+      "qualityScore": 64,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Romantic",
+      "url": "https://radio-romantic.ro/stream",
+      "sourceStationUuid": "701fcd20-6e49-4cc4-8623-a3d7be03b5d8",
+      "qualityScore": 65,
+      "reason": "duplicate_resolved_stream"
+    },
+    {
+      "name": "ROMÂNIA  Actualități",
+      "url": "https://stream4.srr.ro:8443/romania-actualitati",
+      "sourceStationUuid": "a11eaf83-9f07-4fad-9b1f-d7b6ee57ab85",
+      "qualityScore": 73,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Chilli Zet",
+      "url": "https://ch.cdn.eurozet.pl/chi-net.mp3",
+      "sourceStationUuid": "da0174e1-a1b0-447d-befb-087a6c88d6d4",
+      "qualityScore": 100,
+      "reason": "duplicate_resolved_stream"
+    }
+  ],
   "failed": [
     {
-      "reason": "candidate_fetch_failed: fetch failed"
+      "name": "TimiBanat -Eurodisco",
+      "url": "https://streaming12.elitecomunicacion.es:8102/stream3",
+      "sourceStationUuid": "e81b2a46-e756-4aec-9795-ff3d2c109d1d",
+      "qualityScore": 90,
+      "reason": "stream_validation_failed_network-or-invalid-url"
+    },
+    {
+      "name": "Polskie Radio 24 (NEW STREAM)",
+      "url": "https://stream15.polskieradio.pl/pr24/pr24.sdp/playlist.m3u8",
+      "sourceStationUuid": "c64f60f5-594a-43ab-bf7b-02c883ca2ab5",
+      "qualityScore": 98,
+      "reason": "stream_validation_failed_no-audio-evidence"
     }
   ],
   "suspicious": []
