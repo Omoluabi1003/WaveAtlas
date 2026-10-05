@@ -6,6 +6,7 @@ import {
   type GeoPermissibleObjects,
   type GeoProjection as D3GeoProjection,
 } from "d3-geo";
+import countryBoundaries from "@/lib/data/natural-earth-countries.json";
 import { isoCountryCentroids } from "@/lib/geotruth-resolver";
 import { flagFor, type Station } from "@/lib/stations";
 import { stationKey } from "@/lib/fast-connect-engine";
@@ -219,9 +220,6 @@ type Props = {
 
 const COUNTRY_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
 const TAU = Math.PI * 2;
-const LAND_GEOJSON_URL =
-  "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
-const LAND_CACHE_NAME = "waveatlas-boundaries-v1";
 const MOBILE_FRAME_MS = 1000 / 30;
 const DESKTOP_FRAME_MS = 1000 / 60;
 const MOBILE_FALLBACK_MS = 2000;
@@ -261,7 +259,6 @@ const SPACE_STAR_COUNT_DESKTOP = 90;
 const SPACE_STAR_COUNT_MOBILE = 35;
 const SPACE_STAR_COUNT_LOW_POWER = 20;
 const SPACE_STARS = buildSpaceStars(SPACE_STAR_COUNT_DESKTOP, SPACE_STAR_SEED);
-let landPromise: Promise<LandShape[]> | null = null;
 let landCache: LandShape[] | null = null;
 
 function seededUnit(seed: number) {
@@ -446,35 +443,16 @@ function normalizeLandFeature(feature: NaturalEarthFeature): LandShape | null {
   };
 }
 
-async function fetchBoundaryCollection() {
-  const request = new Request(LAND_GEOJSON_URL, { cache: "force-cache" });
-  if (typeof window !== "undefined" && "caches" in window) {
-    const cache = await caches.open(LAND_CACHE_NAME);
-    const cached = await cache.match(request);
-    if (cached) return cached.json() as Promise<NaturalEarthCollection>;
-    const response = await fetch(request);
-    if (!response.ok)
-      throw new Error(`Natural Earth boundaries failed: ${response.status}`);
-    await cache.put(request, response.clone());
-    return response.json() as Promise<NaturalEarthCollection>;
+// Bundle the geography with the renderer. Network or Cache Storage failures must
+// never remove the globe's land or country hit targets.
+function loadLandShapes(): LandShape[] {
+  if (!landCache) {
+    const collection = countryBoundaries as NaturalEarthCollection;
+    landCache = collection.features
+      .map(normalizeLandFeature)
+      .filter((shape): shape is LandShape => Boolean(shape));
   }
-  const response = await fetch(request);
-  if (!response.ok)
-    throw new Error(`Natural Earth boundaries failed: ${response.status}`);
-  return response.json() as Promise<NaturalEarthCollection>;
-}
-
-function loadLandShapes() {
-  if (landCache) return Promise.resolve(landCache);
-  if (!landPromise) {
-    landPromise = fetchBoundaryCollection().then((collection) => {
-      landCache = collection.features
-        .map(normalizeLandFeature)
-        .filter((shape): shape is LandShape => Boolean(shape));
-      return landCache;
-    });
-  }
-  return landPromise;
+  return landCache;
 }
 
 function resolveGlobeQualityTier(
@@ -1344,7 +1322,7 @@ export default function BlueMarbleGlobe({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
-  const [landShapes, setLandShapes] = useState<LandShape[]>([]);
+  const [landShapes] = useState<LandShape[]>(loadLandShapes);
   const state = useRef({
     rotX: -10 * DEG,
     rotY: 0,
@@ -1805,20 +1783,6 @@ export default function BlueMarbleGlobe({
     stationLabel,
     teleporting,
   ]);
-
-  useEffect(() => {
-    let mounted = true;
-    loadLandShapes()
-      .then((shapes) => {
-        if (mounted) setLandShapes(shapes);
-      })
-      .catch(() => {
-        if (mounted) setLandShapes([]);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
