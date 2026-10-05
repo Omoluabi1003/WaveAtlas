@@ -1426,7 +1426,7 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
     const doneTimer = window.setTimeout(dismiss, SIGNAL_SPLASH_DONE_MS);
     return () => { window.clearInterval(phaseTimer); window.clearTimeout(doneTimer); };
   }, [dismiss]);
-  return <AnimatePresence>{visible ? <motion.div className="fixed inset-0 z-[110] grid place-items-center overflow-hidden bg-midnight/72 text-ivory backdrop-blur-xl" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .45 }}>
+  return <AnimatePresence>{visible ? <motion.div style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }} className="fixed inset-0 z-[110] overflow-hidden bg-midnight/72 text-ivory backdrop-blur-xl" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .45 }}>
     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,20,.50),rgba(7,17,31,.76))]" />
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.18),transparent_24%),radial-gradient(circle_at_50%_58%,rgba(214,168,79,.13),transparent_26%)]" />
     <div className="cloud-layer absolute inset-0 opacity-20" />
@@ -4295,7 +4295,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const [hasCompletedArrival, setHasCompletedArrival] = useState(false);
   const arrivalStation = usePlayer((s) => s.arrivalStation);
   const replacementReason = usePlayer((s) => s.replacementReason);
-  const [splashVisible, setSplashVisible] = useState(true);
+  const [splashVisible, setSplashVisible] = useState(false);
   const [splashComplete, setSplashComplete] = useState(false);
   const [startupPreferences, setStartupPreferences] = useState<StartupPreferences>(defaultStartupPreferences);
   const startupPreview = stations[0];
@@ -4337,6 +4337,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const closerPromptLastShownRef = useRef<{ at: number; location?: UserGeoPoint } | null>(null);
 
   useEffect(() => {
+    document.documentElement.setAttribute("data-wa-runtime", "ready");
     let active = true;
     queueMicrotask(() => {
       if (!active) return;

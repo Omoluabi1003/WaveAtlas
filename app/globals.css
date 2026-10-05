@@ -84,3 +84,5 @@
   }
   .empty-atlas { padding-top: 11.5rem; }
 }
+
+html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
