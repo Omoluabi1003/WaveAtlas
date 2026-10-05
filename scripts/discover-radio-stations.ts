@@ -1,3 +1,4 @@
+import { readQueenMemory, emptyQueenMemory } from '../lib/agents/queen-coordinator';
 import { probeStream } from '../lib/agents/stream-probe';
 import { fallbackStations } from '../lib/stations';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -72,6 +73,9 @@ async function main() {
   const metadata: DiscoveryMetadata[] = JSON.parse(await readFile('lib/stations/discoveredRadioMetadata.json', 'utf8'));
   for (const item of metadata) keys.sourceUuids.add(item.sourceStationUuid);
   if (![MAX_ADD, MAX_PROBES, PAGES, PAGE_SIZE, MIN_BITRATE, COUNTRIES_PER_RUN, SIGNAL_TIMEOUT_MS].every(Number.isFinite)) throw new Error('Invalid discovery configuration.');
+  let memory = emptyQueenMemory();
+  try { memory = readQueenMemory(JSON.parse(await readFile('reports/queen-memory.json', 'utf8'))); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   let candidates: RadioBrowserCandidate[] = [];
   try {
     const countryCounts = new Map<string, number>();
@@ -97,6 +101,9 @@ async function main() {
     const reason = rejectReason(c, MIN_BITRATE, REQUIRE_GEO);
     if (reason) { (reason === 'suspicious_name' ? report.suspicious : report.skipped).push({ ...item, reason }); continue; }
     if (isDuplicateCandidate(c, keys)) { report.duplicate.push({ ...item, reason: 'duplicate_existing_station' }); continue; }
+    if (Date.parse(memory.cooldowns[item.url || ''] || '') > Date.now()) {
+      report.skipped.push({ ...item, reason: 'shared_memory_retry_cooldown' }); continue;
+    }
     probes++;
     const signal = await probeStream(c.url_resolved || c.url || '', SIGNAL_TIMEOUT_MS);
     if (!signal.ok) { report.failed.push({ ...item, reason: `stream_validation_failed_${signal.reason}` }); continue; }

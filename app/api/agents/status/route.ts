@@ -14,6 +14,7 @@ export async function GET() {
   });
   const verifiedAt = (metadata as Array<{ verifiedAt: string }>).map((item) => item.verifiedAt).sort().at(-1) ?? null;
   return NextResponse.json({
+    coordination: { architecture: 'ruflo-inspired-deterministic', execution: 'scheduled-github-actions', paidModelCalls: false, memory: 'review-branch-execution-history', catalogChangesRequireReview: true, liveHeartbeat: false },
     operationalReport: { lastReport: operationalStatus.generatedAt, executionSource: operationalStatus.executionSource, sourceCommit: operationalStatus.sourceCommit, runUrl: operationalStatus.runUrl, reportUpdatesRequireReview: true },
     agents: [
       ...operationalRoles.map((role) => {
