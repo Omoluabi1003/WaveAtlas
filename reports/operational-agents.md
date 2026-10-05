@@ -1,6 +1,6 @@
 # WaveAtlas operational report
 
-Generated: 2026-10-03T18:17:18.913Z
+Generated: 2026-10-05T06:00:51.080Z
 
 Bundled radio catalog only. Live Radio Browser inventory and audience metrics are not included.
 
@@ -329,7 +329,7 @@ Status: completed
   "metadataIssues": [],
   "scheduledWorkers": {
     "health": true,
-    "discovery": true,
+    "discovery": false,
     "operations": true
   },
   "policy": "Audit only. No stations are deleted, disabled, or edited."
