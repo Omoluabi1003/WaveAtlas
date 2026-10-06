@@ -22,19 +22,13 @@ assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('warmNeura
 // capable devices, while system speech remains the guaranteed fallback.
 assert.match(source, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\);[\s\S]*if \(!spoken\) spoken = await speakSystem\(text\);/);
 assert.doesNotMatch(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)/);
-assert.match(worker, /pocket-tts-js@0\.1\.0/);
+assert.match(worker, /vendor\/pocket-tts-js\/index\.js/);
 assert.match(worker, /maxThreads: 2/);
-assert.match(worker, /CANONICAL_REFERENCE = '\/api\/atlas-voice-reference'/);
+assert.match(worker, /loadCanonicalReference/);
 assert.match(worker, /repository-canonical/);
-// Assert actual canonical-first behavior inside resolveReference, not comment text
-// or the order in which helper functions happen to be declared.
-const resolveStart = worker.indexOf('async function resolveReference()');
-const resolveEnd = worker.indexOf('async function createEngine()', resolveStart);
-const resolveReference = worker.slice(resolveStart, resolveEnd);
-assert.ok(resolveStart >= 0 && resolveEnd > resolveStart, 'resolveReference must exist');
-assert.match(resolveReference, /try \{ return await loadCanonicalReference\(\); \}/);
-assert.match(resolveReference, /const saved = await loadSavedReference\(\);/);
-assert.ok(resolveReference.indexOf('loadCanonicalReference()') < resolveReference.indexOf('loadSavedReference()'), 'canonical Omoluabi reference must be attempted before browser enrollment fallback');
+// Production cloning must always use the authorized repository recording.
+assert.match(worker, /const reference = await loadCanonicalReference\(\);/);
+assert.doesNotMatch(worker, /loadSavedReference|browser-enrollment/);
 assert.match(worker, /voiceCloning: true/);
 assert.match(worker, /cache: true/);
 
