@@ -18,16 +18,18 @@ assert.ok(activate.indexOf('primeSystemSpeech();') >= 0, 'Atlas activation must 
 assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('void primeVoiceOutput();'), 'speech synthesis must be primed before async Web Audio work');
 assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('warmNeuralVoice();'), 'speech synthesis must be primed before worker startup');
 
-// Voice Engine v3 may attempt the smaller enrolled Pocket TTS clone on iOS,
-// but system speech must remain the fallback if neural startup or synthesis fails.
+// Voice Engine v4 attempts the canonical Omoluabi Paul recording first on all
+// capable devices, while system speech remains the guaranteed fallback.
 assert.match(source, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\); if \(!spoken\) spoken = await speakSystem\(text\);/);
 assert.doesNotMatch(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)/);
 assert.match(worker, /pocket-tts-js@0\.1\.0/);
 assert.match(worker, /maxThreads: 2/);
-assert.match(worker, /Omoluabi Paul is not enrolled on this device/);
+assert.match(worker, /CANONICAL_REFERENCE = '\/api\/atlas-voice-reference'/);
+assert.match(worker, /repository-canonical/);
+assert.match(worker, /The repository recording is authoritative/);
 
 // Avoid Safari's null/default-voice edge case by guaranteeing a concrete iOS
 // fallback whenever the browser exposes at least one voice.
 assert.match(source, /\?\? voices\.find\(\(voice\) => voice\.lang\.toLowerCase\(\)\.startsWith\('en'\)\)\s*\?\? voices\[0\]/);
 
-console.log('Atlas voice runtime: AudioContext creation, iOS gesture unlock, Omoluabi Paul neural attempt and system fallback passed.');
+console.log('Atlas voice runtime v4: AudioContext creation, iOS gesture unlock, canonical Omoluabi Paul clone attempt and system fallback passed.');
