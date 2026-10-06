@@ -3,13 +3,10 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { MessageCircle, Mic, Send, Volume2, X } from 'lucide-react';
 import type { Station } from '@/lib/stations';
+import { getSpeechRecognitionConstructor } from '@/lib/voice-command-engine';
 
 type Props = { station: Station | null; onSearch?: (query: string) => void };
 type Line = { role: 'user' | 'atlas'; text: string };
-
-declare global {
-  interface Window { webkitSpeechRecognition?: new () => any; SpeechRecognition?: new () => any; }
-}
 
 export function AtlasAssistant({ station, onSearch }: Props) {
   const [open, setOpen] = useState(false);
@@ -35,10 +32,10 @@ export function AtlasAssistant({ station, onSearch }: Props) {
 
   function submit(event: FormEvent) { event.preventDefault(); void ask(question); }
   function listen() {
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition) { setLines((old) => [...old, { role: 'atlas', text: 'Voice input is not available in this browser. You can still type to me for free.' }]); return; }
     const recognition = new Recognition(); recognition.lang = 'en-NG'; recognition.interimResults = false;
-    recognition.onresult = (event: any) => { const text = event.results?.[0]?.[0]?.transcript; if (text) void ask(text); };
+    recognition.onresult = (event) => { const text = event.results?.[0]?.[0]?.transcript; if (text) void ask(text); };
     recognition.start();
   }
   function speak(text: string) { if ('speechSynthesis' in window) { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(text)); } }
