@@ -19,6 +19,14 @@ export type AtlasAssistantAction =
   | { type: 'open_settings' }
   | { type: 'open_brief' };
 
+export type AtlasActionResult = {
+  ok: boolean;
+  status: 'completed' | 'playing' | 'connecting' | 'already_playing' | 'not_found' | 'failed';
+  station?: Pick<Station, 'name' | 'country' | 'city' | 'state' | 'station_uuid' | 'id'>;
+  message?: string;
+  terminal?: boolean;
+};
+
 export type AtlasAssistantReply = {
   answer: string;
   action?: AtlasAssistantAction;
