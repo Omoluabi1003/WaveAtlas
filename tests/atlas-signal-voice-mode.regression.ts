@@ -12,8 +12,8 @@ assert.match(source, /context: \{ station, history \}/, 'Atlas must send recent 
 assert.match(source, /conversationModeRef\.current && openRef\.current[\s\S]*void listen\(true\)/, 'Voice conversation must return to listening instead of freezing after an answer');
 assert.match(source, /aria-label="Atlas Voice"/, 'Atlas Voice must use a dedicated transient voice surface');
 assert.match(source, /meterAnalyser\(analyser/, 'Neural speech must drive Atlas Signal from real output amplitude');
-assert.match(source, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\);[\s\S]*if \(!spoken\) spoken = await speakSystem\(text\);/, 'Atlas must attempt enrolled neural voice first and preserve system speech fallback');
-assert.match(source, /primeSystemSpeech\(\); void primeVoiceOutput\(\);[\s\S]*warmNeuralVoice\(\);/, 'Atlas must retain gesture-unlocked fallback while warming the neural clone');
+assert.doesNotMatch(source, /speakSystem|new SpeechSynthesisUtterance/, 'Atlas must never substitute a device speaker');
+assert.match(source, /void primeVoiceOutput\(\);[\s\S]*warmNeuralVoice\(\);/, 'Atlas must unlock Web Audio and prepare the personal model');
 assert.doesNotMatch(source, /profile\.systemOnly/, 'Rolled-back #327 voice-gallery routing must not leak into the stable Signal runtime');
 assert.doesNotMatch(source, /fixed bottom-\[13\.1rem\][\s\S]*Talk to Atlas/, 'The old permanent floating orb must not return');
 assert.match(source, /if \(speaking\) \{ stopVoiceOutput\(\); setVoiceMessage\('Listening'\); void listen\(true\); return; \}/, 'Pressing the Signal while Atlas speaks must interrupt and return to listening');
@@ -34,4 +34,4 @@ assert.match(followUp.action.query || '', /Nigeria jazz/i);
 const capability = answerAtlasQuestion('what can you do?');
 assert.match(capability.answer, /identify.*current signal.*find and play stations/i);
 
-console.log('Atlas Signal: recovery timeout, near-mute focus, conversational intent, context memory, audio-reactive cloned speech and stable fallback passed.');
+console.log('Atlas Signal: recovery timeout, near-mute focus, conversational intent, context memory, audio-reactive cloned speech and personal-voice-only recovery passed.');

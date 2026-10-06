@@ -22,7 +22,7 @@
     "test:brief": "node --import tsx tests/editorial-image.regression.ts && node --import tsx tests/brief-editorial.regression.ts && node --import tsx tests/brief-tabs.regression.ts",
     "agents:operate": "node --import tsx scripts/run-operational-agents.ts",
     "test:operations": "node --import tsx tests/operational-agents.regression.ts",
-    "test:omoluabi-voice": "node --import tsx tests/atlas-omoluabi-primary.regression.ts",
+    "test:omoluabi-voice": "node --import tsx tests/atlas-omoluabi-primary.regression.ts && node --import tsx tests/atlas-voice-readiness.regression.ts",
     "test:atlas-lifecycle": "node --import tsx tests/atlas-recognition-lifecycle.regression.ts",
     "test:media-session": "node --import tsx tests/playback-media-session.regression.ts && node --import tsx tests/atlas-voice-runtime.regression.ts && node --import tsx tests/atlas-signal-voice-mode.regression.ts && node --import tsx tests/atlas-conversation-intelligence.regression.ts && node --import tsx tests/atlas-action-outcomes.regression.ts && node --import tsx tests/atlas-voice-gallery.regression.ts && node --import tsx tests/atlas-personal-voice-v2.regression.ts",
     "test:button-feedback": "node --import tsx tests/button-feedback.regression.ts",

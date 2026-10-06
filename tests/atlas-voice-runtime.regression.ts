@@ -9,18 +9,10 @@ const worker = readFileSync(new URL('../public/atlas-neural-voice-worker.mjs', i
 assert.match(source, /voiceContextRef\.current && voiceContextRef\.current\.state !== 'closed'/);
 assert.doesNotMatch(source, /voiceContextRef\.current\?\.state !== 'closed'/);
 
-// iOS/WebKit still needs system speech synchronously primed as the guaranteed
-// fallback before any async neural voice work begins.
-const activateStart = source.indexOf('function activateAtlas()');
-const activateEnd = source.indexOf('activateRef.current = activateAtlas;');
-const activate = source.slice(activateStart, activateEnd);
-assert.ok(activate.indexOf('primeSystemSpeech();') >= 0, 'Atlas activation must prime speech synthesis');
-assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('void primeVoiceOutput();'), 'speech synthesis must be primed before async Web Audio work');
-assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('warmNeuralVoice();'), 'speech synthesis must be primed before worker startup');
-
-// Voice Engine v4 attempts the canonical Omoluabi Paul recording first on all
-// capable devices, while system speech remains the guaranteed fallback.
-assert.match(source, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\);[\s\S]*if \(!spoken\) spoken = await speakSystem\(text\);/);
+// Atlas must unlock Web Audio from the gesture and speak only the repository voice.
+assert.match(source, /void primeVoiceOutput\(\);/);
+assert.match(source, /waitForAtlasPersonalVoice/);
+assert.doesNotMatch(source, /new SpeechSynthesisUtterance|speakSystem|bestSystemVoice/);
 assert.doesNotMatch(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)/);
 assert.match(worker, /vendor\/pocket-tts-js\/index\.js/);
 assert.match(worker, /maxThreads: 2/);
@@ -32,8 +24,4 @@ assert.doesNotMatch(worker, /loadSavedReference|browser-enrollment/);
 assert.match(worker, /voiceCloning: true/);
 assert.match(worker, /cache: true/);
 
-// Avoid Safari's null/default-voice edge case by guaranteeing a concrete iOS
-// fallback whenever the browser exposes at least one voice.
-assert.match(source, /\?\? voices\.find\(\(voice\) => voice\.lang\.toLowerCase\(\)\.startsWith\('en'\)\)\s*\?\? voices\[0\]/);
-
-console.log('Atlas voice runtime v4: AudioContext creation, iOS gesture unlock, canonical Omoluabi Paul clone attempt and system fallback passed.');
+console.log('Atlas voice runtime: Web Audio unlock, repository-only personal speech and bounded readiness passed.');
