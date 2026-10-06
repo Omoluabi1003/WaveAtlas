@@ -94,6 +94,7 @@ async function resolveAgainstAtlasDirectory(alternatives: BrowserSpeechAlternati
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ alternatives: normalized }),
+      signal: AbortSignal.timeout(1800),
     });
     if (!response.ok) return localBest;
     const data = await response.json() as { transcript?: string; confidence?: number };
@@ -170,6 +171,11 @@ export function parseVoiceCommand(transcript: string): VoiceCommandParseResult {
 function enhancedRecognitionConstructor(NativeRecognition: BrowserSpeechRecognitionConstructor): BrowserSpeechRecognitionConstructor {
   return class AtlasSpeechRecognition implements BrowserSpeechRecognition {
     private native: BrowserSpeechRecognition;
+    private generation = 0;
+    private delivered = false;
+    private resolving = false;
+    private ended = false;
+    private endHandler: (() => void) | null = null;
     private resultHandler: ((event: BrowserSpeechEvent) => void) | null = null;
 
     constructor() { this.native = new NativeRecognition(); }
@@ -185,15 +191,21 @@ function enhancedRecognitionConstructor(NativeRecognition: BrowserSpeechRecognit
     }
     get onstart() { return this.native.onstart; }
     set onstart(value: (() => void) | null) { this.native.onstart = value; }
-    get onend() { return this.native.onend; }
-    set onend(value: (() => void) | null) { this.native.onend = value; }
+    get onend() { return this.endHandler; }
+    set onend(value: (() => void) | null) {
+      this.endHandler = value;
+      this.native.onend = () => { this.ended = true; if (!this.resolving) this.endHandler?.(); };
+    }
     get onerror() { return this.native.onerror; }
     set onerror(value: ((event: { error?: string; message?: string }) => void) | null) { this.native.onerror = value; }
     get onresult() { return this.resultHandler; }
     set onresult(value: ((event: BrowserSpeechEvent) => void) | null) {
       this.resultHandler = value;
       this.native.onresult = value ? async (event) => {
+        const generation = this.generation;
+        if (this.delivered) return;
         const first = event.results?.[event.resultIndex ?? 0] ?? event.results?.[0];
+        if (!first?.isFinal) { value(event); return; }
         const alternatives: BrowserSpeechAlternative[] = [];
         if (first) {
           for (let index = 0; index < first.length; index += 1) {
@@ -201,15 +213,20 @@ function enhancedRecognitionConstructor(NativeRecognition: BrowserSpeechRecognit
             if (candidate?.transcript) alternatives.push(candidate);
           }
         }
+        this.resolving = true;
         const best = await resolveAgainstAtlasDirectory(alternatives);
+        if (generation === this.generation) this.resolving = false;
+        if (generation !== this.generation || this.delivered) return;
+        this.delivered = true;
         if (!best.transcript) { value(event); return; }
         const result = Object.assign([{ transcript: best.transcript, confidence: best.confidence }], { isFinal: true });
         value({ resultIndex: 0, results: [result] });
+        if (generation === this.generation && this.ended) this.endHandler?.();
       } : null;
     }
-    start() { this.native.start(); }
+    start() { this.generation += 1; this.delivered = false; this.resolving = false; this.ended = false; this.native.start(); }
     stop() { this.native.stop(); }
-    abort() { this.native.abort(); }
+    abort() { this.generation += 1; this.resolving = false; this.native.abort(); }
   };
 }
 

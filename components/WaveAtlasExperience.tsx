@@ -100,9 +100,10 @@ async function playBestAtlasMatch(query: string, current: Station | null, playba
 
     for (let index = 0; index < choices.length; index += 1) {
       const match = choices[index];
+      const playback = waitForPlayback(match, index < choices.length - 1 ? 2600 : 3200);
       window.history.pushState({ atlasAssistant: true }, '', stationPath(match));
       window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
-      const outcome = await waitForPlayback(match, index < choices.length - 1 ? 2600 : 3200);
+      const outcome = await playback;
       const place = stationPlace(match);
       if (outcome === 'playing') return { ok: true, status: 'playing', station: match, message: `Playing ${match.name}${place ? `, ${place}` : ''}.`, terminal: true };
       if (outcome === 'connecting') return { ok: true, status: 'connecting', station: match, message: `Found ${match.name}${place ? `, ${place}` : ''}. Connecting.`, terminal: true };
@@ -153,7 +154,17 @@ export default function WaveAtlasExperience(props: Props) {
   const search = (query: string) => { void openSearchWithQuery(query); };
 
   const executeAction = async (action: AtlasAssistantAction): Promise<AtlasActionResult> => {
-    if (action.type === 'search') return (await openSearchWithQuery(action.query)) ? completed() : failed('I could not open search.');
+    if (action.type === 'search') {
+      if (!await openSearchWithQuery(action.query)) return failed('I could not open search.');
+      try {
+        const response = await fetch(`/api/stations/search?q=${encodeURIComponent(action.query)}&limit=20`, { signal: AbortSignal.timeout(6000) });
+        if (!response.ok) return failed('Search is open, but I could not reach the station directory.');
+        const data = await response.json() as { stations?: Station[] };
+        const matches = data.stations || [];
+        if (!matches.length) return { ok: false, status: 'not_found', message: `I couldn't find a station matching ${action.query}. Try a station name, city, or genre.` };
+        return { ok: true, status: 'completed', message: `I found ${matches[0].name}${matches.length > 1 ? ' and other matches' : ''}. The results are open. Say play followed by the station name to listen.`, terminal: true };
+      } catch { return failed('Search is open, but the directory took too long to respond. Please try again.'); }
+    }
     if (action.type === 'play') return action.query ? playBestAtlasMatch(action.query, station, playbackStatus, action.excludeCurrent) : sendPlaybackCommand('play');
     if (action.type === 'pause') return sendPlaybackCommand('pause');
     if (action.type === 'resume') return sendPlaybackCommand('play');

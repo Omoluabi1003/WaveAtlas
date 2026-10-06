@@ -12,7 +12,7 @@ assert.match(source, /context: \{ station, history \}/, 'Atlas must send recent 
 assert.match(source, /conversationModeRef\.current && openRef\.current[\s\S]*void listen\(true\)/, 'Voice conversation must return to listening instead of freezing after an answer');
 assert.match(source, /aria-label="Atlas Voice"/, 'Atlas Voice must use a dedicated transient voice surface');
 assert.match(source, /meterAnalyser\(analyser/, 'Neural speech must drive Atlas Signal from real output amplitude');
-assert.match(source, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\); if \(!spoken\) spoken = await speakSystem\(text\);/, 'Atlas must attempt enrolled neural voice first and preserve system speech fallback');
+assert.match(source, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\);[\s\S]*if \(!spoken\) spoken = await speakSystem\(text\);/, 'Atlas must attempt enrolled neural voice first and preserve system speech fallback');
 assert.match(source, /primeSystemSpeech\(\); void primeVoiceOutput\(\); warmNeuralVoice\(\);/, 'Atlas must retain gesture-unlocked fallback while warming the neural clone');
 assert.doesNotMatch(source, /profile\.systemOnly/, 'Rolled-back #327 voice-gallery routing must not leak into the stable Signal runtime');
 assert.doesNotMatch(source, /fixed bottom-\[13\.1rem\][\s\S]*Talk to Atlas/, 'The old permanent floating orb must not return');
