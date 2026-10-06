@@ -7,7 +7,7 @@ const STORE = 'references';
 const VOICE_KEY = 'omoluabi-paul';
 const CANONICAL_REFERENCE = '/api/atlas-voice-reference';
 const TARGET_RATE = 24000;
-const REFERENCE_SECONDS = 12;
+const REFERENCE_SECONDS = 10;
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -97,8 +97,6 @@ async function loadCanonicalReference() {
 }
 
 async function resolveReference() {
-  // The repository recording is authoritative. Browser enrollment is only a fallback
-  // when the canonical asset cannot be fetched or decoded.
   try { return await loadCanonicalReference(); }
   catch (canonicalError) {
     const saved = await loadSavedReference();
@@ -111,8 +109,10 @@ async function resolveReference() {
 }
 
 async function createEngine() {
+  // Pocket TTS runs entirely in this browser worker. It uses no WaveAtlas API key,
+  // account, paid inference endpoint, or per-utterance service.
   const { PocketTTS } = await import('https://cdn.jsdelivr.net/npm/pocket-tts-js@0.1.0/+esm');
-  const tts = new PocketTTS({ language: 'english_2026-04', quantized: true, voiceCloning: true, maxThreads: 2 });
+  const tts = new PocketTTS({ language: 'english_2026-04', quantized: true, voiceCloning: true, maxThreads: 2, cache: true });
   await tts.load();
   const reference = await resolveReference();
   clonedVoice = await tts.cloneVoice(reference.pcm, { inputSampleRate: reference.sampleRate, name: 'Omoluabi Paul' });
@@ -142,18 +142,22 @@ function wavBuffer(chunks, sampleRate) {
 self.onmessage = async (event) => {
   const { type, id, text } = event.data || {};
   if (type === 'warm') {
-    try {
-      const tts = await getEngine();
+    // Tell Atlas to keep the Omoluabi path selected while the cached local model warms.
+    // This prevents a normal first-load warmup from being mistaken for an unavailable
+    // voice and immediately replaced by a generic system speaker.
+    self.postMessage({ type: 'ready', engine: 'pocket-tts-omoluabi-paul-warming', voice: 'Omoluabi Paul', voiceSource: 'repository-canonical' });
+    getEngine().then((tts) => {
       self.postMessage({ type: 'ready', engine, voice: 'Omoluabi Paul', voiceSource, sampleRate: tts.sampleRate });
-    } catch (error) {
+    }).catch((error) => {
       ttsPromise = null; clonedVoice = null; voiceSource = 'none';
       self.postMessage({ type: 'unavailable', message: error instanceof Error ? error.message : 'Omoluabi Paul unavailable' });
-    }
+    });
     return;
   }
   if (type !== 'speak' || !id || typeof text !== 'string' || !text.trim()) return;
   try {
-    const tts = await getEngine(); if (!clonedVoice) throw new Error('Omoluabi Paul is not ready');
+    const tts = await getEngine();
+    if (!clonedVoice) throw new Error('Omoluabi Paul is not ready');
     const chunks = [];
     await tts.generate(text.trim(), { voice: clonedVoice, onChunk: (audio) => chunks.push(new Float32Array(audio)) });
     if (!chunks.length) throw new Error('Omoluabi Paul produced no audio');
