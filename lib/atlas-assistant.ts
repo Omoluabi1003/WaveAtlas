@@ -11,6 +11,7 @@ export type AtlasAssistantReply = {
 };
 
 const clean = (value?: string | null) => value?.trim() || '';
+const cleanTags = (value?: string[] | string | null) => Array.isArray(value) ? value.map((item) => item.trim()).filter(Boolean).join(', ') : clean(value);
 
 export function answerAtlasQuestion(question: string, context: AtlasAssistantContext = {}): AtlasAssistantReply {
   const q = question.trim();
@@ -20,7 +21,7 @@ export function answerAtlasQuestion(question: string, context: AtlasAssistantCon
   const country = clean(station?.country);
   const region = clean(station?.state);
   const language = clean(station?.language);
-  const tags = clean(station?.tags);
+  const tags = cleanTags(station?.tags);
 
   if (!q) return { answer: 'Ask me about the station, its country, language, genre, or where you want to listen next.', source: 'waveatlas-local' };
   if (!station) return { answer: 'Choose a station first, then I can respond using its live WaveAtlas context. You can also ask me to find a country, city, genre, or station.', source: 'waveatlas-local' };
