@@ -12,7 +12,7 @@ assert.match(source, /context: \{ station, history \}/, 'Atlas must send recent 
 assert.match(source, /conversationModeRef\.current && openRef\.current[\s\S]*void listen\(true\)/, 'Voice conversation must return to listening instead of freezing after an answer');
 assert.match(source, /aria-label="Atlas Voice"/, 'Atlas Voice must use a dedicated transient voice surface');
 assert.match(source, /meterAnalyser\(analyser/, 'Neural speech must drive Atlas Signal from real output amplitude');
-assert.match(source, /if \(isIOSFamily\(\)\) spoken = await speakSystem/, 'iOS must retain the reliable gesture-unlocked system speech path');
+assert.match(source, /if \(isIOSFamily\(\) \|\| profile\.systemOnly\) spoken = await speakSystem/, 'iOS must retain the reliable gesture-unlocked system speech path while system-only voice profiles use the same safe fallback');
 assert.doesNotMatch(source, /fixed bottom-\[13\.1rem\][\s\S]*Talk to Atlas/, 'The old permanent floating orb must not return');
 assert.match(source, /if \(speaking\) \{ stopVoiceOutput\(\); setVoiceMessage\('Listening'\); void listen\(true\); return; \}/, 'Pressing the Signal while Atlas speaks must interrupt and return to listening');
 
