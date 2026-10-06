@@ -20,7 +20,7 @@ assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('warmNeura
 
 // Voice Engine v4 attempts the canonical Omoluabi Paul recording first on all
 // capable devices, while system speech remains the guaranteed fallback.
-assert.match(source, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\); if \(!spoken\) spoken = await speakSystem\(text\);/);
+assert.match(source, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\);[\s\S]*if \(!spoken\) spoken = await speakSystem\(text\);/);
 assert.doesNotMatch(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)/);
 assert.match(worker, /pocket-tts-js@0\.1\.0/);
 assert.match(worker, /maxThreads: 2/);

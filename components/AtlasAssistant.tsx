@@ -14,7 +14,7 @@ type Props = {
 };
 type Line = AtlasConversationLine;
 type NeuralVoiceState = 'idle' | 'loading' | 'ready' | 'unavailable';
-type NeuralMessage = { type?: 'ready' | 'unavailable' | 'audio' | 'error'; id?: string; buffer?: ArrayBuffer; message?: string };
+type NeuralMessage = { type?: 'loading' | 'ready' | 'unavailable' | 'audio' | 'error'; id?: string; buffer?: ArrayBuffer; message?: string };
 type PendingNeural = { resolve: (message: NeuralMessage) => void; reject: (error: Error) => void; timer: number };
 type AudioSessionKind = 'auto' | 'playback' | 'play-and-record' | 'ambient';
 type AudioSessionLike = { type: AudioSessionKind; state?: string };
@@ -38,8 +38,10 @@ function bestSystemVoice(language: string) {
   const base = target.split('-')[0];
   const score = (voice: SpeechSynthesisVoice) => {
     const lang = voice.lang.toLowerCase();
+    if (!(lang === base || lang.startsWith(`${base}-`))) return -1000;
     let value = lang === target ? 80 : lang.startsWith(`${base}-`) || lang === base ? 55 : 0;
     if (NATURAL_VOICE_HINTS.test(voice.name)) value += 70;
+    if (/online|neural|google|microsoft.*natural/i.test(voice.name)) value += 60;
     if (voice.localService) value += 8;
     if (SYNTHETIC_VOICE_HINTS.test(voice.name)) value -= 80;
     return value;
@@ -99,6 +101,8 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   const radioDuckedRef = useRef(false);
   const systemSpeechPrimedRef = useRef(false);
   const spokenStatusRef = useRef<string | null>(null);
+  const outputGenerationRef = useRef(0);
+  const requestControllerRef = useRef<AbortController | null>(null);
   const activateRef = useRef<() => void>(() => undefined);
 
   useEffect(() => { openRef.current = open; if (open && textMode) setTimeout(() => inputRef.current?.focus(), 80); }, [open, textMode]);
@@ -128,6 +132,8 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     return () => { window.removeEventListener('waveatlas:open-atlas-voice', openAtlas); document.removeEventListener('click', interceptExistingVoiceButton, true); };
   }, []);
   useEffect(() => () => {
+    requestControllerRef.current?.abort();
+    outputGenerationRef.current += 1;
     recognitionRef.current?.abort();
     if (recognitionWatchdogRef.current) window.clearTimeout(recognitionWatchdogRef.current);
     if (meterFrameRef.current) window.cancelAnimationFrame(meterFrameRef.current);
@@ -153,17 +159,18 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   async function resumeVoiceContext() { const context = getVoiceContext(); if (!context) return null; if (context.state === 'suspended' || String(context.state) === 'interrupted') { try { await context.resume(); } catch { return null; } } return context; }
   async function primeVoiceOutput() { const context = await resumeVoiceContext(); if (!context) return false; try { const source = context.createBufferSource(); source.buffer = context.createBuffer(1, 1, context.sampleRate); source.connect(context.destination); source.start(0); return true; } catch { return false; } }
   function primeSystemSpeech() { if (systemSpeechPrimedRef.current || typeof window === 'undefined' || !('speechSynthesis' in window)) return; try { const synth = window.speechSynthesis; synth.cancel(); const unlock = new SpeechSynthesisUtterance(''); unlock.volume = 0; synth.speak(unlock); systemSpeechPrimedRef.current = true; } catch { systemSpeechPrimedRef.current = false; } }
-  function stopVoiceOutput() { if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel(); try { voiceSourceRef.current?.stop(); } catch { /* Already stopped. */ } voiceSourceRef.current = null; stopMeter(); setSpeaking(false); }
+  function stopVoiceOutput() { outputGenerationRef.current += 1; if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel(); try { voiceSourceRef.current?.stop(); } catch { /* Already stopped. */ } voiceSourceRef.current = null; stopMeter(); setSpeaking(false); }
   async function prepareAudiblePlayback() { const session = audioSession(); if (session) { try { session.type = 'ambient'; await sleep(0); session.type = 'playback'; } catch { /* Keep normal output path. */ } } return resumeVoiceContext(); }
   function meterAnalyser(analyser: AnalyserNode) {
     stopMeter(); analyser.fftSize = 256; const samples = new Uint8Array(analyser.fftSize);
     const frame = () => { analyser.getByteTimeDomainData(samples); let sum = 0; for (const sample of samples) { const normalized = (sample - 128) / 128; sum += normalized * normalized; } const rms = Math.sqrt(sum / samples.length); setSignalEnergy(Math.min(1, 0.16 + rms * 5.5)); meterFrameRef.current = window.requestAnimationFrame(frame); };
     frame();
   }
-  async function playVoiceBuffer(buffer: ArrayBuffer) {
+  async function playVoiceBuffer(buffer: ArrayBuffer, generation = outputGenerationRef.current) {
+    if (generation !== outputGenerationRef.current || !openRef.current) return false;
     const context = await prepareAudiblePlayback(); if (!context) return false;
     try {
-      const decoded = await context.decodeAudioData(buffer.slice(0)); const source = context.createBufferSource(); const compressor = context.createDynamicsCompressor(); const gain = context.createGain(); const analyser = context.createAnalyser();
+      const decoded = await context.decodeAudioData(buffer.slice(0)); if (generation !== outputGenerationRef.current || !openRef.current) return false; const source = context.createBufferSource(); const compressor = context.createDynamicsCompressor(); const gain = context.createGain(); const analyser = context.createAnalyser();
       gain.gain.value = 1.24; compressor.threshold.value = -10; compressor.knee.value = 16; compressor.ratio.value = 3;
       source.buffer = decoded; source.connect(compressor); compressor.connect(gain); gain.connect(analyser); analyser.connect(context.destination);
       voiceSourceRef.current = source; setSpeaking(true); setVoiceMessage(spokenStatusRef.current || 'Speaking'); focusRadio(RADIO_FOCUS.speaking); meterAnalyser(analyser);
@@ -188,13 +195,14 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     return false;
   }
   async function speakNeural(text: string) {
+    const generation = outputGenerationRef.current;
     const worker = neuralWorkerRef.current; if (!worker || neuralStateRef.current !== 'ready') return false; const id = `atlas-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    try { const message = await new Promise<NeuralMessage>((resolve, reject) => { const timer = window.setTimeout(() => { neuralPendingRef.current.delete(id); reject(new Error('Neural voice timeout')); }, 20000); neuralPendingRef.current.set(id, { resolve, reject, timer }); worker.postMessage({ type: 'speak', id, text }); }); return message.buffer ? playVoiceBuffer(message.buffer) : false; } catch { return false; }
+    try { const message = await new Promise<NeuralMessage>((resolve, reject) => { const timer = window.setTimeout(() => { neuralPendingRef.current.delete(id); reject(new Error('Neural voice timeout')); }, 20000); neuralPendingRef.current.set(id, { resolve, reject, timer }); worker.postMessage({ type: 'speak', id, text }); }); return message.buffer ? playVoiceBuffer(message.buffer, generation) : false; } catch { return false; }
   }
   function speakSystem(text: string) {
     return new Promise<boolean>((resolve) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) { resolve(false); return; }
-      void prepareAudiblePlayback(); const synth = window.speechSynthesis; synth.cancel(); synth.resume(); const utterance = new SpeechSynthesisUtterance(text); const language = navigator.language || 'en-US'; const voice = bestSystemVoice(language);
+      void prepareAudiblePlayback(); const synth = window.speechSynthesis; synth.cancel(); synth.resume(); const utterance = new SpeechSynthesisUtterance(text); const language = 'en-US'; const voice = bestSystemVoice(language);
       if (voice) { utterance.voice = voice; utterance.lang = voice.lang; } else utterance.lang = language;
       utterance.rate = 0.96; utterance.pitch = 1; utterance.volume = 1; let settled = false; let started = false;
       const finish = (ok: boolean) => { if (settled) return; settled = true; resolve(ok); }; const guard = window.setTimeout(() => { if (!started) { synth.cancel(); finish(false); } }, 3000);
@@ -203,10 +211,12 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     });
   }
   async function speak(text: string, terminal = false, statusLabel?: string) {
+    const generation = outputGenerationRef.current;
     spokenStatusRef.current = statusLabel || null;
     if (!voiceEnabledRef.current) { spokenStatusRef.current = null; if (terminal) endConversation(); else restoreRadio(); return; }
     recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); focusRadio(RADIO_FOCUS.speaking);
-    let spoken = false; if (await waitForNeuralVoice()) spoken = await speakNeural(text); if (!spoken) spoken = await speakSystem(text);
+    let spoken = false; if (await waitForNeuralVoice()) spoken = await speakNeural(text); if (generation !== outputGenerationRef.current || !openRef.current) return; if (!spoken) spoken = await speakSystem(text);
+    if (generation !== outputGenerationRef.current || !openRef.current) return;
     setSpeaking(false);
     if (terminal && openRef.current) {
       setVoiceMessage(statusLabel || text); spokenStatusRef.current = null; setAudioSession('playback'); await sleep(spoken ? 220 : 500); endConversation(); return;
@@ -218,18 +228,19 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 650 : 350);
     } else { setAudioSession('playback'); restoreRadio(); }
   }
-  function endConversation() { conversationModeRef.current = false; setConversationMode(false); recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); stopVoiceOutput(); setListening(false); setAudioSession('playback'); restoreRadio(); openRef.current = false; setOpen(false); setTextMode(false); }
+  function endConversation() { requestControllerRef.current?.abort(); conversationModeRef.current = false; setConversationMode(false); recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); stopVoiceOutput(); setListening(false); setAudioSession('playback'); restoreRadio(); openRef.current = false; setOpen(false); setTextMode(false); }
 
   async function ask(text: string) {
     const value = text.trim(); if (!value || busyRef.current) return;
     const history = linesRef.current.slice(-8);
     const userLine: Line = { role: 'user', text: value };
     linesRef.current = [...linesRef.current, userLine]; setLines(linesRef.current); setQuestion(''); setBusy(true); busyRef.current = true; setSignalEnergy(0.34); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking);
-    const controller = new AbortController(); const timeout = window.setTimeout(() => controller.abort(), ASSISTANT_TIMEOUT_MS);
+    const controller = new AbortController(); requestControllerRef.current = controller; const timeout = window.setTimeout(() => controller.abort(), ASSISTANT_TIMEOUT_MS);
     try {
       const response = await fetch('/api/atlas-assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ question: value, context: { station, history } }) });
       if (!response.ok) throw new Error(`Atlas assistant ${response.status}`);
-      const data = await response.json() as { answer?: string; action?: AtlasAssistantAction }; let answer = data.answer || 'I could not answer that from the Atlas yet.';
+      if (controller.signal.aborted) return;
+      const data = await response.json() as { answer?: string; action?: AtlasAssistantAction }; window.clearTimeout(timeout); let answer = data.answer || 'I could not answer that from the Atlas yet.';
       let terminalAction = false; let statusLabel: string | undefined;
       if (data.action) {
         try {
@@ -244,10 +255,12 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
           }
         } catch { answer = `${answer} I could not complete that action.`; }
       }
+      if (controller.signal.aborted) return;
       const atlasLine: Line = { role: 'atlas', text: answer }; linesRef.current = [...linesRef.current, atlasLine]; setLines(linesRef.current);
       if (statusLabel) setVoiceMessage(statusLabel);
       if (voiceEnabledRef.current) void speak(answer, terminalAction, statusLabel); else if (terminalAction) window.setTimeout(endConversation, 450); else restoreRadio();
     } catch {
+      if (controller.signal.aborted && !openRef.current) return;
       const answer = 'I lost that request for a moment, but I’m still here.'; const atlasLine: Line = { role: 'atlas', text: answer }; linesRef.current = [...linesRef.current, atlasLine]; setLines(linesRef.current); if (voiceEnabledRef.current) void speak(answer); else restoreRadio();
     } finally { window.clearTimeout(timeout); setBusy(false); busyRef.current = false; setSignalEnergy(0.18); }
   }
@@ -261,10 +274,10 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     try {
       await sleep(fromConversation ? 300 : 80); if (!conversationModeRef.current || !openRef.current) return; const recognition = new Recognition(); recognitionRef.current = recognition; let receivedResult = false;
       recognition.lang = navigator.language || 'en-US'; recognition.interimResults = false; recognition.continuous = false; recognition.maxAlternatives = 1;
-      recognition.onstart = () => { setListening(true); setVoiceMessage('Listening'); stopRecognitionWatchdog(); recognitionWatchdogRef.current = window.setTimeout(() => { recognition.abort(); recognitionRef.current = null; setListening(false); setVoiceMessage('Reconnecting'); }, 12000); };
-      recognition.onend = () => { stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; if (!receivedResult && conversationModeRef.current && openRef.current) window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 650); };
-      recognition.onerror = (event) => { stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed'; if (denied) { setVoiceMessage('Microphone access is blocked'); setTextMode(true); restoreRadio(); } else if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); window.setTimeout(() => { if (!busyRef.current) void listen(true); }, 700); } };
-      recognition.onresult = (event) => { const text = event.results?.[0]?.[0]?.transcript?.trim(); if (!text) return; receivedResult = true; stopRecognitionWatchdog(); setListening(false); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking); recognition.abort(); recognitionRef.current = null; void ask(text); }; recognition.start();
+      recognition.onstart = () => { setListening(true); setVoiceMessage('Listening'); stopRecognitionWatchdog(); recognitionWatchdogRef.current = window.setTimeout(() => { recognition.abort(); if (recognitionRef.current === recognition) recognitionRef.current = null; setListening(false); setVoiceMessage('Reconnecting'); }, 12000); };
+      recognition.onend = () => { if (recognitionRef.current !== recognition) return; stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; if (!receivedResult && conversationModeRef.current && openRef.current) window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 650); };
+      recognition.onerror = (event) => { if (recognitionRef.current !== recognition) return; stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed'; if (denied) { conversationModeRef.current = false; setConversationMode(false); setAudioSession('playback'); setVoiceMessage('Microphone access is blocked'); setTextMode(true); restoreRadio(); } else if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); window.setTimeout(() => { if (!busyRef.current) void listen(true); }, 700); } };
+      recognition.onresult = (event) => { if (recognitionRef.current !== recognition || !openRef.current) return; const text = event.results?.[0]?.[0]?.transcript?.trim(); if (!text) return; receivedResult = true; stopRecognitionWatchdog(); setListening(false); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking); recognition.abort(); recognitionRef.current = null; void ask(text); }; recognition.start();
     } catch { setListening(false); recognitionRef.current = null; stopRecognitionWatchdog(); if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); window.setTimeout(() => { if (!busyRef.current) void listen(true); }, 700); } else restoreRadio(); }
   }
   function activateAtlas() {
@@ -303,7 +316,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       <div className="absolute bottom-[max(2rem,calc(env(safe-area-inset-bottom)+1rem))] text-center text-[11px] tracking-[.16em] text-slate-500">ATLAS VOICE · OMOLUABI PAUL</div>
     </section>}
     {textMode && <section role="dialog" aria-modal="true" aria-label="Atlas Assistant" className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[270] mx-auto flex max-h-[72dvh] max-w-md flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#050b19]/96 shadow-[0_30px_90px_rgba(0,0,0,.58)] backdrop-blur-2xl md:inset-x-auto md:bottom-20 md:right-5 md:w-[390px]">
-      <header className="flex items-center justify-between border-b border-white/10 px-4 py-3"><div><div className="font-semibold tracking-tight text-white">Atlas</div><div className="mt-0.5 text-[11px] text-slate-400">{stationLabel}</div></div><div className="flex items-center gap-1"><button onClick={() => setVoiceEnabled((value) => !value)} aria-label={voiceEnabled ? 'Mute Atlas voice' : 'Enable Atlas voice'} className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10">{voiceEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button onClick={() => setTextMode(false)} aria-label="Return to Atlas Voice" className="grid size-9 place-items-center rounded-full text-emerald-300 hover:bg-white/10"><Mic size={17}/></button><button onClick={endConversation} aria-label="Close Atlas" className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10"><X size={18}/></button></div></header>
+      <header className="flex items-center justify-between border-b border-white/10 px-4 py-3"><div><div className="font-semibold tracking-tight text-white">Atlas</div><div className="mt-0.5 text-[11px] text-slate-400">{stationLabel}</div></div><div className="flex items-center gap-1"><button onClick={() => setVoiceEnabled((value) => { voiceEnabledRef.current = !value; if (value) stopVoiceOutput(); return !value; })} aria-label={voiceEnabled ? 'Mute Atlas voice' : 'Enable Atlas voice'} className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10">{voiceEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button onClick={() => setTextMode(false)} aria-label="Return to Atlas Voice" className="grid size-9 place-items-center rounded-full text-emerald-300 hover:bg-white/10"><Mic size={17}/></button><button onClick={endConversation} aria-label="Close Atlas" className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10"><X size={18}/></button></div></header>
       <div className="min-h-28 flex-1 space-y-3 overflow-y-auto p-4">{lines.map((line, i) => <div key={i} className={line.role === 'user' ? 'ml-8 rounded-2xl rounded-br-md bg-emerald-400/15 px-3.5 py-2.5 text-sm leading-5 text-emerald-50' : 'mr-5 rounded-2xl rounded-bl-md bg-white/[.06] px-3.5 py-2.5 text-sm leading-5 text-slate-100'}>{line.text}</div>)}{busy && <div className="px-1 text-xs text-slate-400">Atlas is thinking…</div>}</div>
       <div className="flex gap-2 overflow-x-auto border-t border-white/10 px-3 pt-2">{QUICK_COMMANDS.map((command) => <button key={command} onClick={() => void ask(command)} className="shrink-0 rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 text-[11px] font-medium text-slate-300 hover:border-emerald-300/30 hover:text-emerald-200">{command}</button>)}</div>
       <form onSubmit={submit} className="flex items-center gap-2 p-3"><button type="button" onClick={() => { primeSystemSpeech(); void primeVoiceOutput(); setTextMode(false); void listen(); }} className={`grid size-11 shrink-0 place-items-center rounded-full border transition ${listening ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-white/10 bg-white/[.04] text-emerald-300'}`} aria-label={listening ? 'Stop listening' : 'Talk to Atlas'}>{listening ? <MicOff size={19}/> : <Mic size={19}/>}</button><input ref={inputRef} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask or tell Atlas what to do…" className="h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/[.04] px-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/50"/><button type="submit" disabled={!question.trim() || busy} className="grid size-11 shrink-0 place-items-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-35" aria-label="Send"><Send size={18}/></button></form>

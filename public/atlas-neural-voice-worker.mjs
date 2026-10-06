@@ -145,7 +145,7 @@ self.onmessage = async (event) => {
     // Tell Atlas to keep the Omoluabi path selected while the cached local model warms.
     // This prevents a normal first-load warmup from being mistaken for an unavailable
     // voice and immediately replaced by a generic system speaker.
-    self.postMessage({ type: 'ready', engine: 'pocket-tts-omoluabi-paul-warming', voice: 'Omoluabi Paul', voiceSource: 'repository-canonical' });
+    self.postMessage({ type: 'loading', engine: 'pocket-tts-omoluabi-paul-warming', voice: 'Omoluabi Paul', voiceSource: 'repository-canonical' });
     getEngine().then((tts) => {
       self.postMessage({ type: 'ready', engine, voice: 'Omoluabi Paul', voiceSource, sampleRate: tts.sampleRate });
     }).catch((error) => {
