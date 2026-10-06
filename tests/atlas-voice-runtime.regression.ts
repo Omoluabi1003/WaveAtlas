@@ -16,12 +16,11 @@ assert.ok(activate.indexOf('primeSystemSpeech();') >= 0, 'Atlas activation must 
 assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('void primeVoiceOutput();'), 'speech synthesis must be primed before async Web Audio work');
 assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('warmNeuralVoice();'), 'speech synthesis must be primed before worker startup');
 
-// Kokoro WASM is not a dependable iPhone path. iOS should use the already
-// gesture-unlocked system speech route rather than waiting on neural inference.
-// Accept either a braced or compact single-line branch so formatting changes do
-// not create a false regression failure while preserving the behavioral check.
-assert.match(source, /if \(isIOSFamily\(\)\)\s*(?:\{\s*)?spoken = await speakSystem\(text\);/);
-assert.match(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)\) \{\s*setNeuralState\('unavailable'\)/);
+// Kokoro WASM is not a dependable iPhone path. iOS must remain on the already
+// gesture-unlocked system speech route. Voice profiles may add other reasons to
+// use system speech, but must never remove the iOS guard.
+assert.match(source, /if \(isIOSFamily\(\)(?:\s*\|\|[^)]*)?\)\s*(?:\{\s*)?spoken = await speakSystem\(text\);/);
+assert.match(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)(?:\s*\|\|[^)]*)?\) \{\s*setNeuralState\('unavailable'\)/);
 
 // Avoid Safari's null/default-voice edge case by guaranteeing a concrete iOS
 // fallback whenever the browser exposes at least one voice.
