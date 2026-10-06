@@ -106,7 +106,10 @@ async function playBestAtlasMatch(query: string, current: Station | null, playba
       const place = stationPlace(match);
       if (outcome === 'playing') return { ok: true, status: 'playing', station: match, message: `Playing ${match.name}${place ? `, ${place}` : ''}.`, terminal: true };
       if (outcome === 'connecting') return { ok: true, status: 'connecting', station: match, message: `Found ${match.name}${place ? `, ${place}` : ''}. Connecting.`, terminal: true };
-      // A confirmed failure advances quietly to the next AIE-ranked candidate.
+      if (outcome === 'failed') {
+        // A confirmed failure advances quietly to the next AIE-ranked candidate.
+        continue;
+      }
     }
     return { ok: false, status: 'failed', message: `I found stations for ${query}, but their streams did not respond. Want me to try something nearby?` };
   } catch {
