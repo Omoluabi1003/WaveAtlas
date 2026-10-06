@@ -8,6 +8,7 @@ import { stationPath } from '@/lib/station-deep-link';
 import type { Station, StationInventoryStats } from '@/lib/stations';
 
 type Props = { stations: Station[]; inventoryStats: StationInventoryStats };
+type PlaybackContext = { current?: Station; status: string };
 
 function visibleButtonMatching(pattern: RegExp) {
   return Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find((button) => {
@@ -52,59 +53,60 @@ async function playFirstAtlasMatch(query: string) {
   return true;
 }
 
+function sendPlaybackCommand(command: 'play' | 'pause' | 'volume', value?: number) {
+  window.dispatchEvent(new CustomEvent('waveatlas:assistant-playback', { detail: { command, ...(typeof value === 'number' ? { value } : {}) } }));
+  return true;
+}
+
 export default function WaveAtlasExperience(props: Props) {
   const [station, setStation] = useState<Station | null>(null);
+  const [playbackStatus, setPlaybackStatus] = useState('idle');
 
   useEffect(() => {
-    const initial = props.stations[0] || null;
-    setStation(initial);
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<Station>).detail;
+    const stationHandler = (event: Event) => {
+      const detail = (event as CustomEvent<Station | null>).detail;
       if (detail?.name) setStation(detail);
     };
-    window.addEventListener('waveatlas:station-context', handler);
-    return () => window.removeEventListener('waveatlas:station-context', handler);
-  }, [props.stations]);
+    const playbackHandler = (event: Event) => {
+      const detail = (event as CustomEvent<PlaybackContext>).detail;
+      if (detail?.status) setPlaybackStatus(detail.status);
+      if (detail?.current?.name) setStation(detail.current);
+    };
+    window.addEventListener('waveatlas:station-context', stationHandler);
+    window.addEventListener('waveatlas:playback-context', playbackHandler);
+    const request = () => window.dispatchEvent(new Event('waveatlas:request-station-context'));
+    request();
+    const retry = window.setTimeout(request, 350);
+    return () => {
+      window.clearTimeout(retry);
+      window.removeEventListener('waveatlas:station-context', stationHandler);
+      window.removeEventListener('waveatlas:playback-context', playbackHandler);
+    };
+  }, []);
 
   const search = (query: string) => { void openSearchWithQuery(query); };
 
   const executeAction = async (action: AtlasAssistantAction) => {
     if (action.type === 'search') return openSearchWithQuery(action.query);
-    if (action.type === 'play') {
-      if (action.query) return playFirstAtlasMatch(action.query);
-      const media = document.querySelector<HTMLMediaElement>('audio');
-      if (media) { await media.play(); return true; }
-      return false;
-    }
-    if (action.type === 'pause') {
-      const media = document.querySelector<HTMLMediaElement>('audio');
-      if (media && !media.paused) { media.pause(); return true; }
-      visibleButtonMatching(/^pause$/i)?.click();
-      return true;
-    }
-    if (action.type === 'resume') {
-      const media = document.querySelector<HTMLMediaElement>('audio');
-      if (media) { await media.play(); return true; }
-      visibleButtonMatching(/^play$/i)?.click();
-      return true;
-    }
-    if (action.type === 'volume') {
-      const media = document.querySelector<HTMLMediaElement>('audio');
-      if (media) { media.muted = false; media.volume = Math.min(1, Math.max(0, action.value)); }
-      return Boolean(media);
-    }
+    if (action.type === 'play') return action.query ? playFirstAtlasMatch(action.query) : sendPlaybackCommand('play');
+    if (action.type === 'pause') return sendPlaybackCommand('pause');
+    if (action.type === 'resume') return sendPlaybackCommand('play');
+    if (action.type === 'volume') return sendPlaybackCommand('volume', action.value);
     if (action.type === 'teleport') {
       if (action.query) return playFirstAtlasMatch(action.query);
-      visibleButtonMatching(/teleport/i)?.click();
-      return true;
+      const button = visibleButtonMatching(/teleport/i);
+      if (!button) return false;
+      button.click(); return true;
     }
     if (action.type === 'wander') {
-      visibleButtonMatching(/(?:start\s+continuous\s+)?wanderer|wander/i)?.click();
-      return true;
+      const button = visibleButtonMatching(/(?:start\s+continuous\s+)?wanderer|wander/i);
+      if (!button) return false;
+      button.click(); return true;
     }
     if (action.type === 'open_settings') {
-      visibleButtonMatching(/settings|controls/i)?.click();
-      return true;
+      const button = visibleButtonMatching(/settings|controls/i);
+      if (!button) return false;
+      button.click(); return true;
     }
     if (action.type === 'open_brief') {
       window.dispatchEvent(new Event('waveatlas:open-mobile-brief'));
@@ -113,11 +115,12 @@ export default function WaveAtlasExperience(props: Props) {
     }
     if (action.type === 'switch_view') {
       const pattern = action.view === 'map' ? /map(?:\s+view)?|2d/i : /globe|atlas(?:\s+view)?|earth/i;
-      visibleButtonMatching(pattern)?.click();
-      return true;
+      const button = visibleButtonMatching(pattern);
+      if (!button) return false;
+      button.click(); return true;
     }
     return false;
   };
 
-  return <><WaveAtlasApp {...props}/><AtlasAssistant station={station} onSearch={search} onAction={executeAction}/></>;
+  return <><WaveAtlasApp {...props}/><AtlasAssistant station={station} playbackStatus={playbackStatus} onSearch={search} onAction={executeAction}/></>;
 }
