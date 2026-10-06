@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import WaveAtlasApp from '@/components/WaveAtlasApp';
 import { AtlasAssistant } from '@/components/AtlasAssistant';
 import type { AtlasAssistantAction } from '@/lib/atlas-assistant';
+import { rankStationsWithAIE } from '@/lib/atlas-intelligence-engine';
 import { stationPath } from '@/lib/station-deep-link';
 import type { Station, StationInventoryStats } from '@/lib/stations';
 
@@ -42,15 +43,31 @@ async function openSearchWithQuery(query: string) {
   return false;
 }
 
+function queryRelevance(station: Station, query: string) {
+  const tokens = query.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 1);
+  const haystack = [station.name, station.country, station.country_code, station.state, station.city, station.language, ...(station.tags || [])].filter(Boolean).join(' ').toLowerCase();
+  if (!tokens.length) return 50;
+  const hits = tokens.filter((token) => haystack.includes(token)).length;
+  return Math.min(100, 35 + (hits / tokens.length) * 65);
+}
+
 async function playFirstAtlasMatch(query: string) {
-  const response = await fetch(`/api/stations/search?q=${encodeURIComponent(query)}&limit=12`);
-  if (!response.ok) return false;
-  const data = await response.json() as { stations?: Station[] };
-  const match = data.stations?.find((candidate) => Boolean(candidate.station_uuid || candidate.id));
-  if (!match) return false;
-  window.history.pushState({ atlasAssistant: true }, '', stationPath(match));
-  window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
-  return true;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 6000);
+  try {
+    const response = await fetch(`/api/stations/search?q=${encodeURIComponent(query)}&limit=20`, { signal: controller.signal });
+    if (!response.ok) return false;
+    const data = await response.json() as { stations?: Station[] };
+    const candidates = (data.stations || []).filter((candidate) => Boolean(candidate.station_uuid || candidate.id));
+    if (!candidates.length) return false;
+    const ranked = rankStationsWithAIE(candidates, (candidate) => ({ kind: 'discovery', geographicRelevance: queryRelevance(candidate, query) }));
+    const match = ranked[0]?.station;
+    if (!match) return false;
+    window.history.pushState({ atlasAssistant: true }, '', stationPath(match));
+    window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
+    return true;
+  } catch { return false; }
+  finally { window.clearTimeout(timeout); }
 }
 
 function sendPlaybackCommand(command: 'play' | 'pause' | 'volume', value?: number) {
