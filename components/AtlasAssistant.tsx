@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Keyboard, Mic, MicOff, Send, Volume2, VolumeX, X } from 'lucide-react';
 import type { AtlasActionResult, AtlasAssistantAction, AtlasConversationLine } from '@/lib/atlas-assistant';
+import { waitForAtlasPersonalVoice } from '@/lib/atlas-voice-readiness';
 import type { Station } from '@/lib/stations';
 import { getSpeechRecognitionConstructor, type BrowserSpeechRecognition } from '@/lib/voice-command-engine';
 
@@ -14,14 +15,12 @@ type Props = {
 };
 type Line = AtlasConversationLine;
 type NeuralVoiceState = 'idle' | 'loading' | 'ready' | 'unavailable';
-type NeuralMessage = { type?: 'loading' | 'progress' | 'ready' | 'unavailable' | 'audio' | 'error'; id?: string; buffer?: ArrayBuffer; message?: string; label?: string; loaded?: number; total?: number };
+type NeuralMessage = { type?: 'loading' | 'progress' | 'ready' | 'unavailable' | 'audio' | 'error'; id?: string; buffer?: ArrayBuffer; message?: string; label?: string; loaded?: number; total?: number; engine?: string; voiceSource?: string };
 type PendingNeural = { resolve: (message: NeuralMessage) => void; reject: (error: Error) => void; timer: number };
 type AudioSessionKind = 'auto' | 'playback' | 'play-and-record' | 'ambient';
 type AudioSessionLike = { type: AudioSessionKind; state?: string };
 type SignalState = 'listening' | 'thinking' | 'speaking' | 'live';
 
-const NATURAL_VOICE_HINTS = /siri|premium|enhanced|natural|samantha|ava|allison|serena|daniel|karen|moira|rishi|eddy|reed|flo|sandy|shelley/i;
-const SYNTHETIC_VOICE_HINTS = /compact|espeak|festival|robot/i;
 const QUICK_COMMANDS = ['Surprise me', 'Play jazz', 'Open the map', 'What am I listening to?'];
 const RADIO_FOCUS = { opening: 0.05, listening: 0.02, thinking: 0.04, speaking: 0.015 } as const;
 const ASSISTANT_TIMEOUT_MS = 8000;
@@ -31,29 +30,6 @@ function isIOSFamily() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
 function audioSession() { return (navigator as Navigator & { audioSession?: AudioSessionLike }).audioSession; }
 function setAudioSession(type: AudioSessionKind) { try { const session = audioSession(); if (session) session.type = type; } catch { /* Progressive enhancement only. */ } }
 
-function bestSystemVoice(language: string) {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return undefined;
-  const voices = [...window.speechSynthesis.getVoices()];
-  const target = language.toLowerCase();
-  const base = target.split('-')[0];
-  const score = (voice: SpeechSynthesisVoice) => {
-    const lang = voice.lang.toLowerCase();
-    if (!(lang === base || lang.startsWith(`${base}-`))) return -1000;
-    let value = lang === target ? 80 : lang.startsWith(`${base}-`) || lang === base ? 55 : 0;
-    if (NATURAL_VOICE_HINTS.test(voice.name)) value += 70;
-    if (/online|neural|google|microsoft.*natural/i.test(voice.name)) value += 60;
-    if (voice.localService) value += 8;
-    if (SYNTHETIC_VOICE_HINTS.test(voice.name)) value -= 80;
-    return value;
-  };
-  if (isIOSFamily()) {
-    return voices.find((voice) => /samantha|ava/i.test(voice.name) && voice.lang.toLowerCase().startsWith(base))
-      ?? voices.filter((voice) => voice.lang.toLowerCase().startsWith(base)).sort((a, b) => score(b) - score(a))[0]
-      ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('en'))
-      ?? voices[0];
-  }
-  return voices.sort((a, b) => score(b) - score(a))[0];
-}
 
 function AtlasSignal({ state, energy, onPress }: { state: SignalState; energy: number; onPress: () => void }) {
   const intensity = Math.max(0.08, Math.min(1, energy));
@@ -82,7 +58,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   const [conversationMode, setConversationMode] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceMessage, setVoiceMessage] = useState('Listening');
-  const [voiceOutput, setVoiceOutput] = useState<'personal' | 'device' | null>(null);
+  const [voiceOutput, setVoiceOutput] = useState<'personal' | 'unavailable' | null>(null);
   const [voiceProgress, setVoiceProgress] = useState('');
   const [neuralState, setNeuralState] = useState<NeuralVoiceState>('idle');
   const [signalEnergy, setSignalEnergy] = useState(0.18);
@@ -102,7 +78,6 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   const voiceSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const meterFrameRef = useRef<number | null>(null);
   const radioDuckedRef = useRef(false);
-  const systemSpeechPrimedRef = useRef(false);
   const spokenStatusRef = useRef<string | null>(null);
   const outputGenerationRef = useRef(0);
   const requestControllerRef = useRef<AbortController | null>(null);
@@ -162,7 +137,6 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   }
   async function resumeVoiceContext() { const context = getVoiceContext(); if (!context) return null; if (context.state === 'suspended' || String(context.state) === 'interrupted') { try { await context.resume(); } catch { return null; } } return context; }
   async function primeVoiceOutput() { const context = await resumeVoiceContext(); if (!context) return false; try { const source = context.createBufferSource(); source.buffer = context.createBuffer(1, 1, context.sampleRate); source.connect(context.destination); source.start(0); return true; } catch { return false; } }
-  function primeSystemSpeech() { if (systemSpeechPrimedRef.current || typeof window === 'undefined' || !('speechSynthesis' in window)) return; try { const synth = window.speechSynthesis; synth.cancel(); const unlock = new SpeechSynthesisUtterance(''); unlock.volume = 0; synth.speak(unlock); systemSpeechPrimedRef.current = true; } catch { systemSpeechPrimedRef.current = false; } }
   function stopVoiceOutput() { outputGenerationRef.current += 1; neuralWorkerRef.current?.postMessage({ type: 'cancel' }); neuralPendingRef.current.forEach(({ reject, timer }) => { window.clearTimeout(timer); reject(new Error('Speech interrupted')); }); neuralPendingRef.current.clear(); if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel(); try { voiceSourceRef.current?.stop(); } catch { /* Already stopped. */ } voiceSourceRef.current = null; stopMeter(); setSpeaking(false); }
   async function prepareAudiblePlayback() { const session = audioSession(); if (session) { try { session.type = 'ambient'; await sleep(0); session.type = 'playback'; } catch { /* Keep normal output path. */ } } return resumeVoiceContext(); }
   function meterAnalyser(analyser: AnalyserNode) {
@@ -184,45 +158,45 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
 
   function warmNeuralVoice() {
     if (typeof window === 'undefined') { setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; return; }
-    if (!('Worker' in window) || neuralStateRef.current !== 'idle') return;
+    if (!('Worker' in window)) { setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; setVoiceProgress('This browser cannot run personal voice workers'); return; }
+    if (neuralStateRef.current !== 'idle') return;
     setNeuralState('loading'); neuralStateRef.current = 'loading';
     try {
       const worker = new Worker('/atlas-neural-voice-worker.mjs', { type: 'module' }); neuralWorkerRef.current = worker;
       neuralLoadTimerRef.current = window.setTimeout(() => { worker.terminate(); neuralWorkerRef.current = null; setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; setVoiceProgress('Voice preparation timed out. Reopen Atlas to retry.'); }, 120000);
-      worker.onmessage = (event: MessageEvent<NeuralMessage>) => { const message = event.data; if (message.type === 'progress') { setVoiceProgress(message.total ? `${message.label || 'Preparing voice'} · ${Math.min(100, Math.round((message.loaded || 0) / message.total * 100))}%` : message.label || 'Preparing your voice'); return; } if (message.type === 'ready') { if (neuralLoadTimerRef.current) window.clearTimeout(neuralLoadTimerRef.current); setVoiceProgress(''); setNeuralState('ready'); neuralStateRef.current = 'ready'; return; } if (message.type === 'unavailable') { if (neuralLoadTimerRef.current) window.clearTimeout(neuralLoadTimerRef.current); setVoiceProgress('Personal voice unavailable on this device'); setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; return; } if (!message.id) return; const pending = neuralPendingRef.current.get(message.id); if (!pending) return; window.clearTimeout(pending.timer); neuralPendingRef.current.delete(message.id); if (message.type === 'audio') pending.resolve(message); else pending.reject(new Error(message.message || 'Neural voice unavailable')); };
+      worker.onmessage = (event: MessageEvent<NeuralMessage>) => { const message = event.data; if (message.type === 'progress') { setVoiceProgress(message.total ? `${message.label || 'Preparing voice'} · ${Math.min(100, Math.round((message.loaded || 0) / message.total * 100))}%` : message.label || 'Preparing your voice'); return; } if (message.type === 'ready') { if (neuralLoadTimerRef.current) window.clearTimeout(neuralLoadTimerRef.current); setVoiceProgress(''); setNeuralState('ready'); neuralStateRef.current = 'ready'; return; } if (message.type === 'unavailable') { if (neuralLoadTimerRef.current) window.clearTimeout(neuralLoadTimerRef.current); setVoiceProgress(message.message || 'Personal voice unavailable on this device'); setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; return; } if (!message.id) return; const pending = neuralPendingRef.current.get(message.id); if (!pending) return; window.clearTimeout(pending.timer); neuralPendingRef.current.delete(message.id); if (message.type === 'audio') pending.resolve(message); else pending.reject(new Error(message.message || 'Neural voice unavailable')); };
       worker.onerror = () => { if (neuralLoadTimerRef.current) window.clearTimeout(neuralLoadTimerRef.current); setVoiceProgress('Personal voice unavailable on this device'); setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; neuralPendingRef.current.forEach(({ reject, timer }) => { window.clearTimeout(timer); reject(new Error('Personal voice worker failed')); }); neuralPendingRef.current.clear(); }; worker.postMessage({ type: 'warm' });
     } catch { setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; }
   }
   async function waitForNeuralVoice() {
-    const initial = neuralStateRef.current as NeuralVoiceState; if (initial === 'ready') return true; if (initial !== 'loading') return false;
-    const started = Date.now();
-    while (Date.now() - started < 4500) { await sleep(180); const current = neuralStateRef.current as NeuralVoiceState; if (current === 'ready') return true; if (current === 'unavailable') return false; }
-    return false;
+    const generation = outputGenerationRef.current;
+    if (neuralStateRef.current === 'idle') warmNeuralVoice();
+    if (neuralStateRef.current === 'loading') setVoiceMessage('Preparing Omoluabi voice · your answer is ready');
+    return waitForAtlasPersonalVoice({
+      state: () => neuralStateRef.current,
+      active: () => generation === outputGenerationRef.current && openRef.current,
+      wait: sleep,
+    });
   }
   async function speakNeural(text: string) {
     const generation = outputGenerationRef.current;
-    const worker = neuralWorkerRef.current; if (!worker || neuralStateRef.current !== 'ready') return false; setVoiceOutput('personal'); const id = `atlas-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    try { const message = await new Promise<NeuralMessage>((resolve, reject) => { const timer = window.setTimeout(() => { neuralPendingRef.current.delete(id); reject(new Error('Neural voice timeout')); }, 20000); neuralPendingRef.current.set(id, { resolve, reject, timer }); worker.postMessage({ type: 'speak', id, text }); }); return message.buffer ? playVoiceBuffer(message.buffer, generation) : false; } catch { return false; }
-  }
-  function speakSystem(text: string) {
-    return new Promise<boolean>((resolve) => {
-      if (typeof window === 'undefined' || !('speechSynthesis' in window)) { resolve(false); return; }
-      setVoiceOutput('device'); void prepareAudiblePlayback(); const synth = window.speechSynthesis; synth.cancel(); synth.resume(); const utterance = new SpeechSynthesisUtterance(text); const language = 'en-US'; const voice = bestSystemVoice(language);
-      if (voice) { utterance.voice = voice; utterance.lang = voice.lang; } else utterance.lang = language;
-      utterance.rate = 0.96; utterance.pitch = 1; utterance.volume = 1; let settled = false; let started = false;
-      const finish = (ok: boolean) => { if (settled) return; settled = true; resolve(ok); }; const guard = window.setTimeout(() => { if (!started) { synth.cancel(); finish(false); } }, 3000);
-      utterance.onstart = () => { started = true; window.clearTimeout(guard); setSpeaking(true); setSignalEnergy(0.48); setVoiceMessage(spokenStatusRef.current || 'Speaking'); focusRadio(RADIO_FOCUS.speaking); };
-      utterance.onend = () => { window.clearTimeout(guard); setSpeaking(false); setSignalEnergy(0.18); finish(true); }; utterance.onerror = () => { window.clearTimeout(guard); setSpeaking(false); setSignalEnergy(0.18); finish(false); }; synth.speak(utterance);
-    });
+    const worker = neuralWorkerRef.current; if (!worker || neuralStateRef.current !== 'ready') return false; setVoiceProgress(''); setVoiceMessage('Generating Omoluabi voice'); const id = `atlas-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    try { const message = await new Promise<NeuralMessage>((resolve, reject) => { const timer = window.setTimeout(() => { neuralPendingRef.current.delete(id); worker.postMessage({ type: 'cancel' }); reject(new Error('Omoluabi voice took too long to generate. Your answer is in the transcript.')); }, 60000); neuralPendingRef.current.set(id, { resolve, reject, timer }); worker.postMessage({ type: 'speak', id, text }); }); if (message.engine !== 'pocket-tts-omoluabi-paul' || message.voiceSource !== 'repository-canonical') throw new Error('Personal voice identity could not be verified'); if (!message.buffer) return false; const spoken = await playVoiceBuffer(message.buffer, generation); if (spoken) setVoiceOutput('personal'); return spoken; } catch (error) { if (generation === outputGenerationRef.current) setVoiceProgress(error instanceof Error ? error.message : 'Omoluabi voice generation failed'); return false; }
   }
   async function speak(text: string, terminal = false, statusLabel?: string) {
     const generation = outputGenerationRef.current;
     spokenStatusRef.current = statusLabel || null;
     if (!voiceEnabledRef.current) { spokenStatusRef.current = null; if (terminal) endConversation(); else restoreRadio(); return; }
     recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); focusRadio(RADIO_FOCUS.speaking);
-    let spoken = false; if (await waitForNeuralVoice()) spoken = await speakNeural(text); if (generation !== outputGenerationRef.current || !openRef.current) return; if (!spoken) spoken = await speakSystem(text);
+    let spoken = false; if (await waitForNeuralVoice()) spoken = await speakNeural(text); if (generation !== outputGenerationRef.current || !openRef.current) return;
     if (generation !== outputGenerationRef.current || !openRef.current) return;
     setSpeaking(false);
+    if (!spoken) {
+      setVoiceOutput('unavailable'); setVoiceMessage('Omoluabi voice unavailable · answer is in transcript');
+      setTextMode(true); setAudioSession('playback'); restoreRadio();
+      spokenStatusRef.current = null;
+      return;
+    }
     if (terminal && openRef.current) {
       setVoiceMessage(statusLabel || text); spokenStatusRef.current = null; setAudioSession('playback'); await sleep(spoken ? 220 : 500); endConversation(); return;
     }
@@ -231,7 +205,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       setVoiceMessage(spoken ? 'Listening' : 'Listening · answer is in transcript');
       setAudioSession('play-and-record'); focusRadio(RADIO_FOCUS.listening);
       window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 650 : 350);
-    } else { setAudioSession('playback'); restoreRadio(); }
+    } else { setVoiceMessage('Omoluabi voice ready'); setAudioSession('playback'); restoreRadio(); }
   }
   function endConversation() { requestControllerRef.current?.abort(); conversationModeRef.current = false; setConversationMode(false); recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); stopVoiceOutput(); setListening(false); setAudioSession('playback'); restoreRadio(); openRef.current = false; setOpen(false); setTextMode(false); }
 
@@ -286,7 +260,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     } catch { setListening(false); recognitionRef.current = null; stopRecognitionWatchdog(); if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); window.setTimeout(() => { if (!busyRef.current) void listen(true); }, 700); } else restoreRadio(); }
   }
   function activateAtlas() {
-    primeSystemSpeech(); void primeVoiceOutput(); if (neuralStateRef.current === 'unavailable') { neuralWorkerRef.current?.terminate(); neuralWorkerRef.current = null; neuralStateRef.current = 'idle'; setNeuralState('idle'); } warmNeuralVoice();
+    void primeVoiceOutput(); if (neuralStateRef.current === 'unavailable') { neuralWorkerRef.current?.terminate(); neuralWorkerRef.current = null; neuralStateRef.current = 'idle'; setNeuralState('idle'); } warmNeuralVoice();
     if (!openRef.current) { openRef.current = true; setOpen(true); setTextMode(false); setVoiceMessage('Listening'); focusRadio(RADIO_FOCUS.opening); conversationModeRef.current = true; setConversationMode(true); window.setTimeout(() => void listen(true), 40); return; }
     if (speaking) { stopVoiceOutput(); setVoiceMessage('Listening'); void listen(true); return; }
     if (conversationModeRef.current) endConversation(); else void listen();
@@ -317,14 +291,15 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     {!textMode && <section role="dialog" aria-modal="true" aria-label="Atlas Voice" className="fixed inset-0 z-[260] flex flex-col items-center justify-center overflow-hidden bg-[#020713]/78 px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(78,199,194,.10),transparent_28%),radial-gradient(circle_at_58%_50%,rgba(212,166,74,.05),transparent_38%)]" />
       <div className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] flex gap-2"><button onClick={() => setTextMode(true)} aria-label="Open Atlas keyboard and transcript" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl"><Keyboard size={18}/></button><button onClick={endConversation} aria-label="Close Atlas Voice" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl"><X size={19}/></button></div>
-      <div className="relative flex flex-col items-center"><AtlasSignal state={signalState} energy={signalEnergy} onPress={activateAtlas}/><div className="mt-8 text-center"><div className="max-w-[84vw] text-[15px] font-semibold tracking-wide text-white">{voiceMessage}</div><div className="mt-2 max-w-[78vw] truncate text-xs text-slate-400">{stationLabel}{voiceOutput === 'device' ? ' · Device voice fallback' : neuralState === 'loading' ? ' · Preparing Omoluabi Paul' : neuralState === 'ready' ? ' · Omoluabi Paul' : ' · Personal voice unavailable'}</div>{voiceProgress && <div role="status" className="mt-3 max-w-[78vw] text-xs text-emerald-200">{voiceProgress}</div>}</div></div>
-      <div className="absolute bottom-[max(2rem,calc(env(safe-area-inset-bottom)+1rem))] text-center text-[11px] tracking-[.16em] text-slate-500">{voiceOutput === 'device' ? 'ATLAS VOICE · DEVICE FALLBACK' : 'ATLAS VOICE · OMOLUABI PAUL'}</div>
+      <div className="relative flex flex-col items-center"><AtlasSignal state={signalState} energy={signalEnergy} onPress={activateAtlas}/><div className="mt-8 text-center"><div className="max-w-[84vw] text-[15px] font-semibold tracking-wide text-white">{voiceMessage}</div><div className="mt-2 max-w-[78vw] truncate text-xs text-slate-400">{stationLabel}{voiceOutput === 'unavailable' ? ' · Answer in transcript' : neuralState === 'loading' ? ' · Preparing Omoluabi Paul' : neuralState === 'ready' ? ' · Omoluabi Paul' : ' · Personal voice unavailable'}</div>{voiceProgress && <div role="status" className="mt-3 max-w-[78vw] text-xs text-emerald-200">{voiceProgress}</div>}</div></div>
+      <div className="absolute bottom-[max(2rem,calc(env(safe-area-inset-bottom)+1rem))] text-center text-[11px] tracking-[.16em] text-slate-500">{voiceOutput === 'unavailable' ? 'ATLAS VOICE · ANSWER IN TRANSCRIPT' : 'ATLAS VOICE · OMOLUABI PAUL'}</div>
     </section>}
     {textMode && <section role="dialog" aria-modal="true" aria-label="Atlas Assistant" className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[270] mx-auto flex max-h-[72dvh] max-w-md flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#050b19]/96 shadow-[0_30px_90px_rgba(0,0,0,.58)] backdrop-blur-2xl md:inset-x-auto md:bottom-20 md:right-5 md:w-[390px]">
-      <header className="flex items-center justify-between border-b border-white/10 px-4 py-3"><div><div className="font-semibold tracking-tight text-white">Atlas</div><div className="mt-0.5 text-[11px] text-slate-400">{stationLabel}</div></div><div className="flex items-center gap-1"><button onClick={() => setVoiceEnabled((value) => { voiceEnabledRef.current = !value; if (value) stopVoiceOutput(); return !value; })} aria-label={voiceEnabled ? 'Mute Atlas voice' : 'Enable Atlas voice'} className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10">{voiceEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button onClick={() => setTextMode(false)} aria-label="Return to Atlas Voice" className="grid size-9 place-items-center rounded-full text-emerald-300 hover:bg-white/10"><Mic size={17}/></button><button onClick={endConversation} aria-label="Close Atlas" className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10"><X size={18}/></button></div></header>
+      <header className="flex items-center justify-between border-b border-white/10 px-4 py-3"><div><div className="font-semibold tracking-tight text-white">Atlas</div><div className="mt-0.5 text-[11px] text-slate-400">{stationLabel}</div></div><div className="flex items-center gap-1"><button onClick={() => { const enabled = !voiceEnabledRef.current; voiceEnabledRef.current = enabled; setVoiceEnabled(enabled); if (!enabled) { stopVoiceOutput(); restoreRadio(); } }} aria-label={voiceEnabled ? 'Mute Atlas voice' : 'Enable Atlas voice'} className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10">{voiceEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button onClick={() => setTextMode(false)} aria-label="Return to Atlas Voice" className="grid size-9 place-items-center rounded-full text-emerald-300 hover:bg-white/10"><Mic size={17}/></button><button onClick={endConversation} aria-label="Close Atlas" className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10"><X size={18}/></button></div></header>
+      <div role="status" aria-live="polite" className="border-b border-white/10 px-4 py-2 text-xs text-emerald-200">{neuralState === 'ready' ? 'Omoluabi personal voice ready' : neuralState === 'loading' ? 'Preparing Omoluabi personal voice' : 'Omoluabi personal voice unavailable'}{voiceProgress ? ` · ${voiceProgress}` : ''}{neuralState === 'unavailable' && <button type="button" onClick={() => { neuralWorkerRef.current?.terminate(); neuralWorkerRef.current = null; neuralStateRef.current = 'idle'; setNeuralState('idle'); setVoiceProgress(''); warmNeuralVoice(); }} className="ml-2 underline" aria-label="Retry Omoluabi voice preparation">Retry voice</button>}</div>
       <div className="min-h-28 flex-1 space-y-3 overflow-y-auto p-4">{lines.map((line, i) => <div key={i} className={line.role === 'user' ? 'ml-8 rounded-2xl rounded-br-md bg-emerald-400/15 px-3.5 py-2.5 text-sm leading-5 text-emerald-50' : 'mr-5 rounded-2xl rounded-bl-md bg-white/[.06] px-3.5 py-2.5 text-sm leading-5 text-slate-100'}>{line.text}</div>)}{busy && <div className="px-1 text-xs text-slate-400">Atlas is thinking…</div>}</div>
       <div className="flex gap-2 overflow-x-auto border-t border-white/10 px-3 pt-2">{QUICK_COMMANDS.map((command) => <button key={command} onClick={() => void ask(command)} className="shrink-0 rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 text-[11px] font-medium text-slate-300 hover:border-emerald-300/30 hover:text-emerald-200">{command}</button>)}</div>
-      <form onSubmit={submit} className="flex items-center gap-2 p-3"><button type="button" onClick={() => { primeSystemSpeech(); void primeVoiceOutput(); setTextMode(false); void listen(); }} className={`grid size-11 shrink-0 place-items-center rounded-full border transition ${listening ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-white/10 bg-white/[.04] text-emerald-300'}`} aria-label={listening ? 'Stop listening' : 'Talk to Atlas'}>{listening ? <MicOff size={19}/> : <Mic size={19}/>}</button><input ref={inputRef} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask or tell Atlas what to do…" className="h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/[.04] px-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/50"/><button type="submit" disabled={!question.trim() || busy} className="grid size-11 shrink-0 place-items-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-35" aria-label="Send"><Send size={18}/></button></form>
+      <form onSubmit={submit} className="flex items-center gap-2 p-3"><button type="button" onClick={() => { void primeVoiceOutput(); warmNeuralVoice(); setTextMode(false); void listen(); }} className={`grid size-11 shrink-0 place-items-center rounded-full border transition ${listening ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-white/10 bg-white/[.04] text-emerald-300'}`} aria-label={listening ? 'Stop listening' : 'Talk to Atlas'}>{listening ? <MicOff size={19}/> : <Mic size={19}/>}</button><input ref={inputRef} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask or tell Atlas what to do…" className="h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/[.04] px-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/50"/><button type="submit" disabled={!question.trim() || busy} className="grid size-11 shrink-0 place-items-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-35" aria-label="Send"><Send size={18}/></button></form>
     </section>}
   </>;
 }

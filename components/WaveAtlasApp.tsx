@@ -4281,14 +4281,14 @@ function VoiceCommandButton({ compact = false, active = true, onIntent, onFeedba
       const style = window.getComputedStyle(container);
       const rect = container.getBoundingClientRect();
       if (!active || style.display === "none" || style.visibility === "hidden" || rect.width === 0 || rect.height === 0) return;
-      void pushToTalk();
+      window.dispatchEvent(new Event("waveatlas:open-atlas-voice"));
     };
     window.addEventListener("waveatlas:voice-search", startVoiceSearch);
     return () => window.removeEventListener("waveatlas:voice-search", startVoiceSearch);
   }, [active, pushToTalk]);
 
   return <div ref={containerRef} className={`${active ? "" : "pointer-events-none opacity-0"} relative transition-opacity`}>
-    <button type="button" onClick={pushToTalk} disabled={!active} className={`${compact ? "size-11" : "size-10"} grid place-items-center rounded-full border ${listening ? "border-radio bg-radio text-midnight" : "border-white/15 bg-white/[0.06] text-ivory/75 hover:border-radio/35 hover:text-radio"} shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:cursor-not-allowed disabled:opacity-0`} aria-pressed={listening} aria-label={microphonePermission === "blocked" ? "Microphone blocked. Retry voice permission" : supported ? "Push to talk voice command" : "Voice commands unsupported"} title={microphonePermission === "blocked" ? "Microphone blocked — retry after restoring permission" : supported ? "Push to talk" : "Voice commands unsupported"}>
+    <button type="button" onClick={() => window.dispatchEvent(new Event("waveatlas:open-atlas-voice"))} disabled={!active} className={`${compact ? "size-11" : "size-10"} grid place-items-center rounded-full border ${listening ? "border-radio bg-radio text-midnight" : "border-white/15 bg-white/[0.06] text-ivory/75 hover:border-radio/35 hover:text-radio"} shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:cursor-not-allowed disabled:opacity-0`} aria-pressed={listening} aria-label={microphonePermission === "blocked" ? "Microphone blocked. Retry voice permission" : supported ? "Push to talk voice command" : "Voice commands unsupported"} title={microphonePermission === "blocked" ? "Microphone blocked — retry after restoring permission" : supported ? "Push to talk" : "Voice commands unsupported"}>
       <Mic className="size-4" />
       {microphonePermission === "blocked" ? <span className="absolute -right-1 -top-1 size-3 rounded-full border border-slate-950 bg-red-400" aria-hidden="true" /> : null}
     </button>
@@ -4899,24 +4899,9 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   }, [stations]);
 
   const voiceSearchFromEmpty = useCallback(() => {
-    setDesktopMode("Atlas");
-    setDesktopDrawerCollapsed(false);
-    if (window.matchMedia("(max-width: 767px)").matches && !usePlayer.getState().current) {
-      const queue = buildWandererCandidateQueue(stations);
-      const starter = queue[0];
-      if (!starter) return "Voice Search is unavailable because no playable station inventory is loaded.";
-      setStationPool((prev) => uniqueStationCandidates([starter, ...queue, ...prev]));
-      setCurrentStationAndDestination(starter, "manual", queue);
-      window.setTimeout(() => {
-        window.dispatchEvent(new Event("waveatlas:open-mobile-search"));
-        window.dispatchEvent(new Event("waveatlas:voice-search"));
-      }, 220);
-    } else {
-      window.dispatchEvent(new Event("waveatlas:voice-search"));
-    }
-    if (!getSpeechRecognitionConstructor()) return "Voice Search is not supported by this browser. Opening manual station search instead.";
-    return "Opening Voice Search…";
-  }, [stations]);
+    window.dispatchEvent(new Event("waveatlas:open-atlas-voice"));
+    return "Opening Atlas Voice…";
+  }, []);
 
   const editorialPicksFromEmpty = useCallback(() => {
     if (window.matchMedia("(max-width: 767px)").matches && !usePlayer.getState().current) {

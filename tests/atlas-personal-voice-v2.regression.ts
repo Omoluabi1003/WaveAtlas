@@ -45,4 +45,4 @@ assert.match(assistant, /ATLAS VOICE · OMOLUABI PAUL/);
 assert.match(assistant, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\)/);
 assert.doesNotMatch(assistant, /isIOSFamily\(\)\) \{ setNeuralState\('unavailable'/);
 
-console.log('Atlas personal voice v5: canonical Omoluabi Paul reference, keyless client-side Pocket TTS, cached model and safe fallback checks passed.');
+console.log('Atlas personal voice v5: canonical Omoluabi Paul reference, keyless client-side Pocket TTS, cached model and repository voice checks passed.');
