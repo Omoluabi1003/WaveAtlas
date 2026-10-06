@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { answerAtlasQuestion } from '../lib/atlas-assistant';
 import { answerAtlasIntelligently } from '../lib/atlas-intelligence';
+
+const route = fs.readFileSync('app/api/atlas-assistant/route.ts', 'utf8');
+assert.match(route, /OPENROUTER_API_KEY/);
+assert.match(route, /openrouter\/free/);
+assert.match(route, /Follow the user's instruction precisely and naturally/);
+assert.match(route, /Never claim an action already succeeded/);
+assert.match(route, /sanitizeAction/);
+assert.match(route, /reasoned \|\| answerAtlasIntelligently/);
 
 const natural = answerAtlasQuestion('Hey Atlas, could you play Afrobeats from Lagos?');
 assert.equal(natural.action?.type, 'play');
@@ -35,4 +44,4 @@ assert.match(pidgin.answer, /Make I|Oya|dey|don/i);
 const guarded = answerAtlasIntelligently('Why did you pick this station?', { station });
 assert.match(guarded.answer, /verified Atlas metadata|don’t have enough verified metadata/i);
 
-console.log('Atlas conversation intelligence: commands, contextual follow-ups, mood, Pidgin and verified-data guardrails passed.');
+console.log('Atlas conversation intelligence v4: model reasoning hook, safe actions, local fallback, context, Pidgin and verified-data guardrails passed.');
