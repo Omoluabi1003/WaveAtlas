@@ -7,7 +7,7 @@ async function createEngine() {
   const hasWebGpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
   if (hasWebGpu) {
     try {
-      const tts = await KokoroTTS.from_pretrained(model, { device: 'webgpu', dtype: 'fp32' });
+      const tts = await KokoroTTS.from_pretrained(model, { device: 'webgpu', dtype: 'q4f16' });
       engine = 'webgpu';
       return tts;
     } catch {
