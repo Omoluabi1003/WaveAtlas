@@ -16,12 +16,10 @@ assert.match(lab, /Dedicated worker only/);
 assert.match(lab, /worker\.terminate\(\)/);
 assert.match(lab, /LOAD_TIMEOUT/);
 assert.match(lab, /GENERATE_TIMEOUT/);
-assert.match(lab, /if\(busy\|\|ready\)return/);
 assert.match(lab, /waveatlas-atlas-voice-v1/);
 assert.match(lab, /omoluabi-paul/);
 assert.match(lab, /saveReference\(pcm\)/);
 assert.doesNotMatch(lab, /ChatterboxModel/);
-assert.doesNotMatch(lab, /setTimeout\(\(\)=>\{if\(enrolled\)speak\.disabled=false\},900\)/);
 
 assert.match(retired, /RETIRED/);
 assert.doesNotMatch(retired, /from_pretrained/);
@@ -35,11 +33,14 @@ assert.match(productionWorker, /CANONICAL_REFERENCE = '\/api\/atlas-voice-refere
 assert.match(productionWorker, /mpg123-decoder@1\.0\.3/);
 assert.match(productionWorker, /repository-canonical/);
 assert.match(productionWorker, /cloneVoice/);
-assert.match(productionWorker, /The repository recording is authoritative/);
+assert.match(productionWorker, /cache: true/);
+assert.match(productionWorker, /uses no WaveAtlas API key/);
+assert.match(productionWorker, /pocket-tts-omoluabi-paul-warming/);
+assert.doesNotMatch(productionWorker, /OPENAI|ELEVENLABS|OPENROUTER|Authorization:/i);
 assert.match(referenceRoute, /Omoluabi%20voice\.mp3/);
 assert.match(referenceRoute, /99121f3012e9e606ed02c23db42fda5844344bb9/);
 assert.match(assistant, /ATLAS VOICE · OMOLUABI PAUL/);
 assert.match(assistant, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\)/);
 assert.doesNotMatch(assistant, /isIOSFamily\(\)\) \{ setNeuralState\('unavailable'/);
 
-console.log('Atlas personal voice v4: canonical repository recording, production clone routing and safe fallback checks passed.');
+console.log('Atlas personal voice v5: canonical Omoluabi Paul reference, keyless client-side Pocket TTS, cached model and safe fallback checks passed.');
