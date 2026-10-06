@@ -1,12 +1,7 @@
 /* Atlas Voice v2: fresh, keyless, client-side Omoluabi Paul voice path.
- *
- * Important architecture change:
- * - This same-origin worker imports clone-voice's normal engine bundle.
- * - Heavy ONNX inference therefore runs inside THIS worker.
- * - We do not import pocket-tts-js's browser wrapper, which tries to spawn a
- *   second cross-origin worker and is unreliable under Worker same-origin rules.
- * - We pin clone-voice to the published 0.2.1 release. No API key or server
- *   inference is used.
+ * Heavy ONNX inference runs inside this same-origin worker. The runtime is
+ * pinned to the published clone-voice 0.2.1 engine. No API key or server-side
+ * inference service is used.
  */
 import clone from 'https://cdn.jsdelivr.net/npm/clone-voice@0.2.1/dist/index.mjs';
 
@@ -36,16 +31,10 @@ self.onmessage = async (event) => {
   const { type, id, text } = event.data || {};
   if (type === 'warm') {
     try { await ensureVoice(); }
-    catch (error) {
-      self.postMessage({ type: 'unavailable', state: 'unavailable', message: error instanceof Error ? error.message : 'Omoluabi Paul could not initialize' });
-    }
+    catch (error) { self.postMessage({ type: 'unavailable', state: 'unavailable', message: error instanceof Error ? error.message : 'Omoluabi Paul could not initialize' }); }
     return;
   }
-  if (type === 'stop') {
-    stopped = true;
-    try { voice?.stop?.(); } catch {}
-    return;
-  }
+  if (type === 'stop') { stopped = true; try { voice?.stop?.(); } catch {} return; }
   if (type !== 'speak' || !id || typeof text !== 'string' || !text.trim()) return;
   stopped = false;
   try {
