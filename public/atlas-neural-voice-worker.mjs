@@ -29,14 +29,33 @@ async function loadReference() {
   } finally { db.close(); }
 }
 
+function prepareReference(input) {
+  if (!input?.length) throw new Error('The enrolled Omoluabi Paul reference is empty');
+  let start = 0; let end = input.length;
+  const threshold = 0.008;
+  while (start < end && Math.abs(input[start]) < threshold) start++;
+  while (end > start && Math.abs(input[end - 1]) < threshold) end--;
+  const trimmed = input.slice(start, end);
+  if (trimmed.length < 24000 * 2) throw new Error('The enrolled voice reference is too short after silence removal');
+  let peak = 0; let mean = 0;
+  for (const sample of trimmed) { peak = Math.max(peak, Math.abs(sample)); mean += sample; }
+  mean /= trimmed.length;
+  const gain = peak > 0.02 ? Math.min(3, 0.82 / peak) : 1;
+  const normalized = new Float32Array(trimmed.length);
+  for (let i = 0; i < trimmed.length; i++) normalized[i] = Math.max(-0.95, Math.min(0.95, (trimmed[i] - mean) * gain));
+  return normalized;
+}
+
 async function createEngine() {
   const { PocketTTS } = await import('https://cdn.jsdelivr.net/npm/pocket-tts-js@0.1.0/+esm');
   const tts = new PocketTTS({ language: 'english_2026-04', quantized: true, voiceCloning: true, maxThreads: 2 });
   await tts.load();
   const saved = await loadReference();
   if (!saved?.pcm) throw new Error('Omoluabi Paul is not enrolled on this device');
-  const pcm = saved.pcm instanceof Float32Array ? saved.pcm : new Float32Array(saved.pcm);
+  const raw = saved.pcm instanceof Float32Array ? saved.pcm : new Float32Array(saved.pcm);
+  const pcm = prepareReference(raw);
   clonedVoice = await tts.cloneVoice(pcm, { inputSampleRate: Number(saved.sampleRate) || 24000, name: 'Omoluabi Paul' });
+  if (!clonedVoice) throw new Error('The voice engine did not produce a valid Omoluabi Paul embedding');
   engine = 'pocket-tts-omoluabi-paul';
   return tts;
 }
@@ -62,8 +81,8 @@ function wavBuffer(chunks, sampleRate) {
 self.onmessage = async (event) => {
   const { type, id, text } = event.data || {};
   if (type === 'warm') {
-    try { const tts = await getEngine(); self.postMessage({ type: 'ready', engine, voice: 'Omoluabi Paul', sampleRate: tts.sampleRate }); }
-    catch (error) { ttsPromise = null; clonedVoice = null; self.postMessage({ type: 'unavailable', message: error instanceof Error ? error.message : 'Omoluabi Paul unavailable' }); }
+    try { const tts = await getEngine(); self.postMessage({ type: 'ready', engine, voice: 'Omoluabi Paul', sampleRate: tts.sampleRate, cloned: true }); }
+    catch (error) { ttsPromise = null; clonedVoice = null; self.postMessage({ type: 'unavailable', cloned: false, message: error instanceof Error ? error.message : 'Omoluabi Paul unavailable' }); }
     return;
   }
   if (type !== 'speak' || !id || typeof text !== 'string' || !text.trim()) return;
@@ -71,9 +90,10 @@ self.onmessage = async (event) => {
     const tts = await getEngine(); if (!clonedVoice) throw new Error('Omoluabi Paul is not enrolled');
     const chunks = [];
     await tts.generate(text.trim(), { voice: clonedVoice, onChunk: (audio) => chunks.push(new Float32Array(audio)) });
+    if (!chunks.length) throw new Error('The cloned voice engine returned no audio');
     const buffer = wavBuffer(chunks, Number(tts.sampleRate) || 24000);
-    self.postMessage({ type: 'audio', id, buffer, mime: 'audio/wav', engine }, [buffer]);
+    self.postMessage({ type: 'audio', id, buffer, mime: 'audio/wav', engine, voice: 'Omoluabi Paul', cloned: true }, [buffer]);
   } catch (error) {
-    self.postMessage({ type: 'error', id, message: error instanceof Error ? error.message : 'Omoluabi Paul generation failed' });
+    self.postMessage({ type: 'error', id, cloned: false, message: error instanceof Error ? error.message : 'Omoluabi Paul generation failed' });
   }
 };
