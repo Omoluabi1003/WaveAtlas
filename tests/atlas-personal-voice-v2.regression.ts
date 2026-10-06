@@ -3,44 +3,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
-const lab = fs.readFileSync(path.join(root, 'public/atlas-voice-clone.html'), 'utf8');
-const retired = fs.readFileSync(path.join(root, 'public/atlas-personal-voice-worker.mjs'), 'utf8');
-const pocketWorker = fs.readFileSync(path.join(root, 'public/atlas-pocket-voice-worker.mjs'), 'utf8');
-const productionWorker = fs.readFileSync(path.join(root, 'public/atlas-neural-voice-worker.mjs'), 'utf8');
+const worker = fs.readFileSync(path.join(root, 'public/atlas-v2-voice-worker.mjs'), 'utf8');
 const assistant = fs.readFileSync(path.join(root, 'components/AtlasAssistant.tsx'), 'utf8');
 const referenceRoute = fs.readFileSync(path.join(root, 'app/api/atlas-voice-reference/route.ts'), 'utf8');
 
-assert.match(lab, /Voice Engine 2\.0/);
-assert.match(lab, /atlas-pocket-voice-worker\.mjs/);
-assert.match(lab, /Dedicated worker only/);
-assert.match(lab, /worker\.terminate\(\)/);
-assert.match(lab, /LOAD_TIMEOUT/);
-assert.match(lab, /GENERATE_TIMEOUT/);
-assert.match(lab, /waveatlas-atlas-voice-v1/);
-assert.match(lab, /omoluabi-paul/);
-assert.match(lab, /saveReference\(pcm\)/);
-assert.doesNotMatch(lab, /ChatterboxModel/);
-
-assert.match(retired, /RETIRED/);
-assert.doesNotMatch(retired, /from_pretrained/);
-assert.doesNotMatch(retired, /chatterbox-ONNX/);
-
-assert.match(pocketWorker, /clone-voice@0\.2\.2/);
-assert.match(pocketWorker, /dedicated worker/i);
-assert.match(productionWorker, /pocket-tts-js@0\.1\.0/);
-assert.match(productionWorker, /Omoluabi Paul/);
-assert.match(productionWorker, /CANONICAL_REFERENCE = '\/api\/atlas-voice-reference'/);
-assert.match(productionWorker, /mpg123-decoder@1\.0\.3/);
-assert.match(productionWorker, /repository-canonical/);
-assert.match(productionWorker, /cloneVoice/);
-assert.match(productionWorker, /cache: true/);
-assert.match(productionWorker, /uses no WaveAtlas API key/);
-assert.match(productionWorker, /pocket-tts-omoluabi-paul-warming/);
-assert.doesNotMatch(productionWorker, /OPENAI|ELEVENLABS|OPENROUTER|Authorization:/i);
+// Fresh production path. Legacy labs/workers may remain in the tree for history,
+// but the active assistant must not import or invoke them.
+assert.match(worker, /clone-voice@0\.2\.1\/dist\/index\.mjs/);
+assert.doesNotMatch(worker, /clone-voice@0\.2\.2/);
+assert.doesNotMatch(worker, /pocket-tts-js/);
+assert.match(worker, /clone\('\/api\/atlas-voice-reference'/);
+assert.match(worker, /activeVoice\.speak\(text\.trim\(\)\)/);
+assert.match(worker, /engine: 'clone-voice-0\.2\.1'/);
+assert.doesNotMatch(worker, /OPENAI|ELEVENLABS|OPENROUTER|Authorization:/i);
 assert.match(referenceRoute, /Omoluabi%20voice\.mp3/);
 assert.match(referenceRoute, /99121f3012e9e606ed02c23db42fda5844344bb9/);
-assert.match(assistant, /ATLAS VOICE · OMOLUABI PAUL/);
-assert.match(assistant, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\)/);
-assert.doesNotMatch(assistant, /isIOSFamily\(\)\) \{ setNeuralState\('unavailable'/);
+assert.match(assistant, /atlas-v2-voice-worker\.mjs/);
+assert.match(assistant, /OMOLUABI PAUL · READY/);
+assert.match(assistant, /DEVICE VOICE · FALLBACK/);
+assert.doesNotMatch(assistant, /atlas-neural-voice-worker/);
+assert.doesNotMatch(assistant, /atlas-pocket-voice-worker/);
 
-console.log('Atlas personal voice v5: canonical Omoluabi Paul reference, keyless client-side Pocket TTS, cached model and safe fallback checks passed.');
+console.log('Atlas personal voice fresh: canonical reference, published 0.2.1 keyless engine, same-origin worker and honest fallback passed.');
