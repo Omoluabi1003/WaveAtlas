@@ -9,7 +9,7 @@ export type AtlasAssistantContext = {
 
 export type AtlasAssistantAction =
   | { type: 'search'; query: string }
-  | { type: 'play'; query?: string }
+  | { type: 'play'; query?: string; excludeCurrent?: boolean }
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'volume'; value: number }
@@ -18,6 +18,14 @@ export type AtlasAssistantAction =
   | { type: 'switch_view'; view: 'map' | 'globe' }
   | { type: 'open_settings' }
   | { type: 'open_brief' };
+
+export type AtlasActionResult = {
+  ok: boolean;
+  status: 'completed' | 'playing' | 'connecting' | 'already_playing' | 'not_found' | 'failed';
+  station?: Pick<Station, 'name' | 'country' | 'city' | 'state' | 'station_uuid' | 'id'>;
+  message?: string;
+  terminal?: boolean;
+};
 
 export type AtlasAssistantReply = {
   answer: string;
@@ -102,7 +110,7 @@ export function answerAtlasQuestion(question: string, context: AtlasAssistantCon
 
   if (/^(?:yes|yeah|yep|do it|go ahead|another|another one|something else)$/i.test(q) && station) {
     const query = [country, primaryTag].filter(Boolean).join(' ');
-    return reply(`I’ll keep the thread and find another ${primaryTag || 'signal'}${country ? ` from ${country}` : ''}.`, { type: 'play', query: query || undefined });
+    return reply(`I’ll keep the thread and find another ${primaryTag || 'signal'}${country ? ` from ${country}` : ''}.`, { type: 'play', query: query || undefined, excludeCurrent: /another|something else/i.test(q) });
   }
 
   const command = commandReply(q);
@@ -129,7 +137,7 @@ export function answerAtlasQuestion(question: string, context: AtlasAssistantCon
   }
   if (/another|similar|something else|change station|same kind|same vibe|more like this/.test(lower)) {
     const query = [country, primaryTag].filter(Boolean).join(' ');
-    return reply(`I’ll keep the ${primaryTag || 'current'} feel${country ? ` around ${country}` : ''} and find another signal.`, { type: 'play', query: query || undefined });
+    return reply(`I’ll keep the ${primaryTag || 'current'} feel${country ? ` around ${country}` : ''} and find another signal.`, { type: 'play', query: query || undefined, excludeCurrent: true });
   }
   if (/^(?:there|same place|that country|around there)$/i.test(q)) {
     const query = country || city || region;
