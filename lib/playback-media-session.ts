@@ -2,6 +2,8 @@ import type { Station } from './stations';
 import { WAVEATLAS_LOGO_URL } from './branding';
 
 export type MediaPlayerSnapshot = { current?: Station; status: string };
+type AtlasPlaybackCommand = { command?: 'play' | 'pause' };
+
 export function stationMediaMetadata(station: Station): MediaMetadataInit {
   const journey = station.sourceType === 'geoaudio' ? station.geoAudio : undefined;
   return {
@@ -10,6 +12,11 @@ export function stationMediaMetadata(station: Station): MediaMetadataInit {
     album: journey?.albumTitle || 'WaveAtlas Live Radio',
     artwork: [{ src: WAVEATLAS_LOGO_URL, sizes: '512x512', type: 'image/png' }],
   };
+}
+
+function publishAtlasStationContext(snapshot: MediaPlayerSnapshot) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('waveatlas:station-context', { detail: snapshot.current ?? null }));
 }
 
 export function bindPlaybackMediaSession(options: {
@@ -27,13 +34,14 @@ export function bindPlaybackMediaSession(options: {
   let closed = false;
   const refresh = () => {
     if (closed) return;
-    const { current, status } = options.read();
+    const snapshot = options.read();
+    const { current, status } = snapshot;
     const hasMedia = current && !['idle', 'failed', 'blocked'].includes(status);
     doc.title = hasMedia ? `${current.name} | WaveAtlas` : 'WaveAtlas | Explore Humanity Through Sound';
+    publishAtlasStationContext(snapshot);
     if (!session) return;
     try { session.metadata = hasMedia && Metadata ? new Metadata(stationMediaMetadata(current)) : null; } catch { /* Optional OS integration cannot interrupt playback. */ }
     try { session.playbackState = hasMedia ? status === 'playing' ? 'playing' : 'paused' : 'none'; } catch { /* Partial browser support. */ }
-    // Live radio has no finite seek position. Clear any previous track's timeline.
     try { session.setPositionState?.(); } catch { /* Unsupported on some browsers. */ }
   };
   const actions: Array<[MediaSessionAction, MediaSessionActionHandler | null]> = [
@@ -41,6 +49,18 @@ export function bindPlaybackMediaSession(options: {
     ['seekbackward', null], ['seekforward', null], ['seekto', null], ['previoustrack', null], ['nexttrack', null],
   ];
   for (const [action, handler] of actions) { try { session?.setActionHandler(action, handler); } catch { /* Unsupported action. */ } }
+
+  const onAtlasContextRequest = () => publishAtlasStationContext(options.read());
+  const onAtlasPlaybackCommand = (event: Event) => {
+    const command = (event as CustomEvent<AtlasPlaybackCommand>).detail?.command;
+    if (command === 'pause') options.pause();
+    if (command === 'play') options.play();
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('waveatlas:request-station-context', onAtlasContextRequest);
+    window.addEventListener('waveatlas:assistant-playback', onAtlasPlaybackCommand);
+  }
+
   const unsubscribe = options.subscribe(refresh);
   for (const event of ['playing', 'loadedmetadata']) audio.addEventListener(event, refresh);
   doc.addEventListener('visibilitychange', refresh);
@@ -50,6 +70,10 @@ export function bindPlaybackMediaSession(options: {
     unsubscribe();
     for (const event of ['playing', 'loadedmetadata']) audio.removeEventListener(event, refresh);
     doc.removeEventListener('visibilitychange', refresh);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('waveatlas:request-station-context', onAtlasContextRequest);
+      window.removeEventListener('waveatlas:assistant-playback', onAtlasPlaybackCommand);
+    }
     for (const [action] of actions) { try { session?.setActionHandler(action, null); } catch { /* Unsupported action. */ } }
     try { if (session) { session.metadata = null; session.playbackState = 'none'; } } catch { /* Partial browser support. */ }
     doc.title = originalTitle;
