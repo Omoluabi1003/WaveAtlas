@@ -33,18 +33,21 @@ function bestSystemVoice(language: string) {
   const voices = [...window.speechSynthesis.getVoices()];
   const target = language.toLowerCase();
   const base = target.split('-')[0];
-  if (isIOSFamily()) return voices.find((voice) => /samantha|ava/i.test(voice.name) && voice.lang.toLowerCase().startsWith(base));
-  return voices.sort((a, b) => {
-    const score = (voice: SpeechSynthesisVoice) => {
-      const lang = voice.lang.toLowerCase();
-      let value = lang === target ? 80 : lang.startsWith(`${base}-`) || lang === base ? 55 : 0;
-      if (NATURAL_VOICE_HINTS.test(voice.name)) value += 70;
-      if (voice.localService) value += 8;
-      if (SYNTHETIC_VOICE_HINTS.test(voice.name)) value -= 80;
-      return value;
-    };
-    return score(b) - score(a);
-  })[0];
+  const score = (voice: SpeechSynthesisVoice) => {
+    const lang = voice.lang.toLowerCase();
+    let value = lang === target ? 80 : lang.startsWith(`${base}-`) || lang === base ? 55 : 0;
+    if (NATURAL_VOICE_HINTS.test(voice.name)) value += 70;
+    if (voice.localService) value += 8;
+    if (SYNTHETIC_VOICE_HINTS.test(voice.name)) value -= 80;
+    return value;
+  };
+  if (isIOSFamily()) {
+    return voices.find((voice) => /samantha|ava/i.test(voice.name) && voice.lang.toLowerCase().startsWith(base))
+      ?? voices.filter((voice) => voice.lang.toLowerCase().startsWith(base)).sort((a, b) => score(b) - score(a))[0]
+      ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('en'))
+      ?? voices[0];
+  }
+  return voices.sort((a, b) => score(b) - score(a))[0];
 }
 
 export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onAction }: Props) {
@@ -72,6 +75,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   const voiceContextRef = useRef<AudioContext | null>(null);
   const voiceSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const radioDuckedRef = useRef(false);
+  const systemSpeechPrimedRef = useRef(false);
 
   useEffect(() => { openRef.current = open; if (open && textMode) setTimeout(() => inputRef.current?.focus(), 80); }, [open, textMode]);
   useEffect(() => { conversationModeRef.current = conversationMode; }, [conversationMode]);
@@ -116,7 +120,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   }
   function getVoiceContext() {
     if (typeof window === 'undefined') return null;
-    if (voiceContextRef.current?.state !== 'closed') return voiceContextRef.current;
+    if (voiceContextRef.current && voiceContextRef.current.state !== 'closed') return voiceContextRef.current;
     const Context = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Context) return null;
     voiceContextRef.current = new Context({ latencyHint: 'interactive' });
@@ -139,6 +143,17 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       source.connect(context.destination); source.start(0); return true;
     } catch { return false; }
   }
+  function primeSystemSpeech() {
+    if (systemSpeechPrimedRef.current || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      const unlock = new SpeechSynthesisUtterance('');
+      unlock.volume = 0;
+      synth.speak(unlock);
+      systemSpeechPrimedRef.current = true;
+    } catch { systemSpeechPrimedRef.current = false; }
+  }
   function stopVoiceOutput() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     try { voiceSourceRef.current?.stop(); } catch { /* Already stopped. */ }
@@ -147,7 +162,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   async function prepareAudiblePlayback() {
     const session = audioSession();
     if (session) {
-      try { session.type = 'ambient'; await sleep(0); session.type = 'playback'; } catch { /* Keep normal Web Audio path. */ }
+      try { session.type = 'ambient'; await sleep(0); session.type = 'playback'; } catch { /* Keep normal output path. */ }
     }
     return resumeVoiceContext();
   }
@@ -170,7 +185,11 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   }
 
   function warmNeuralVoice() {
-    if (typeof window === 'undefined' || !('Worker' in window) || neuralStateRef.current !== 'idle') return;
+    if (typeof window === 'undefined' || isIOSFamily()) {
+      setNeuralState('unavailable'); neuralStateRef.current = 'unavailable';
+      return;
+    }
+    if (!('Worker' in window) || neuralStateRef.current !== 'idle') return;
     setNeuralState('loading'); neuralStateRef.current = 'loading';
     try {
       const worker = new Worker('/atlas-neural-voice-worker.mjs', { type: 'module' });
@@ -193,10 +212,9 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     const initial = neuralStateRef.current as NeuralVoiceState;
     if (initial === 'ready') return true;
     if (initial !== 'loading') return false;
-    const limit = isIOSFamily() ? 10000 : 5000;
     const started = Date.now();
     setVoiceMessage('Preparing Atlas voice…');
-    while (Date.now() - started < limit) {
+    while (Date.now() - started < 5000) {
       await sleep(200);
       const current = neuralStateRef.current as NeuralVoiceState;
       if (current === 'ready') return true;
@@ -219,10 +237,11 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     } catch { return false; }
   }
   function speakSystem(text: string) {
-    return new Promise<boolean>(async (resolve) => {
+    return new Promise<boolean>((resolve) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) { resolve(false); return; }
-      await prepareAudiblePlayback();
-      window.speechSynthesis.cancel(); window.speechSynthesis.resume();
+      void prepareAudiblePlayback();
+      const synth = window.speechSynthesis;
+      synth.cancel(); synth.resume();
       const utterance = new SpeechSynthesisUtterance(text);
       const language = navigator.language || 'en-US';
       const voice = bestSystemVoice(language);
@@ -230,26 +249,31 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       utterance.rate = 0.97; utterance.pitch = 1; utterance.volume = 1;
       let settled = false; let started = false;
       const finish = (ok: boolean) => { if (settled) return; settled = true; resolve(ok); };
-      const guard = window.setTimeout(() => { if (!started) { window.speechSynthesis.cancel(); finish(false); } }, 3000);
+      const guard = window.setTimeout(() => { if (!started) { synth.cancel(); finish(false); } }, 3000);
       utterance.onstart = () => { started = true; window.clearTimeout(guard); setSpeaking(true); setVoiceMessage('Atlas is speaking'); };
       utterance.onend = () => { window.clearTimeout(guard); setSpeaking(false); finish(true); };
       utterance.onerror = () => { window.clearTimeout(guard); setSpeaking(false); finish(false); };
-      window.speechSynthesis.speak(utterance);
+      synth.speak(utterance);
     });
   }
   async function speak(text: string) {
     if (!voiceEnabledRef.current) { restoreRadio(); return; }
     recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); duckRadio();
     let spoken = false;
-    if (await waitForNeuralVoice()) spoken = await speakNeural(text);
-    if (!spoken) spoken = await speakSystem(text);
+    if (isIOSFamily()) {
+      spoken = await speakSystem(text);
+    } else {
+      if (await waitForNeuralVoice()) spoken = await speakNeural(text);
+      if (!spoken) spoken = await speakSystem(text);
+    }
     setSpeaking(false);
-    if (!spoken) setVoiceMessage('Voice output was blocked. Tap the orb once to restore audio.');
+    if (!spoken) setVoiceMessage('Voice output is blocked. Tap the orb once, then try again.');
     if (conversationModeRef.current && openRef.current && spoken) {
       setVoiceMessage('Your turn'); setAudioSession('play-and-record');
-      window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 550 : 350);
+      window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 650 : 350);
     } else {
-      setVoiceMessage('Tap the orb and speak'); setAudioSession('playback'); restoreRadio();
+      if (spoken) setVoiceMessage('Tap the orb and speak');
+      setAudioSession('playback'); restoreRadio();
     }
   }
   function endConversation(message = 'Tap the orb and speak') {
@@ -317,7 +341,12 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     } catch { setListening(false); recognitionRef.current = null; stopRecognitionWatchdog(); endConversation('Microphone could not start. Tap the orb to retry.'); }
   }
   function activateAtlas() {
-    void primeVoiceOutput(); warmNeuralVoice();
+    // iOS removes its speech-start restriction only when speechSynthesis.speak()
+    // is called synchronously inside the physical user gesture. Do this before
+    // any promise, timeout, worker message, fetch, or recognition startup.
+    primeSystemSpeech();
+    void primeVoiceOutput();
+    warmNeuralVoice();
     if (!open) { openRef.current = true; setOpen(true); setTextMode(false); window.setTimeout(() => void listen(), 60); return; }
     if (conversationModeRef.current) endConversation('Conversation paused. Tap the orb to continue.'); else void listen();
   }
@@ -349,7 +378,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       <header className="flex items-center justify-between border-b border-white/10 px-4 py-3"><div><div className="font-semibold tracking-tight text-white">Atlas</div><div className="mt-0.5 text-[11px] text-slate-400">{stationLabel}</div></div><div className="flex items-center gap-1"><button onClick={() => setVoiceEnabled((value) => !value)} aria-label={voiceEnabled ? 'Mute Atlas voice' : 'Enable Atlas voice'} className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10">{voiceEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button onClick={() => setTextMode(false)} aria-label="Return to voice view" className="grid size-9 place-items-center rounded-full text-emerald-300 hover:bg-white/10"><Mic size={17}/></button><button onClick={() => { endConversation(); setOpen(false); }} aria-label="Close Atlas" className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10"><X size={18}/></button></div></header>
       <div className="min-h-28 flex-1 space-y-3 overflow-y-auto p-4">{lines.map((line, i) => <div key={i} className={line.role === 'user' ? 'ml-8 rounded-2xl rounded-br-md bg-emerald-400/15 px-3.5 py-2.5 text-sm leading-5 text-emerald-50' : 'mr-5 rounded-2xl rounded-bl-md bg-white/[.06] px-3.5 py-2.5 text-sm leading-5 text-slate-100'}>{line.text}</div>)}{busy && <div className="px-1 text-xs text-slate-400">Atlas is thinking…</div>}</div>
       <div className="flex gap-2 overflow-x-auto border-t border-white/10 px-3 pt-2">{QUICK_COMMANDS.map((command) => <button key={command} onClick={() => void ask(command)} className="shrink-0 rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 text-[11px] font-medium text-slate-300 hover:border-emerald-300/30 hover:text-emerald-200">{command}</button>)}</div>
-      <form onSubmit={submit} className="flex items-center gap-2 p-3"><button type="button" onClick={() => void listen()} className={`grid size-11 shrink-0 place-items-center rounded-full border transition ${listening ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-white/10 bg-white/[.04] text-emerald-300'}`} aria-label={listening ? 'Stop listening' : 'Talk to Atlas'}>{listening ? <MicOff size={19}/> : <Mic size={19}/>}</button><input ref={inputRef} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask or tell Atlas what to do…" className="h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/[.04] px-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/50"/><button type="submit" disabled={!question.trim() || busy} className="grid size-11 shrink-0 place-items-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-35" aria-label="Send"><Send size={18}/></button></form>
+      <form onSubmit={submit} className="flex items-center gap-2 p-3"><button type="button" onClick={() => { primeSystemSpeech(); void primeVoiceOutput(); void listen(); }} className={`grid size-11 shrink-0 place-items-center rounded-full border transition ${listening ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-white/10 bg-white/[.04] text-emerald-300'}`} aria-label={listening ? 'Stop listening' : 'Talk to Atlas'}>{listening ? <MicOff size={19}/> : <Mic size={19}/>}</button><input ref={inputRef} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask or tell Atlas what to do…" className="h-11 min-w-0 flex-1 rounded-full border border-white/10 bg-white/[.04] px-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/50"/><button type="submit" disabled={!question.trim() || busy} className="grid size-11 shrink-0 place-items-center rounded-full bg-emerald-400 text-slate-950 disabled:opacity-35" aria-label="Send"><Send size={18}/></button></form>
     </section>}
   </>;
 }
