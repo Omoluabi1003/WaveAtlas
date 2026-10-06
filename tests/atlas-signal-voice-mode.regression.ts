@@ -18,14 +18,16 @@ assert.match(source, /if \(speaking\) \{ stopVoiceOutput\(\); setVoiceMessage\('
 
 const naturalPlay = answerAtlasQuestion('Atlas, can you play jazz in Lagos?');
 assert.equal(naturalPlay.action?.type, 'play');
-assert.match('query' in (naturalPlay.action || {}) ? naturalPlay.action.query || '' : '', /jazz in Lagos/i);
+if (naturalPlay.action?.type !== 'play') throw new Error('Expected natural play action');
+assert.match(naturalPlay.action.query || '', /jazz in Lagos/i);
 
 const followUp = answerAtlasQuestion('another one', {
   station: { name: 'Test FM', country: 'Nigeria', country_code: 'NG', city: 'Lagos', state: '', language: 'English', tags: ['jazz', 'music'], codec: 'MP3', bitrate: 128 },
   history: [{ role: 'user', text: 'Play jazz in Lagos' }, { role: 'atlas', text: 'Tuning in.' }],
 });
 assert.equal(followUp.action?.type, 'play');
-assert.match('query' in (followUp.action || {}) ? followUp.action.query || '' : '', /Nigeria jazz/i);
+if (followUp.action?.type !== 'play') throw new Error('Expected contextual follow-up play action');
+assert.match(followUp.action.query || '', /Nigeria jazz/i);
 
 const capability = answerAtlasQuestion('what can you do?');
 assert.match(capability.answer, /identify.*current signal.*find and play stations/i);
