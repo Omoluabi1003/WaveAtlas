@@ -1,31 +1,19 @@
 import type { AtlasAssistantContext, AtlasAssistantReply } from '@/lib/atlas-assistant';
-
 function clean(value: string) { return value.trim().replace(/[.!?]+$/g, '').replace(/\s+/g, ' '); }
 function stripWakeWords(value: string) { return clean(value).replace(/^(?:hey\s+)?(?:atlas|wave\s*atlas|waveatlas)[,\s:-]*/i, '').replace(/^(?:abeg|please)[,\s:-]+/i, '').trim(); }
 function isPidgin(value: string) { return /\b(?:abeg|wetin|dey|una|make i|make we|no wahala|na\s+which|fit\s+|wahala)\b/i.test(value); }
 function answer(value: string, english: string, pidgin?: string) { return isPidgin(value) && pidgin ? pidgin : english; }
-
 function playTarget(value: string) {
   const patterns = [
-    /^(?:please\s+)?(?:tune|tune\s+in|tune\s+into|play|listen|listen\s+to|switch|switch\s+to|change|change\s+to|put\s+me\s+on|take\s+me\s+to)\s+(?:to\s+|into\s+|on\s+)?(.+)$/i,
+    /^(?:please\s+)?(?:tune\s+into|tune\s+in|tune|listen\s+to|listen|switch\s+to|switch|change\s+to|change|put\s+me\s+on|take\s+me\s+to|play)\s+(?:to\s+|into\s+|on\s+)?(.+)$/i,
     /^(?:i\s+want\s+to\s+hear|i\s+want\s+to\s+listen\s+to|let\s+me\s+hear|can\s+you\s+play|could\s+you\s+play|would\s+you\s+play)\s+(.+)$/i,
     /^(?:find|search\s+for|look\s+for)\s+(.+?)\s+(?:and\s+)?(?:play|tune\s+in)$/i,
   ];
   for (const pattern of patterns) { const match = value.match(pattern); if (match?.[1]?.trim()) return match[1].trim().replace(/\s+(?:station|radio)$/i, '').trim(); }
   return '';
 }
-
-function recentPlace(context: AtlasAssistantContext) {
-  const history = context.history || [];
-  for (let i = history.length - 1; i >= 0; i -= 1) { const text = history[i]?.text || ''; const match = text.match(/\b(?:in|from|to)\s+([A-Z][A-Za-z'’.-]+(?:\s+[A-Z][A-Za-z'’.-]+){0,3})\b/); if (match?.[1]) return match[1]; }
-  return context.station?.city || context.station?.country || '';
-}
-
-function stationSummary(context: AtlasAssistantContext) {
-  const station = context.station; if (!station) return 'No station is selected right now.';
-  const place = [station.city || station.state, station.country].filter(Boolean).join(', '); const tags = (station.tags || []).slice(0, 3).join(', '); return [station.name, place, station.language, tags].filter(Boolean).join(' · ');
-}
-
+function recentPlace(context: AtlasAssistantContext) { const history = context.history || []; for (let i = history.length - 1; i >= 0; i -= 1) { const text = history[i]?.text || ''; const match = text.match(/\b(?:in|from|to)\s+([A-Z][A-Za-z'’.-]+(?:\s+[A-Z][A-Za-z'’.-]+){0,3})\b/); if (match?.[1]) return match[1]; } return context.station?.city || context.station?.country || ''; }
+function stationSummary(context: AtlasAssistantContext) { const station = context.station; if (!station) return 'No station is selected right now.'; const place = [station.city || station.state, station.country].filter(Boolean).join(', '); const tags = (station.tags || []).slice(0, 3).join(', '); return [station.name, place, station.language, tags].filter(Boolean).join(' · '); }
 export function runAtlasCommandBrain(question: string, context: AtlasAssistantContext = {}): AtlasAssistantReply {
   const original = clean(question); const utterance = stripWakeWords(original); const lower = utterance.toLowerCase();
   if (!utterance) return { answer: 'I’m listening. Tell me a station, place, genre, or playback command.', source: 'waveatlas-local' };
