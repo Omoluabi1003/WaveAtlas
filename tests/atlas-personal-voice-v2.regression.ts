@@ -8,6 +8,7 @@ const retired = fs.readFileSync(path.join(root, 'public/atlas-personal-voice-wor
 const pocketWorker = fs.readFileSync(path.join(root, 'public/atlas-pocket-voice-worker.mjs'), 'utf8');
 const productionWorker = fs.readFileSync(path.join(root, 'public/atlas-neural-voice-worker.mjs'), 'utf8');
 const assistant = fs.readFileSync(path.join(root, 'components/AtlasAssistant.tsx'), 'utf8');
+const referenceRoute = fs.readFileSync(path.join(root, 'app/api/atlas-voice-reference/route.ts'), 'utf8');
 
 assert.match(lab, /Voice Engine 2\.0/);
 assert.match(lab, /atlas-pocket-voice-worker\.mjs/);
@@ -30,10 +31,15 @@ assert.match(pocketWorker, /clone-voice@0\.2\.2/);
 assert.match(pocketWorker, /dedicated worker/i);
 assert.match(productionWorker, /pocket-tts-js@0\.1\.0/);
 assert.match(productionWorker, /Omoluabi Paul/);
-assert.match(productionWorker, /waveatlas-atlas-voice-v1/);
+assert.match(productionWorker, /CANONICAL_REFERENCE = '\/api\/atlas-voice-reference'/);
+assert.match(productionWorker, /mpg123-decoder@1\.0\.3/);
+assert.match(productionWorker, /repository-canonical/);
 assert.match(productionWorker, /cloneVoice/);
+assert.match(productionWorker, /The repository recording is authoritative/);
+assert.match(referenceRoute, /Omoluabi%20voice\.mp3/);
+assert.match(referenceRoute, /99121f3012e9e606ed02c23db42fda5844344bb9/);
 assert.match(assistant, /ATLAS VOICE · OMOLUABI PAUL/);
 assert.match(assistant, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\)/);
 assert.doesNotMatch(assistant, /isIOSFamily\(\)\) \{ setNeuralState\('unavailable'/);
 
-console.log('Atlas personal voice v3 regression checks passed.');
+console.log('Atlas personal voice v4: canonical repository recording, production clone routing and safe fallback checks passed.');
