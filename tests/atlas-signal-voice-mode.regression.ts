@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { answerAtlasQuestion } from '../lib/atlas-assistant';
 
 const source = fs.readFileSync('components/AtlasAssistant.tsx', 'utf8');
 
@@ -15,4 +16,18 @@ assert.match(source, /if \(isIOSFamily\(\)\) spoken = await speakSystem/, 'iOS m
 assert.doesNotMatch(source, /fixed bottom-\[13\.1rem\][\s\S]*Talk to Atlas/, 'The old permanent floating orb must not return');
 assert.match(source, /if \(speaking\) \{ stopVoiceOutput\(\); setVoiceMessage\('Listening'\); void listen\(true\); return; \}/, 'Pressing the Signal while Atlas speaks must interrupt and return to listening');
 
-console.log('Atlas Signal: recovery timeout, near-mute focus, context memory, audio-reactive speech and iOS fallback passed.');
+const naturalPlay = answerAtlasQuestion('Atlas, can you play jazz in Lagos?');
+assert.equal(naturalPlay.action?.type, 'play');
+assert.match('query' in (naturalPlay.action || {}) ? naturalPlay.action.query || '' : '', /jazz in Lagos/i);
+
+const followUp = answerAtlasQuestion('another one', {
+  station: { name: 'Test FM', country: 'Nigeria', country_code: 'NG', city: 'Lagos', state: '', language: 'English', tags: ['jazz', 'music'], codec: 'MP3', bitrate: 128 },
+  history: [{ role: 'user', text: 'Play jazz in Lagos' }, { role: 'atlas', text: 'Tuning in.' }],
+});
+assert.equal(followUp.action?.type, 'play');
+assert.match('query' in (followUp.action || {}) ? followUp.action.query || '' : '', /Nigeria jazz/i);
+
+const capability = answerAtlasQuestion('what can you do?');
+assert.match(capability.answer, /identify.*current signal.*find and play stations/i);
+
+console.log('Atlas Signal: recovery timeout, near-mute focus, conversational intent, context memory, audio-reactive speech and iOS fallback passed.');
