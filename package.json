@@ -32,7 +32,8 @@
     "test:earth": "node --import tsx tests/earth-lighting.regression.ts",
     "test:boundaries": "node --import tsx tests/globe-boundaries.regression.ts",
     "test:appearance": "node --import tsx tests/solar-appearance.regression.ts && node --import tsx tests/station-night-notice.regression.ts",
-    "test:startup": "node --import tsx tests/browser-storage.regression.ts && node --import tsx tests/embedded-browser.regression.ts"
+    "test:startup": "node --import tsx tests/browser-storage.regression.ts && node --import tsx tests/embedded-browser.regression.ts",
+    "test:map": "node --import tsx tests/map-basemaps.regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",
