@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>WaveAtlas · Omoluabi Paul Voice</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#08111d;color:#f7f5ef}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 10%,rgba(0,214,143,.12),transparent 28%),#08111d}.shell{width:min(720px,100%);margin:auto;padding:calc(28px + env(safe-area-inset-top)) 20px calc(32px + env(safe-area-inset-bottom))}.eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#4ec7c2}.card{margin-top:20px;border:1px solid rgba(255,255,255,.1);border-radius:28px;background:rgba(7,21,34,.9);box-shadow:0 30px 90px rgba(0,0,0,.35);padding:22px}.title{font-size:clamp(30px,7vw,48px);line-height:1;margin:10px 0 8px}.sub{color:#a8b4c4;line-height:1.55}.notice{margin:18px 0;padding:14px 16px;border-radius:18px;background:rgba(78,199,194,.08);border:1px solid rgba(78,199,194,.18);font-size:13px;line-height:1.5}.grid{display:grid;gap:14px}.label{display:block;font-size:12px;color:#b9c4d2;margin:0 0 7px}.field,textarea{width:100%;border:1px solid rgba(255,255,255,.12);background:#050b13;color:#fff;border-radius:16px;padding:13px 14px;font:inherit}textarea{min-height:110px;resize:vertical}.row{display:flex;gap:10px;flex-wrap:wrap}.btn{appearance:none;border:0;border-radius:999px;padding:12px 17px;font-weight:700;cursor:pointer;background:#00d68f;color:#04120d}.btn.secondary{background:rgba(255,255,255,.07);color:#e9f1f7;border:1px solid rgba(255,255,255,.1)}.btn:disabled{opacity:.4;cursor:not-allowed}.status{min-height:22px;margin-top:14px;font-size:13px;color:#e0b968}.progress{height:5px;margin-top:10px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}.bar{height:100%;width:0;background:linear-gradient(90deg,#00d68f,#4ec7c2,#d4a64a);transition:width .2s ease}.fine{margin-top:18px;color:#748398;font-size:11px;line-height:1.5}audio{width:100%;margin-top:14px}code{color:#4ec7c2}
+</style>
+</head>
+<body>
+<main class="shell">
+<div class="eyebrow">WaveAtlas · Atlas Voice Lab</div>
+<h1 class="title">Omoluabi Paul</h1>
+<p class="sub">Private, on-device voice cloning for Atlas. The reference recording stays in this browser session and is never uploaded to WaveAtlas, Vercel, GitHub, or a voice API.</p>
+<section class="card">
+<div class="notice"><strong>Isolated by design.</strong> This lab does not replace the stable Atlas voice runtime. The clone model loads only after you explicitly press <em>Load clone engine</em>, so opening WaveAtlas cannot trigger the heavy model or freeze the normal interface.</div>
+<div class="grid">
+<div><label class="label" for="voice">Voice reference · 5–15 seconds of clean speech recommended</label><input class="field" id="voice" type="file" accept="audio/*,.m4a,.mp3,.wav" /></div>
+<div class="row"><button class="btn secondary" id="load">Load clone engine</button><button class="btn secondary" id="enroll" disabled>Enroll Omoluabi Paul</button></div>
+<div><label class="label" for="text">Test line</label><textarea id="text">How far? Na Atlas be this. Tell me where you wan make we listen, and I go find the signal for you.</textarea></div>
+<div class="row"><button class="btn" id="speak" disabled>Generate cloned voice</button><button class="btn secondary" id="reset" disabled>Forget reference</button></div>
+</div>
+<div class="status" id="status">Clone engine is off.</div><div class="progress"><div class="bar" id="bar"></div></div><audio id="player" controls hidden></audio>
+<p class="fine">Engine: open-source Chatterbox running locally through a Web Worker. First model load is large and may take several minutes. Generated speech is short-form and English-focused. If the device cannot sustain the model, this lab fails closed and the normal Atlas runtime remains untouched.</p>
+</section>
+</main>
+<script type="module">
+const $=(id)=>document.getElementById(id); const status=$('status'), bar=$('bar'), voice=$('voice'), load=$('load'), enroll=$('enroll'), speak=$('speak'), reset=$('reset'), player=$('player');
+let worker=null, ready=false, enrolled=false, objectUrl=null;
+function setStatus(text){status.textContent=text} function setProgress(value){bar.style.width=`${Math.max(0,Math.min(100,value||0))}%`}
+function makeWorker(){ if(worker) return worker; worker=new Worker('/atlas-personal-voice-worker.mjs',{type:'module'}); worker.onmessage=async(e)=>{const m=e.data||{}; if(m.type==='progress'){const p=Number(m.progress?.progress ?? m.progress?.percentage ?? 0); if(Number.isFinite(p)) setProgress(p<=1?p*100:p); setStatus(m.progress?.status||m.progress?.file||'Loading model…')} if(m.type==='ready'){ready=true; enroll.disabled=!voice.files?.length; setStatus(`Clone engine ready · ${m.device}`); setProgress(100)} if(m.type==='enrolled'){enrolled=true; speak.disabled=false; reset.disabled=false; setStatus('Omoluabi Paul reference enrolled for this session.')} if(m.type==='audio'){setStatus('Clone generated.'); const wav=wavBlob(new Float32Array(m.buffer),24000); if(objectUrl) URL.revokeObjectURL(objectUrl); objectUrl=URL.createObjectURL(wav); player.src=objectUrl; player.hidden=false; await player.play().catch(()=>{});} if(m.type==='reset'){enrolled=false;speak.disabled=true;reset.disabled=true;setStatus('Reference forgotten.');} if(m.type==='error'){setStatus(`Clone engine: ${m.message}`);}}; worker.onerror=()=>setStatus('Clone engine stopped safely. Reload this page to try again.'); return worker; }
+load.onclick=()=>{load.disabled=true;setStatus('Preparing clone engine…');makeWorker().postMessage({type:'load'})}; voice.onchange=()=>{enroll.disabled=!(ready&&voice.files?.length)};
+enroll.onclick=async()=>{const file=voice.files?.[0];if(!file||!ready)return;setStatus('Preparing private voice reference…');try{const data=await decodeAndResample(file,24000,12);const transferable=data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);makeWorker().postMessage({type:'enroll',audioData:transferable},[transferable]);}catch(e){setStatus(`Could not read reference: ${e.message||e}`)}};
+speak.onclick=()=>{const text=$('text').value.trim();if(!text||!enrolled)return; speak.disabled=true;setStatus('Generating Omoluabi Paul…');makeWorker().postMessage({type:'speak',text});setTimeout(()=>{if(enrolled)speak.disabled=false},900)};
+reset.onclick=()=>makeWorker().postMessage({type:'reset'});
+async function decodeAndResample(file,targetRate,maxSeconds){const raw=await file.arrayBuffer();const Ctx=window.AudioContext||window.webkitAudioContext;const ctx=new Ctx();const decoded=await ctx.decodeAudioData(raw.slice(0));await ctx.close();const input=decoded.getChannelData(0);const frames=Math.min(input.length,Math.floor(decoded.sampleRate*maxSeconds));const outputLength=Math.floor(frames*targetRate/decoded.sampleRate);const output=new Float32Array(outputLength);const ratio=decoded.sampleRate/targetRate;for(let i=0;i<outputLength;i++){const pos=i*ratio;const a=Math.floor(pos),b=Math.min(frames-1,a+1),t=pos-a;output[i]=input[a]*(1-t)+input[b]*t;}return output;}
+function wavBlob(samples,rate){const buffer=new ArrayBuffer(44+samples.length*2),view=new DataView(buffer);const write=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i))};write(0,'RIFF');view.setUint32(4,36+samples.length*2,true);write(8,'WAVE');write(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,rate,true);view.setUint32(28,rate*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);write(36,'data');view.setUint32(40,samples.length*2,true);let o=44;for(const sample of samples){const s=Math.max(-1,Math.min(1,sample));view.setInt16(o,s<0?s*0x8000:s*0x7fff,true);o+=2;}return new Blob([buffer],{type:'audio/wav'});}
+</script>
+</body>
+</html>
