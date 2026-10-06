@@ -42,9 +42,18 @@ const nbest = chooseAtlasSpeechAlternative([
 assert.equal(nbest.transcript, 'tune to Premier FM');
 
 const voiceEngine = fs.readFileSync('lib/voice-command-engine.ts', 'utf8');
+const speechResolver = fs.readFileSync('app/api/atlas-speech/resolve/route.ts', 'utf8');
 assert.match(voiceEngine, /Math\.max\(5/);
 assert.match(voiceEngine, /chooseAtlasSpeechAlternative/);
 assert.match(voiceEngine, /RADIO_PRONUNCIATION_RULES/);
+assert.match(voiceEngine, /resolveAgainstAtlasDirectory/);
+assert.match(voiceEngine, /\/api\/atlas-speech\/resolve/);
+assert.match(speechResolver, /fetchStations/);
+assert.match(speechResolver, /editSimilarity/);
+assert.match(speechResolver, /tokenScore/);
+assert.match(speechResolver, /canonicalCommand/);
+assert.match(speechResolver, /alternatives.*slice\(0, 5\)/s);
+assert.doesNotMatch(speechResolver, /API_KEY|Authorization:/);
 
 const station = { name: 'Signal FM', country: 'Nigeria', country_code: 'NG', city: 'Lagos', state: '', language: 'English', tags: ['afrobeats', 'music'], codec: 'MP3', bitrate: 128 };
 const another = answerAtlasQuestion('another one', { station, history: [{ role: 'user', text: 'play Afrobeats from Lagos' }, { role: 'atlas', text: 'Tuning in.' }] });
@@ -72,4 +81,4 @@ assert.match(pidgin.answer, /Make I|Oya|dey|don/i);
 const guarded = answerAtlasIntelligently('Why did you pick this station?', { station });
 assert.match(guarded.answer, /verified Atlas metadata|don’t have enough verified metadata/i);
 
-console.log('Atlas conversation intelligence v4: free keyless tuning, N-best pronunciation recovery, context, Pidgin and verified-data guardrails passed.');
+console.log('Atlas conversation intelligence v5: free keyless dynamic station-directory pronunciation recovery, context, Pidgin and verified-data guardrails passed.');
