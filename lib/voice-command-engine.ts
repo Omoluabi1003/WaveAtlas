@@ -38,8 +38,8 @@ const LEADING_POLITE_WORDS = /^(please\s+|hey\s+waveatlas\s+|waveatlas\s+)/i;
 const STATION_COMMAND = /\b(?:play|tune|listen|switch|change|station|radio|fm|am|frequency)\b/i;
 const ATLAS_COMMAND = /\b(?:atlas|waveatlas|map|globe|teleport|wander|volume|pause|resume|brief)\b/i;
 
-// Speech engines often return ordinary words for radio names. Keep this list deliberately
-// small and domain-specific. It repairs recognition, not user language.
+// Fast local repairs handle common radio pronunciations. The dynamic resolver below
+// then compares the recognizer's N-best hypotheses with WaveAtlas's live directory.
 const RADIO_PRONUNCIATION_RULES: Array<[RegExp, string]> = [
   [/\bwave\s+at\s+last\b/gi, 'WaveAtlas'],
   [/\bwave\s+atlas\b/gi, 'WaveAtlas'],
@@ -80,6 +80,29 @@ export function chooseAtlasSpeechAlternative(alternatives: BrowserSpeechAlternat
   return usable
     .map((alternative, index) => speechAlternativeScore(alternative, index))
     .sort((a, b) => b.score - a.score)[0];
+}
+
+async function resolveAgainstAtlasDirectory(alternatives: BrowserSpeechAlternative[]) {
+  const normalized = alternatives
+    .filter((item) => item?.transcript?.trim())
+    .slice(0, 5)
+    .map((item) => ({ transcript: normalizeAtlasSpeechTranscript(item.transcript), confidence: item.confidence }));
+  const localBest = chooseAtlasSpeechAlternative(normalized);
+  if (!normalized.length) return localBest;
+  try {
+    const response = await fetch('/api/atlas-speech/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alternatives: normalized }),
+    });
+    if (!response.ok) return localBest;
+    const data = await response.json() as { transcript?: string; confidence?: number };
+    return data.transcript?.trim()
+      ? { transcript: data.transcript.trim(), confidence: Number(data.confidence) || localBest.confidence }
+      : localBest;
+  } catch {
+    return localBest;
+  }
 }
 
 function titleCase(value: string) {
@@ -158,8 +181,6 @@ function enhancedRecognitionConstructor(NativeRecognition: BrowserSpeechRecognit
     set continuous(value: boolean) { this.native.continuous = value; }
     get maxAlternatives() { return this.native.maxAlternatives; }
     set maxAlternatives(value: number) {
-      // Atlas needs an N-best list. The caller may request one, but one hypothesis is
-      // not enough for proper nouns, accents, frequencies and radio call signs.
       this.native.maxAlternatives = Math.max(5, Number.isFinite(value) ? value : 1);
     }
     get onstart() { return this.native.onstart; }
@@ -171,7 +192,7 @@ function enhancedRecognitionConstructor(NativeRecognition: BrowserSpeechRecognit
     get onresult() { return this.resultHandler; }
     set onresult(value: ((event: BrowserSpeechEvent) => void) | null) {
       this.resultHandler = value;
-      this.native.onresult = value ? (event) => {
+      this.native.onresult = value ? async (event) => {
         const first = event.results?.[event.resultIndex ?? 0] ?? event.results?.[0];
         const alternatives: BrowserSpeechAlternative[] = [];
         if (first) {
@@ -180,7 +201,7 @@ function enhancedRecognitionConstructor(NativeRecognition: BrowserSpeechRecognit
             if (candidate?.transcript) alternatives.push(candidate);
           }
         }
-        const best = chooseAtlasSpeechAlternative(alternatives);
+        const best = await resolveAgainstAtlasDirectory(alternatives);
         if (!best.transcript) { value(event); return; }
         const result = Object.assign([{ transcript: best.transcript, confidence: best.confidence }], { isFinal: true });
         value({ resultIndex: 0, results: [result] });

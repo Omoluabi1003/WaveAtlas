@@ -26,7 +26,17 @@ assert.match(worker, /pocket-tts-js@0\.1\.0/);
 assert.match(worker, /maxThreads: 2/);
 assert.match(worker, /CANONICAL_REFERENCE = '\/api\/atlas-voice-reference'/);
 assert.match(worker, /repository-canonical/);
-assert.match(worker, /The repository recording is authoritative/);
+// Assert actual canonical-first behavior inside resolveReference, not comment text
+// or the order in which helper functions happen to be declared.
+const resolveStart = worker.indexOf('async function resolveReference()');
+const resolveEnd = worker.indexOf('async function createEngine()', resolveStart);
+const resolveReference = worker.slice(resolveStart, resolveEnd);
+assert.ok(resolveStart >= 0 && resolveEnd > resolveStart, 'resolveReference must exist');
+assert.match(resolveReference, /try \{ return await loadCanonicalReference\(\); \}/);
+assert.match(resolveReference, /const saved = await loadSavedReference\(\);/);
+assert.ok(resolveReference.indexOf('loadCanonicalReference()') < resolveReference.indexOf('loadSavedReference()'), 'canonical Omoluabi reference must be attempted before browser enrollment fallback');
+assert.match(worker, /voiceCloning: true/);
+assert.match(worker, /cache: true/);
 
 // Avoid Safari's null/default-voice edge case by guaranteeing a concrete iOS
 // fallback whenever the browser exposes at least one voice.
