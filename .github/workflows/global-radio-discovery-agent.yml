@@ -44,7 +44,20 @@ jobs:
       - run: npm run test:agents
       - run: npm run test:operations
       - run: npm run test:brief
-      - run: npm run test:media-session
+      - name: Media · playback session
+        run: node --import tsx tests/playback-media-session.regression.ts
+      - name: Media · Atlas voice runtime
+        run: node --import tsx tests/atlas-voice-runtime.regression.ts
+      - name: Media · Atlas Signal
+        run: node --import tsx tests/atlas-signal-voice-mode.regression.ts
+      - name: Media · Atlas conversation intelligence
+        run: node --import tsx tests/atlas-conversation-intelligence.regression.ts
+      - name: Media · Atlas action outcomes
+        run: node --import tsx tests/atlas-action-outcomes.regression.ts
+      - name: Media · dormant voice gallery safety
+        run: node --import tsx tests/atlas-voice-gallery.regression.ts
+      - name: Media · personal voice engine v2
+        run: node --import tsx tests/atlas-personal-voice-v2.regression.ts
       - run: npm run test:button-feedback
       - run: npm run radio:validate
       - run: npm run typecheck
