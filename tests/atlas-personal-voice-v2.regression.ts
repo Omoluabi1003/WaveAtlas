@@ -27,10 +27,11 @@ assert.doesNotMatch(retired, /chatterbox-ONNX/);
 
 assert.match(pocketWorker, /clone-voice@0\.2\.2/);
 assert.match(pocketWorker, /dedicated worker/i);
-assert.match(productionWorker, /pocket-tts-js@0\.1\.0/);
+assert.match(productionWorker, /vendor\/pocket-tts-js\/index\.js/);
 assert.match(productionWorker, /Omoluabi Paul/);
-assert.match(productionWorker, /CANONICAL_REFERENCE = '\/api\/atlas-voice-reference'/);
-assert.match(productionWorker, /mpg123-decoder@1\.0\.3/);
+assert.match(productionWorker, /loadCanonicalReference/);
+assert.match(productionWorker, /omoluabi-voice-reference\.wav/);
+assert.doesNotMatch(productionWorker, /mpg123-decoder/);
 assert.match(productionWorker, /repository-canonical/);
 assert.match(productionWorker, /cloneVoice/);
 assert.match(productionWorker, /cache: true/);

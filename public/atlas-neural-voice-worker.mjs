@@ -1,67 +1,12 @@
 let ttsPromise = null;
+let activeEngine = null;
+let generation = 0;
+let synthesisQueue = Promise.resolve();
+const speechCache = new Map();
 let clonedVoice = null;
 let engine = 'pocket-tts';
 let voiceSource = 'none';
-const DB_NAME = 'waveatlas-atlas-voice-v1';
-const STORE = 'references';
-const VOICE_KEY = 'omoluabi-paul';
-const CANONICAL_REFERENCE = '/api/atlas-voice-reference';
 const TARGET_RATE = 24000;
-const REFERENCE_SECONDS = 10;
-
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error('Voice storage unavailable'));
-  });
-}
-
-async function loadSavedReference() {
-  try {
-    const db = await openDb();
-    try {
-      return await new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, 'readonly');
-        const request = tx.objectStore(STORE).get(VOICE_KEY);
-        request.onsuccess = () => resolve(request.result || null);
-        request.onerror = () => reject(request.error || new Error('Could not read enrolled voice'));
-      });
-    } finally { db.close(); }
-  } catch { return null; }
-}
-
-function monoFromChannels(channelData, maxSamples) {
-  const channels = channelData.filter((channel) => channel instanceof Float32Array && channel.length);
-  if (!channels.length) throw new Error('Omoluabi Paul reference decoded without audio');
-  const length = Math.min(maxSamples, ...channels.map((channel) => channel.length));
-  const mono = new Float32Array(length);
-  for (let i = 0; i < length; i++) {
-    let sum = 0;
-    for (const channel of channels) sum += channel[i] || 0;
-    mono[i] = sum / channels.length;
-  }
-  return mono;
-}
-
-function resampleLinear(input, fromRate, toRate) {
-  if (fromRate === toRate) return input;
-  const outputLength = Math.max(1, Math.floor(input.length * toRate / fromRate));
-  const output = new Float32Array(outputLength);
-  const ratio = fromRate / toRate;
-  for (let i = 0; i < outputLength; i++) {
-    const position = i * ratio;
-    const left = Math.floor(position);
-    const right = Math.min(input.length - 1, left + 1);
-    const mix = position - left;
-    output[i] = input[left] * (1 - mix) + input[right] * mix;
-  }
-  return output;
-}
 
 function normalizeReference(input) {
   let mean = 0;
@@ -80,41 +25,22 @@ function normalizeReference(input) {
 }
 
 async function loadCanonicalReference() {
-  const response = await fetch(CANONICAL_REFERENCE, { cache: 'force-cache' });
-  if (!response.ok) throw new Error(`Canonical Omoluabi Paul reference failed (${response.status})`);
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength < 4096) throw new Error('Canonical Omoluabi Paul reference is incomplete');
-  const { MPEGDecoder } = await import('https://cdn.jsdelivr.net/npm/mpg123-decoder@1.0.3/+esm');
-  const decoder = new MPEGDecoder();
-  try {
-    await decoder.ready;
-    const decoded = decoder.decode(bytes);
-    const sampleRate = Number(decoded.sampleRate) || 48000;
-    const mono = monoFromChannels(decoded.channelData || [], Math.floor(sampleRate * REFERENCE_SECONDS));
-    const pcm = normalizeReference(resampleLinear(mono, sampleRate, TARGET_RATE));
-    return { pcm, sampleRate: TARGET_RATE, source: 'repository-canonical' };
-  } finally { decoder.free(); }
+  const response = await fetch('/omoluabi-voice-reference.wav', { cache: 'force-cache' });
+  if (!response.ok) throw new Error(`Omoluabi reference failed (${response.status})`);
+  const { decodeReferenceWav } = await import('./atlas-reference-audio.mjs');
+  const reference = decodeReferenceWav(await response.arrayBuffer());
+  return { pcm: normalizeReference(reference.pcm), sampleRate: reference.sampleRate, source: 'repository-canonical' };
 }
 
-async function resolveReference() {
-  try { return await loadCanonicalReference(); }
-  catch (canonicalError) {
-    const saved = await loadSavedReference();
-    if (saved?.pcm) {
-      const pcm = saved.pcm instanceof Float32Array ? saved.pcm : new Float32Array(saved.pcm);
-      return { pcm, sampleRate: Number(saved.sampleRate) || TARGET_RATE, source: 'browser-enrollment' };
-    }
-    throw canonicalError;
-  }
-}
 
 async function createEngine() {
   // Pocket TTS runs entirely in this browser worker. It uses no WaveAtlas API key,
   // account, paid inference endpoint, or per-utterance service.
-  const { PocketTTS } = await import('https://cdn.jsdelivr.net/npm/pocket-tts-js@0.1.0/+esm');
+  const { PocketTTS } = await import('./vendor/pocket-tts-js/index.js');
   const tts = new PocketTTS({ language: 'english_2026-04', quantized: true, voiceCloning: true, maxThreads: 2, cache: true });
-  await tts.load();
-  const reference = await resolveReference();
+  activeEngine = tts;
+  await tts.load((progress) => self.postMessage({ type: 'progress', label: progress.label || progress.status || 'Preparing Omoluabi voice', loaded: progress.loaded, total: progress.total }));
+  const reference = await loadCanonicalReference();
   clonedVoice = await tts.cloneVoice(reference.pcm, { inputSampleRate: reference.sampleRate, name: 'Omoluabi Paul' });
   voiceSource = reference.source;
   engine = 'pocket-tts-omoluabi-paul';
@@ -141,29 +67,41 @@ function wavBuffer(chunks, sampleRate) {
 
 self.onmessage = async (event) => {
   const { type, id, text } = event.data || {};
+  if (type === 'cancel') { generation += 1; void activeEngine?.stop().catch(() => {}); return; }
   if (type === 'warm') {
-    // Tell Atlas to keep the Omoluabi path selected while the cached local model warms.
-    // This prevents a normal first-load warmup from being mistaken for an unavailable
-    // voice and immediately replaced by a generic system speaker.
+    // Readiness is announced only after loading and cloning the repository voice.
     self.postMessage({ type: 'loading', engine: 'pocket-tts-omoluabi-paul-warming', voice: 'Omoluabi Paul', voiceSource: 'repository-canonical' });
     getEngine().then((tts) => {
       self.postMessage({ type: 'ready', engine, voice: 'Omoluabi Paul', voiceSource, sampleRate: tts.sampleRate });
     }).catch((error) => {
-      ttsPromise = null; clonedVoice = null; voiceSource = 'none';
+      activeEngine?.destroy(); activeEngine = null; ttsPromise = null; clonedVoice = null; voiceSource = 'none';
       self.postMessage({ type: 'unavailable', message: error instanceof Error ? error.message : 'Omoluabi Paul unavailable' });
     });
     return;
   }
   if (type !== 'speak' || !id || typeof text !== 'string' || !text.trim()) return;
+  const requestGeneration = generation;
+  const previous = synthesisQueue;
+  let release;
+  synthesisQueue = new Promise((resolve) => { release = resolve; });
+  await previous;
   try {
+    if (requestGeneration !== generation) return;
     const tts = await getEngine();
+    if (requestGeneration !== generation) return;
     if (!clonedVoice) throw new Error('Omoluabi Paul is not ready');
+    const key = text.trim();
+    const cached = speechCache.get(key);
+    if (cached) { const buffer = cached.slice(0); self.postMessage({ type: 'audio', id, buffer, mime: 'audio/wav', engine, voiceSource }, [buffer]); return; }
     const chunks = [];
     await tts.generate(text.trim(), { voice: clonedVoice, onChunk: (audio) => chunks.push(new Float32Array(audio)) });
+    if (requestGeneration !== generation) return;
     if (!chunks.length) throw new Error('Omoluabi Paul produced no audio');
     const buffer = wavBuffer(chunks, Number(tts.sampleRate) || TARGET_RATE);
+    speechCache.set(key, buffer.slice(0));
+    if (speechCache.size > 8) speechCache.delete(speechCache.keys().next().value);
     self.postMessage({ type: 'audio', id, buffer, mime: 'audio/wav', engine, voiceSource }, [buffer]);
   } catch (error) {
     self.postMessage({ type: 'error', id, message: error instanceof Error ? error.message : 'Omoluabi Paul generation failed' });
-  }
+  } finally { release(); }
 };
