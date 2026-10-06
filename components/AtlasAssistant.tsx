@@ -116,15 +116,11 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       if (!target) return;
       const label = `${target.getAttribute('aria-label') || ''} ${target.getAttribute('title') || ''}`;
       if (!/push to talk voice command|push to talk|microphone blocked/i.test(label)) return;
-      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-      activateRef.current();
+      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); activateRef.current();
     };
     window.addEventListener('waveatlas:open-atlas-voice', openAtlas);
     document.addEventListener('click', interceptExistingVoiceButton, true);
-    return () => {
-      window.removeEventListener('waveatlas:open-atlas-voice', openAtlas);
-      document.removeEventListener('click', interceptExistingVoiceButton, true);
-    };
+    return () => { window.removeEventListener('waveatlas:open-atlas-voice', openAtlas); document.removeEventListener('click', interceptExistingVoiceButton, true); };
   }, []);
   useEffect(() => () => {
     recognitionRef.current?.abort();
@@ -132,108 +128,41 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     if (meterFrameRef.current) window.cancelAnimationFrame(meterFrameRef.current);
     if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
     try { voiceSourceRef.current?.stop(); } catch { /* Already stopped. */ }
-    void voiceContextRef.current?.close();
-    neuralWorkerRef.current?.terminate();
+    void voiceContextRef.current?.close(); neuralWorkerRef.current?.terminate();
     neuralPendingRef.current.forEach(({ reject, timer }) => { window.clearTimeout(timer); reject(new Error('Atlas voice closed')); });
-    neuralPendingRef.current.clear();
-    restoreRadio();
+    neuralPendingRef.current.clear(); restoreRadio();
   }, []);
 
-  function sendPlayback(command: 'play' | 'pause' | 'volume' | 'duck' | 'restore', value?: number) {
-    window.dispatchEvent(new CustomEvent('waveatlas:assistant-playback', { detail: { command, ...(typeof value === 'number' ? { value } : {}) } }));
-  }
-  function focusRadio(level: number) {
-    radioDuckedRef.current = true;
-    sendPlayback('duck', playbackStatus === 'playing' ? level : Math.min(level, 0.20));
-  }
-  function restoreRadio() {
-    if (!radioDuckedRef.current) return;
-    radioDuckedRef.current = false;
-    sendPlayback('restore');
-  }
-  function stopRecognitionWatchdog() {
-    if (recognitionWatchdogRef.current) window.clearTimeout(recognitionWatchdogRef.current);
-    recognitionWatchdogRef.current = null;
-  }
-  function stopMeter() {
-    if (meterFrameRef.current) window.cancelAnimationFrame(meterFrameRef.current);
-    meterFrameRef.current = null; setSignalEnergy(0.18);
-  }
+  function sendPlayback(command: 'play' | 'pause' | 'volume' | 'duck' | 'restore', value?: number) { window.dispatchEvent(new CustomEvent('waveatlas:assistant-playback', { detail: { command, ...(typeof value === 'number' ? { value } : {}) } })); }
+  function focusRadio(level: number) { radioDuckedRef.current = true; sendPlayback('duck', playbackStatus === 'playing' ? level : Math.min(level, 0.20)); }
+  function restoreRadio() { if (!radioDuckedRef.current) return; radioDuckedRef.current = false; sendPlayback('restore'); }
+  function stopRecognitionWatchdog() { if (recognitionWatchdogRef.current) window.clearTimeout(recognitionWatchdogRef.current); recognitionWatchdogRef.current = null; }
+  function stopMeter() { if (meterFrameRef.current) window.cancelAnimationFrame(meterFrameRef.current); meterFrameRef.current = null; setSignalEnergy(0.18); }
   function getVoiceContext() {
     if (typeof window === 'undefined') return null;
     if (voiceContextRef.current && voiceContextRef.current.state !== 'closed') return voiceContextRef.current;
     const Context = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Context) return null;
-    voiceContextRef.current = new Context({ latencyHint: 'interactive' });
-    return voiceContextRef.current;
+    voiceContextRef.current = new Context({ latencyHint: 'interactive' }); return voiceContextRef.current;
   }
-  async function resumeVoiceContext() {
-    const context = getVoiceContext();
-    if (!context) return null;
-    if (context.state === 'suspended' || String(context.state) === 'interrupted') {
-      try { await context.resume(); } catch { return null; }
-    }
-    return context;
-  }
-  async function primeVoiceOutput() {
-    const context = await resumeVoiceContext();
-    if (!context) return false;
-    try {
-      const source = context.createBufferSource();
-      source.buffer = context.createBuffer(1, 1, context.sampleRate);
-      source.connect(context.destination); source.start(0); return true;
-    } catch { return false; }
-  }
-  function primeSystemSpeech() {
-    if (systemSpeechPrimedRef.current || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    try {
-      const synth = window.speechSynthesis; synth.cancel();
-      const unlock = new SpeechSynthesisUtterance(''); unlock.volume = 0; synth.speak(unlock);
-      systemSpeechPrimedRef.current = true;
-    } catch { systemSpeechPrimedRef.current = false; }
-  }
-  function stopVoiceOutput() {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-    try { voiceSourceRef.current?.stop(); } catch { /* Already stopped. */ }
-    voiceSourceRef.current = null; stopMeter(); setSpeaking(false);
-  }
-  async function prepareAudiblePlayback() {
-    const session = audioSession();
-    if (session) {
-      try { session.type = 'ambient'; await sleep(0); session.type = 'playback'; } catch { /* Keep normal output path. */ }
-    }
-    return resumeVoiceContext();
-  }
+  async function resumeVoiceContext() { const context = getVoiceContext(); if (!context) return null; if (context.state === 'suspended' || String(context.state) === 'interrupted') { try { await context.resume(); } catch { return null; } } return context; }
+  async function primeVoiceOutput() { const context = await resumeVoiceContext(); if (!context) return false; try { const source = context.createBufferSource(); source.buffer = context.createBuffer(1, 1, context.sampleRate); source.connect(context.destination); source.start(0); return true; } catch { return false; } }
+  function primeSystemSpeech() { if (systemSpeechPrimedRef.current || typeof window === 'undefined' || !('speechSynthesis' in window)) return; try { const synth = window.speechSynthesis; synth.cancel(); const unlock = new SpeechSynthesisUtterance(''); unlock.volume = 0; synth.speak(unlock); systemSpeechPrimedRef.current = true; } catch { systemSpeechPrimedRef.current = false; } }
+  function stopVoiceOutput() { if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel(); try { voiceSourceRef.current?.stop(); } catch { /* Already stopped. */ } voiceSourceRef.current = null; stopMeter(); setSpeaking(false); }
+  async function prepareAudiblePlayback() { const session = audioSession(); if (session) { try { session.type = 'ambient'; await sleep(0); session.type = 'playback'; } catch { /* Keep normal output path. */ } } return resumeVoiceContext(); }
   function meterAnalyser(analyser: AnalyserNode) {
-    stopMeter();
-    analyser.fftSize = 256;
-    const samples = new Uint8Array(analyser.fftSize);
-    const frame = () => {
-      analyser.getByteTimeDomainData(samples);
-      let sum = 0;
-      for (const sample of samples) { const normalized = (sample - 128) / 128; sum += normalized * normalized; }
-      const rms = Math.sqrt(sum / samples.length);
-      setSignalEnergy(Math.min(1, 0.16 + rms * 5.5));
-      meterFrameRef.current = window.requestAnimationFrame(frame);
-    };
+    stopMeter(); analyser.fftSize = 256; const samples = new Uint8Array(analyser.fftSize);
+    const frame = () => { analyser.getByteTimeDomainData(samples); let sum = 0; for (const sample of samples) { const normalized = (sample - 128) / 128; sum += normalized * normalized; } const rms = Math.sqrt(sum / samples.length); setSignalEnergy(Math.min(1, 0.16 + rms * 5.5)); meterFrameRef.current = window.requestAnimationFrame(frame); };
     frame();
   }
   async function playVoiceBuffer(buffer: ArrayBuffer) {
-    const context = await prepareAudiblePlayback();
-    if (!context) return false;
+    const context = await prepareAudiblePlayback(); if (!context) return false;
     try {
-      const decoded = await context.decodeAudioData(buffer.slice(0));
-      const source = context.createBufferSource();
-      const compressor = context.createDynamicsCompressor();
-      const gain = context.createGain();
-      const analyser = context.createAnalyser();
+      const decoded = await context.decodeAudioData(buffer.slice(0)); const source = context.createBufferSource(); const compressor = context.createDynamicsCompressor(); const gain = context.createGain(); const analyser = context.createAnalyser();
       gain.gain.value = 1.24; compressor.threshold.value = -10; compressor.knee.value = 16; compressor.ratio.value = 3;
       source.buffer = decoded; source.connect(compressor); compressor.connect(gain); gain.connect(analyser); analyser.connect(context.destination);
       voiceSourceRef.current = source; setSpeaking(true); setVoiceMessage('Speaking'); focusRadio(RADIO_FOCUS.speaking); meterAnalyser(analyser);
-      return await new Promise<boolean>((resolve) => {
-        source.onended = () => { if (voiceSourceRef.current === source) voiceSourceRef.current = null; stopMeter(); resolve(true); };
-        try { source.start(0); } catch { stopMeter(); resolve(false); }
-      });
+      return await new Promise<boolean>((resolve) => { source.onended = () => { if (voiceSourceRef.current === source) voiceSourceRef.current = null; stopMeter(); resolve(true); }; try { source.start(0); } catch { stopMeter(); resolve(false); } });
     } catch { stopMeter(); return false; }
   }
 
@@ -243,153 +172,77 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     setNeuralState('loading'); neuralStateRef.current = 'loading';
     try {
       const worker = new Worker('/atlas-neural-voice-worker.mjs', { type: 'module' }); neuralWorkerRef.current = worker;
-      worker.onmessage = (event: MessageEvent<NeuralMessage>) => {
-        const message = event.data;
-        if (message.type === 'ready') { setNeuralState('ready'); neuralStateRef.current = 'ready'; return; }
-        if (message.type === 'unavailable') { setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; return; }
-        if (!message.id) return;
-        const pending = neuralPendingRef.current.get(message.id); if (!pending) return;
-        window.clearTimeout(pending.timer); neuralPendingRef.current.delete(message.id);
-        if (message.type === 'audio') pending.resolve(message); else pending.reject(new Error(message.message || 'Neural voice unavailable'));
-      };
-      worker.onerror = () => { setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; };
-      worker.postMessage({ type: 'warm' });
+      worker.onmessage = (event: MessageEvent<NeuralMessage>) => { const message = event.data; if (message.type === 'ready') { setNeuralState('ready'); neuralStateRef.current = 'ready'; return; } if (message.type === 'unavailable') { setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; return; } if (!message.id) return; const pending = neuralPendingRef.current.get(message.id); if (!pending) return; window.clearTimeout(pending.timer); neuralPendingRef.current.delete(message.id); if (message.type === 'audio') pending.resolve(message); else pending.reject(new Error(message.message || 'Neural voice unavailable')); };
+      worker.onerror = () => { setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; }; worker.postMessage({ type: 'warm' });
     } catch { setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; }
   }
   async function waitForNeuralVoice() {
-    const initial = neuralStateRef.current;
-    if (initial === 'ready') return true;
-    if (initial !== 'loading') return false;
+    const initial = neuralStateRef.current as NeuralVoiceState; if (initial === 'ready') return true; if (initial !== 'loading') return false;
     const started = Date.now();
-    while (Date.now() - started < 4500) {
-      await sleep(180);
-      if (neuralStateRef.current === 'ready') return true;
-      if (neuralStateRef.current === 'unavailable') return false;
-    }
+    while (Date.now() - started < 4500) { await sleep(180); const current = neuralStateRef.current as NeuralVoiceState; if (current === 'ready') return true; if (current === 'unavailable') return false; }
     return false;
   }
   async function speakNeural(text: string) {
-    const worker = neuralWorkerRef.current;
-    if (!worker || neuralStateRef.current !== 'ready') return false;
-    const id = `atlas-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    try {
-      const message = await new Promise<NeuralMessage>((resolve, reject) => {
-        const timer = window.setTimeout(() => { neuralPendingRef.current.delete(id); reject(new Error('Neural voice timeout')); }, 20000);
-        neuralPendingRef.current.set(id, { resolve, reject, timer }); worker.postMessage({ type: 'speak', id, text });
-      });
-      return message.buffer ? playVoiceBuffer(message.buffer) : false;
-    } catch { return false; }
+    const worker = neuralWorkerRef.current; if (!worker || neuralStateRef.current !== 'ready') return false; const id = `atlas-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    try { const message = await new Promise<NeuralMessage>((resolve, reject) => { const timer = window.setTimeout(() => { neuralPendingRef.current.delete(id); reject(new Error('Neural voice timeout')); }, 20000); neuralPendingRef.current.set(id, { resolve, reject, timer }); worker.postMessage({ type: 'speak', id, text }); }); return message.buffer ? playVoiceBuffer(message.buffer) : false; } catch { return false; }
   }
   function speakSystem(text: string) {
     return new Promise<boolean>((resolve) => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) { resolve(false); return; }
-      void prepareAudiblePlayback();
-      const synth = window.speechSynthesis; synth.cancel(); synth.resume();
-      const utterance = new SpeechSynthesisUtterance(text);
-      const language = navigator.language || 'en-US'; const voice = bestSystemVoice(language);
+      void prepareAudiblePlayback(); const synth = window.speechSynthesis; synth.cancel(); synth.resume(); const utterance = new SpeechSynthesisUtterance(text); const language = navigator.language || 'en-US'; const voice = bestSystemVoice(language);
       if (voice) { utterance.voice = voice; utterance.lang = voice.lang; } else utterance.lang = language;
-      utterance.rate = 0.96; utterance.pitch = 1; utterance.volume = 1;
-      let settled = false; let started = false;
-      const finish = (ok: boolean) => { if (settled) return; settled = true; resolve(ok); };
-      const guard = window.setTimeout(() => { if (!started) { synth.cancel(); finish(false); } }, 3000);
+      utterance.rate = 0.96; utterance.pitch = 1; utterance.volume = 1; let settled = false; let started = false;
+      const finish = (ok: boolean) => { if (settled) return; settled = true; resolve(ok); }; const guard = window.setTimeout(() => { if (!started) { synth.cancel(); finish(false); } }, 3000);
       utterance.onstart = () => { started = true; window.clearTimeout(guard); setSpeaking(true); setSignalEnergy(0.48); setVoiceMessage('Speaking'); focusRadio(RADIO_FOCUS.speaking); };
-      utterance.onend = () => { window.clearTimeout(guard); setSpeaking(false); setSignalEnergy(0.18); finish(true); };
-      utterance.onerror = () => { window.clearTimeout(guard); setSpeaking(false); setSignalEnergy(0.18); finish(false); };
-      synth.speak(utterance);
+      utterance.onend = () => { window.clearTimeout(guard); setSpeaking(false); setSignalEnergy(0.18); finish(true); }; utterance.onerror = () => { window.clearTimeout(guard); setSpeaking(false); setSignalEnergy(0.18); finish(false); }; synth.speak(utterance);
     });
   }
   async function speak(text: string) {
     if (!voiceEnabledRef.current) { restoreRadio(); return; }
     recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); focusRadio(RADIO_FOCUS.speaking);
-    let spoken = false;
-    if (isIOSFamily()) spoken = await speakSystem(text);
-    else { if (await waitForNeuralVoice()) spoken = await speakNeural(text); if (!spoken) spoken = await speakSystem(text); }
-    setSpeaking(false);
-    if (!spoken) setVoiceMessage('Voice output needs another tap');
-    if (conversationModeRef.current && openRef.current && spoken) {
-      setVoiceMessage('Listening'); setAudioSession('play-and-record'); focusRadio(RADIO_FOCUS.listening);
-      window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 650 : 350);
-    } else { setAudioSession('playback'); restoreRadio(); }
+    let spoken = false; if (isIOSFamily()) spoken = await speakSystem(text); else { if (await waitForNeuralVoice()) spoken = await speakNeural(text); if (!spoken) spoken = await speakSystem(text); }
+    setSpeaking(false); if (!spoken) setVoiceMessage('Voice output needs another tap');
+    if (conversationModeRef.current && openRef.current && spoken) { setVoiceMessage('Listening'); setAudioSession('play-and-record'); focusRadio(RADIO_FOCUS.listening); window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 650 : 350); }
+    else { setAudioSession('playback'); restoreRadio(); }
   }
-  function endConversation() {
-    conversationModeRef.current = false; setConversationMode(false);
-    recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); stopVoiceOutput();
-    setListening(false); setAudioSession('playback'); restoreRadio(); openRef.current = false; setOpen(false); setTextMode(false);
-  }
+  function endConversation() { conversationModeRef.current = false; setConversationMode(false); recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); stopVoiceOutput(); setListening(false); setAudioSession('playback'); restoreRadio(); openRef.current = false; setOpen(false); setTextMode(false); }
 
   async function ask(text: string) {
     const value = text.trim(); if (!value || busyRef.current) return;
-    setLines((old) => [...old, { role: 'user', text: value }]); setQuestion(''); setBusy(true); busyRef.current = true;
-    setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking);
+    setLines((old) => [...old, { role: 'user', text: value }]); setQuestion(''); setBusy(true); busyRef.current = true; setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking);
     try {
-      const response = await fetch('/api/atlas-assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: value, context: { station } }) });
-      const data = await response.json() as { answer?: string; action?: AtlasAssistantAction };
-      let answer = data.answer || 'I could not answer that from the Atlas yet.';
-      if (data.action) {
-        try { const handled = await onAction?.(data.action); if (handled === false) answer = `${answer} I could not complete that action.`; }
-        catch { answer = `${answer} I could not complete that action.`; }
-      } else if ((data as { action?: { type?: string; query?: string } }).action?.type === 'search') {
-        const query = (data as { action?: { query?: string } }).action?.query; if (query) onSearch?.(query);
-      }
-      setLines((old) => [...old, { role: 'atlas', text: answer }]);
-      if (voiceEnabledRef.current) void speak(answer); else restoreRadio();
-    } catch {
-      const answer = 'I lost the signal for a moment. Try that again.';
-      setLines((old) => [...old, { role: 'atlas', text: answer }]);
-      if (voiceEnabledRef.current) void speak(answer); else restoreRadio();
-    } finally { setBusy(false); busyRef.current = false; }
+      const response = await fetch('/api/atlas-assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: value, context: { station } }) }); const data = await response.json() as { answer?: string; action?: AtlasAssistantAction }; let answer = data.answer || 'I could not answer that from the Atlas yet.';
+      if (data.action) { try { const handled = await onAction?.(data.action); if (handled === false) answer = `${answer} I could not complete that action.`; } catch { answer = `${answer} I could not complete that action.`; } }
+      else if ((data as { action?: { type?: string; query?: string } }).action?.type === 'search') { const query = (data as { action?: { query?: string } }).action?.query; if (query) onSearch?.(query); }
+      setLines((old) => [...old, { role: 'atlas', text: answer }]); if (voiceEnabledRef.current) void speak(answer); else restoreRadio();
+    } catch { const answer = 'I lost the signal for a moment. Try that again.'; setLines((old) => [...old, { role: 'atlas', text: answer }]); if (voiceEnabledRef.current) void speak(answer); else restoreRadio(); }
+    finally { setBusy(false); busyRef.current = false; }
   }
   function submit(event: FormEvent) { event.preventDefault(); void ask(question); }
-
   async function listen(fromConversation = false) {
     if (listening) { recognitionRef.current?.stop(); return; }
     if (!fromConversation) { conversationModeRef.current = true; setConversationMode(true); }
-    stopVoiceOutput(); focusRadio(RADIO_FOCUS.listening); setAudioSession('play-and-record');
-    const Recognition = getSpeechRecognitionConstructor();
+    stopVoiceOutput(); focusRadio(RADIO_FOCUS.listening); setAudioSession('play-and-record'); const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition) { setVoiceMessage('Voice input is unavailable'); setTextMode(true); restoreRadio(); return; }
     setVoiceMessage('Listening');
     try {
-      await sleep(fromConversation ? 420 : 120);
-      if (!conversationModeRef.current || !openRef.current) return;
-      const recognition = new Recognition(); recognitionRef.current = recognition;
-      let receivedResult = false;
+      await sleep(fromConversation ? 420 : 120); if (!conversationModeRef.current || !openRef.current) return; const recognition = new Recognition(); recognitionRef.current = recognition; let receivedResult = false;
       recognition.lang = navigator.language || 'en-US'; recognition.interimResults = false; recognition.continuous = false; recognition.maxAlternatives = 1;
-      recognition.onstart = () => {
-        setListening(true); setVoiceMessage('Listening'); stopRecognitionWatchdog();
-        recognitionWatchdogRef.current = window.setTimeout(() => { recognition.abort(); recognitionRef.current = null; setListening(false); setVoiceMessage('Tap the signal to reconnect'); }, 12000);
-      };
-      recognition.onend = () => {
-        stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null;
-        if (!receivedResult && conversationModeRef.current && openRef.current) window.setTimeout(() => { if (conversationModeRef.current && openRef.current) void listen(true); }, 850);
-      };
-      recognition.onerror = (event) => {
-        stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null;
-        const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed';
-        if (denied) { setVoiceMessage('Microphone access is blocked'); setTextMode(true); restoreRadio(); }
-        else if (conversationModeRef.current && openRef.current) window.setTimeout(() => void listen(true), 950);
-      };
-      recognition.onresult = (event) => {
-        const text = event.results?.[0]?.[0]?.transcript?.trim(); if (!text) return;
-        receivedResult = true; stopRecognitionWatchdog(); setListening(false); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking);
-        recognition.abort(); recognitionRef.current = null; void ask(text);
-      };
-      recognition.start();
+      recognition.onstart = () => { setListening(true); setVoiceMessage('Listening'); stopRecognitionWatchdog(); recognitionWatchdogRef.current = window.setTimeout(() => { recognition.abort(); recognitionRef.current = null; setListening(false); setVoiceMessage('Tap the signal to reconnect'); }, 12000); };
+      recognition.onend = () => { stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; if (!receivedResult && conversationModeRef.current && openRef.current) window.setTimeout(() => { if (conversationModeRef.current && openRef.current) void listen(true); }, 850); };
+      recognition.onerror = (event) => { stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed'; if (denied) { setVoiceMessage('Microphone access is blocked'); setTextMode(true); restoreRadio(); } else if (conversationModeRef.current && openRef.current) window.setTimeout(() => void listen(true), 950); };
+      recognition.onresult = (event) => { const text = event.results?.[0]?.[0]?.transcript?.trim(); if (!text) return; receivedResult = true; stopRecognitionWatchdog(); setListening(false); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking); recognition.abort(); recognitionRef.current = null; void ask(text); }; recognition.start();
     } catch { setListening(false); recognitionRef.current = null; stopRecognitionWatchdog(); setVoiceMessage('Tap the signal to retry'); restoreRadio(); }
   }
   function activateAtlas() {
     primeSystemSpeech(); void primeVoiceOutput(); warmNeuralVoice();
-    if (!openRef.current) {
-      openRef.current = true; setOpen(true); setTextMode(false); setVoiceMessage('Listening'); focusRadio(RADIO_FOCUS.opening);
-      conversationModeRef.current = true; setConversationMode(true);
-      window.setTimeout(() => void listen(true), 60); return;
-    }
+    if (!openRef.current) { openRef.current = true; setOpen(true); setTextMode(false); setVoiceMessage('Listening'); focusRadio(RADIO_FOCUS.opening); conversationModeRef.current = true; setConversationMode(true); window.setTimeout(() => void listen(true), 60); return; }
     if (speaking) { stopVoiceOutput(); setVoiceMessage('Listening'); void listen(true); return; }
     if (conversationModeRef.current) endConversation(); else void listen();
   }
   activateRef.current = activateAtlas;
 
-  const stationLabel = station?.name || 'Current signal';
-  const signalState: SignalState = listening ? 'listening' : speaking ? 'speaking' : busy ? 'thinking' : 'live';
+  const stationLabel = station?.name || 'Current signal'; const signalState: SignalState = listening ? 'listening' : speaking ? 'speaking' : busy ? 'thinking' : 'live';
   if (!open) return null;
 
   return <>
@@ -412,14 +265,8 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     `}</style>
     {!textMode && <section role="dialog" aria-modal="true" aria-label="Atlas Voice" className="fixed inset-0 z-[260] flex flex-col items-center justify-center overflow-hidden bg-[#020713]/78 px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(78,199,194,.10),transparent_28%),radial-gradient(circle_at_58%_50%,rgba(212,166,74,.05),transparent_38%)]" />
-      <div className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] flex gap-2">
-        <button onClick={() => setTextMode(true)} aria-label="Open Atlas keyboard and transcript" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl"><Keyboard size={18}/></button>
-        <button onClick={endConversation} aria-label="Close Atlas Voice" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl"><X size={19}/></button>
-      </div>
-      <div className="relative flex flex-col items-center">
-        <AtlasSignal state={signalState} energy={signalEnergy} onPress={activateAtlas}/>
-        <div className="mt-8 text-center"><div className="text-[15px] font-semibold tracking-wide text-white">{voiceMessage}</div><div className="mt-2 max-w-[78vw] truncate text-xs text-slate-400">{stationLabel}{neuralState === 'loading' ? ' · voice warming' : ''}</div></div>
-      </div>
+      <div className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] flex gap-2"><button onClick={() => setTextMode(true)} aria-label="Open Atlas keyboard and transcript" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl"><Keyboard size={18}/></button><button onClick={endConversation} aria-label="Close Atlas Voice" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl"><X size={19}/></button></div>
+      <div className="relative flex flex-col items-center"><AtlasSignal state={signalState} energy={signalEnergy} onPress={activateAtlas}/><div className="mt-8 text-center"><div className="text-[15px] font-semibold tracking-wide text-white">{voiceMessage}</div><div className="mt-2 max-w-[78vw] truncate text-xs text-slate-400">{stationLabel}{neuralState === 'loading' ? ' · voice warming' : ''}</div></div></div>
       <div className="absolute bottom-[max(2rem,calc(env(safe-area-inset-bottom)+1rem))] text-center text-[11px] tracking-[.16em] text-slate-500">ATLAS VOICE</div>
     </section>}
     {textMode && <section role="dialog" aria-modal="true" aria-label="Atlas Assistant" className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[270] mx-auto flex max-h-[72dvh] max-w-md flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#050b19]/96 shadow-[0_30px_90px_rgba(0,0,0,.58)] backdrop-blur-2xl md:inset-x-auto md:bottom-20 md:right-5 md:w-[390px]">
