@@ -8,6 +8,7 @@ import { stationPath } from '@/lib/station-deep-link';
 import type { Station, StationInventoryStats } from '@/lib/stations';
 
 type Props = { stations: Station[]; inventoryStats: StationInventoryStats };
+type PlaybackContext = { current?: Station; status: string };
 
 function visibleButtonMatching(pattern: RegExp) {
   return Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find((button) => {
@@ -59,19 +60,27 @@ function sendPlaybackCommand(command: 'play' | 'pause' | 'volume', value?: numbe
 
 export default function WaveAtlasExperience(props: Props) {
   const [station, setStation] = useState<Station | null>(null);
+  const [playbackStatus, setPlaybackStatus] = useState('idle');
 
   useEffect(() => {
-    const handler = (event: Event) => {
+    const stationHandler = (event: Event) => {
       const detail = (event as CustomEvent<Station | null>).detail;
       if (detail?.name) setStation(detail);
     };
-    window.addEventListener('waveatlas:station-context', handler);
+    const playbackHandler = (event: Event) => {
+      const detail = (event as CustomEvent<PlaybackContext>).detail;
+      if (detail?.status) setPlaybackStatus(detail.status);
+      if (detail?.current?.name) setStation(detail.current);
+    };
+    window.addEventListener('waveatlas:station-context', stationHandler);
+    window.addEventListener('waveatlas:playback-context', playbackHandler);
     const request = () => window.dispatchEvent(new Event('waveatlas:request-station-context'));
     request();
     const retry = window.setTimeout(request, 350);
     return () => {
       window.clearTimeout(retry);
-      window.removeEventListener('waveatlas:station-context', handler);
+      window.removeEventListener('waveatlas:station-context', stationHandler);
+      window.removeEventListener('waveatlas:playback-context', playbackHandler);
     };
   }, []);
 
@@ -101,8 +110,7 @@ export default function WaveAtlasExperience(props: Props) {
     }
     if (action.type === 'open_brief') {
       window.dispatchEvent(new Event('waveatlas:open-mobile-brief'));
-      const button = visibleButtonMatching(/brief|news/i);
-      button?.click();
+      visibleButtonMatching(/brief|news/i)?.click();
       return true;
     }
     if (action.type === 'switch_view') {
@@ -114,5 +122,5 @@ export default function WaveAtlasExperience(props: Props) {
     return false;
   };
 
-  return <><WaveAtlasApp {...props}/><AtlasAssistant station={station} onSearch={search} onAction={executeAction}/></>;
+  return <><WaveAtlasApp {...props}/><AtlasAssistant station={station} playbackStatus={playbackStatus} onSearch={search} onAction={executeAction}/></>;
 }
