@@ -52,7 +52,7 @@ assert.match(speechResolver, /fetchStations/);
 assert.match(speechResolver, /editSimilarity/);
 assert.match(speechResolver, /tokenScore/);
 assert.match(speechResolver, /canonicalCommand/);
-assert.match(speechResolver, /alternatives.*slice\(0, 5\)/s);
+assert.match(speechResolver, /alternatives[\s\S]*slice\(0, 5\)/);
 assert.doesNotMatch(speechResolver, /API_KEY|Authorization:/);
 
 const station = { name: 'Signal FM', country: 'Nigeria', country_code: 'NG', city: 'Lagos', state: '', language: 'English', tags: ['afrobeats', 'music'], codec: 'MP3', bitrate: 128 };
