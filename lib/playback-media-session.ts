@@ -2,7 +2,7 @@ import type { Station } from './stations';
 import { WAVEATLAS_LOGO_URL } from './branding';
 
 export type MediaPlayerSnapshot = { current?: Station; status: string };
-type AtlasPlaybackCommand = { command?: 'play' | 'pause' };
+type AtlasPlaybackCommand = { command?: 'play' | 'pause' | 'volume'; value?: number };
 
 export function stationMediaMetadata(station: Station): MediaMetadataInit {
   const journey = station.sourceType === 'geoaudio' ? station.geoAudio : undefined;
@@ -27,7 +27,7 @@ export function bindPlaybackMediaSession(options: {
   session?: MediaSession;
   Metadata?: typeof MediaMetadata;
   document: Pick<Document, 'title' | 'addEventListener' | 'removeEventListener'>;
-  audio: Pick<HTMLAudioElement, 'addEventListener' | 'removeEventListener'>;
+  audio: Pick<HTMLAudioElement, 'addEventListener' | 'removeEventListener' | 'volume' | 'muted'>;
 }) {
   const { session, Metadata, document: doc, audio } = options;
   const originalTitle = doc.title;
@@ -52,9 +52,14 @@ export function bindPlaybackMediaSession(options: {
 
   const onAtlasContextRequest = () => publishAtlasStationContext(options.read());
   const onAtlasPlaybackCommand = (event: Event) => {
-    const command = (event as CustomEvent<AtlasPlaybackCommand>).detail?.command;
-    if (command === 'pause') options.pause();
-    if (command === 'play') options.play();
+    const detail = (event as CustomEvent<AtlasPlaybackCommand>).detail;
+    if (detail?.command === 'pause') options.pause();
+    if (detail?.command === 'play') options.play();
+    if (detail?.command === 'volume' && typeof detail.value === 'number') {
+      const value = Math.min(1, Math.max(0, detail.value));
+      audio.volume = value;
+      audio.muted = value === 0;
+    }
   };
   if (typeof window !== 'undefined') {
     window.addEventListener('waveatlas:request-station-context', onAtlasContextRequest);
