@@ -9,7 +9,7 @@ assert.match(source, /RADIO_FOCUS = \{ opening: 0\.30, listening: 0\.18, thinkin
 assert.match(source, /aria-label="Atlas Voice"/, 'Atlas Voice must use a dedicated transient voice surface');
 assert.match(source, /meterAnalyser\(analyser/, 'Neural speech must drive Atlas Signal from real output amplitude');
 assert.match(source, /if \(isIOSFamily\(\)\) spoken = await speakSystem/, 'iOS must retain the reliable gesture-unlocked system speech path');
-assert.doesNotMatch(source, /fixed bottom-\[13\.1rem\].*Talk to Atlas/s, 'The old permanent floating orb must not return');
+assert.doesNotMatch(source, /fixed bottom-\[13\.1rem\][\s\S]*Talk to Atlas/, 'The old permanent floating orb must not return');
 assert.match(source, /if \(speaking\) \{ stopVoiceOutput\(\); setVoiceMessage\('Listening'\); void listen\(true\); return; \}/, 'Pressing the Signal while Atlas speaks must interrupt and return to listening');
 
 console.log('Atlas Signal: transient voice mode, Smart Duck, audio-reactive speech, iOS fallback and interruption passed.');
