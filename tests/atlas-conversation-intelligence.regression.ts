@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { answerAtlasQuestion } from '../lib/atlas-assistant';
 import { answerAtlasIntelligently } from '../lib/atlas-intelligence';
+import { chooseAtlasSpeechAlternative, normalizeAtlasSpeechTranscript } from '../lib/voice-command-engine';
 
 const route = fs.readFileSync('app/api/atlas-assistant/route.ts', 'utf8');
 assert.doesNotMatch(route, /OPENROUTER_API_KEY/);
@@ -30,6 +31,21 @@ assert.equal(bareStation.action?.type, 'play');
 if (bareStation.action?.type !== 'play') throw new Error('Expected bare station identity to tune');
 assert.equal(bareStation.action.query, 'Premier FM 93.5 Ibadan');
 
+assert.equal(normalizeAtlasSpeechTranscript('tune to premium eff em'), 'tune to Premier FM');
+assert.equal(normalizeAtlasSpeechTranscript('play wasobia f m'), 'play Wazobia FM');
+assert.equal(normalizeAtlasSpeechTranscript('hey wave at last play ajidigbo'), 'hey WaveAtlas play Agidigbo');
+const nbest = chooseAtlasSpeechAlternative([
+  { transcript: 'tune to premium eff em', confidence: 0.78 },
+  { transcript: 'tune to premiere FM', confidence: 0.72 },
+  { transcript: 'turn to premium', confidence: 0.8 },
+]);
+assert.equal(nbest.transcript, 'tune to Premier FM');
+
+const voiceEngine = fs.readFileSync('lib/voice-command-engine.ts', 'utf8');
+assert.match(voiceEngine, /Math\.max\(5/);
+assert.match(voiceEngine, /chooseAtlasSpeechAlternative/);
+assert.match(voiceEngine, /RADIO_PRONUNCIATION_RULES/);
+
 const station = { name: 'Signal FM', country: 'Nigeria', country_code: 'NG', city: 'Lagos', state: '', language: 'English', tags: ['afrobeats', 'music'], codec: 'MP3', bitrate: 128 };
 const another = answerAtlasQuestion('another one', { station, history: [{ role: 'user', text: 'play Afrobeats from Lagos' }, { role: 'atlas', text: 'Tuning in.' }] });
 assert.equal(another.action?.type, 'play');
@@ -56,4 +72,4 @@ assert.match(pidgin.answer, /Make I|Oya|dey|don/i);
 const guarded = answerAtlasIntelligently('Why did you pick this station?', { station });
 assert.match(guarded.answer, /verified Atlas metadata|don’t have enough verified metadata/i);
 
-console.log('Atlas conversation intelligence v4: free keyless tuning, ASR tolerance, context, Pidgin and verified-data guardrails passed.');
+console.log('Atlas conversation intelligence v4: free keyless tuning, N-best pronunciation recovery, context, Pidgin and verified-data guardrails passed.');

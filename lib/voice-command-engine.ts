@@ -1,3 +1,7 @@
+export type BrowserSpeechAlternative = { transcript: string; confidence?: number };
+export type BrowserSpeechResult = ArrayLike<BrowserSpeechAlternative> & { isFinal?: boolean };
+export type BrowserSpeechEvent = { resultIndex: number; results: ArrayLike<BrowserSpeechResult> };
+
 export type BrowserSpeechRecognition = {
   lang: string;
   interimResults: boolean;
@@ -9,7 +13,7 @@ export type BrowserSpeechRecognition = {
   onstart: (() => void) | null;
   onend: (() => void) | null;
   onerror: ((event: { error?: string; message?: string }) => void) | null;
-  onresult: ((event: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal?: boolean }> }) => void) | null;
+  onresult: ((event: BrowserSpeechEvent) => void) | null;
 };
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
@@ -31,9 +35,51 @@ export type VoiceCommandParseResult = {
 };
 
 const LEADING_POLITE_WORDS = /^(please\s+|hey\s+waveatlas\s+|waveatlas\s+)/i;
+const STATION_COMMAND = /\b(?:play|tune|listen|switch|change|station|radio|fm|am|frequency)\b/i;
+const ATLAS_COMMAND = /\b(?:atlas|waveatlas|map|globe|teleport|wander|volume|pause|resume|brief)\b/i;
+
+// Speech engines often return ordinary words for radio names. Keep this list deliberately
+// small and domain-specific. It repairs recognition, not user language.
+const RADIO_PRONUNCIATION_RULES: Array<[RegExp, string]> = [
+  [/\bwave\s+at\s+last\b/gi, 'WaveAtlas'],
+  [/\bwave\s+atlas\b/gi, 'WaveAtlas'],
+  [/\b(?:premiere|premium|premier)\s+(?:f\s*m|eff\s*em)\b/gi, 'Premier FM'],
+  [/\b(?:wasobia|wazobia)\s+(?:f\s*m|eff\s*em)\b/gi, 'Wazobia FM'],
+  [/\b(?:agidi\s*gbo|ajidigbo|agidigbo)\b/gi, 'Agidigbo'],
+  [/\b(?:cool)\s+(?:f\s*m|eff\s*em)\b/gi, 'Cool FM'],
+  [/\b(?:f\s*m|eff\s*em)\b/gi, 'FM'],
+  [/\b(?:a\s*m|ay\s*em)\b/gi, 'AM'],
+];
 
 function cleanTranscript(transcript: string) {
   return transcript.trim().replace(/[.!?]+$/g, "").replace(LEADING_POLITE_WORDS, "").trim();
+}
+
+export function normalizeAtlasSpeechTranscript(transcript: string) {
+  let value = cleanTranscript(transcript).normalize('NFKC');
+  for (const [pattern, replacement] of RADIO_PRONUNCIATION_RULES) value = value.replace(pattern, replacement);
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function speechAlternativeScore(alternative: BrowserSpeechAlternative, index: number) {
+  const raw = alternative.transcript?.trim() || '';
+  const normalized = normalizeAtlasSpeechTranscript(raw);
+  const confidence = Number.isFinite(alternative.confidence) ? Number(alternative.confidence) : Math.max(0, 0.62 - index * 0.05);
+  let score = confidence * 100 - index * 2;
+  if (STATION_COMMAND.test(normalized)) score += 18;
+  if (ATLAS_COMMAND.test(normalized)) score += 10;
+  if (/\b[A-Z][A-Za-z0-9'’-]*(?:\s+[A-Z][A-Za-z0-9'’-]*)*\s+(?:FM|AM)\b/.test(normalized)) score += 22;
+  if (normalized !== cleanTranscript(raw)) score += 16;
+  if (/\b(?:Premier|Wazobia|Agidigbo|Cool)\b/i.test(normalized)) score += 14;
+  return { transcript: normalized || raw, confidence, score };
+}
+
+export function chooseAtlasSpeechAlternative(alternatives: BrowserSpeechAlternative[]) {
+  const usable = alternatives.filter((item) => item?.transcript?.trim());
+  if (!usable.length) return { transcript: '', confidence: 0 };
+  return usable
+    .map((alternative, index) => speechAlternativeScore(alternative, index))
+    .sort((a, b) => b.score - a.score)[0];
 }
 
 function titleCase(value: string) {
@@ -61,7 +107,7 @@ function parseVolume(lower: string) {
 }
 
 export function parseVoiceCommand(transcript: string): VoiceCommandParseResult {
-  const normalized = cleanTranscript(transcript);
+  const normalized = normalizeAtlasSpeechTranscript(transcript);
   const lower = normalized.toLowerCase();
   if (!normalized) return { transcript, intent: null, feedback: "I did not catch a command." };
 
@@ -98,11 +144,60 @@ export function parseVoiceCommand(transcript: string): VoiceCommandParseResult {
   return { transcript: normalized, intent: { type: "search", query: normalized }, feedback: `Searching ${titleCase(normalized)}.` };
 }
 
+function enhancedRecognitionConstructor(NativeRecognition: BrowserSpeechRecognitionConstructor): BrowserSpeechRecognitionConstructor {
+  return class AtlasSpeechRecognition implements BrowserSpeechRecognition {
+    private native: BrowserSpeechRecognition;
+    private resultHandler: ((event: BrowserSpeechEvent) => void) | null = null;
+
+    constructor() { this.native = new NativeRecognition(); }
+    get lang() { return this.native.lang; }
+    set lang(value: string) { this.native.lang = value; }
+    get interimResults() { return this.native.interimResults; }
+    set interimResults(value: boolean) { this.native.interimResults = value; }
+    get continuous() { return this.native.continuous; }
+    set continuous(value: boolean) { this.native.continuous = value; }
+    get maxAlternatives() { return this.native.maxAlternatives; }
+    set maxAlternatives(value: number) {
+      // Atlas needs an N-best list. The caller may request one, but one hypothesis is
+      // not enough for proper nouns, accents, frequencies and radio call signs.
+      this.native.maxAlternatives = Math.max(5, Number.isFinite(value) ? value : 1);
+    }
+    get onstart() { return this.native.onstart; }
+    set onstart(value: (() => void) | null) { this.native.onstart = value; }
+    get onend() { return this.native.onend; }
+    set onend(value: (() => void) | null) { this.native.onend = value; }
+    get onerror() { return this.native.onerror; }
+    set onerror(value: ((event: { error?: string; message?: string }) => void) | null) { this.native.onerror = value; }
+    get onresult() { return this.resultHandler; }
+    set onresult(value: ((event: BrowserSpeechEvent) => void) | null) {
+      this.resultHandler = value;
+      this.native.onresult = value ? (event) => {
+        const first = event.results?.[event.resultIndex ?? 0] ?? event.results?.[0];
+        const alternatives: BrowserSpeechAlternative[] = [];
+        if (first) {
+          for (let index = 0; index < first.length; index += 1) {
+            const candidate = first[index];
+            if (candidate?.transcript) alternatives.push(candidate);
+          }
+        }
+        const best = chooseAtlasSpeechAlternative(alternatives);
+        if (!best.transcript) { value(event); return; }
+        const result = Object.assign([{ transcript: best.transcript, confidence: best.confidence }], { isFinal: true });
+        value({ resultIndex: 0, results: [result] });
+      } : null;
+    }
+    start() { this.native.start(); }
+    stop() { this.native.stop(); }
+    abort() { this.native.abort(); }
+  };
+}
+
 export function getSpeechRecognitionConstructor() {
   if (typeof window === "undefined") return null;
   const speechWindow = window as Window & {
     SpeechRecognition?: BrowserSpeechRecognitionConstructor;
     webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
   };
-  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+  const NativeRecognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+  return NativeRecognition ? enhancedRecognitionConstructor(NativeRecognition) : null;
 }
