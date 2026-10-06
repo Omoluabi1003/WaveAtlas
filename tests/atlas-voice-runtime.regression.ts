@@ -9,7 +9,7 @@ assert.match(source, /voiceContextRef\.current && voiceContextRef\.current\.stat
 assert.doesNotMatch(source, /voiceContextRef\.current\?\.state !== 'closed'/);
 
 // iOS/WebKit only removes its speech-start restriction when speak() is invoked
-// synchronously during a trusted user gesture. The orb must prime system speech
+// synchronously during a trusted user gesture. Atlas must prime system speech
 // before any async voice work begins.
 const activate = source.slice(source.indexOf('function activateAtlas()'), source.indexOf('const voiceActive'));
 assert.ok(activate.indexOf('primeSystemSpeech();') >= 0, 'Atlas activation must prime speech synthesis');
@@ -18,7 +18,9 @@ assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('warmNeura
 
 // Kokoro WASM is not a dependable iPhone path. iOS should use the already
 // gesture-unlocked system speech route rather than waiting on neural inference.
-assert.match(source, /if \(isIOSFamily\(\)\) \{\s*spoken = await speakSystem\(text\);/);
+// Accept either a braced or compact single-line branch so formatting changes do
+// not create a false regression failure while preserving the behavioral check.
+assert.match(source, /if \(isIOSFamily\(\)\)\s*(?:\{\s*)?spoken = await speakSystem\(text\);/);
 assert.match(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)\) \{\s*setNeuralState\('unavailable'\)/);
 
 // Avoid Safari's null/default-voice edge case by guaranteeing a concrete iOS
