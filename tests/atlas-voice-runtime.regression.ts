@@ -1,45 +1,30 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const source = readFileSync(new URL('../components/AtlasAssistant.tsx', import.meta.url), 'utf8');
-const worker = readFileSync(new URL('../public/atlas-neural-voice-worker.mjs', import.meta.url), 'utf8');
+const assistant = readFileSync('components/AtlasAssistant.tsx', 'utf8');
+const voice = readFileSync('lib/atlas-omoluabi-voice.ts', 'utf8');
+const pocket = readFileSync('lib/atlas-pocket-client.ts', 'utf8');
+const vendor = readFileSync('app/api/atlas-voice/vendor/[file]/route.ts', 'utf8');
 
-// Regression: optional chaining made `undefined !== "closed"` true, so the old
-// implementation returned null before ever constructing its first AudioContext.
-assert.match(source, /voiceContextRef\.current && voiceContextRef\.current\.state !== 'closed'/);
-assert.doesNotMatch(source, /voiceContextRef\.current\?\.state !== 'closed'/);
+assert.match(assistant, /nativeSpeechRecognitionConstructor/);
+assert.match(assistant, /recognition\.maxAlternatives = 5/);
+assert.match(assistant, /new Recognition\(\)/, 'Atlas must create a fresh recognizer for each turn');
+assert.match(assistant, /await voice\.speak\(text\)/);
+assert.doesNotMatch(assistant, /speechSynthesis|bestSystemVoice|speakSystem/, 'Atlas must not masquerade a generic system voice as Omoluabi Paul');
+assert.doesNotMatch(assistant, /atlas-neural-voice-worker\.mjs/, 'Fresh runtime must not use the old outer neural worker');
 
-// iOS/WebKit still needs system speech synchronously primed as the guaranteed
-// fallback before any async neural voice work begins.
-const activateStart = source.indexOf('function activateAtlas()');
-const activateEnd = source.indexOf('activateRef.current = activateAtlas;');
-const activate = source.slice(activateStart, activateEnd);
-assert.ok(activate.indexOf('primeSystemSpeech();') >= 0, 'Atlas activation must prime speech synthesis');
-assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('void primeVoiceOutput();'), 'speech synthesis must be primed before async Web Audio work');
-assert.ok(activate.indexOf('primeSystemSpeech();') < activate.indexOf('warmNeuralVoice();'), 'speech synthesis must be primed before worker startup');
+assert.match(pocket, /new Worker\('\/api\/atlas-voice\/vendor\/worker\.js'/);
+assert.match(pocket, /voiceCloning: true/);
+assert.match(pocket, /cacheName: 'waveatlas-omoluabi-pocket-tts-v2'/);
+assert.match(pocket, /cloneVoice/);
+assert.match(voice, /fetch\('\/api\/atlas-voice-reference'/);
+assert.match(voice, /decodeAudioData/);
+assert.match(voice, /state: 'ready'/);
+assert.match(voice, /playChunk/);
+assert.match(vendor, /7d7a27423b0845eb0425c81a8aa5ed3f3d973eef/);
+assert.match(vendor, /worker\.js/);
+assert.match(vendor, /tokenizer\.js/);
+assert.match(vendor, /binary\.js/);
+assert.doesNotMatch(vendor, /API_KEY|Authorization:/);
 
-// Voice Engine v4 attempts the canonical Omoluabi Paul recording first on all
-// capable devices, while system speech remains the guaranteed fallback.
-assert.match(source, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\); if \(!spoken\) spoken = await speakSystem\(text\);/);
-assert.doesNotMatch(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)/);
-assert.match(worker, /pocket-tts-js@0\.1\.0/);
-assert.match(worker, /maxThreads: 2/);
-assert.match(worker, /CANONICAL_REFERENCE = '\/api\/atlas-voice-reference'/);
-assert.match(worker, /repository-canonical/);
-// Assert actual canonical-first behavior inside resolveReference, not comment text
-// or the order in which helper functions happen to be declared.
-const resolveStart = worker.indexOf('async function resolveReference()');
-const resolveEnd = worker.indexOf('async function createEngine()', resolveStart);
-const resolveReference = worker.slice(resolveStart, resolveEnd);
-assert.ok(resolveStart >= 0 && resolveEnd > resolveStart, 'resolveReference must exist');
-assert.match(resolveReference, /try \{ return await loadCanonicalReference\(\); \}/);
-assert.match(resolveReference, /const saved = await loadSavedReference\(\);/);
-assert.ok(resolveReference.indexOf('loadCanonicalReference()') < resolveReference.indexOf('loadSavedReference()'), 'canonical Omoluabi reference must be attempted before browser enrollment fallback');
-assert.match(worker, /voiceCloning: true/);
-assert.match(worker, /cache: true/);
-
-// Avoid Safari's null/default-voice edge case by guaranteeing a concrete iOS
-// fallback whenever the browser exposes at least one voice.
-assert.match(source, /\?\? voices\.find\(\(voice\) => voice\.lang\.toLowerCase\(\)\.startsWith\('en'\)\)\s*\?\? voices\[0\]/);
-
-console.log('Atlas voice runtime v4: AudioContext creation, iOS gesture unlock, canonical Omoluabi Paul clone attempt and system fallback passed.');
+console.log('Atlas fresh voice runtime: one recognizer per turn, same-origin Pocket TTS worker, canonical Omoluabi clone and no fake system-voice identity passed.');
