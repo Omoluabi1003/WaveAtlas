@@ -4,6 +4,20 @@ export type PocketChunkMeta = { [key: string]: unknown };
 type Pending = { resolve: (value: any) => void; reject: (error: Error) => void };
 type WorkerMessage = PocketProgress & { type: string; id?: number; bundle?: { sampleRate?: number; predefinedVoices?: string[] }; audio?: Float32Array; meta?: PocketChunkMeta; result?: any; error?: string };
 
+function resampleLinear(data: Float32Array, sourceRate: number, targetRate: number) {
+  if (sourceRate === targetRate) return data;
+  const ratio = sourceRate / targetRate;
+  const out = new Float32Array(Math.max(1, Math.floor(data.length / ratio)));
+  for (let i = 0; i < out.length; i += 1) {
+    const source = i * ratio;
+    const left = Math.floor(source);
+    const right = Math.min(data.length - 1, left + 1);
+    const mix = source - left;
+    out[i] = data[left] * (1 - mix) + data[right] * mix;
+  }
+  return out;
+}
+
 export class AtlasPocketTTS {
   private worker: Worker | null = null;
   private nextId = 1;
@@ -16,9 +30,6 @@ export class AtlasPocketTTS {
 
   private ensureWorker() {
     if (this.worker) return;
-    // Pocket TTS's inference worker MUST be same-origin. The previous Atlas runtime
-    // imported the package from a CDN inside another worker, which could not satisfy
-    // the library's worker/bundler contract reliably on mobile browsers.
     this.worker = new Worker('/api/atlas-voice/vendor/worker.js', { type: 'module', name: 'atlas-omoluabi-tts' });
     this.worker.onmessage = (event: MessageEvent<WorkerMessage>) => this.handleMessage(event.data);
     this.worker.onerror = (event) => {
@@ -72,8 +83,11 @@ export class AtlasPocketTTS {
   }
 
   async cloneVoice(audio: Float32Array, inputSampleRate: number) {
-    const pcm = audio.slice();
-    const result = await this.request('cloneVoice', { audio: pcm.buffer, ref: 'omoluabi-paul-v2', inputSampleRate }, [pcm.buffer]);
+    let pcm = resampleLinear(audio, inputSampleRate, this.sampleRate);
+    const maxSamples = this.sampleRate * 10;
+    if (pcm.length > maxSamples) pcm = pcm.slice(0, maxSamples);
+    const transferable = pcm.slice();
+    const result = await this.request('cloneVoice', { audio: transferable, ref: 'omoluabi-paul-v2' }, [transferable.buffer]);
     return String(result?.ref || 'omoluabi-paul-v2');
   }
 
