@@ -1,7 +1,7 @@
 import type { Station } from '@/lib/stations';
 
 export type AtlasAssistantContext = {
-  station?: Pick<Station, 'name' | 'country' | 'country_code' | 'state' | 'language' | 'tags' | 'codec' | 'bitrate'> | null;
+  station?: Pick<Station, 'name' | 'country' | 'country_code' | 'city' | 'state' | 'language' | 'tags' | 'codec' | 'bitrate'> | null;
 };
 
 export type AtlasAssistantAction =
@@ -71,9 +71,11 @@ export function answerAtlasQuestion(question: string, context: AtlasAssistantCon
   const station = context.station;
   const name = clean(station?.name) || 'this station';
   const country = clean(station?.country);
+  const city = clean(station?.city);
   const region = clean(station?.state);
   const language = clean(station?.language);
   const tags = cleanTags(station?.tags);
+  const place = [city || region, country].filter(Boolean).join(', ');
 
   if (!q) return reply('Ask me about this signal, or tell me where you want to go.');
   const command = commandReply(q, lower);
@@ -81,11 +83,9 @@ export function answerAtlasQuestion(question: string, context: AtlasAssistantCon
   if (!station) return reply('Choose a signal first, or tell me what to play. Try “play jazz in Lagos,” “take me to Congo,” or “surprise me.”');
 
   if (/what.*listening|what station|which station|who.*listening/.test(lower)) {
-    const place = [region, country].filter(Boolean).join(', ');
     return reply(`You’re listening to ${name}${place ? ` from ${place}` : ''}${language ? `. It is tagged for ${language}` : ''}.`);
   }
   if (/where|country|city|location|from/.test(lower)) {
-    const place = [region, country].filter(Boolean).join(', ');
     return reply(place ? `${name} is associated with ${place}.` : `I don’t yet have a verified location for ${name}.`);
   }
   if (/language|speaking|speak/.test(lower)) {
@@ -103,5 +103,5 @@ export function answerAtlasQuestion(question: string, context: AtlasAssistantCon
     return reply('I’ll find another signal with a similar feel.', { type: 'play', query: query || undefined });
   }
 
-  return reply(`You’re with ${name}${country ? ` in ${country}` : ''}. Ask me about this signal, say “play another station,” “take me to Accra,” “open the map,” “pause,” or “surprise me.”`);
+  return reply(`You’re with ${name}${place ? ` in ${place}` : ''}. Ask me about this signal, say “play another station,” “take me to Accra,” “open the map,” “pause,” or “surprise me.”`);
 }
