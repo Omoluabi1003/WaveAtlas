@@ -12,7 +12,8 @@ assert.match(source, /context: \{ station, history \}/, 'Atlas must send recent 
 assert.match(source, /conversationModeRef\.current && openRef\.current[\s\S]*void listen\(true\)/, 'Voice conversation must return to listening instead of freezing after an answer');
 assert.match(source, /aria-label="Atlas Voice"/, 'Atlas Voice must use a dedicated transient voice surface');
 assert.match(source, /meterAnalyser\(analyser/, 'Neural speech must drive Atlas Signal from real output amplitude');
-assert.match(source, /if \(isIOSFamily\(\) \|\| profile\.systemOnly\) spoken = await speakSystem/, 'iOS must retain the reliable gesture-unlocked system speech path while system-only voice profiles use the same safe fallback');
+assert.match(source, /if \(isIOSFamily\(\)\) spoken = await speakSystem\(text\)/, 'iOS must retain the stable gesture-unlocked system speech path');
+assert.doesNotMatch(source, /profile\.systemOnly/, 'Rolled-back #327 voice-gallery routing must not leak into the stable Signal runtime');
 assert.doesNotMatch(source, /fixed bottom-\[13\.1rem\][\s\S]*Talk to Atlas/, 'The old permanent floating orb must not return');
 assert.match(source, /if \(speaking\) \{ stopVoiceOutput\(\); setVoiceMessage\('Listening'\); void listen\(true\); return; \}/, 'Pressing the Signal while Atlas speaks must interrupt and return to listening');
 
@@ -32,4 +33,4 @@ assert.match(followUp.action.query || '', /Nigeria jazz/i);
 const capability = answerAtlasQuestion('what can you do?');
 assert.match(capability.answer, /identify.*current signal.*find and play stations/i);
 
-console.log('Atlas Signal: recovery timeout, near-mute focus, conversational intent, context memory, audio-reactive speech and iOS fallback passed.');
+console.log('Atlas Signal: recovery timeout, near-mute focus, conversational intent, context memory, audio-reactive speech and stable iOS fallback passed.');
