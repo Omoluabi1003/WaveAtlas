@@ -14,9 +14,10 @@ export function stationMediaMetadata(station: Station): MediaMetadataInit {
   };
 }
 
-function publishAtlasStationContext(snapshot: MediaPlayerSnapshot) {
+function publishAtlasContext(snapshot: MediaPlayerSnapshot) {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent('waveatlas:station-context', { detail: snapshot.current ?? null }));
+  window.dispatchEvent(new CustomEvent('waveatlas:playback-context', { detail: snapshot }));
 }
 
 export function bindPlaybackMediaSession(options: {
@@ -38,7 +39,7 @@ export function bindPlaybackMediaSession(options: {
     const { current, status } = snapshot;
     const hasMedia = current && !['idle', 'failed', 'blocked'].includes(status);
     doc.title = hasMedia ? `${current.name} | WaveAtlas` : 'WaveAtlas | Explore Humanity Through Sound';
-    publishAtlasStationContext(snapshot);
+    publishAtlasContext(snapshot);
     if (!session) return;
     try { session.metadata = hasMedia && Metadata ? new Metadata(stationMediaMetadata(current)) : null; } catch { /* Optional OS integration cannot interrupt playback. */ }
     try { session.playbackState = hasMedia ? status === 'playing' ? 'playing' : 'paused' : 'none'; } catch { /* Partial browser support. */ }
@@ -50,7 +51,7 @@ export function bindPlaybackMediaSession(options: {
   ];
   for (const [action, handler] of actions) { try { session?.setActionHandler(action, handler); } catch { /* Unsupported action. */ } }
 
-  const onAtlasContextRequest = () => publishAtlasStationContext(options.read());
+  const onAtlasContextRequest = () => publishAtlasContext(options.read());
   const onAtlasPlaybackCommand = (event: Event) => {
     const detail = (event as CustomEvent<AtlasPlaybackCommand>).detail;
     if (detail?.command === 'pause') options.pause();
