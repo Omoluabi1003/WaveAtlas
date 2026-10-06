@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { answerAtlasQuestion } from '../lib/atlas-assistant';
+import { answerAtlasIntelligently } from '../lib/atlas-intelligence';
 
 const natural = answerAtlasQuestion('Hey Atlas, could you play Afrobeats from Lagos?');
 assert.equal(natural.action?.type, 'play');
@@ -18,4 +19,20 @@ assert.match(identify.answer, /Signal FM.*Lagos, Nigeria.*English.*afrobeats/i);
 const capabilities = answerAtlasQuestion('Atlas, what can you do?');
 assert.match(capabilities.answer, /identify and explain.*find and play stations.*control playback/i);
 
-console.log('Atlas conversation intelligence: natural commands, station context, follow-ups and capabilities passed.');
+const mood = answerAtlasIntelligently('I am in the mood for calm gospel from Nigeria', { station });
+assert.equal(mood.action?.type, 'play');
+if (mood.action?.type !== 'play') throw new Error('Expected conversational mood to become a play action');
+assert.match(mood.action.query || '', /calm gospel from nigeria/i);
+
+const keepThere = answerAtlasIntelligently('keep it there', { station, history: [{ role: 'user', text: 'take me to Lagos' }] });
+assert.equal(keepThere.action?.type, 'play');
+if (keepThere.action?.type !== 'play') throw new Error('Expected contextual place follow-up');
+assert.match(keepThere.action.query || '', /Lagos/i);
+
+const pidgin = answerAtlasIntelligently('Atlas abeg, find jazz for me', { station });
+assert.match(pidgin.answer, /Make I|Oya|dey|don/i);
+
+const guarded = answerAtlasIntelligently('Why did you pick this station?', { station });
+assert.match(guarded.answer, /verified Atlas metadata|don’t have enough verified metadata/i);
+
+console.log('Atlas conversation intelligence: commands, contextual follow-ups, mood, Pidgin and verified-data guardrails passed.');
