@@ -3,6 +3,7 @@ import { WAVEATLAS_LOGO_URL } from './branding';
 
 export type MediaPlayerSnapshot = { current?: Station; status: string };
 type AtlasPlaybackCommand = { command?: 'play' | 'pause' | 'volume'; value?: number };
+type PlaybackAudioTarget = Pick<HTMLAudioElement, 'addEventListener' | 'removeEventListener'> & Partial<Pick<HTMLAudioElement, 'volume' | 'muted'>>;
 
 export function stationMediaMetadata(station: Station): MediaMetadataInit {
   const journey = station.sourceType === 'geoaudio' ? station.geoAudio : undefined;
@@ -28,7 +29,7 @@ export function bindPlaybackMediaSession(options: {
   session?: MediaSession;
   Metadata?: typeof MediaMetadata;
   document: Pick<Document, 'title' | 'addEventListener' | 'removeEventListener'>;
-  audio: Pick<HTMLAudioElement, 'addEventListener' | 'removeEventListener' | 'volume' | 'muted'>;
+  audio: PlaybackAudioTarget;
 }) {
   const { session, Metadata, document: doc, audio } = options;
   const originalTitle = doc.title;
@@ -58,8 +59,8 @@ export function bindPlaybackMediaSession(options: {
     if (detail?.command === 'play') options.play();
     if (detail?.command === 'volume' && typeof detail.value === 'number') {
       const value = Math.min(1, Math.max(0, detail.value));
-      audio.volume = value;
-      audio.muted = value === 0;
+      if ('volume' in audio) audio.volume = value;
+      if ('muted' in audio) audio.muted = value === 0;
     }
   };
   if (typeof window !== 'undefined') {
