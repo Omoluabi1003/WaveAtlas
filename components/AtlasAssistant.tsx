@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Keyboard, Mic, MicOff, Send, Volume2, VolumeX, X } from 'lucide-react';
-import type { AtlasAssistantAction } from '@/lib/atlas-assistant';
+import type { AtlasAssistantAction, AtlasConversationLine } from '@/lib/atlas-assistant';
 import type { Station } from '@/lib/stations';
 import { getSpeechRecognitionConstructor, type BrowserSpeechRecognition } from '@/lib/voice-command-engine';
 
@@ -12,7 +12,7 @@ type Props = {
   onSearch?: (query: string) => void;
   onAction?: (action: AtlasAssistantAction) => boolean | Promise<boolean>;
 };
-type Line = { role: 'user' | 'atlas'; text: string };
+type Line = AtlasConversationLine;
 type NeuralVoiceState = 'idle' | 'loading' | 'ready' | 'unavailable';
 type NeuralMessage = { type?: 'ready' | 'unavailable' | 'audio' | 'error'; id?: string; buffer?: ArrayBuffer; message?: string };
 type PendingNeural = { resolve: (message: NeuralMessage) => void; reject: (error: Error) => void; timer: number };
@@ -23,7 +23,10 @@ type SignalState = 'listening' | 'thinking' | 'speaking' | 'live';
 const NATURAL_VOICE_HINTS = /siri|premium|enhanced|natural|samantha|ava|allison|serena|daniel|karen|moira|rishi|eddy|reed|flo|sandy|shelley/i;
 const SYNTHETIC_VOICE_HINTS = /compact|espeak|festival|robot/i;
 const QUICK_COMMANDS = ['Surprise me', 'Play jazz', 'Open the map', 'What am I listening to?'];
-const RADIO_FOCUS = { opening: 0.30, listening: 0.18, thinking: 0.28, speaking: 0.10 } as const;
+// Voice owns the foreground. Keep the live stream connected, but nearly inaudible so
+// speech recognition and Atlas output do not compete with radio speech.
+const RADIO_FOCUS = { opening: 0.05, listening: 0.02, thinking: 0.04, speaking: 0.015 } as const;
+const ASSISTANT_TIMEOUT_MS = 8000;
 
 function sleep(ms: number) { return new Promise((resolve) => window.setTimeout(resolve, ms)); }
 function isIOSFamily() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
@@ -55,7 +58,7 @@ function bestSystemVoice(language: string) {
 function AtlasSignal({ state, energy, onPress }: { state: SignalState; energy: number; onPress: () => void }) {
   const intensity = Math.max(0.08, Math.min(1, energy));
   return <button type="button" onClick={onPress} aria-label={state === 'speaking' ? 'Interrupt Atlas and listen' : 'Atlas voice signal'} className="atlas-signal relative grid size-[10.5rem] place-items-center rounded-full outline-none transition-transform active:scale-[.97] sm:size-[12rem]">
-    <span className="atlas-signal-aura absolute inset-[-18%] rounded-full" style={{ opacity: 0.32 + intensity * 0.42 }} aria-hidden="true" />
+    <span className="atlas-signal-aura absolute inset-[-18%] rounded-full" style={{ opacity: 0.32 + intensity * 0.42, transform: `scale(${0.94 + intensity * 0.1})` }} aria-hidden="true" />
     <span className="atlas-signal-shell absolute inset-[5%] overflow-hidden rounded-full" aria-hidden="true">
       <span className="atlas-flow atlas-flow-a absolute -inset-[30%] rounded-[42%_58%_48%_52%]" />
       <span className="atlas-flow atlas-flow-b absolute -inset-[25%] rounded-[61%_39%_55%_45%]" />
@@ -68,10 +71,11 @@ function AtlasSignal({ state, energy, onPress }: { state: SignalState; energy: n
 }
 
 export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onAction }: Props) {
+  const initialLines: Line[] = [{ role: 'atlas', text: 'I’m Atlas. Talk to me about this signal, or tell me where you want to go.' }];
   const [open, setOpen] = useState(false);
   const [textMode, setTextMode] = useState(false);
   const [question, setQuestion] = useState('');
-  const [lines, setLines] = useState<Line[]>([{ role: 'atlas', text: 'I’m Atlas. Talk to me about this signal, or tell me where you want to go.' }]);
+  const [lines, setLines] = useState<Line[]>(initialLines);
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -88,6 +92,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   const busyRef = useRef(false);
   const voiceEnabledRef = useRef(true);
   const neuralStateRef = useRef<NeuralVoiceState>('idle');
+  const linesRef = useRef<Line[]>(initialLines);
   const neuralWorkerRef = useRef<Worker | null>(null);
   const neuralPendingRef = useRef(new Map<string, PendingNeural>());
   const voiceContextRef = useRef<AudioContext | null>(null);
@@ -102,6 +107,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   useEffect(() => { busyRef.current = busy; }, [busy]);
   useEffect(() => { voiceEnabledRef.current = voiceEnabled; }, [voiceEnabled]);
   useEffect(() => { neuralStateRef.current = neuralState; }, [neuralState]);
+  useEffect(() => { linesRef.current = lines; }, [lines]);
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     window.speechSynthesis.getVoices();
@@ -134,7 +140,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   }, []);
 
   function sendPlayback(command: 'play' | 'pause' | 'volume' | 'duck' | 'restore', value?: number) { window.dispatchEvent(new CustomEvent('waveatlas:assistant-playback', { detail: { command, ...(typeof value === 'number' ? { value } : {}) } })); }
-  function focusRadio(level: number) { radioDuckedRef.current = true; sendPlayback('duck', playbackStatus === 'playing' ? level : Math.min(level, 0.20)); }
+  function focusRadio(level: number) { radioDuckedRef.current = true; sendPlayback('duck', playbackStatus === 'playing' ? level : Math.min(level, 0.02)); }
   function restoreRadio() { if (!radioDuckedRef.current) return; radioDuckedRef.current = false; sendPlayback('restore'); }
   function stopRecognitionWatchdog() { if (recognitionWatchdogRef.current) window.clearTimeout(recognitionWatchdogRef.current); recognitionWatchdogRef.current = null; }
   function stopMeter() { if (meterFrameRef.current) window.cancelAnimationFrame(meterFrameRef.current); meterFrameRef.current = null; setSignalEnergy(0.18); }
@@ -201,22 +207,31 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     if (!voiceEnabledRef.current) { restoreRadio(); return; }
     recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); focusRadio(RADIO_FOCUS.speaking);
     let spoken = false; if (isIOSFamily()) spoken = await speakSystem(text); else { if (await waitForNeuralVoice()) spoken = await speakNeural(text); if (!spoken) spoken = await speakSystem(text); }
-    setSpeaking(false); if (!spoken) setVoiceMessage('Voice output needs another tap');
-    if (conversationModeRef.current && openRef.current && spoken) { setVoiceMessage('Listening'); setAudioSession('play-and-record'); focusRadio(RADIO_FOCUS.listening); window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 650 : 350); }
-    else { setAudioSession('playback'); restoreRadio(); }
+    setSpeaking(false);
+    if (conversationModeRef.current && openRef.current) {
+      setVoiceMessage(spoken ? 'Listening' : 'Listening · answer is in transcript');
+      setAudioSession('play-and-record'); focusRadio(RADIO_FOCUS.listening);
+      window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 650 : 350);
+    } else { setAudioSession('playback'); restoreRadio(); }
   }
   function endConversation() { conversationModeRef.current = false; setConversationMode(false); recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); stopVoiceOutput(); setListening(false); setAudioSession('playback'); restoreRadio(); openRef.current = false; setOpen(false); setTextMode(false); }
 
   async function ask(text: string) {
     const value = text.trim(); if (!value || busyRef.current) return;
-    setLines((old) => [...old, { role: 'user', text: value }]); setQuestion(''); setBusy(true); busyRef.current = true; setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking);
+    const history = linesRef.current.slice(-8);
+    const userLine: Line = { role: 'user', text: value };
+    linesRef.current = [...linesRef.current, userLine]; setLines(linesRef.current); setQuestion(''); setBusy(true); busyRef.current = true; setSignalEnergy(0.34); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking);
+    const controller = new AbortController(); const timeout = window.setTimeout(() => controller.abort(), ASSISTANT_TIMEOUT_MS);
     try {
-      const response = await fetch('/api/atlas-assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: value, context: { station } }) }); const data = await response.json() as { answer?: string; action?: AtlasAssistantAction }; let answer = data.answer || 'I could not answer that from the Atlas yet.';
+      const response = await fetch('/api/atlas-assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ question: value, context: { station, history } }) });
+      if (!response.ok) throw new Error(`Atlas assistant ${response.status}`);
+      const data = await response.json() as { answer?: string; action?: AtlasAssistantAction }; let answer = data.answer || 'I could not answer that from the Atlas yet.';
       if (data.action) { try { const handled = await onAction?.(data.action); if (handled === false) answer = `${answer} I could not complete that action.`; } catch { answer = `${answer} I could not complete that action.`; } }
       else if ((data as { action?: { type?: string; query?: string } }).action?.type === 'search') { const query = (data as { action?: { query?: string } }).action?.query; if (query) onSearch?.(query); }
-      setLines((old) => [...old, { role: 'atlas', text: answer }]); if (voiceEnabledRef.current) void speak(answer); else restoreRadio();
-    } catch { const answer = 'I lost the signal for a moment. Try that again.'; setLines((old) => [...old, { role: 'atlas', text: answer }]); if (voiceEnabledRef.current) void speak(answer); else restoreRadio(); }
-    finally { setBusy(false); busyRef.current = false; }
+      const atlasLine: Line = { role: 'atlas', text: answer }; linesRef.current = [...linesRef.current, atlasLine]; setLines(linesRef.current); if (voiceEnabledRef.current) void speak(answer); else restoreRadio();
+    } catch {
+      const answer = 'I lost that request for a moment, but I’m still here.'; const atlasLine: Line = { role: 'atlas', text: answer }; linesRef.current = [...linesRef.current, atlasLine]; setLines(linesRef.current); if (voiceEnabledRef.current) void speak(answer); else restoreRadio();
+    } finally { window.clearTimeout(timeout); setBusy(false); busyRef.current = false; setSignalEnergy(0.18); }
   }
   function submit(event: FormEvent) { event.preventDefault(); void ask(question); }
   async function listen(fromConversation = false) {
@@ -224,19 +239,19 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     if (!fromConversation) { conversationModeRef.current = true; setConversationMode(true); }
     stopVoiceOutput(); focusRadio(RADIO_FOCUS.listening); setAudioSession('play-and-record'); const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition) { setVoiceMessage('Voice input is unavailable'); setTextMode(true); restoreRadio(); return; }
-    setVoiceMessage('Listening');
+    setVoiceMessage('Listening'); setSignalEnergy(0.24);
     try {
-      await sleep(fromConversation ? 420 : 120); if (!conversationModeRef.current || !openRef.current) return; const recognition = new Recognition(); recognitionRef.current = recognition; let receivedResult = false;
+      await sleep(fromConversation ? 300 : 80); if (!conversationModeRef.current || !openRef.current) return; const recognition = new Recognition(); recognitionRef.current = recognition; let receivedResult = false;
       recognition.lang = navigator.language || 'en-US'; recognition.interimResults = false; recognition.continuous = false; recognition.maxAlternatives = 1;
-      recognition.onstart = () => { setListening(true); setVoiceMessage('Listening'); stopRecognitionWatchdog(); recognitionWatchdogRef.current = window.setTimeout(() => { recognition.abort(); recognitionRef.current = null; setListening(false); setVoiceMessage('Tap the signal to reconnect'); }, 12000); };
-      recognition.onend = () => { stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; if (!receivedResult && conversationModeRef.current && openRef.current) window.setTimeout(() => { if (conversationModeRef.current && openRef.current) void listen(true); }, 850); };
-      recognition.onerror = (event) => { stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed'; if (denied) { setVoiceMessage('Microphone access is blocked'); setTextMode(true); restoreRadio(); } else if (conversationModeRef.current && openRef.current) window.setTimeout(() => void listen(true), 950); };
+      recognition.onstart = () => { setListening(true); setVoiceMessage('Listening'); stopRecognitionWatchdog(); recognitionWatchdogRef.current = window.setTimeout(() => { recognition.abort(); recognitionRef.current = null; setListening(false); setVoiceMessage('Reconnecting'); }, 12000); };
+      recognition.onend = () => { stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; if (!receivedResult && conversationModeRef.current && openRef.current) window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 650); };
+      recognition.onerror = (event) => { stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed'; if (denied) { setVoiceMessage('Microphone access is blocked'); setTextMode(true); restoreRadio(); } else if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); window.setTimeout(() => { if (!busyRef.current) void listen(true); }, 700); } };
       recognition.onresult = (event) => { const text = event.results?.[0]?.[0]?.transcript?.trim(); if (!text) return; receivedResult = true; stopRecognitionWatchdog(); setListening(false); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking); recognition.abort(); recognitionRef.current = null; void ask(text); }; recognition.start();
-    } catch { setListening(false); recognitionRef.current = null; stopRecognitionWatchdog(); setVoiceMessage('Tap the signal to retry'); restoreRadio(); }
+    } catch { setListening(false); recognitionRef.current = null; stopRecognitionWatchdog(); if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); window.setTimeout(() => { if (!busyRef.current) void listen(true); }, 700); } else restoreRadio(); }
   }
   function activateAtlas() {
     primeSystemSpeech(); void primeVoiceOutput(); warmNeuralVoice();
-    if (!openRef.current) { openRef.current = true; setOpen(true); setTextMode(false); setVoiceMessage('Listening'); focusRadio(RADIO_FOCUS.opening); conversationModeRef.current = true; setConversationMode(true); window.setTimeout(() => void listen(true), 60); return; }
+    if (!openRef.current) { openRef.current = true; setOpen(true); setTextMode(false); setVoiceMessage('Listening'); focusRadio(RADIO_FOCUS.opening); conversationModeRef.current = true; setConversationMode(true); window.setTimeout(() => void listen(true), 40); return; }
     if (speaking) { stopVoiceOutput(); setVoiceMessage('Listening'); void listen(true); return; }
     if (conversationModeRef.current) endConversation(); else void listen();
   }
@@ -250,13 +265,13 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       @keyframes atlasFlowA { 0%,100%{transform:rotate(0deg) scale(1)} 50%{transform:rotate(170deg) scale(1.12)} }
       @keyframes atlasFlowB { 0%,100%{transform:rotate(30deg) scale(.94)} 50%{transform:rotate(-145deg) scale(1.08)} }
       @keyframes atlasFlowC { 0%,100%{transform:translate3d(-7%,5%,0) rotate(0deg)} 50%{transform:translate3d(8%,-7%,0) rotate(130deg)} }
-      @keyframes atlasAura { 0%,100%{transform:scale(.92);filter:blur(22px)} 50%{transform:scale(1.12);filter:blur(30px)} }
+      @keyframes atlasAura { 0%,100%{filter:blur(22px)} 50%{filter:blur(30px)} }
       @keyframes atlasListenPulse { 0%,100%{transform:scale(.96)} 50%{transform:scale(1.055)} }
       @keyframes atlasSpeakPulse { 0%,100%{transform:scale(.94)} 35%{transform:scale(1.075)} 68%{transform:scale(.99)} }
-      .atlas-signal-aura{background:radial-gradient(circle,rgba(78,199,194,.58),rgba(0,214,143,.22) 38%,rgba(212,166,74,.10) 58%,transparent 72%);animation:atlasAura 2.6s ease-in-out infinite}
+      .atlas-signal-aura{background:radial-gradient(circle,rgba(78,199,194,.58),rgba(0,214,143,.22) 38%,rgba(212,166,74,.10) 58%,transparent 72%);animation:atlasAura 2.6s ease-in-out infinite;transition:opacity .16s ease,transform .16s ease}
       .atlas-signal-shell{background:#071522;box-shadow:inset 0 0 35px rgba(255,255,255,.10),inset -24px -30px 55px rgba(0,0,0,.58),0 0 55px rgba(78,199,194,.22);${signalState === 'listening' ? 'animation:atlasListenPulse 1.15s ease-in-out infinite;' : signalState === 'speaking' ? 'animation:atlasSpeakPulse .82s ease-in-out infinite;' : ''}}
       .atlas-flow{mix-blend-mode:screen;filter:blur(13px);will-change:transform}
-      .atlas-flow-a{background:conic-gradient(from 30deg,transparent 0 8%,#4ec7c2 20%,#00d68f 36%,transparent 51%,#d4a64a 68%,transparent 84%);animation:atlasFlowA ${signalState === 'thinking' ? '2.2s' : '4.8s'} ease-in-out infinite}
+      .atlas-flow-a{background:conic-gradient(from 30deg,transparent 0 8%,#4ec7c2 20%,#00d68f 36%,transparent 51%,#d4a64a 68%,transparent 84%);animation:atlasFlowA ${signalState === 'thinking' ? '1.7s' : '4.8s'} ease-in-out infinite}
       .atlas-flow-b{background:radial-gradient(ellipse at 38% 44%,rgba(247,245,239,.92),rgba(78,199,194,.72) 20%,rgba(0,214,143,.34) 44%,transparent 67%);animation:atlasFlowB ${signalState === 'speaking' ? '1.5s' : '5.4s'} ease-in-out infinite}
       .atlas-flow-c{background:linear-gradient(125deg,transparent 12%,rgba(212,166,74,.78) 37%,rgba(78,199,194,.34) 55%,transparent 74%);animation:atlasFlowC 3.8s ease-in-out infinite}
       .atlas-glass{background:radial-gradient(circle at 31% 22%,rgba(255,255,255,.42),transparent 17%),radial-gradient(circle at 65% 76%,rgba(212,166,74,.18),transparent 32%);box-shadow:inset 0 0 1px rgba(255,255,255,.9)}
