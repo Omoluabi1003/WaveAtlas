@@ -1,0 +1,156 @@
+{
+  "version": "paul-ready-20261007-v1",
+  "referenceSha": "f29df38fcbd0901bf752d64b00030edd6495385d",
+  "modelRevision": "c469236dbc5f68287fa2fbf175b66de3b80123af",
+  "voiceCacheVersion": "paul-f29df38-pcm-v3-prepared-c469236",
+  "profileSha256": "c1d16620adbe2c228bf84fdf20355fe881679b20dd19eb188365bc19f31ca5c5",
+  "engine": "pocket-tts-omoluabi-paul",
+  "voiceSource": "repository-canonical",
+  "runtime": "onnxruntime-node@1.20.0",
+  "sampleRate": 24000,
+  "format": "scaled-pcm16",
+  "bytes": 3409628,
+  "sha256": "b8fe13f636d43f29df4870aeb2fbe403c28725d196990ab73dd29c1b6cfb9ca3",
+  "replies": [
+    {
+      "id": "greeting",
+      "text": "Hello. Where should we listen today?",
+      "seconds": 2.24
+    },
+    {
+      "id": "greeting_live",
+      "text": "Hello. I’m listening.",
+      "seconds": 1.84
+    },
+    {
+      "id": "welcome",
+      "text": "You’re welcome. I’m listening.",
+      "seconds": 2.32
+    },
+    {
+      "id": "welcome_pidgin",
+      "text": "No wahala. I dey hear you.",
+      "seconds": 2.24
+    },
+    {
+      "id": "listening",
+      "text": "I’m listening. Ask about this signal or tell me where you want to go.",
+      "seconds": 3.68
+    },
+    {
+      "id": "capabilities",
+      "text": "I can identify the current signal, find and play stations, control playback, open the map or Brief, and follow your listening requests.",
+      "seconds": 7.28
+    },
+    {
+      "id": "no_signal",
+      "text": "Choose a station first. Give me a name, place, language or style, or say surprise me.",
+      "seconds": 6.16
+    },
+    {
+      "id": "no_context",
+      "text": "Tell me the place, language, mood or style you want to hear, and I’ll find a station.",
+      "seconds": 5.6
+    },
+    {
+      "id": "pause",
+      "text": "Pausing the radio.",
+      "seconds": 1.04
+    },
+    {
+      "id": "resume",
+      "text": "Resuming the radio.",
+      "seconds": 1.28
+    },
+    {
+      "id": "mute",
+      "text": "Muting the radio.",
+      "seconds": 1.2
+    },
+    {
+      "id": "volume",
+      "text": "Volume adjusted.",
+      "seconds": 1.12
+    },
+    {
+      "id": "volume_up",
+      "text": "Turning the signal up.",
+      "seconds": 1.12
+    },
+    {
+      "id": "volume_down",
+      "text": "Turning the signal down.",
+      "seconds": 1.2
+    },
+    {
+      "id": "map",
+      "text": "Opening the map.",
+      "seconds": 0.96
+    },
+    {
+      "id": "globe",
+      "text": "Opening the Atlas globe.",
+      "seconds": 1.6
+    },
+    {
+      "id": "settings",
+      "text": "Opening settings.",
+      "seconds": 1.12
+    },
+    {
+      "id": "brief",
+      "text": "Opening the WaveAtlas Brief.",
+      "seconds": 1.68
+    },
+    {
+      "id": "wander",
+      "text": "Let’s go somewhere unexpected.",
+      "seconds": 1.68
+    },
+    {
+      "id": "wander_pidgin",
+      "text": "Oya, make Atlas carry us go somewhere unexpected.",
+      "seconds": 3.68
+    },
+    {
+      "id": "teleport",
+      "text": "Exploring somewhere new.",
+      "seconds": 1.52
+    },
+    {
+      "id": "playing",
+      "text": "Your station is playing.",
+      "seconds": 1.36
+    },
+    {
+      "id": "connecting",
+      "text": "I found your station. Connecting now.",
+      "seconds": 2.24
+    },
+    {
+      "id": "already_playing",
+      "text": "You’re already listening to that station.",
+      "seconds": 2.4
+    },
+    {
+      "id": "search_results",
+      "text": "The matching stations are open. Choose one to listen.",
+      "seconds": 3.36
+    },
+    {
+      "id": "not_found",
+      "text": "I couldn’t find a matching station. Try a name, city or genre.",
+      "seconds": 3.6
+    },
+    {
+      "id": "failed",
+      "text": "I couldn’t complete that request. Please try again.",
+      "seconds": 3.36
+    },
+    {
+      "id": "request_error",
+      "text": "I lost that request for a moment, but I’m still here.",
+      "seconds": 4.08
+    }
+  ]
+}

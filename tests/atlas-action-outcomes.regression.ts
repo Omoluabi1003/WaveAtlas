@@ -13,7 +13,8 @@ assert.match(experience, /already listening to \$\{first\.name\}/i, 'Already-pla
 assert.match(experience, /ranked\.slice\(0, 3\)/, 'Atlas must retain ranked fallback candidates');
 assert.match(experience, /outcome === 'failed'[\s\S]*next AIE-ranked candidate/, 'Confirmed stream failure must advance to another ranked station');
 assert.match(assistant, /result\.status === 'playing' \|\| result\.status === 'connecting' \|\| result\.status === 'already_playing'/, 'Voice UI must derive its status from the action result');
-assert.match(assistant, /speak\(answer, terminalAction, statusLabel\)/, 'Successful playback confirmation must use the terminal voice path');
+assert.match(assistant, /speak\(speech, terminalAction, statusLabel\)/, 'Successful playback confirmation must use the terminal voice path');
+assert.match(assistant, /readyAtlasReply\(answer, data\.action, actionOutcome\)/, 'Prepared confirmations must be selected using the actual action outcome');
 assert.match(assistant, /if \(terminal && openRef\.current\)[\s\S]*endConversation\(\)/, 'Completed playback commands must hand audio focus back to radio');
 
 const alternate = answerAtlasQuestion('another one', {

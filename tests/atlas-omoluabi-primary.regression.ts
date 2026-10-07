@@ -12,6 +12,9 @@ async function main() {
   Object.defineProperty(globalThis, 'indexedDB', { value: new IDBFactory(), configurable: true });
   const voiceStore = await import(new URL('../public/atlas-voice-store.mjs', import.meta.url).href);
   const voiceProfile = await import(new URL('../public/atlas-voice-profile.mjs', import.meta.url).href);
+  const readySpeech = await import(new URL('../public/atlas-ready-speech.mjs', import.meta.url).href);
+  const readyBytes = fs.readFileSync('public/omoluabi-ready-speech.bin');
+  const readyBuffer = readyBytes.buffer.slice(readyBytes.byteOffset, readyBytes.byteOffset + readyBytes.byteLength);
   const { decodeReferenceWav } = await import('../public/atlas-reference-audio.mjs');
   const bytes = fs.readFileSync('public/omoluabi-voice-reference.wav');
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
@@ -25,10 +28,11 @@ async function main() {
   const configurations: any[] = [];
   const profile = { format: 2, referenceSha: voiceStore.REFERENCE_SHA, modelRevision: voiceStore.MODEL_REVISION, tensors: { cache: new Float32Array([NaN, 0.4]), step: new BigInt64Array([BigInt(126)]) } };
   let gate: (() => Promise<void>) | null = null;
+  let loadGate: Promise<void> | null = null;
   class PocketTTS {
     sampleRate = 24000;
     constructor(options: any) { counts.constructed++; configurations.push(options); }
-    async load(progress: any) { progress({ label: 'Model', loaded: 1, total: 2 }); }
+    async load(progress: any) { if (loadGate) await loadGate; progress({ label: 'Model', loaded: 1, total: 2 }); }
     async cloneVoice(pcm: Float32Array, options: any) {
       assert.deepEqual(pcm, reference.pcm, 'Reference level and samples must remain unchanged');
       assert.equal(options.name, 'Omoluabi Paul'); counts.cloned++; return 'paul-reference';
@@ -47,18 +51,33 @@ async function main() {
   const source = fs.readFileSync('public/atlas-neural-voice-worker.mjs', 'utf8')
     .replace(/^import .* from '\.\/atlas-voice-store\.mjs(?:\?[^']+)?';/m, 'const { MODEL_REVISION, REFERENCE_SHA, VOICE_CACHE_VERSION, loadVoiceProfile, saveVoiceProfile, deleteVoiceProfile, loadSpeech, saveSpeech } = voiceStore;')
     .replace(/^import .* from '\.\/atlas-voice-profile\.mjs(?:\?[^']+)?';/m, 'const { decodeVoiceProfile } = voiceProfile;')
+    .replace(/^import .* from '\.\/atlas-ready-speech\.mjs(?:\?[^']+)?';/m, 'const { loadReadySpeech, READY_SPEECH_VERSION } = readySpeech;')
     .replace(/await import\('\.\/vendor\/pocket-tts-js\/index\.js(?:\?[^']+)?'\)/, 'sdk')
     .replace(/await import\('\.\/atlas-reference-audio\.mjs(?:\?[^']+)?'\)/, 'decoder');
-  function worker(bundled = false, staleSdk = false) {
+  function worker(bundled = false, staleSdk = false, readyReplies = false) {
     const messages: any[] = [];
     class ObsoletePocketTTS extends PocketTTS { exportVoice = undefined as any; importVoice = undefined as any; }
-    const context: any = { voiceStore, voiceProfile, sdk: { PocketTTS: staleSdk ? ObsoletePocketTTS : PocketTTS }, decoder: { decodeReferenceWav }, fetch: async (url: string) => {
+    const context: any = { voiceStore, voiceProfile, readySpeech: { READY_SPEECH_VERSION: readySpeech.READY_SPEECH_VERSION, loadReadySpeech: async (expected: any) => readyReplies ? readySpeech.decodeReadySpeech(readyBuffer, expected).replies : new Map() }, sdk: { PocketTTS: staleSdk ? ObsoletePocketTTS : PocketTTS }, decoder: { decodeReferenceWav }, fetch: async (url: string) => {
       if (url === `/omoluabi-voice-profile.bin?v=${voiceStore.VOICE_CACHE_VERSION}`) return { ok: bundled, arrayBuffer: async () => voiceProfile.encodeVoiceProfile(profile) };
       counts.reference++; assert.equal(url, `/omoluabi-voice-reference.wav?v=${voiceStore.REFERENCE_SHA}`); return { ok: true, arrayBuffer: async () => buffer };
     }, self: { postMessage: (message: any, transfer: Transferable[] = []) => messages.push(structuredClone(message, { transfer })) }, Float32Array, ArrayBuffer, DataView, Uint8Array, Map, Promise, Error };
     vm.runInNewContext(source, context);
     return { messages, send: (data: object) => context.self.onmessage({ data }) as Promise<void> };
   }
+
+  const fast = worker(false, true, true);
+  Object.defineProperty(globalThis, 'indexedDB', { get: () => { throw new Error('Storage unavailable on this fresh device'); }, configurable: true });
+  await fast.send({ type: 'warm' });
+  assert.equal(fast.messages[0].type, 'prepared');
+  for (const reply of JSON.parse(fs.readFileSync('lib/atlas-ready-replies.json', 'utf8'))) {
+    await fast.send({ type: 'speak', id: `ready-${reply.id}`, text: reply.text });
+    assert.ok(fast.messages.some(message => message.id === `ready-${reply.id}` && message.type === 'audio_end' && message.cached));
+  }
+  assert.equal(counts.constructed, 0, 'Every shipped reply must speak on a first visit with no inference engine');
+  assert.equal(counts.reference, 0, 'Prepared replies must not download or decode a speaker reference');
+  assert.equal(counts.generated, 0);
+  assert.ok(!fast.messages.some(message => ['loading', 'progress', 'error', 'unavailable'].includes(message.type)));
+  Object.defineProperty(globalThis, 'indexedDB', { value: new IDBFactory(), configurable: true });
 
   const first = worker();
   await first.send({ type: 'warm' });
@@ -120,6 +139,32 @@ async function main() {
   await freshDevice.send({ type: 'speak', id: 'bundled', text: 'A new device reply.' });
   assert.equal(counts.cloned, 1, 'Bundled preparation must bypass reference encoding on a fresh device');
   assert.equal(counts.reference, 1);
+
+  const quiet = worker(true);
+  const beforePrefetch = counts.generated;
+  await quiet.send({ type: 'prefetch', texts: ['A station identity.', 'A station language.'] });
+  assert.equal(counts.generated, beforePrefetch + 2);
+  assert.ok(!quiet.messages.some(message => message.type === 'audio_chunk' || message.type === 'audio_end'), 'Context preparation must never produce unsolicited speech');
+  await quiet.send({ type: 'speak', id: 'context-reply', text: 'A station identity.' });
+  assert.equal(counts.generated, beforePrefetch + 2, 'Prepared station details must replay without a second generation');
+  assert.ok(quiet.messages.some(message => message.id === 'context-reply' && message.type === 'audio_end' && message.cached));
+
+  const busyEngine = worker(true, false, true);
+  let releaseLoad!: () => void;
+  loadGate = new Promise<void>(resolve => { releaseLoad = resolve; });
+  const beforeLoad = counts.constructed, beforeBusy = counts.generated;
+  const background = busyEngine.send({ type: 'prefetch', texts: ['An uncached background fact.'] });
+  await until(() => counts.constructed > beforeLoad);
+  await busyEngine.send({ type: 'speak', id: 'ready-while-busy', text: 'Hello. Where should we listen today?' });
+  assert.ok(busyEngine.messages.some(message => message.id === 'ready-while-busy' && message.type === 'audio_end'), 'Routine replies must bypass an initializing background engine');
+  assert.equal(counts.generated, beforeBusy);
+  await busyEngine.send({ type: 'cancel' }); releaseLoad(); await background; loadGate = null;
+  assert.equal(counts.generated, beforeBusy, 'Interrupted context preparation must not synthesize after its model load finishes');
+  const faultyBackground = worker(true, true, true);
+  await faultyBackground.send({ type: 'prefetch', texts: ['A fact with an unavailable engine.'] });
+  assert.ok(!faultyBackground.messages.some(message => message.type === 'unavailable'), 'Optional inference failure must not disable prepared replies');
+  await faultyBackground.send({ type: 'speak', id: 'still-ready', text: 'Hello. Where should we listen today?' });
+  assert.ok(faultyBackground.messages.some(message => message.id === 'still-ready' && message.type === 'audio_end'));
   assert.equal(configurations[2].voiceCloning, false);
 
   const obsolete = worker(true, true);
@@ -131,6 +176,6 @@ async function main() {
   const sdk = fs.readFileSync('public/vendor/pocket-tts-js/index.js', 'utf8');
   assert.match(sdk, /new URL\("\.\/worker.js", import.meta.url\)/);
   for (const file of ['worker.js', 'voice-state.js', 'tokenizer.js', 'binary.js', 'player.js', 'LICENSE']) assert.ok(fs.existsSync(`public/vendor/pocket-tts-js/${file}`));
-  console.log('Omoluabi voice: unchanged reference, early streaming, model-free replay/opening, bundled fresh-device preparation, concurrent reuse and cancellation passed.');
+  console.log('Omoluabi voice: all 28 fresh-device prepared replies without models/storage, unchanged reference, model-free replay, silent context preparation, concurrent reuse and cancellation passed.');
 }
 void main();

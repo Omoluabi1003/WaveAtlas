@@ -28,3 +28,9 @@ using the full precision encoder and pinned model revision
 c469236dbc5f68287fa2fbf175b66de3b80123af. It retains float32 tensor values without
 additional quantization. Provenance and regeneration instructions are in
 docs/omoluabi-voice-profile-provenance.json and docs/atlas-omoluabi-primary-voice.md.
+
+The bundled omoluabi-ready-speech.bin contains 28 replies generated once from
+that unchanged prepared profile using the pinned generation models. It stores
+scaled PCM16 at 24 kHz, preserving the source level without a pitch or rate
+transformation. Provenance is in docs/omoluabi-ready-speech-provenance.json;
+scripts/prepare-atlas-ready-speech.mjs reproduces the pack without enrollment.
