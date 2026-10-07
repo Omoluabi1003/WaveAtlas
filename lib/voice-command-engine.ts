@@ -226,7 +226,13 @@ function enhancedRecognitionConstructor(NativeRecognition: BrowserSpeechRecognit
     }
     start() { this.generation += 1; this.delivered = false; this.resolving = false; this.ended = false; this.native.start(); }
     stop() { this.native.stop(); }
-    abort() { this.generation += 1; this.resolving = false; this.native.abort(); }
+    abort() {
+      this.generation += 1; this.resolving = false;
+      // Native capture may already have ended while directory resolution was
+      // pending. Deliver that end even when abort invalidates the result callback.
+      if (this.ended) { this.endHandler?.(); return; }
+      this.native.abort();
+    }
   };
 }
 

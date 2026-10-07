@@ -29,6 +29,7 @@ async function main() {
   const profile = { format: 2, referenceSha: voiceStore.REFERENCE_SHA, modelRevision: voiceStore.MODEL_REVISION, tensors: { cache: new Float32Array([NaN, 0.4]), step: new BigInt64Array([BigInt(126)]) } };
   let gate: (() => Promise<void>) | null = null;
   let loadGate: Promise<void> | null = null;
+  let stopGate: Promise<void> | null = null;
   class PocketTTS {
     sampleRate = 24000;
     constructor(options: any) { counts.constructed++; configurations.push(options); }
@@ -45,7 +46,7 @@ async function main() {
       if (gate) await gate();
       options.onChunk(new Float32Array([0.1, -0.1]));
     }
-    async stop() { counts.stopped++; }
+    async stop() { counts.stopped++; if (stopGate) await stopGate; }
     destroy() {}
   }
   const source = fs.readFileSync('public/atlas-neural-voice-worker.mjs', 'utf8')
@@ -172,6 +173,21 @@ async function main() {
   assert.ok(obsolete.messages.some(message => message.type === 'unavailable' && /runtime could not update/.test(message.message)));
   assert.equal(counts.cloned, 1, 'An SDK mismatch must fail before expensive reference re-encoding');
   assert.equal(counts.reference, 1);
+
+  const priority = worker(true);
+  let releaseBackground!: () => void, acknowledgeStop!: () => void;
+  gate = () => new Promise<void>(resolve => { releaseBackground = resolve; });
+  const beforePriority = counts.generated;
+  const prefetch = priority.send({ type: 'prefetch', texts: ['Background priority test.'] });
+  await until(() => counts.generated === beforePriority + 1);
+  stopGate = new Promise<void>(resolve => { acknowledgeStop = resolve; });
+  const foreground = priority.send({ type: 'speak', id: 'priority', text: 'Foreground priority test.' });
+  gate = null; releaseBackground(); await prefetch;
+  assert.equal(counts.generated, beforePriority + 1, 'New speech must wait for the old stop acknowledgement');
+  acknowledgeStop(); await foreground; stopGate = null;
+  assert.equal(counts.generated, beforePriority + 2);
+  assert.ok(priority.messages.some(message => message.id === 'priority' && message.type === 'audio_end'));
+  assert.equal(await voiceStore.loadSpeech('Background priority test.'), null, 'Preempted background speech must not cache a partial reply');
 
   const sdk = fs.readFileSync('public/vendor/pocket-tts-js/index.js', 'utf8');
   assert.match(sdk, /new URL\("\.\/worker.js", import.meta.url\)/);

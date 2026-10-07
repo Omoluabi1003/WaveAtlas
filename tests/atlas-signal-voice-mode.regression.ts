@@ -17,7 +17,7 @@ assert.doesNotMatch(source, /speakSystem|new SpeechSynthesisUtterance/, 'Atlas m
 assert.match(source, /void primeVoiceOutput\(\);[\s\S]*warmNeuralVoice\(\);/, 'Atlas must unlock Web Audio and prepare the personal model');
 assert.doesNotMatch(source, /profile\.systemOnly/, 'Rolled-back #327 voice-gallery routing must not leak into the stable Signal runtime');
 assert.doesNotMatch(source, /fixed bottom-\[13\.1rem\][\s\S]*Talk to Atlas/, 'The old permanent floating orb must not return');
-assert.match(source, /if \(speaking\) \{ stopVoiceOutput\(\); setVoiceMessage\('Listening'\); void listen\(true\); return; \}/, 'Pressing the Signal while Atlas speaks must interrupt and return to listening');
+assert.match(source, /if \(speaking \|\| speechPendingRef\.current\) \{ stopVoiceOutput\(\); setVoiceMessage\('Listening'\); void listen\(true\); return; \}/, 'Pressing the Signal while Atlas speaks must interrupt and return to listening');
 
 const naturalPlay = answerAtlasQuestion('Atlas, can you play jazz in Lagos?');
 assert.equal(naturalPlay.action?.type, 'play');

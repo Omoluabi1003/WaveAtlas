@@ -2,7 +2,7 @@ export type AtlasReplyVoiceStatus = { phase: 'idle' | 'preparing' | 'speaking' |
 export type AtlasVoiceStatusEvent = { type: 'idle' | 'preparing' | 'speaking' } | { type: 'progress' | 'failed'; detail: string };
 export const INITIAL_ATLAS_VOICE_STATUS: AtlasReplyVoiceStatus = { phase: 'idle', detail: '' };
 // Update this version together with the public worker's module graph.
-export const ATLAS_VOICE_RUNTIME_VERSION = 'omoluabi-ready-20261007-v1';
+export const ATLAS_VOICE_RUNTIME_VERSION = 'omoluabi-handoff-20261007-v2';
 
 export function atlasVoiceStatusTransition(status: AtlasReplyVoiceStatus, event: AtlasVoiceStatusEvent): AtlasReplyVoiceStatus {
   if (event.type === 'progress') return status.phase === 'preparing' ? { ...status, detail: event.detail } : status;

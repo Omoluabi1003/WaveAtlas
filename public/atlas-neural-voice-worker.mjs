@@ -1,10 +1,16 @@
-import { MODEL_REVISION, REFERENCE_SHA, VOICE_CACHE_VERSION, loadVoiceProfile, saveVoiceProfile, deleteVoiceProfile, loadSpeech, saveSpeech } from './atlas-voice-store.mjs?v=omoluabi-ready-20261007-v1';
-import { decodeVoiceProfile } from './atlas-voice-profile.mjs?v=omoluabi-ready-20261007-v1';
-import { loadReadySpeech, READY_SPEECH_VERSION } from './atlas-ready-speech.mjs?v=omoluabi-ready-20261007-v1';
+import { MODEL_REVISION, REFERENCE_SHA, VOICE_CACHE_VERSION, loadVoiceProfile, saveVoiceProfile, deleteVoiceProfile, loadSpeech, saveSpeech } from './atlas-voice-store.mjs?v=omoluabi-handoff-20261007-v2';
+import { decodeVoiceProfile } from './atlas-voice-profile.mjs?v=omoluabi-handoff-20261007-v2';
+import { loadReadySpeech, READY_SPEECH_VERSION } from './atlas-ready-speech.mjs?v=omoluabi-handoff-20261007-v2';
 let ttsPromise = null;
 let activeEngine = null;
 let generation = 0;
 let synthesisQueue = Promise.resolve();
+let stopPromise = Promise.resolve();
+function cancelSynthesis() {
+  generation += 1; prefetchedContext = '';
+  const nextStop = activeEngine ? activeEngine.stop().catch(() => {}) : Promise.resolve();
+  stopPromise = Promise.all([stopPromise, nextStop]).then(() => undefined);
+}
 const speechCache = new Map();
 let clonedVoice = null;
 let preparedVoicePromise = null;
@@ -36,7 +42,7 @@ function getPreparedVoice() { if (!preparedVoicePromise) preparedVoicePromise = 
 async function loadCanonicalReference() {
   const response = await fetch(`/omoluabi-voice-reference.wav?v=${REFERENCE_SHA}`, { cache: 'force-cache' });
   if (!response.ok) throw new Error(`Omoluabi reference failed (${response.status})`);
-  const { decodeReferenceWav } = await import('./atlas-reference-audio.mjs?v=omoluabi-ready-20261007-v1');
+  const { decodeReferenceWav } = await import('./atlas-reference-audio.mjs?v=omoluabi-handoff-20261007-v2');
   const reference = decodeReferenceWav(await response.arrayBuffer());
   if (!reference.pcm.some(sample => Math.abs(sample) > 0.001)) throw new Error('Voice reference is silent');
   // Preserve the recorded reference's level and timbre. No boost or pitch changes.
@@ -45,7 +51,7 @@ async function loadCanonicalReference() {
 async function createEngine(fromRecording = false) {
   // Local generation uses no WaveAtlas API key, account or paid endpoint.
   const profile = fromRecording ? null : await getPreparedVoice();
-  const { PocketTTS } = await import('./vendor/pocket-tts-js/index.js?v=omoluabi-ready-20261007-v1');
+  const { PocketTTS } = await import('./vendor/pocket-tts-js/index.js?v=omoluabi-handoff-20261007-v2');
   const tts = new PocketTTS({ language: 'english_2026-04', modelBaseUrl: `https://huggingface.co/vlapky/pocket-tts-onnx/resolve/${MODEL_REVISION}/onnx`, quantized: true, encoderQuantized: false, voiceCloning: !profile, maxThreads: 2, cache: true });
   activeEngine = tts;
   // An obsolete cached SDK must fail before loading models or re-encoding Paul.
@@ -110,6 +116,7 @@ async function respond(text, id, requestGeneration) {
   synthesisQueue = new Promise(resolve => { release = resolve; });
   await previous;
   try {
+    await stopPromise;
     if (requestGeneration !== generation) return;
     const repeated = speechCache.get(key);
     if (repeated) { if (id) replay(id, repeated); return; }
@@ -138,7 +145,7 @@ async function respond(text, id, requestGeneration) {
 }
 self.onmessage = async event => {
   const { type, id, text, texts } = event.data || {};
-  if (type === 'cancel') { generation += 1; prefetchedContext = ''; void activeEngine?.stop().catch(() => {}); return; }
+  if (type === 'cancel') { cancelSynthesis(); return; }
   if (type === 'warm') {
     if ((await getReadySpeech()).size || await getPreparedVoice()) { self.postMessage({ type: 'prepared', voice: 'Omoluabi Paul', ...identity }); return; }
     self.postMessage({ type: 'loading', engine: 'pocket-tts-omoluabi-paul-warming', voice: 'Omoluabi Paul', voiceSource });
@@ -154,5 +161,8 @@ self.onmessage = async event => {
     return;
   }
   if (type !== 'speak' || !id || typeof text !== 'string' || !text.trim()) return;
+  // Foreground speech supersedes background station prefetch. Await the stop
+  // acknowledgement before starting new inference so a late stop cannot truncate it.
+  cancelSynthesis();
   await respond(text, id, generation);
 };
