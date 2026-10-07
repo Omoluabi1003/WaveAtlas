@@ -1,5 +1,6 @@
-import { MODEL_REVISION, REFERENCE_SHA, VOICE_CACHE_VERSION, loadVoiceProfile, saveVoiceProfile, deleteVoiceProfile, loadSpeech, saveSpeech } from './atlas-voice-store.mjs?v=omoluabi-continuous-20261007';
-import { decodeVoiceProfile } from './atlas-voice-profile.mjs?v=omoluabi-continuous-20261007';
+import { MODEL_REVISION, REFERENCE_SHA, VOICE_CACHE_VERSION, loadVoiceProfile, saveVoiceProfile, deleteVoiceProfile, loadSpeech, saveSpeech } from './atlas-voice-store.mjs?v=omoluabi-ready-20261007-v1';
+import { decodeVoiceProfile } from './atlas-voice-profile.mjs?v=omoluabi-ready-20261007-v1';
+import { loadReadySpeech, READY_SPEECH_VERSION } from './atlas-ready-speech.mjs?v=omoluabi-ready-20261007-v1';
 let ttsPromise = null;
 let activeEngine = null;
 let generation = 0;
@@ -7,9 +8,15 @@ let synthesisQueue = Promise.resolve();
 const speechCache = new Map();
 let clonedVoice = null;
 let preparedVoicePromise = null;
+let readySpeechPromise = null;
+let prefetchedContext = '';
 const engine = 'pocket-tts-omoluabi-paul';
 const voiceSource = 'repository-canonical';
 const identity = { engine, voiceSource };
+function getReadySpeech() {
+  if (!readySpeechPromise) readySpeechPromise = loadReadySpeech({ version: READY_SPEECH_VERSION, referenceSha: REFERENCE_SHA, modelRevision: MODEL_REVISION, voiceCacheVersion: VOICE_CACHE_VERSION, ...identity }).catch(() => new Map());
+  return readySpeechPromise;
+}
 
 async function loadPreparedVoice() {
   const matches = profile => profile?.format === 2 && profile.referenceSha === REFERENCE_SHA && profile.modelRevision === MODEL_REVISION;
@@ -29,7 +36,7 @@ function getPreparedVoice() { if (!preparedVoicePromise) preparedVoicePromise = 
 async function loadCanonicalReference() {
   const response = await fetch(`/omoluabi-voice-reference.wav?v=${REFERENCE_SHA}`, { cache: 'force-cache' });
   if (!response.ok) throw new Error(`Omoluabi reference failed (${response.status})`);
-  const { decodeReferenceWav } = await import('./atlas-reference-audio.mjs?v=omoluabi-continuous-20261007');
+  const { decodeReferenceWav } = await import('./atlas-reference-audio.mjs?v=omoluabi-ready-20261007-v1');
   const reference = decodeReferenceWav(await response.arrayBuffer());
   if (!reference.pcm.some(sample => Math.abs(sample) > 0.001)) throw new Error('Voice reference is silent');
   // Preserve the recorded reference's level and timbre. No boost or pitch changes.
@@ -38,7 +45,7 @@ async function loadCanonicalReference() {
 async function createEngine(fromRecording = false) {
   // Local generation uses no WaveAtlas API key, account or paid endpoint.
   const profile = fromRecording ? null : await getPreparedVoice();
-  const { PocketTTS } = await import('./vendor/pocket-tts-js/index.js?v=omoluabi-continuous-20261007');
+  const { PocketTTS } = await import('./vendor/pocket-tts-js/index.js?v=omoluabi-ready-20261007-v1');
   const tts = new PocketTTS({ language: 'english_2026-04', modelBaseUrl: `https://huggingface.co/vlapky/pocket-tts-onnx/resolve/${MODEL_REVISION}/onnx`, quantized: true, encoderQuantized: false, voiceCloning: !profile, maxThreads: 2, cache: true });
   activeEngine = tts;
   // An obsolete cached SDK must fail before loading models or re-encoding Paul.
@@ -59,9 +66,11 @@ async function createEngine(fromRecording = false) {
 function getEngine() {
   if (!ttsPromise) ttsPromise = createEngine().then(tts => {
     self.postMessage({ type: 'ready', voice: 'Omoluabi Paul', sampleRate: tts.sampleRate, ...identity }); return tts;
-  }).catch(error => {
+  }).catch(async error => {
     activeEngine?.destroy(); activeEngine = null; ttsPromise = null; clonedVoice = null;
-    self.postMessage({ type: 'unavailable', message: error instanceof Error ? error.message : 'Omoluabi Paul unavailable' });
+    // Optional background inference cannot disable the shipped personal voice.
+    if ((await getReadySpeech()).size) self.postMessage({ type: 'prepared', voice: 'Omoluabi Paul', ...identity });
+    else self.postMessage({ type: 'unavailable', message: error instanceof Error ? error.message : 'Omoluabi Paul unavailable' });
     throw error;
   });
   return ttsPromise;
@@ -84,24 +93,17 @@ function replay(id, audio) {
   } else emitAudio(id, audio, true);
   self.postMessage({ type: 'audio_end', id, cached: true, ...identity });
 }
-self.onmessage = async event => {
-  const { type, id, text } = event.data || {};
-  if (type === 'cancel') { generation += 1; void activeEngine?.stop().catch(() => {}); return; }
-  if (type === 'warm') {
-    // A bundled or saved speaker needs no model initialization until new wording.
-    if (await getPreparedVoice()) { self.postMessage({ type: 'prepared', voice: 'Omoluabi Paul', ...identity }); return; }
-    self.postMessage({ type: 'loading', engine: 'pocket-tts-omoluabi-paul-warming', voice: 'Omoluabi Paul', voiceSource });
-    void getEngine().catch(() => {});
-    return;
-  }
-  if (type !== 'speak' || !id || typeof text !== 'string' || !text.trim()) return;
-  const requestGeneration = generation;
+async function respond(text, id, requestGeneration) {
   const key = text.trim().replace(/\s+/g, ' ');
-  // Cache lookup comes before model readiness, so replay works while models warm.
-  const cached = speechCache.get(key) || await loadSpeech(key);
+  // Shipped replies need no profile, IndexedDB or inference model, even on the
+  // first visit. An older synthesized cache must not supersede prepared replies.
+  const ready = (await getReadySpeech()).get(key);
+  const cached = ready || speechCache.get(key) || await loadSpeech(key);
   if (requestGeneration !== generation) return;
   if (cached?.samples instanceof Float32Array && cached.samples.length && cached.sampleRate === 24000) {
-    remember(key, cached); replay(id, cached); return;
+    if (!ready) remember(key, cached);
+    if (id) replay(id, cached);
+    return;
   }
   const previous = synthesisQueue;
   let release;
@@ -110,8 +112,8 @@ self.onmessage = async event => {
   try {
     if (requestGeneration !== generation) return;
     const repeated = speechCache.get(key);
-    if (repeated) { replay(id, repeated); return; }
-    if (!ttsPromise) self.postMessage({ type: 'loading', engine: 'pocket-tts-omoluabi-paul-warming', voice: 'Omoluabi Paul', voiceSource });
+    if (repeated) { if (id) replay(id, repeated); return; }
+    if (id && !ttsPromise) self.postMessage({ type: 'loading', engine: 'pocket-tts-omoluabi-paul-warming', voice: 'Omoluabi Paul', voiceSource });
     const tts = await getEngine();
     if (requestGeneration !== generation) return;
     if (!clonedVoice) throw new Error('Omoluabi Paul is not ready');
@@ -120,7 +122,7 @@ self.onmessage = async event => {
       if (requestGeneration !== generation) return;
       const samples = new Float32Array(audio);
       chunks.push(samples);
-      emitAudio(id, { samples, sampleRate: tts.sampleRate });
+      if (id) emitAudio(id, { samples, sampleRate: tts.sampleRate });
     } });
     if (requestGeneration !== generation) return;
     if (!chunks.length) throw new Error('Omoluabi Paul produced no audio');
@@ -128,9 +130,29 @@ self.onmessage = async event => {
     let offset = 0; for (const chunk of chunks) { samples.set(chunk, offset); offset += chunk.length; }
     const audio = { samples, sampleRate: tts.sampleRate, chunkLengths: chunks.map(chunk => chunk.length) };
     remember(key, audio);
-    self.postMessage({ type: 'audio_end', id, cached: false, ...identity });
+    if (id) self.postMessage({ type: 'audio_end', id, cached: false, ...identity });
     await saveSpeech(key, audio);
   } catch (error) {
-    self.postMessage({ type: 'error', id, message: error instanceof Error ? error.message : 'Omoluabi Paul generation failed' });
+    if (id) self.postMessage({ type: 'error', id, message: error instanceof Error ? error.message : 'Omoluabi Paul generation failed' });
   } finally { release(); }
+}
+self.onmessage = async event => {
+  const { type, id, text, texts } = event.data || {};
+  if (type === 'cancel') { generation += 1; prefetchedContext = ''; void activeEngine?.stop().catch(() => {}); return; }
+  if (type === 'warm') {
+    if ((await getReadySpeech()).size || await getPreparedVoice()) { self.postMessage({ type: 'prepared', voice: 'Omoluabi Paul', ...identity }); return; }
+    self.postMessage({ type: 'loading', engine: 'pocket-tts-omoluabi-paul-warming', voice: 'Omoluabi Paul', voiceSource });
+    void getEngine().catch(() => {}); return;
+  }
+  if (type === 'prefetch' && Array.isArray(texts)) {
+    const phrases = [...new Set(texts.filter(text => typeof text === 'string' && text.trim()).slice(0, 8))];
+    const contextKey = JSON.stringify(phrases);
+    if (prefetchedContext === contextKey) return;
+    prefetchedContext = contextKey;
+    const requestGeneration = generation;
+    for (const phrase of phrases) { if (requestGeneration !== generation) return; await respond(phrase, null, requestGeneration); }
+    return;
+  }
+  if (type !== 'speak' || !id || typeof text !== 'string' || !text.trim()) return;
+  await respond(text, id, generation);
 };

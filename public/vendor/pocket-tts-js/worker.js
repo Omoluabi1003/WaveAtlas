@@ -5,9 +5,9 @@
 // stay tiny) and downloads only the model files actually needed for the chosen
 // language + quantization, plus the voice encoder only when cloning is enabled.
 
-import { packVoiceState, unpackVoiceState, cloneVoiceState } from "./voice-state.js?v=omoluabi-continuous-20261007";
-import { SentencePieceTokenizer } from "./tokenizer.js?v=omoluabi-continuous-20261007";
-import { parseNpyFloat32, parseVoiceStatesBin } from "./binary.js?v=omoluabi-continuous-20261007";
+import { packVoiceState, unpackVoiceState, cloneVoiceState } from "./voice-state.js?v=omoluabi-ready-20261007-v1";
+import { SentencePieceTokenizer } from "./tokenizer.js?v=omoluabi-ready-20261007-v1";
+import { parseNpyFloat32, parseVoiceStatesBin } from "./binary.js?v=omoluabi-ready-20261007-v1";
 
 let ort = null;
 

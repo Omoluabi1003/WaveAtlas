@@ -3,20 +3,22 @@ import { atlasVoiceStatusLabel, atlasVoiceStatusTransition, INITIAL_ATLAS_VOICE_
 
 let status = atlasVoiceStatusTransition(INITIAL_ATLAS_VOICE_STATUS, { type: 'preparing' });
 status = atlasVoiceStatusTransition(status, { type: 'progress', detail: 'Downloading voice model · 50%' });
-assert.match(atlasVoiceStatusLabel(status, 'loading'), /Preparing Omoluabi reply.*50%/);
+assert.equal(atlasVoiceStatusLabel(status, 'loading'), 'Thinking');
 status = atlasVoiceStatusTransition(status, { type: 'speaking' });
 assert.equal(status.detail, '');
 status = atlasVoiceStatusTransition(status, { type: 'progress', detail: 'Preparing to stream' });
 assert.equal(atlasVoiceStatusLabel(status, 'ready'), 'Omoluabi Paul speaking', 'Late model progress must not replace audible speaking');
 status = atlasVoiceStatusTransition(status, { type: 'idle' });
 status = atlasVoiceStatusTransition(status, { type: 'progress', detail: 'Preparing to stream' });
-assert.equal(atlasVoiceStatusLabel(status, 'ready'), 'Omoluabi personal voice ready', 'Finished replies must clear preparation and streaming labels');
+assert.equal(atlasVoiceStatusLabel(status, 'ready'), 'Omoluabi Paul', 'Finished replies must clear preparation and streaming labels');
 status = atlasVoiceStatusTransition(status, { type: 'preparing' });
 status = atlasVoiceStatusTransition(status, { type: 'idle' });
 assert.equal(status.detail, '', 'Cancellation must discard preparation progress');
 status = atlasVoiceStatusTransition(status, { type: 'failed', detail: 'Timed out' });
-assert.match(atlasVoiceStatusLabel(status, 'ready'), /unavailable.*Timed out/);
+assert.match(atlasVoiceStatusLabel(status, 'ready'), /unavailable.*transcript/);
+assert.doesNotMatch(atlasVoiceStatusLabel(status, 'ready'), /Timed out/, 'Internal inference failures must not leak into the conversation');
 status = atlasVoiceStatusTransition(status, { type: 'preparing' });
 assert.equal(status.detail, '', 'Retry must remove the previous failure');
-assert.equal(atlasVoiceStatusLabel(status, 'ready'), 'Preparing Omoluabi reply');
-console.log('Voice status: preparation, real playback, ignored late progress, completion, interruption and retry passed.');
+assert.equal(atlasVoiceStatusLabel(status, 'ready'), 'Thinking');
+for (const readiness of ['idle', 'prepared', 'loading', 'ready', 'unavailable'] as const) assert.doesNotMatch(atlasVoiceStatusLabel(INITIAL_ATLAS_VOICE_STATUS, readiness), /\b(?:preparing|loading|model|download|streaming)\b/i);
+console.log('Voice status: conversational states without inference labels, real playback, ignored late progress, completion, interruption and retry passed.');

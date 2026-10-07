@@ -1,11 +1,11 @@
-const SW_VERSION = "waveatlas-sw-v3-20261007";
+const SW_VERSION = "waveatlas-sw-v4-20261007";
 const APP_SHELL_CACHE = `${SW_VERSION}-app-shell`;
 const STATIC_CACHE = `${SW_VERSION}-static`;
 const API_CACHE = `${SW_VERSION}-api`;
 const APP_SHELL = ["/", "/manifest.webmanifest", "/offline.html", "/brand/waveatlas-192x192.png"];
 const API_PATTERNS = [/\/api\/stations\/(search|nearby|by-uuid|active)/, /\/api\/radio-intelligence\//, /\/api\/countries\/search/];
 const STATIC_PATTERNS = [/\/_next\/static\//, /\/brand\//, /\/earth\//, /\.(?:css|js|woff2?|png|svg|ico)$/];
-const VOICE_RUNTIME_PATTERNS = [/^\/vendor\/pocket-tts-js\/.*\.js$/, /^\/atlas-(?:neural-voice-worker|voice-store|voice-profile|reference-audio)\.mjs$/];
+const VOICE_RUNTIME_PATTERNS = [/^\/vendor\/pocket-tts-js\/.*\.js$/, /^\/atlas-(?:neural-voice-worker|voice-store|voice-profile|reference-audio|ready-speech)\.mjs$/];
 function log(event, detail) { self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => clients.forEach((client) => client.postMessage({ type: "WA_SW_DIAGNOSTIC", event, detail, version: SW_VERSION, at: new Date().toISOString() }))); }
 function isRadioStream(request) { const dest = request.destination; const url = new URL(request.url); return dest === "audio" || /\.(mp3|aac|m3u8|pls|ogg)(\?|$)/i.test(url.pathname) || url.pathname.includes("/stream"); }
 self.addEventListener("install", (event) => { event.waitUntil(caches.open(APP_SHELL_CACHE).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()).then(() => log("installed"))); });
