@@ -43,7 +43,10 @@ ready replies do not make arbitrary new sentences instantaneous.
 The product interface shows normal listening, thinking and speaking states.
 Model downloads, decoding and preparation details are internal rather than
 displayed as the conversation state. An actual speech failure leaves the answer
-in the transcript and offers a voice retry.
+in the transcript and offers a voice retry. The empty-atlas entry point also
+clears its launch feedback once the voice surface opens instead of leaving an
+"Opening Atlas Voice" banner behind the conversation. Station phrase preparation
+is memoized so the audio meter's frequent updates do not rerun intent parsing.
 
 ## Prepared profile and completed speech
 
@@ -107,6 +110,16 @@ regressions cover reference samples, profile tensor fidelity, PCM scheduling,
 gain and pitch, truthful action outcomes, voice status, versioned imports and
 service worker cache preservation. Media-session and recognition regressions,
 Atlas lifecycle, TypeScript, targeted lint and the production build also pass.
+
+On the public Netlify preview for PR #344, a fresh origin's first greeting
+reached the speaking state in an observed 894 ms from Send. Its first
+capabilities response took 400 ms and a confirmed volume adjustment took
+1,148 ms. Each returned to the normal Omoluabi Paul state after playback;
+muting a response cleared the speaking state. A real Play jazz request selected
+Adroit Jazz Underground and closed Atlas after its confirmation. These timings
+include the UI interaction and observation, after the shipped pack had preloaded;
+they are single-browser measurements rather than promises for every connection
+or device. No inference preparation label appeared in the conversation.
 
 The earlier PR #343 browser check observed 482 ms from Send to speaking for a
 previously generated reply after reload. That measures its dynamic replay path,

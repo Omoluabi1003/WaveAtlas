@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Mic, MicOff, Send, Volume2, VolumeX, X } from 'lucide-react';
 import type { AtlasActionResult, AtlasAssistantAction, AtlasConversationLine } from '@/lib/atlas-assistant';
 import { AtlasPCMPlayer } from '@/lib/atlas-pcm-player';
@@ -86,7 +86,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   const requestControllerRef = useRef<AbortController | null>(null);
   const activateRef = useRef<() => void>(() => undefined);
   const warmVoiceRef = useRef<() => void>(() => undefined);
-  const stationSpeech = JSON.stringify(atlasStationVoicePhrases(station));
+  const stationSpeech = useMemo(() => JSON.stringify(atlasStationVoicePhrases(station)), [station]);
 
   useEffect(() => { const timer = window.setTimeout(() => warmVoiceRef.current(), 100); return () => window.clearTimeout(timer); }, []);
   useEffect(() => {

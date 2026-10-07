@@ -1482,7 +1482,7 @@ function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch, o
     try { result = action(); } catch (error) { result = Promise.reject(error); }
     Promise.resolve(result)
       .then((message) => {
-        setActionMessage(message || `${label} is ready. If nothing changed, try again or use Search to start exploring.`);
+        setActionMessage(message === "" ? null : message || `${label} is ready. If nothing changed, try again or use Search to start exploring.`);
       })
       .catch((error) => {
         setActionMessage(`${label} is temporarily unavailable. Please try Search or Wander instead.`);
@@ -4900,7 +4900,8 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
 
   const voiceSearchFromEmpty = useCallback(() => {
     window.dispatchEvent(new Event("waveatlas:open-atlas-voice"));
-    return "Opening Atlas Voice…";
+    // The open voice surface owns its listening and response status.
+    return "";
   }, []);
 
   const editorialPicksFromEmpty = useCallback(() => {
