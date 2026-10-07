@@ -71,7 +71,10 @@ export class PocketTTS {
 
     _ensureWorker() {
         if (this.worker) return;
-        this.worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
+        const workerUrl = new URL("./worker.js", import.meta.url);
+        const runtimeVersion = new URL(import.meta.url).searchParams.get("v") || "omoluabi-continuous-20261007";
+        workerUrl.searchParams.set("v", runtimeVersion);
+        this.worker = new Worker(workerUrl, { type: "module" });
         this.worker.onmessage = (e) => this._handleMessage(e.data);
         this.worker.onerror = (e) => {
             const err = new Error(e.message || "Worker error");
@@ -258,5 +261,5 @@ export function resampleLinear(data, sourceRate, targetRate) {
     return out;
 }
 
-export { SentencePieceTokenizer } from "./tokenizer.js";
-export { StreamingPlayer, chunksToWavBlob } from "./player.js";
+export { SentencePieceTokenizer } from "./tokenizer.js?v=omoluabi-continuous-20261007";
+export { StreamingPlayer, chunksToWavBlob } from "./player.js?v=omoluabi-continuous-20261007";

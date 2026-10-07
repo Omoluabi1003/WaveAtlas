@@ -8,6 +8,9 @@ padding; copy reference-conditioned state before each utterance; allow a full
 precision encoder independently of the quantized generation models. The
 upstream MIT license remains in LICENSE.
 
+Runtime modules and nested worker URLs use the same WaveAtlas release query to
+avoid mixing incompatible SDK versions retained by an installed service worker.
+
 The worker and its relative imports are hosted on the WaveAtlas origin so
 browser worker creation does not depend on a rewritten cross-origin CDN module.
 The ONNX runtime and model weights are still downloaded from upstream hosts.

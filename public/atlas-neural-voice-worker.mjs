@@ -1,5 +1,5 @@
-import { MODEL_REVISION, REFERENCE_SHA, VOICE_CACHE_VERSION, loadVoiceProfile, saveVoiceProfile, deleteVoiceProfile, loadSpeech, saveSpeech } from './atlas-voice-store.mjs';
-import { decodeVoiceProfile } from './atlas-voice-profile.mjs';
+import { MODEL_REVISION, REFERENCE_SHA, VOICE_CACHE_VERSION, loadVoiceProfile, saveVoiceProfile, deleteVoiceProfile, loadSpeech, saveSpeech } from './atlas-voice-store.mjs?v=omoluabi-continuous-20261007';
+import { decodeVoiceProfile } from './atlas-voice-profile.mjs?v=omoluabi-continuous-20261007';
 let ttsPromise = null;
 let activeEngine = null;
 let generation = 0;
@@ -29,7 +29,7 @@ function getPreparedVoice() { if (!preparedVoicePromise) preparedVoicePromise = 
 async function loadCanonicalReference() {
   const response = await fetch(`/omoluabi-voice-reference.wav?v=${REFERENCE_SHA}`, { cache: 'force-cache' });
   if (!response.ok) throw new Error(`Omoluabi reference failed (${response.status})`);
-  const { decodeReferenceWav } = await import('./atlas-reference-audio.mjs');
+  const { decodeReferenceWav } = await import('./atlas-reference-audio.mjs?v=omoluabi-continuous-20261007');
   const reference = decodeReferenceWav(await response.arrayBuffer());
   if (!reference.pcm.some(sample => Math.abs(sample) > 0.001)) throw new Error('Voice reference is silent');
   // Preserve the recorded reference's level and timbre. No boost or pitch changes.
@@ -38,9 +38,11 @@ async function loadCanonicalReference() {
 async function createEngine(fromRecording = false) {
   // Local generation uses no WaveAtlas API key, account or paid endpoint.
   const profile = fromRecording ? null : await getPreparedVoice();
-  const { PocketTTS } = await import('./vendor/pocket-tts-js/index.js');
+  const { PocketTTS } = await import('./vendor/pocket-tts-js/index.js?v=omoluabi-continuous-20261007');
   const tts = new PocketTTS({ language: 'english_2026-04', modelBaseUrl: `https://huggingface.co/vlapky/pocket-tts-onnx/resolve/${MODEL_REVISION}/onnx`, quantized: true, encoderQuantized: false, voiceCloning: !profile, maxThreads: 2, cache: true });
   activeEngine = tts;
+  // An obsolete cached SDK must fail before loading models or re-encoding Paul.
+  if (typeof tts.importVoice !== 'function' || typeof tts.exportVoice !== 'function') throw new Error('Voice runtime could not update. Reopen Atlas to retry.');
   await tts.load(progress => self.postMessage({ type: 'progress', label: progress.label || progress.status || 'Preparing Omoluabi voice', loaded: progress.loaded, total: progress.total }));
   if (profile) {
     try { clonedVoice = await tts.importVoice(profile, 'Omoluabi Paul'); }
@@ -74,7 +76,7 @@ function emitAudio(id, audio, cached = false) {
   self.postMessage({ type: 'audio_chunk', id, samples, sampleRate: audio.sampleRate, cached, ...identity }, [samples.buffer]);
 }
 function replay(id, audio) {
-  // Reuse original chunk boundaries so replay gets the same loudness gain.
+  // Keep cache compatibility; the player joins every chunk before playback.
   const lengths = audio.chunkLengths;
   if (Array.isArray(lengths) && lengths.every(length => Number.isSafeInteger(length) && length > 0) && lengths.reduce((sum, length) => sum + length, 0) === audio.samples.length) {
     let offset = 0;

@@ -19,7 +19,7 @@ function context() {
     },
     createGain() { const gain = { ...node(), gain: { value: 0 } }; gains.push(gain); return gain; },
   };
-  return { audio: audio as unknown as AudioContext, sources, gains, buffers };
+  return { audio: audio as unknown as AudioContext, advanceTo: (seconds: number) => { audio.currentTime = seconds; }, sources, gains, buffers };
 }
 
 async function main() {
@@ -31,26 +31,35 @@ async function main() {
 
   const mock = context(); let started = 0;
   const player = new AtlasPCMPlayer(mock.audio, () => { started++; });
-  const first = new Float32Array(5760).fill(0.03), second = new Float32Array(5760).fill(-0.03);
+  const first = new Float32Array(5760).fill(0.03), second = new Float32Array(5760).fill(-0.3);
   player.push(first, 24000);
-  assert.equal(mock.sources.length, 0, 'Small priming buffer must absorb initial streaming jitter');
+  mock.advanceTo(8);
   player.push(second, 24000);
+  mock.advanceTo(15);
+  const third = new Float32Array(5760).fill(0.05);
+  player.push(third, 24000);
+  assert.equal(mock.sources.length, 0, 'Generation slower than playback must not start a reply that will underrun');
+  assert.equal(started, 0, 'Buffering must not report speaking');
+  const complete = new Float32Array(first.length + second.length + third.length);
+  complete.set(first); complete.set(second, first.length); complete.set(third, first.length + second.length);
+  const playback = player.finish();
+  assert.equal(player.finish(), playback, 'Repeated completion must share the same audible playback');
   assert.equal(started, 1);
-  assert.equal(mock.sources.length, 2, 'Streaming must schedule audio before finish');
-  assert.equal(mock.sources[1].startAt, mock.sources[0].startAt + first.length / 24000);
-  assert.deepEqual(mock.buffers[0].getChannelData(0), first, 'Gain must not modify the recorded waveform');
+  assert.equal(mock.sources.length, 1, 'A complete reply must use one source with no chunk scheduling gaps');
+  assert.ok(mock.sources[0].startAt >= mock.audio.currentTime);
+  assert.deepEqual(mock.buffers[0].getChannelData(0), complete, 'Buffering and gain must preserve every sample in order');
   for (const source of mock.sources) { assert.equal(source.playbackRate.value, 1); assert.equal(source.buffer.sampleRate, 24000); }
-  assert.ok(mock.gains[0].gain.value > 1);
+  assert.equal(mock.gains.length, 1, 'Loudness must remain consistent across former chunk boundaries');
+  assert.equal(mock.gains[0].gain.value, speechGain(complete));
   let settled = false;
-  const finished = player.finish().then(played => { settled = true; return played; });
+  const finished = playback.then(played => { settled = true; return played; });
   await Promise.resolve(); assert.equal(settled, false, 'Generation completion must wait for audible playback');
-  mock.sources[0].onended(); await Promise.resolve(); assert.equal(settled, false);
-  mock.sources[1].onended(); assert.equal(await finished, true);
+  mock.sources[0].onended(); assert.equal(await finished, true);
   assert.equal((player.analyser as any).disconnected, true);
 
   const small = context(); const short = new AtlasPCMPlayer(small.audio, () => {});
   short.push(quiet, 24000); const shortFinish = short.finish();
-  assert.equal(small.sources.length, 1, 'A short cached response must flush without the streaming threshold');
+  assert.equal(small.sources.length, 1, 'A complete short cached response must play immediately');
   small.sources[0].onended(); assert.equal(await shortFinish, true);
   const stopping = context(); const interrupted = new AtlasPCMPlayer(stopping.audio, () => {});
   interrupted.push(first, 24000); interrupted.push(second, 24000);
@@ -58,7 +67,17 @@ async function main() {
   assert.equal(await stopFinish, false);
   assert.ok(stopping.sources.every(source => source.stopped && source.disconnected));
   assert.ok(stopping.gains.every(gain => gain.disconnected));
+  const preparing = context(); let cancelledStarts = 0;
+  const cancelled = new AtlasPCMPlayer(preparing.audio, () => { cancelledStarts++; });
+  cancelled.push(first, 24000); cancelled.push(second, 24000); cancelled.stop();
+  assert.equal(await cancelled.finish(), false);
+  assert.equal(preparing.sources.length, 0, 'Cancelling preparation must never play partial speech');
+  assert.equal(cancelledStarts, 0);
+  const empty = new AtlasPCMPlayer(context().audio, () => { throw new Error('Empty reply must not start'); });
+  assert.equal(await empty.finish(), false);
   assert.throws(() => new AtlasPCMPlayer(context().audio, () => {}).push(quiet, 48000));
-  console.log('PCM playback: early scheduling, unchanged samples/pitch/rate, loudness, peak limits, short replay, audible completion and interruption passed.');
+  assert.throws(() => new AtlasPCMPlayer(context().audio, () => {}).push(new Float32Array([NaN]), 24000));
+  assert.throws(() => player.push(quiet, 24000), /complete/);
+  console.log('PCM playback: slow generation without underruns, one continuous source, uniform gain, unchanged samples/pitch/rate, cached replay, audible completion and cancellation passed.');
 }
 void main();
