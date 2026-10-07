@@ -1,0 +1,23 @@
+{
+  "source": "Omoluabi voice.mp3",
+  "referenceBlobSha": "f29df38fcbd0901bf752d64b00030edd6495385d",
+  "referenceSha256": "9d0ca2c06bc6fce889b8b59812cc6b2b78b2d94467acf9ab829107c850c21950",
+  "modelRevision": "c469236dbc5f68287fa2fbf175b66de3b80123af",
+  "language": "english_2026-04",
+  "sampleRate": 24000,
+  "encoderQuantized": false,
+  "generationQuantized": true,
+  "runtime": "onnxruntime-node@1.20.0",
+  "profileBytes": 6200016,
+  "profileSha256": "c1d16620adbe2c228bf84fdf20355fe881679b20dd19eb188365bc19f31ca5c5",
+  "modelHashes": {
+    "bundle.json": "bab643150f437f37df080a710520ff39ed9ebd9a339f8ebdc739f7eddfc28b3f",
+    "tokenizer.model": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6",
+    "bos_before_voice.npy": "f46edf4f7007b7ba4ea58831f49d003e59e167b4641c44bb3addfe9231a780b1",
+    "mimi_encoder.onnx": "853e2ca623b8782d94c3745ec6133bfdff7ce33d9b11128bd29ea03f28d76e3d",
+    "text_conditioner_int8.onnx": "24c0642bff11a4e1435c004d0c2aa6c68e093fadfa35f0f0dba849ac67f25ac3",
+    "flow_lm_main_int8.onnx": "f9bd8106b79a0192c1c43399ab938fb24900a95c1c599870d75a884e99000116",
+    "flow_lm_flow_int8.onnx": "3dd781ee5abee9e195320bf0106bebd6372a852b3b36352524ee78b40554635d",
+    "mimi_decoder_int8.onnx": "3630450a3297a101792a6ac66619ebc70ab916b265e6220c2afaef8b1673f925"
+  }
+}

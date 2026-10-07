@@ -28,6 +28,7 @@ export class PocketTTS {
      * @param {object} [options]
      * @param {string} [options.language="english_2026-04"]  Language bundle to load.
      * @param {boolean} [options.quantized=true]  Use INT8 models (smaller/faster) vs full precision.
+     * @param {boolean} [options.encoderQuantized=true]  WaveAtlas: quantize the one-time voice encoder.
      * @param {boolean} [options.voiceCloning=true]  Download the encoder so cloneVoice() works.
      * @param {string} [options.modelBaseUrl]  Base URL of the `onnx/` folder on Hugging Face.
      * @param {string} [options.ortBaseUrl]  Base URL for onnxruntime-web dist files.
@@ -41,6 +42,7 @@ export class PocketTTS {
             language: options.language || "english_2026-04",
             quantized: options.quantized !== false,
             voiceCloning: options.voiceCloning !== false,
+            encoderQuantized: options.encoderQuantized !== false,
             modelBaseUrl: (options.modelBaseUrl || DEFAULT_MODEL_BASE_URL).replace(/\/$/, ""),
             ortBaseUrl: options.ortBaseUrl || DEFAULT_ORT_BASE_URL,
             voicesUrl: options.voicesUrl || null,
@@ -163,6 +165,14 @@ export class PocketTTS {
         const buf = pcm.buffer === audio.buffer ? pcm.slice() : pcm;
         const { ref: out } = await this._request("cloneVoice", { audio: buf, ref }, [buf.buffer]);
         return out;
+    }
+
+    // WaveAtlas extension: persist the prepared speaker state, avoiding reference
+    // decoding, encoder loading and speaker re-encoding on the next visit.
+    async exportVoice(ref) { return this._request("exportVoice", { ref }); }
+    async importVoice(profile, ref = "Omoluabi Paul") {
+        const result = await this._request("importVoice", { profile, ref });
+        return result.ref;
     }
 
     /**

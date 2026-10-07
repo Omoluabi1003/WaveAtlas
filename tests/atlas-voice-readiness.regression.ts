@@ -18,7 +18,7 @@ async function main() {
   const assistant = fs.readFileSync('components/AtlasAssistant.tsx', 'utf8');
   assert.doesNotMatch(assistant, /new SpeechSynthesisUtterance|speakSystem|bestSystemVoice/);
   assert.match(assistant, /message\.voiceSource !== 'repository-canonical'/);
-  assert.match(assistant, /60000/);
+  assert.match(assistant, /timer: window\.setTimeout\(fail, 120000\), deadline: window\.setTimeout\(fail, 240000\)/);
   const app = fs.readFileSync('components/WaveAtlasApp.tsx', 'utf8');
   const emptyEntry = app.slice(app.indexOf('const voiceSearchFromEmpty'), app.indexOf('const editorialPicksFromEmpty'));
   assert.match(emptyEntry, /waveatlas:open-atlas-voice/);

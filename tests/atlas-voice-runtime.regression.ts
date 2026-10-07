@@ -11,7 +11,8 @@ assert.doesNotMatch(source, /voiceContextRef\.current\?\.state !== 'closed'/);
 
 // Atlas must unlock Web Audio from the gesture and speak only the repository voice.
 assert.match(source, /void primeVoiceOutput\(\);/);
-assert.match(source, /waitForAtlasPersonalVoice/);
+assert.match(source, /const spoken = await speakNeural\(text\)/);
+assert.doesNotMatch(source, /decodeAudioData|waitForNeuralVoice/);
 assert.doesNotMatch(source, /new SpeechSynthesisUtterance|speakSystem|bestSystemVoice/);
 assert.doesNotMatch(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)/);
 assert.match(worker, /vendor\/pocket-tts-js\/index\.js/);
@@ -21,7 +22,8 @@ assert.match(worker, /repository-canonical/);
 // Production cloning must always use the authorized repository recording.
 assert.match(worker, /const reference = await loadCanonicalReference\(\);/);
 assert.doesNotMatch(worker, /loadSavedReference|browser-enrollment/);
-assert.match(worker, /voiceCloning: true/);
+assert.match(worker, /voiceCloning: !profile/);
+assert.match(worker, /encoderQuantized: false/);
 assert.match(worker, /cache: true/);
 
-console.log('Atlas voice runtime: Web Audio unlock, repository-only personal speech and bounded readiness passed.');
+console.log('Atlas voice runtime: Web Audio unlock, repository-only personal speech, persistent profile and direct PCM passed.');

@@ -5,6 +5,7 @@
 // stay tiny) and downloads only the model files actually needed for the chosen
 // language + quantization, plus the voice encoder only when cloning is enabled.
 
+import { packVoiceState, unpackVoiceState, cloneVoiceState } from "./voice-state.js";
 import { SentencePieceTokenizer } from "./tokenizer.js";
 import { parseNpyFloat32, parseVoiceStatesBin } from "./binary.js";
 
@@ -51,7 +52,8 @@ function modelUrl(language, filename) {
 }
 
 function stem(name) {
-    return config.quantized ? `${name}_int8.onnx` : `${name}.onnx`;
+    const quantized = name === "mimi_encoder" ? config.encoderQuantized !== false && config.quantized : config.quantized;
+    return quantized ? `${name}_int8.onnx` : `${name}.onnx`;
 }
 
 function post(msg, transfer) {
@@ -496,10 +498,25 @@ async function cloneVoice(audioData, ref) {
     return ref;
 }
 
+// WaveAtlas extension: store structured tensor data, never JSON (which loses
+// NaN padding, BigInt state and typed-array fidelity).
+function exportVoice(ref) {
+    const state = voiceStateCache.get(ref);
+    if (!state) throw new Error("Voice is not prepared");
+    const tensors = packVoiceState(state);
+    return { format: 2, language: config.language, sampleRate, manifest: bundleMetadata.flow_lm_state_manifest, tensors };
+}
+function importVoice(profile, ref) {
+    if (profile?.format !== 2 || profile.language !== config.language || profile.sampleRate !== sampleRate || JSON.stringify(profile.manifest) !== JSON.stringify(bundleMetadata.flow_lm_state_manifest)) throw new Error("Cached voice model version mismatch");
+    const state = unpackVoiceState(profile.tensors, bundleMetadata.flow_lm_state_manifest, createTensor);
+    voiceStateCache.set(ref, state);
+    return ref;
+}
+
 // ----- generation -----
 
 function cloneState(state) {
-    return { ...state };
+    return cloneVoiceState(state, createTensor);
 }
 
 async function generate(text, voiceRef) {
@@ -511,10 +528,10 @@ async function generate(text, voiceRef) {
     if (!chunks.length) throw new Error("No text to generate.");
 
     const baseFlowState = voiceStateCache.get(voiceRef);
-    let mimiState = initStateFromManifest(bundleMetadata.mimi_state_manifest);
+    let mimiState;
     const emptySeq = createTensor("float32", new Float32Array(0), [1, 0, latentDim]);
     const emptyTextEmb = createTensor("float32", new Float32Array(0), [1, 0, conditioningDim]);
-    let flowLmState = cloneState(baseFlowState);
+    let flowLmState;
 
     const firstChunkFrames = 3;
     const normalChunkFrames = 12;
@@ -694,6 +711,11 @@ self.onmessage = async (e) => {
             post({ id, type: "result", result: { ok: true } });
         } else if (type === "cloneVoice") {
             const ref = await cloneVoice(payload.audio, payload.ref);
+            post({ id, type: "result", result: { ref } });
+        } else if (type === "exportVoice") {
+            post({ id, type: "result", result: exportVoice(payload.ref) });
+        } else if (type === "importVoice") {
+            const ref = importVoice(payload.profile, payload.ref);
             post({ id, type: "result", result: { ref } });
         } else if (type === "loadBuiltinVoice") {
             const ref = await loadBuiltinVoice(payload.name);

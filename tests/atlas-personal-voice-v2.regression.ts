@@ -42,7 +42,8 @@ assert.doesNotMatch(productionWorker, /OPENAI|ELEVENLABS|OPENROUTER|Authorizatio
 assert.match(referenceRoute, /Omoluabi%20voice\.mp3/);
 assert.match(referenceRoute, /99121f3012e9e606ed02c23db42fda5844344bb9/);
 assert.match(assistant, /ATLAS VOICE · OMOLUABI PAUL/);
-assert.match(assistant, /if \(await waitForNeuralVoice\(\)\) spoken = await speakNeural\(text\)/);
+assert.match(assistant, /const spoken = await speakNeural\(text\)/);
+assert.doesNotMatch(assistant, /waitForNeuralVoice|decodeAudioData/);
 assert.doesNotMatch(assistant, /isIOSFamily\(\)\) \{ setNeuralState\('unavailable'/);
 
 console.log('Atlas personal voice v5: canonical Omoluabi Paul reference, keyless client-side Pocket TTS, cached model and repository voice checks passed.');
