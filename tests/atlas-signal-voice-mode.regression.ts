@@ -6,7 +6,7 @@ const source = fs.readFileSync('components/AtlasAssistant.tsx', 'utf8');
 
 assert.match(source, /if \(!open\) return null;/, 'Atlas must render nothing while Voice Mode is closed');
 assert.match(source, /push to talk voice command\|push to talk\|microphone blocked/i, 'Existing WaveAtlas microphone must launch Atlas Voice');
-assert.match(source, /RADIO_FOCUS = \{ opening: 0\.05, listening: 0\.02, thinking: 0\.04, speaking: 0\.015 \}/, 'Voice mode must keep radio connected but nearly inaudible');
+assert.match(source, /RADIO_FOCUS = \{ opening: 0, listening: 0, thinking: 0, speaking: 0 \}/, 'Voice mode must keep radio connected and silent');
 assert.match(source, /answerAtlasIntelligently\(value, \{ station, history \}\)/, 'Routine intents must use the same free engine and conversation context locally');
 assert.doesNotMatch(source, /fetch\('\/api\/atlas-assistant'/, 'Local intent processing must not wait for a server request');
 assert.match(fs.readFileSync('components/WaveAtlasExperience.tsx', 'utf8'), /AbortSignal\.timeout\(6000\)|controller\.abort\(\), 6000/, 'Station directory requests retain a bounded recovery timeout');
@@ -35,4 +35,4 @@ assert.match(followUp.action.query || '', /Nigeria jazz/i);
 const capability = answerAtlasQuestion('what can you do?');
 assert.match(capability.answer, /identify.*current signal.*find and play stations/i);
 
-console.log('Atlas Signal: recovery timeout, near-mute focus, conversational intent, context memory, audio-reactive cloned speech and personal-voice-only recovery passed.');
+console.log('Atlas Signal: recovery timeout, exclusive silent focus, conversational intent, context memory, audio-reactive cloned speech and personal-voice-only recovery passed.');
