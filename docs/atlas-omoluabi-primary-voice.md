@@ -37,31 +37,62 @@ cached by the SDK. Cached speech does not need those models to replay.
 ## Playback and voice fidelity
 
 The worker delivers float32 audio chunks as they are generated. The PCM player
-uses a short initial buffer and schedules them directly at the model's 24 kHz
-sample rate. It does not encode a whole reply as WAV or call `decodeAudioData` on
-each response. Playback rate stays at 1. The canonical reference's samples and
+holds the complete reply, joins its samples in order, and plays one AudioBuffer
+at the model's 24 kHz sample rate. A small initial streaming buffer ran dry when
+browser synthesis was slower than real time. Waiting for the complete reply
+removes those playback underruns without encoding WAV or calling `decodeAudioData`
+on each response. Cached replies need no generation wait. New wording waits for
+local synthesis to finish; this change does not make slow devices synthesize faster.
+Playback rate stays at 1. The canonical reference's samples and
 level are unchanged, and each utterance gets an independent copy of the prepared
 speaker state so generation cannot mutate the reference conditioning.
 
 Output gain raises quiet speech toward a moderate RMS level, with a sixfold gain
 limit and peak headroom. The previous compressor is removed. These changes do
-not shift pitch or add bass. Cache entries preserve the original chunk boundaries
-so repeats receive the same gain treatment as the first playback.
+not shift pitch or add bass. One gain applies to the entire reply, avoiding volume
+changes at chunk boundaries. Existing cached PCM remains compatible and receives
+the same whole-reply gain as new audio.
+
+Voice runtime URLs share the `omoluabi-continuous-20261007` release query, including
+the SDK's nested worker and relative dependencies. This bypasses unversioned SDK
+files retained by an older service worker. New service workers load voice scripts
+from the network first and use the exact cached URL when offline. App activation
+only deletes older WaveAtlas app caches; it preserves the SDK's downloaded models.
+Runtime updates do not invalidate Paul's unchanged profile or completed replies.
+An SDK lacking profile import/export fails before downloading models or re-encoding
+the reference instead of silently entering the expensive enrollment recovery path.
 
 Interruption stops scheduled audio, cancels synthesis, rejects pending requests,
 and prevents partial/stale speech from being stored or delivered. Generation
 completion waits for audible playback before Atlas resumes listening. Preparation
 and first output have a 120-second limit, stalled chunks a 45-second limit, and
 generation an overall 240-second limit. Failed speech remains in the transcript
-with a retry control. All Voice Search entry points use this same Atlas surface.
+with a retry control. Preparation status appears only while a reply is being
+prepared, switches to speaking when its source starts, and clears on completion
+or interruption. Late model progress cannot replace playback status. The AudioContext
+is resumed again before a completed reply plays in case it was suspended during
+first-load preparation. All Voice Search entry points use this same Atlas surface.
 
 ## Verification
 
 `npm run test:omoluabi-voice` covers real reference samples, executable worker
 streaming, fresh-device preparation, persistent replay without a model, concurrent
 reuse, cancellation, IndexedDB limits/failure, binary tensor fidelity, and PCM
-scheduling/volume/pitch behavior. Existing voice/media-session and recognition
+scheduling/volume/pitch behavior, delayed generation, status transitions, actual
+SDK profile methods, the complete versioned module graph, stale app caches and
+service worker preservation of model caches. Existing voice/media-session and recognition
 regressions, TypeScript and the production build are also checked.
+
+The public Netlify preview for PR #343 was tested in a browser with a fresh
+origin. Atlas restored the bundled profile, generated a new reply, switched to
+speaking, and cleared preparation status on completion. After reloading, the same
+reply reached speaking in an observed 482 ms from Send and returned to the saved
+voice state, without initializing models. This includes the assistant request and
+UI observation; it is one browser measurement, not a cross-device latency promise.
+Muting during preparation prevented late speech, and muting during playback
+stopped output and restored idle status. Voice tests used keyboard input; microphone
+recognition and perceptual voice likeness were not evaluated. The verification
+screenshot is `atlas-voice-preview-2026-10-07.jpg`.
 
 The offline preparation script ran the actual pinned models with
 `onnxruntime-node@1.20.0`, restored the exported speaker state, generated audible

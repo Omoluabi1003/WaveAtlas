@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import { atlasVoiceStatusLabel, atlasVoiceStatusTransition, INITIAL_ATLAS_VOICE_STATUS } from '../lib/atlas-voice-status';
+
+let status = atlasVoiceStatusTransition(INITIAL_ATLAS_VOICE_STATUS, { type: 'preparing' });
+status = atlasVoiceStatusTransition(status, { type: 'progress', detail: 'Downloading voice model · 50%' });
+assert.match(atlasVoiceStatusLabel(status, 'loading'), /Preparing Omoluabi reply.*50%/);
+status = atlasVoiceStatusTransition(status, { type: 'speaking' });
+assert.equal(status.detail, '');
+status = atlasVoiceStatusTransition(status, { type: 'progress', detail: 'Preparing to stream' });
+assert.equal(atlasVoiceStatusLabel(status, 'ready'), 'Omoluabi Paul speaking', 'Late model progress must not replace audible speaking');
+status = atlasVoiceStatusTransition(status, { type: 'idle' });
+status = atlasVoiceStatusTransition(status, { type: 'progress', detail: 'Preparing to stream' });
+assert.equal(atlasVoiceStatusLabel(status, 'ready'), 'Omoluabi personal voice ready', 'Finished replies must clear preparation and streaming labels');
+status = atlasVoiceStatusTransition(status, { type: 'preparing' });
+status = atlasVoiceStatusTransition(status, { type: 'idle' });
+assert.equal(status.detail, '', 'Cancellation must discard preparation progress');
+status = atlasVoiceStatusTransition(status, { type: 'failed', detail: 'Timed out' });
+assert.match(atlasVoiceStatusLabel(status, 'ready'), /unavailable.*Timed out/);
+status = atlasVoiceStatusTransition(status, { type: 'preparing' });
+assert.equal(status.detail, '', 'Retry must remove the previous failure');
+assert.equal(atlasVoiceStatusLabel(status, 'ready'), 'Preparing Omoluabi reply');
+console.log('Voice status: preparation, real playback, ignored late progress, completion, interruption and retry passed.');

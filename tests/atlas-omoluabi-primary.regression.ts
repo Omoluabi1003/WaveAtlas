@@ -45,13 +45,14 @@ async function main() {
     destroy() {}
   }
   const source = fs.readFileSync('public/atlas-neural-voice-worker.mjs', 'utf8')
-    .replace(/^import .* from '\.\/atlas-voice-store\.mjs';/m, 'const { MODEL_REVISION, REFERENCE_SHA, VOICE_CACHE_VERSION, loadVoiceProfile, saveVoiceProfile, deleteVoiceProfile, loadSpeech, saveSpeech } = voiceStore;')
-    .replace(/^import .* from '\.\/atlas-voice-profile\.mjs';/m, 'const { decodeVoiceProfile } = voiceProfile;')
-    .replace("await import('./vendor/pocket-tts-js/index.js')", 'sdk')
-    .replace("await import('./atlas-reference-audio.mjs')", 'decoder');
-  function worker(bundled = false) {
+    .replace(/^import .* from '\.\/atlas-voice-store\.mjs(?:\?[^']+)?';/m, 'const { MODEL_REVISION, REFERENCE_SHA, VOICE_CACHE_VERSION, loadVoiceProfile, saveVoiceProfile, deleteVoiceProfile, loadSpeech, saveSpeech } = voiceStore;')
+    .replace(/^import .* from '\.\/atlas-voice-profile\.mjs(?:\?[^']+)?';/m, 'const { decodeVoiceProfile } = voiceProfile;')
+    .replace(/await import\('\.\/vendor\/pocket-tts-js\/index\.js(?:\?[^']+)?'\)/, 'sdk')
+    .replace(/await import\('\.\/atlas-reference-audio\.mjs(?:\?[^']+)?'\)/, 'decoder');
+  function worker(bundled = false, staleSdk = false) {
     const messages: any[] = [];
-    const context: any = { voiceStore, voiceProfile, sdk: { PocketTTS }, decoder: { decodeReferenceWav }, fetch: async (url: string) => {
+    class ObsoletePocketTTS extends PocketTTS { exportVoice = undefined as any; importVoice = undefined as any; }
+    const context: any = { voiceStore, voiceProfile, sdk: { PocketTTS: staleSdk ? ObsoletePocketTTS : PocketTTS }, decoder: { decodeReferenceWav }, fetch: async (url: string) => {
       if (url === `/omoluabi-voice-profile.bin?v=${voiceStore.VOICE_CACHE_VERSION}`) return { ok: bundled, arrayBuffer: async () => voiceProfile.encodeVoiceProfile(profile) };
       counts.reference++; assert.equal(url, `/omoluabi-voice-reference.wav?v=${voiceStore.REFERENCE_SHA}`); return { ok: true, arrayBuffer: async () => buffer };
     }, self: { postMessage: (message: any, transfer: Transferable[] = []) => messages.push(structuredClone(message, { transfer })) }, Float32Array, ArrayBuffer, DataView, Uint8Array, Map, Promise, Error };
@@ -78,7 +79,7 @@ async function main() {
   assert.equal(counts.generated, 1, 'Repeated phrases must bypass synthesis');
   const saved = first.messages.filter(message => message.id === 'two' && message.type === 'audio_chunk');
   assert.ok(saved.every(message => message.cached && message.sampleRate === 24000));
-  assert.deepEqual(saved.map(message => message.samples), first.messages.filter(message => message.id === 'one' && message.type === 'audio_chunk').map(message => message.samples), 'Replay must preserve the original PCM chunks and loudness boundaries');
+  assert.deepEqual(saved.map(message => message.samples), first.messages.filter(message => message.id === 'one' && message.type === 'audio_chunk').map(message => message.samples), 'Replay must preserve the original PCM samples');
 
   const reloaded = worker();
   await reloaded.send({ type: 'speak', id: 'reload', text: 'Welcome to WaveAtlas.' });
@@ -120,6 +121,12 @@ async function main() {
   assert.equal(counts.cloned, 1, 'Bundled preparation must bypass reference encoding on a fresh device');
   assert.equal(counts.reference, 1);
   assert.equal(configurations[2].voiceCloning, false);
+
+  const obsolete = worker(true, true);
+  await obsolete.send({ type: 'speak', id: 'obsolete', text: 'An obsolete runtime must not enroll Paul again.' });
+  assert.ok(obsolete.messages.some(message => message.type === 'unavailable' && /runtime could not update/.test(message.message)));
+  assert.equal(counts.cloned, 1, 'An SDK mismatch must fail before expensive reference re-encoding');
+  assert.equal(counts.reference, 1);
 
   const sdk = fs.readFileSync('public/vendor/pocket-tts-js/index.js', 'utf8');
   assert.match(sdk, /new URL\("\.\/worker.js", import.meta.url\)/);
