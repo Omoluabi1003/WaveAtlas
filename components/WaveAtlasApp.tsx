@@ -1,5 +1,7 @@
 "use client";
 
+import { radioAudioFocus } from "@/lib/atlas-audio-focus";
+
 import { readBrowserStorage, writeBrowserStorage } from "@/lib/browser-storage";
 
 import { basemapStyles, type BasemapKey } from "@/lib/map-basemaps";
@@ -1652,8 +1654,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   useEffect(() => {
     const element = audio.current;
     if (!element) return;
-    element.volume = volume;
-    if (element.muted) element.muted = false;
+    radioAudioFocus(element).setVolume(volume, true);
   }, [volume]);
 
   useEffect(() => {
@@ -1831,8 +1832,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
         element.pause();
         element.src = streamUrl;
         element.preload = "auto";
-        element.volume = volume;
-        element.muted = false;
+        radioAudioFocus(element).setVolume(volume);
         element.load();
         await element.play();
       } catch (error) {
