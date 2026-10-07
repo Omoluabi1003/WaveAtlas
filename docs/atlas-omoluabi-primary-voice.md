@@ -121,6 +121,14 @@ include the UI interaction and observation, after the shipped pack had preloaded
 they are single-browser measurements rather than promises for every connection
 or device. No inference preparation label appeared in the conversation.
 
+After the launch-banner fix deployed, reloading the same preview produced a
+greeting in an observed 799 ms from Send to speaking. The stale launch banner
+was absent. Muting immediately after the longer capabilities reply started
+removed the speaking state; enabling voice again returned to the normal ready
+interface. The final preview screenshot is
+`atlas-ready-voice-preview-1791336685720.jpg`. The screenshot and this reload
+check use code commit `2782c303c350f5a278f7a7c8b39ba1efd8cc4022`.
+
 The earlier PR #343 browser check observed 482 ms from Send to speaking for a
 previously generated reply after reload. That measures its dynamic replay path,
 not first-visit prepared replies in this change. Its screenshot remains
