@@ -32,6 +32,14 @@ async function main() {
   const stale = native.onresult(result(true));
   recognition.abort(); complete(); await stale;
   assert.deepEqual(events, [], 'Aborted recognition cannot deliver a late command');
+  // Atlas aborts capture inside its final result handler. Native capture may
+  // have ended already while directory resolution was pending.
+  events.length = 0;
+  recognition.onresult = () => { (events as string[]).push('result'); recognition.abort(); };
+  recognition.start();
+  const handoff = native.onresult(result(true));
+  native.onend(); complete(); await handoff;
+  assert.deepEqual(events, ['result', 'end'], 'Abort after native end must still complete the capture handoff');
   delete (globalThis as any).window;
   console.log('Recognition lifecycle: interim, final ordering and cancellation passed.');
 }

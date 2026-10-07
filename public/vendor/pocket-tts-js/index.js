@@ -72,7 +72,7 @@ export class PocketTTS {
     _ensureWorker() {
         if (this.worker) return;
         const workerUrl = new URL("./worker.js", import.meta.url);
-        const runtimeVersion = new URL(import.meta.url).searchParams.get("v") || "omoluabi-ready-20261007-v1";
+        const runtimeVersion = new URL(import.meta.url).searchParams.get("v") || "omoluabi-handoff-20261007-v2";
         workerUrl.searchParams.set("v", runtimeVersion);
         this.worker = new Worker(workerUrl, { type: "module" });
         this.worker.onmessage = (e) => this._handleMessage(e.data);
@@ -261,5 +261,5 @@ export function resampleLinear(data, sourceRate, targetRate) {
     return out;
 }
 
-export { SentencePieceTokenizer } from "./tokenizer.js?v=omoluabi-ready-20261007-v1";
-export { StreamingPlayer, chunksToWavBlob } from "./player.js?v=omoluabi-ready-20261007-v1";
+export { SentencePieceTokenizer } from "./tokenizer.js?v=omoluabi-handoff-20261007-v2";
+export { StreamingPlayer, chunksToWavBlob } from "./player.js?v=omoluabi-handoff-20261007-v2";

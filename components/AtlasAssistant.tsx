@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Mic, MicOff, Send, Volume2, VolumeX, X } from 'lucide-react';
 import type { AtlasActionResult, AtlasAssistantAction, AtlasConversationLine } from '@/lib/atlas-assistant';
 import { atlasInteractionState } from '@/lib/atlas-audio-focus';
+import { AtlasVoiceCapture } from '@/lib/atlas-voice-capture';
 import { AtlasPCMPlayer } from '@/lib/atlas-pcm-player';
 import { ATLAS_VOICE_RUNTIME_VERSION, INITIAL_ATLAS_VOICE_STATUS, atlasVoiceStatusLabel, atlasVoiceStatusTransition, type AtlasVoiceStatusEvent } from '@/lib/atlas-voice-status';
 import { answerAtlasIntelligently } from '@/lib/atlas-intelligence';
@@ -67,6 +68,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   const [signalEnergy, setSignalEnergy] = useState(0.18);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const captureRef = useRef(new AtlasVoiceCapture());
   const recognitionWatchdogRef = useRef<number | null>(null);
   const followUpTimerRef = useRef<number | null>(null);
   const openRef = useRef(false);
@@ -127,7 +129,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   useEffect(() => () => {
     requestControllerRef.current?.abort();
     outputGenerationRef.current += 1;
-    recognitionRef.current?.abort();
+    const captureEnded = captureRef.current.stop();
     if (recognitionWatchdogRef.current) window.clearTimeout(recognitionWatchdogRef.current);
     if (followUpTimerRef.current !== null) window.clearTimeout(followUpTimerRef.current);
     if (meterFrameRef.current) window.cancelAnimationFrame(meterFrameRef.current);
@@ -136,14 +138,14 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     if (neuralLoadTimerRef.current) window.clearTimeout(neuralLoadTimerRef.current);
     void voiceContextRef.current?.close(); neuralWorkerRef.current?.terminate();
     neuralPendingRef.current.forEach(({ reject, timer, deadline }) => { window.clearTimeout(timer); window.clearTimeout(deadline); reject(new Error('Atlas voice closed')); });
-    neuralPendingRef.current.clear(); conversationModeRef.current = false; recognitionRef.current = null; busyRef.current = false; speechPendingRef.current = false; pcmPlayerRef.current = null; restoreRadio();
+    neuralPendingRef.current.clear(); conversationModeRef.current = false; recognitionRef.current = null; busyRef.current = false; speechPendingRef.current = false; pcmPlayerRef.current = null; void captureEnded.then(restoreRadio);
   }, []);
 
   function sendPlayback(command: 'play' | 'pause' | 'volume' | 'duck' | 'restore', value?: number) { window.dispatchEvent(new CustomEvent('waveatlas:assistant-playback', { detail: { command, ...(typeof value === 'number' ? { value } : {}) } })); }
   function focusRadio(level: number) { radioDuckedRef.current = true; sendPlayback('duck', level); }
   function restoreRadio() {
     const state = atlasInteractionState({
-      conversation: conversationModeRef.current, capture: Boolean(recognitionRef.current),
+      conversation: conversationModeRef.current, capture: captureRef.current.active,
       processing: busyRef.current, speechPending: speechPendingRef.current,
       playback: Boolean(pcmPlayerRef.current), queuedSpeech: neuralPendingRef.current.size > 0,
     });
@@ -224,6 +226,8 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     if (!neuralWorkerRef.current) warmNeuralVoice();
     const worker = neuralWorkerRef.current;
     if (!worker) return false;
+    await captureRef.current.stop();
+    if (generation !== outputGenerationRef.current || !openRef.current) return false;
     const context = await prepareAudiblePlayback();
     if (!context || generation !== outputGenerationRef.current || !openRef.current) return false;
     updateVoiceStatus({ type: 'preparing' }); setVoiceMessage(spokenStatusRef.current || 'Thinking');
@@ -270,8 +274,8 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     const generation = outputGenerationRef.current;
     spokenStatusRef.current = statusLabel || null;
     if (!voiceEnabledRef.current) { spokenStatusRef.current = null; if (terminal) endConversation(); else restoreRadio(); return; }
-    recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); focusRadio(RADIO_FOCUS.speaking);
-    speechPendingRef.current = true;
+    void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); focusRadio(RADIO_FOCUS.speaking);
+    speechPendingRef.current = true; updateVoiceStatus({ type: 'preparing' });
     const spoken = await speakNeural(text); if (generation !== outputGenerationRef.current || !openRef.current) return;
     speechPendingRef.current = false; setSpeaking(false);
     if (!spoken) {
@@ -290,10 +294,21 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 650 : 350);
     } else { setVoiceMessage('Ready'); setAudioSession('playback'); restoreRadio(); }
   }
-  function endConversation() { requestControllerRef.current?.abort(); requestControllerRef.current = null; busyRef.current = false; setBusy(false); conversationModeRef.current = false; setConversationMode(false); recognitionRef.current?.abort(); recognitionRef.current = null; stopRecognitionWatchdog(); stopVoiceOutput(); setListening(false); setAudioSession('playback'); restoreRadio(); openRef.current = false; setOpen(false); setTextMode(false); }
+  function endConversation() {
+    requestControllerRef.current?.abort(); requestControllerRef.current = null;
+    busyRef.current = false; setBusy(false);
+    conversationModeRef.current = false; setConversationMode(false);
+    const captureEnded = captureRef.current.stop(); recognitionRef.current = null;
+    stopRecognitionWatchdog(); stopVoiceOutput(); setListening(false);
+    openRef.current = false; setOpen(false); setTextMode(false);
+    void captureEnded.then(() => {
+      if (!conversationModeRef.current && !speechPendingRef.current) setAudioSession('playback');
+      restoreRadio();
+    });
+  }
 
   async function ask(text: string) {
-    const value = text.trim(); if (!value || busyRef.current) return; stopVoiceOutput();
+    const value = text.trim(); if (!value || busyRef.current) return; stopVoiceOutput(); void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false);
     const history = linesRef.current.slice(-8);
     const userLine: Line = { role: 'user', text: value };
     linesRef.current = [...linesRef.current, userLine]; setLines(linesRef.current); setQuestion(''); setBusy(true); busyRef.current = true; setSignalEnergy(0.34); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking);
@@ -338,18 +353,18 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     if (!Recognition) { conversationModeRef.current = false; setConversationMode(false); setVoiceMessage('Voice input is unavailable'); setTextMode(true); restoreRadio(); return; }
     setVoiceMessage('Listening'); setSignalEnergy(0.24);
     try {
-      const generation = outputGenerationRef.current; await sleep(fromConversation ? 300 : 80); if (generation !== outputGenerationRef.current || !conversationModeRef.current || !openRef.current) return; const recognition = new Recognition(); recognitionRef.current = recognition; let receivedResult = false;
+      const generation = outputGenerationRef.current; await captureRef.current.stop(); await sleep(fromConversation ? 300 : 80); if (generation !== outputGenerationRef.current || !conversationModeRef.current || !openRef.current) return; const recognition = new Recognition(); recognitionRef.current = recognition; let receivedResult = false;
       recognition.lang = navigator.language || 'en-US'; recognition.interimResults = false; recognition.continuous = false; recognition.maxAlternatives = 1;
-      recognition.onstart = () => { if (recognitionRef.current !== recognition || !conversationModeRef.current || !openRef.current) { recognition.abort(); return; } setListening(true); setVoiceMessage('Listening'); stopRecognitionWatchdog(); recognitionWatchdogRef.current = window.setTimeout(() => { recognition.abort(); if (recognitionRef.current === recognition) recognitionRef.current = null; setListening(false); setVoiceMessage('Reconnecting'); }, 12000); };
-      recognition.onend = () => { if (recognitionRef.current !== recognition) return; stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; if (!receivedResult && conversationModeRef.current && openRef.current) followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 650); };
+      recognition.onstart = () => { if (recognitionRef.current !== recognition || !conversationModeRef.current || !openRef.current) { recognition.abort(); return; } setListening(true); setVoiceMessage('Listening'); stopRecognitionWatchdog(); recognitionWatchdogRef.current = window.setTimeout(() => { if (recognitionRef.current !== recognition) return; void captureRef.current.stop(); setListening(false); setVoiceMessage('Reconnecting'); }, 12000); };
+      recognition.onend = () => { restoreRadio(); if (recognitionRef.current !== recognition) return; stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; if (!receivedResult && conversationModeRef.current && openRef.current) followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 650); };
       recognition.onerror = (event) => { if (recognitionRef.current !== recognition) return; stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed'; if (denied) { conversationModeRef.current = false; setConversationMode(false); setAudioSession('playback'); setVoiceMessage('Microphone access is blocked'); setTextMode(true); restoreRadio(); } else if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 700); } };
-      recognition.onresult = (event) => { if (recognitionRef.current !== recognition || !openRef.current) return; const text = event.results?.[0]?.[0]?.transcript?.trim(); if (!text) return; receivedResult = true; stopRecognitionWatchdog(); setListening(false); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking); recognition.abort(); recognitionRef.current = null; void ask(text); }; recognition.start();
+      recognition.onresult = (event) => { if (recognitionRef.current !== recognition || !openRef.current) return; const result = event.results?.[event.resultIndex ?? 0] ?? event.results?.[0]; if (result?.isFinal === false) return; const text = result?.[0]?.transcript?.trim(); if (!text) return; receivedResult = true; stopRecognitionWatchdog(); setListening(false); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking); void captureRef.current.stop(); recognitionRef.current = null; void ask(text); }; captureRef.current.start(recognition);
     } catch { setListening(false); recognitionRef.current = null; stopRecognitionWatchdog(); if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 700); } else restoreRadio(); }
   }
   function activateAtlas() {
     void primeVoiceOutput(); if (neuralStateRef.current === 'unavailable') { neuralWorkerRef.current?.terminate(); neuralWorkerRef.current = null; neuralStateRef.current = 'idle'; setNeuralState('idle'); } warmNeuralVoice();
     if (!openRef.current) { openRef.current = true; setOpen(true); setTextMode(false); setVoiceMessage('Listening'); focusRadio(RADIO_FOCUS.opening); conversationModeRef.current = true; setConversationMode(true); followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current) void listen(true); }, 40); return; }
-    if (speaking) { stopVoiceOutput(); setVoiceMessage('Listening'); void listen(true); return; }
+    if (speaking || speechPendingRef.current) { stopVoiceOutput(); setVoiceMessage('Listening'); void listen(true); return; }
     if (conversationModeRef.current) endConversation(); else void listen();
   }
   activateRef.current = activateAtlas;
