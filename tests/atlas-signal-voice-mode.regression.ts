@@ -11,7 +11,7 @@ assert.match(source, /ASSISTANT_TIMEOUT_MS = 8000/, 'Assistant requests must hav
 assert.match(source, /context: \{ station, history \}/, 'Atlas must send recent conversation context for follow-up understanding');
 assert.match(source, /conversationModeRef\.current && openRef\.current[\s\S]*void listen\(true\)/, 'Voice conversation must return to listening instead of freezing after an answer');
 assert.match(source, /aria-label="Atlas Voice"/, 'Atlas Voice must use a dedicated transient voice surface');
-assert.match(source, /meterAnalyser\(analyser/, 'Neural speech must drive Atlas Signal from real output amplitude');
+assert.match(source, /meterAnalyser\(player\.analyser\)/, 'Neural speech must drive Atlas Signal from real output amplitude');
 assert.doesNotMatch(source, /speakSystem|new SpeechSynthesisUtterance/, 'Atlas must never substitute a device speaker');
 assert.match(source, /void primeVoiceOutput\(\);[\s\S]*warmNeuralVoice\(\);/, 'Atlas must unlock Web Audio and prepare the personal model');
 assert.doesNotMatch(source, /profile\.systemOnly/, 'Rolled-back #327 voice-gallery routing must not leak into the stable Signal runtime');

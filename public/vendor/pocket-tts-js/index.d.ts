@@ -5,6 +5,8 @@ export interface PocketTTSOptions {
   language?: string;
   /** Use INT8 models (smaller/faster) instead of full precision. Default true. */
   quantized?: boolean;
+  /** WaveAtlas extension: quantize the one-time voice encoder. Default true. */
+  encoderQuantized?: boolean;
   /** Download the encoder so cloneVoice() works. Default true. */
   voiceCloning?: boolean;
   /** Base URL of the `onnx/` folder on Hugging Face. */
@@ -64,6 +66,20 @@ export interface GenerateOptions {
   onChunk?: (audio: Float32Array, meta: ChunkMeta) => void;
 }
 
+/** WaveAtlas extension: structured tensors suitable for IndexedDB, not JSON. */
+export interface PreparedVoice {
+  format: 2;
+  language: string;
+  sampleRate: number;
+  manifest: Array<{ input_name: string; dtype: string; shape: number[]; [key: string]: unknown }>;
+  tensors: Record<string, {
+    type: string;
+    dims: number[];
+    data?: Float32Array | BigInt64Array | Uint8Array;
+    runs?: Array<{ offset: number; data: Float32Array }>;
+  }>;
+}
+
 export class PocketTTS {
   constructor(options?: PocketTTSOptions);
   readonly sampleRate: number;
@@ -72,6 +88,8 @@ export class PocketTTS {
   bundle: BundleInfo | null;
   load(onProgress?: (info: ProgressInfo) => void): Promise<BundleInfo | null>;
   cloneVoice(audio: Float32Array, opts?: CloneOptions): Promise<string>;
+  exportVoice(ref: string): Promise<PreparedVoice>;
+  importVoice(profile: PreparedVoice, ref?: string): Promise<string>;
   loadVoice(name: string): Promise<string>;
   generate(text: string, opts: GenerateOptions): Promise<GenerationMetrics>;
   stop(): Promise<void>;
