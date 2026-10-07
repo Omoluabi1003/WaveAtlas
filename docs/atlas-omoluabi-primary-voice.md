@@ -83,6 +83,17 @@ SDK profile methods, the complete versioned module graph, stale app caches and
 service worker preservation of model caches. Existing voice/media-session and recognition
 regressions, TypeScript and the production build are also checked.
 
+The public Netlify preview for PR #343 was tested in a browser with a fresh
+origin. Atlas restored the bundled profile, generated a new reply, switched to
+speaking, and cleared preparation status on completion. After reloading, the same
+reply reached speaking in an observed 482 ms from Send and returned to the saved
+voice state, without initializing models. This includes the assistant request and
+UI observation; it is one browser measurement, not a cross-device latency promise.
+Muting during preparation prevented late speech, and muting during playback
+stopped output and restored idle status. Voice tests used keyboard input; microphone
+recognition and perceptual voice likeness were not evaluated. The verification
+screenshot is `atlas-voice-preview-2026-10-07.jpg`.
+
 The offline preparation script ran the actual pinned models with
 `onnxruntime-node@1.20.0`, restored the exported speaker state, generated audible
 speech and verified synthesis did not mutate the original conditioning. The
