@@ -78,8 +78,14 @@ const stateSys = new PersistentParticleSystem(createParticleSeeds(100));
 updateParticles(stateSys.positions, first, 0.016, 'live', silent, false, stateSys);
 assert.ok(Math.abs(stateSys.stateMultiplier - 0.45) < 0.1, 'Live state target multiplier is ~0.45');
 
-updateParticles(stateSys.positions, first, 0.5, 'speaking', silent, false, stateSys);
-assert.ok(stateSys.stateMultiplier > 0.8, 'Multiplier smoothly transitions upward when entering speaking state');
+updateParticles(stateSys.positions, first, 0.5, 'thinking', silent, false, stateSys);
+assert.ok(stateSys.stateMultiplier > 0.8, 'Multiplier transitions upward when entering thinking state');
+
+updateParticles(stateSys.positions, first, 1.0, 'speaking', silent, false, stateSys);
+assert.ok(stateSys.stateMultiplier > 1.3, 'Multiplier smoothly transitions toward speaking target multiplier (1.6)');
+
+updateParticles(stateSys.positions, first, 1.5, 'listening', silent, false, stateSys);
+assert.ok(stateSys.stateMultiplier < 1.3, 'Multiplier smoothly transitions down when entering listening state');
 
 // 8. Boundary soft wrapping: particles stay within volume and all coordinates are finite
 for (let step = 0; step < 50; step++) {
