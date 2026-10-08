@@ -1,9 +1,10 @@
 # Desktop layout and Atlas Voice validation
 
-The desktop application uses a grid shell: header, workspace, notifications,
-and player. The workspace reserves columns for utilities, an open contextual
-drawer, the map/globe, and Atlas. Content columns can shrink with `minmax(0, …)`
-and scroll when needed; persistent controls do not cover the workspace.
+The globe remains the primary view and keeps its existing rotation and navigation.
+The desktop shell reserves rows for the header, workspace, compact voice/notification
+controls, and player. The workspace has only the utility rail, the globe/map, and
+an optional contextual drawer. Atlas Voice has no persistent sidebar. Content
+can shrink with `minmax(0, …)` and scroll when needed without horizontal clipping.
 
 The ancestor audit found these structural problems:
 
@@ -25,14 +26,16 @@ Overflow, fixed/min/max heights, viewport units, absolute/fixed positions,
 transforms, negative margins, offsets, grid/flex minimum sizes, breakpoints,
 z-index, and nested scroll ancestors were inspected. Canvas/decorative layers
 still use absolute positioning inside the scene; dialogs intentionally occupy
-the modal layer. Existing mobile layout is retained at normal phone heights.
+the modal layer. The existing mobile overlay layout is retained above 650 CSS pixels of height;
+shorter screens use reachable scroll rows.
 
 The existing hidden Daily Passport card also computed local time during static
 rendering. Its initial clock and daily selection now match server HTML, then
 resolve from the browser after hydration, avoiding stale-time mismatches.
 
-Atlas has a permanent labelled **Talk to Atlas** entry, identity, runtime
-readiness, contextual examples, and a compact capability sheet. The first-use
+Atlas has a compact, permanent **Talk to Atlas** entry with runtime readiness and
+an **Atlas help** action. The introduction and contextual examples are inside the
+on-demand capability sheet, so they do not cover the globe on mobile. The first-use
 invitation retires after actual input, including typed input, and remains retired
 across reloads. Previewing capabilities does not start recognition or speech.
 Missing recognition, denied microphone access, or unavailable voice output is
@@ -95,7 +98,7 @@ uses a valid Accra station to test nearby fallback. Its source assertions also
 follow the existing WAAPI/RAF marquee implementation. Production geography and
 marquee motion were not changed.
 
-Validation recorded on 2026-10-08: production build, TypeScript, lint, and all
+Earlier sidebar implementation validation, recorded on 2026-10-08: production build, TypeScript, lint, and all
 28 existing regression suites passed. The full browser run passed 713 geometry
 cases with no console errors or hydration failures. A further 143 critical-size
 and panel cases passed with strict document-width containment, and a separate
@@ -103,3 +106,37 @@ and panel cases passed with strict document-width containment, and a separate
 All 640 desktop state/size/zoom screenshots were visually reviewed, along with
 mobile, capability-sheet, listening, and open station-detail views. Lint retains
 one existing effect-dependency warning in `AtlasAssistant`; it reports no errors.
+
+## Globe-first correction
+
+The earlier sidebar implementation passed overflow checks but reduced the globe's
+available width and covered too much of the mobile globe. It has been removed.
+Voice controls now share a compact desktop footer row with notifications and use
+a compact mobile header entry. Help content appears only when explicitly opened.
+
+The earth now fits the usable canvas rectangle at all automatic station-focus
+zoom levels. Mobile measurements use visible controls within the current shell;
+voice readiness is no longer mistaken for a station notification covering the
+bottom of the canvas. Controls in separate short-screen scroll rows do not subtract
+space from the globe. The short-screen layout applies up to 650 CSS pixels of
+height so small portrait phones also retain a useful globe size. Rotation, navigation, station selection, deliberate user
+zoom, voice inference, PCM output and radio audio focus remain unchanged.
+
+The browser regression additionally requires the closed-drawer desktop scene to
+keep at least 80% of workspace width, a usable scene height, and a compact voice
+entry. Renderer checks ensure the complete earth fits phone, landscape and desktop
+bounds at automatic focus zooms, while deliberate user zoom remains available.
+
+Correction validation on 2026-10-08: the full matrix passed 713 cases; a further
+143 critical cases passed after tightening desktop spacing and extending short
+phone scrolling. The final compact mobile voice row passed another 29 cases,
+including all six phone sizes, drawers, help, station details, microphone
+activation boundaries and hydration. All runs had zero failures and no console
+or hydration errors. Representative desktop, zoomed and phone screenshots were
+visually reviewed. The full matrix captures are archived under the ignored
+`test-results/globe-matrix/`; critical captures under `test-results/globe-critical/`;
+the final checks are under `test-results/responsive/`.
+
+The final production build and TypeScript passed. Lint passed with the existing
+AtlasAssistant effect dependency warning. Renderer fitting, map basemaps, Atlas
+particles, radio audio focus and PCM playback regression checks passed.

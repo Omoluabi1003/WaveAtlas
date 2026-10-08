@@ -93,6 +93,16 @@ async function geometry(label, selector) {
     const name=e=>e.getAttribute('aria-label') || e.textContent.trim().slice(0,90) || e.tagName;
     const scrollable=e=>/(auto|scroll)/.test(getComputedStyle(e).overflowY) && e.scrollHeight>e.clientHeight;
     if(document.documentElement.scrollWidth>document.documentElement.clientWidth) failures.push('document horizontal overflow');
+    const scene=document.querySelector('.desktop-scene'), workspace=document.querySelector('.desktop-workspace');
+    if(scene && visible(scene) && !workspace.classList.contains('has-drawer')) {
+      const sr=scene.getBoundingClientRect(), wr=workspace.getBoundingClientRect();
+      if(sr.width < wr.width*.8) failures.push('globe loses predominant workspace width');
+      const voice=document.querySelector('.desktop-atlas-surface').getBoundingClientRect();
+      if(voice.height > 96) failures.push('persistent voice toolbar is too tall');
+      if(sr.height < Math.min(300,innerHeight*.45)) failures.push('globe scene is too short');
+    }
+    const mobileVoice=document.querySelector('.mobile-atlas-voice .atlas-voice-surface');
+    if(mobileVoice && visible(mobileVoice) && mobileVoice.getBoundingClientRect().height > 72) failures.push('mobile voice entry is too tall');
     const elements=[...document.querySelectorAll(selector)].filter(visible);
     for(const e of elements) {
       const r=e.getBoundingClientRect();
@@ -182,7 +192,7 @@ try {
   await page.setViewportSize({width:1366,height:768});await zoom(1);
   await page.evaluate(()=>{history.pushState({},'', '/station/geometry-station');window.dispatchEvent(new PopStateEvent('popstate'));});
   await page.waitForSelector('.desktop-player');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1500); // Let the automatic station-focus travel settle before visual capture.
   await matrix('station');
   console.log('Matrix: contextual drawers and capability sheets');
   for(const [width,height] of selectedCritical) for(const factor of zooms) {
@@ -224,7 +234,9 @@ try {
   await page.getByRole('button',{name:'Close Atlas',exact:true}).click();
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForSelector('html[data-wa-runtime="ready"]');
+  await page.locator('.atlas-capabilities-button:visible').click();
   assert.ok(await page.locator('.atlas-voice-invitation:visible').count(),'Opening and denying Atlas does not mark it understood');
+  await page.getByRole('button',{name:'Close Atlas capabilities'}).click();
   // Input with the existing text workflow retires the invitation without speech.
   await page.locator('.atlas-talk-button:visible').click();
   await page.getByRole('button',{name:'Open Atlas keyboard and transcript'}).click();
@@ -234,7 +246,9 @@ try {
   await page.getByRole('button',{name:'Close Atlas',exact:true}).click();
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForSelector('html[data-wa-runtime="ready"]');
+  await page.locator('.atlas-capabilities-button:visible').click();
   assert.equal(await page.locator('.atlas-voice-invitation:visible').count(),0,'Invitation stays retired after demonstrated usage');
+  await page.getByRole('button',{name:'Close Atlas capabilities'}).click();
   assert.ok(await page.locator('.atlas-talk-button:visible').isVisible(),'Permanent entry remains');
   // Static HTML can be older than the client clock. Force drift so hydration
   // regressions fail deterministically rather than only after a minute rolls.

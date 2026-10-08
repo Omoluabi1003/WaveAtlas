@@ -13,6 +13,8 @@ import {
   shouldUsePhotorealisticPreview,
 } from "../lib/globe-renderer-adapter";
 
+import { fitGlobeToViewport } from "../lib/globe-viewport-geometry";
+
 const screen = { width: 1000, height: 1000, radius: 300 };
 
 for (const fixture of GLOBE_COORDINATE_FIXTURES) {
@@ -242,3 +244,15 @@ assert.ok(
   );
 
 console.log("renderer regression checks passed");
+
+// The complete earth must fit at every automatic focus zoom, including a
+// landscape phone whose header/player occupy separate scrolling rows.
+for (const [width,height,top,bottom] of [[320,568,204,394],[390,844,204,680],[667,288,0,288],[1246,400,0,400],[2560,1200,0,1200]]) {
+  for (const zoom of [1,1.08,1.12,1.18,1.2]) {
+    const g=fitGlobeToViewport(width,height,zoom,{left:0,top,right:width,bottom});
+    assert.ok(g.centerX-g.radius>=0 && g.centerX+g.radius<=width, 'earth fits horizontally');
+    assert.ok(g.centerY-g.radius>=top && g.centerY+g.radius<=bottom, 'earth fits between controls');
+  }
+}
+const overview=fitGlobeToViewport(390,844,1.2);
+assert.ok(fitGlobeToViewport(390,844,1.8).radius>overview.radius, 'deliberate user zoom still enlarges the earth');

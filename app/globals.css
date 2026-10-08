@@ -63,9 +63,8 @@
 
 html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
 
-/* The desktop shell reserves space for navigation, Atlas and the player.
-   Only the scene and contextual columns scroll; no viewport offsets determine
-   the size of the workspace. minmax(0,...) lets each region actually shrink. */
+/* Keep the globe dominant. Voice controls use a compact toolbar, never a
+   persistent scene column. Content can wrap without horizontal clipping. */
 .desktop-app-shell { display: none; }
 .mobile-station-sheet .truncate { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .atlas-voice-surface { min-width: 0; padding: 1.25rem; border: 1px solid rgba(78,199,194,.28); border-radius: 1.5rem; background: linear-gradient(145deg,#0d2632,#07111f); color: #f8f5ed; overflow-wrap: anywhere; }
@@ -94,16 +93,16 @@ html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
 
 @media (min-width:768px) {
   html,body,main { overflow-x: visible; }
-  .desktop-app-shell { position: relative; display: grid; grid-template-rows: auto minmax(0,1fr) auto auto; gap: 1rem; height: 100dvh; min-height: 0; width: 100%; max-width: 100%; padding: clamp(1rem,1.5vw,2rem); background: #07111f; overflow: visible; }
-  .desktop-app-header { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 1rem; min-width: 0; z-index: 90; }
+  .desktop-app-shell { position: relative; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto auto; gap: .5rem; height: 100dvh; min-height: 0; width: 100%; max-width: 100%; padding: clamp(.5rem,1vw,1rem); background: #07111f; overflow: visible; }
+  .desktop-app-header { grid-column: 1/-1; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 1rem; min-width: 0; z-index: 90; }
   .desktop-brand { min-width: 0; display: flex; }
   .desktop-station-search { min-width: 0; width: 100%; max-width: 40rem; justify-self: center; }
   .desktop-station-search > div { padding: .75rem 1rem; }
   .desktop-world-slot { min-width: 0; }
   .desktop-world-signals { position: relative; z-index: 90; }
   .desktop-world-panel { position: absolute; right: 0; top: 100%; }
-  .desktop-workspace { display: grid; grid-template-columns: 4rem minmax(0,1fr) clamp(16rem,22vw,22rem); grid-template-areas: "rail scene atlas"; gap: 1rem; min-width: 0; min-height: 0; }
-  .desktop-workspace.has-drawer { grid-template-columns: 4rem minmax(14rem,20vw) minmax(0,1fr) clamp(16rem,22vw,22rem); grid-template-areas: "rail drawer scene atlas"; }
+  .desktop-workspace { grid-column: 1/-1; display: grid; grid-template-columns: 4rem minmax(0,1fr); grid-template-areas: "rail scene"; gap: 1rem; min-width: 0; min-height: 0; }
+  .desktop-workspace.has-drawer { grid-template-columns: 4rem minmax(12rem,24%) minmax(0,1fr); grid-template-areas: "rail drawer scene"; }
   .desktop-workspace > * { min-width: 0; min-height: 0; }
   .desktop-utility-rail { grid-area: rail; align-self: start; max-height: 100%; overflow-y: auto; }
   .desktop-utility-rail button { flex-shrink: 0; }
@@ -115,7 +114,8 @@ html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
   .desktop-context-drawer { grid-area: drawer; display: block; overflow-y: auto; }
   .desktop-context-drawer > .atlas-drawer-scroll { overflow: visible; }
   .desktop-context-drawer > div:first-child { flex-shrink: 0; flex-wrap: wrap; }
-  .desktop-atlas-surface { grid-area: atlas; overflow-y: auto; border-radius: 1.5rem; }
+  .desktop-atlas-surface { grid-column: 1; grid-row: 3; min-width: 0; align-self: center; }
+  .desktop-app-shell:not(:has(.desktop-toast)) .desktop-atlas-surface { grid-column: 1/-1; }
   .desktop-player { min-width: 0; width: 100%; grid-template-columns: minmax(0,1fr) auto; align-items: center; }
   .desktop-player > div { min-width: 0; }
   .desktop-player nav { min-width: 0; }
@@ -123,9 +123,9 @@ html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
   .desktop-app-shell .empty-atlas > div:last-child { flex: 0 0 auto; width: 100%; max-width: 48rem; min-width: 0; overflow-wrap: anywhere; }
   .desktop-context-drawer b,.desktop-context-drawer p { white-space: normal; overflow-wrap: anywhere; }
   .desktop-player-text { min-width: 0; overflow-wrap: anywhere; }
-  .desktop-toast { position: relative; grid-row: 3; width: 100%; max-width: none; max-height: none; overflow: visible; min-height: 0; }
+  .desktop-toast { position: relative; grid-column: 2; grid-row: 3; width: 100%; max-width: none; max-height: none; overflow: visible; min-height: 0; }
   .desktop-toast p,.desktop-toast span { white-space: normal; overflow: visible; }
-  .desktop-player { grid-row: 4; }
+  .desktop-player { grid-column: 1/-1; grid-row: 4; }
   .desktop-geoaudio-inspector { margin-top: 1rem; }
 
 }
@@ -138,30 +138,29 @@ html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
   .mobile-empty-shell .empty-atlas { position: relative; min-height: min-content; height: auto; flex: 0 0 auto; overflow: visible; padding: 0; align-items: safe center; }
   .mobile-empty-shell .empty-atlas > div:last-child { width: 100%; min-width: 0; padding: 1.25rem; }
   .mobile-atlas-voice { margin: .5rem 1rem 0; pointer-events: auto; }
-  .atlas-voice-surface { padding: .75rem; }
-  .atlas-voice-identity h2 { font-size: .875rem; }
-  .atlas-voice-presence { flex-basis: 2.5rem; }
-  .atlas-voice-presence .atlas-signal { width: 2.5rem; height: 2.5rem; }
-  .atlas-voice-invitation { display: flex; flex-wrap: wrap; column-gap: .5rem; align-items: baseline; }
-  .atlas-voice-invitation h3 { font-size: .875rem; }
-  .atlas-voice-invitation p { font-size: .75rem; }
-  .mobile-atlas-voice .atlas-voice-invitation { grid-column: 1/-1; }
-  .mobile-atlas-voice .atlas-voice-surface { display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: .5rem; }
-  .mobile-atlas-voice .atlas-talk-button { width: auto; margin: 0; padding-inline: .75rem; }
-  .mobile-atlas-voice .atlas-voice-readiness { grid-row: 2; margin: .35rem 0 0; }
-  .mobile-atlas-voice .atlas-capabilities-button { grid-column: 2; grid-row: 2; margin: 0; padding: 0; min-height: 2rem; font-size: .75rem; }
-  .mobile-atlas-voice .atlas-voice-example,.mobile-atlas-voice .atlas-voice-recovery { grid-column: 1/-1; }
   .atlas-capabilities-scroll { grid-template-columns: minmax(0,1fr); }
 }
 
 /* A zoomed or landscape phone can be shorter than its persistent controls.
    Reflow those controls into one scrollable shell instead of stacking fixed
    layers over one another. The full globe remains available in its own row. */
-@media (max-width:767px) and (max-height:550px) {
+@media (max-width:767px) and (max-height:650px) {
   .waveatlas-mobile-shell { display: flex; flex-direction: column; overflow-y: auto; }
   .waveatlas-mobile-shell > .waveatlas-mobile-header { position: relative; inset: auto; order: -2; flex-shrink: 0; }
   .waveatlas-mobile-shell :is(.waveatlas-globe-shell,.waveatlas-map-region) { position: relative; inset: auto; flex: 0 0 18rem; height: 18rem; min-height: 18rem; }
   .waveatlas-mobile-shell > [data-waveatlas-player] { position: relative; inset: auto; margin: .75rem 1rem; flex-shrink: 0; }
   .waveatlas-mobile-shell > .waveatlas-mobile-dock { position: relative; inset: auto; margin: 0 1rem; order: 5; flex-shrink: 0; }
   .waveatlas-mobile-shell > [aria-label="Station notification"] { position: relative; inset: auto; margin: .75rem 1rem; width: auto; max-width: none; max-height: none; overflow: visible; flex-shrink: 0; }
+}
+
+/* Permanent voice entry stays secondary to the globe on every viewport. */
+.atlas-voice-surface { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem .75rem; padding: .375rem .75rem; border-radius: 999px; background: #07111fe6; }
+.atlas-voice-surface > .atlas-talk-button { width: auto; flex: 0 0 auto; margin: 0; min-height: 2.75rem; padding: .5rem .875rem; }
+.atlas-voice-surface > .atlas-voice-readiness { flex: 1 1 7rem; margin: 0; font-size: .625rem; }
+.atlas-voice-surface > .atlas-capabilities-button { width: auto; flex: 0 0 auto; margin: 0; padding: .375rem; min-height: 2.75rem; }
+.desktop-geoaudio-overlay { position: absolute; right: 1rem; top: 1rem; z-index: 25; width: min(20rem,35%); max-height: calc(100% - 2rem); overflow-y: auto; }
+@media (max-width:767px) {
+  .mobile-atlas-voice .atlas-voice-surface { display: grid; grid-template-columns: auto minmax(0,1fr) auto; border-radius: 1.25rem; padding: .25rem .375rem; gap: .375rem; }
+  .mobile-atlas-voice .atlas-talk-button { padding-inline: .5rem; }
+  .mobile-atlas-voice .atlas-capabilities-button { padding-inline: .25rem; font-size: .75rem; }
 }
