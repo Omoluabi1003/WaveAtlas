@@ -11,10 +11,29 @@ export function speechGain(samples: Float32Array) {
   return Math.min(6, 0.16 / Math.max(rms, 0.0001), 0.94 / peak);
 }
 
+// Confirmations need more presence than general conversation. Raise their
+// average level, then soften peaks rather than reducing the whole reply to its
+// single loudest sample. The reference PCM, pitch and playback rate stay intact.
+export function confirmationSpeechGain(samples: Float32Array) {
+  speechGain(samples); // Validate the complete buffer.
+  let sum = 0; for (const sample of samples) sum += sample * sample;
+  const rms = Math.sqrt(sum / Math.max(1, samples.length));
+  return rms < 0.0001 ? 1 : Math.min(6, 0.22 / rms);
+}
+export function speechPeakCurve() {
+  const curve = new Float32Array(4097);
+  for (let n = 0; n < curve.length; n++) {
+    const x = n * 2 / (curve.length - 1) - 1, level = Math.abs(x);
+    curve[n] = Math.sign(x) * (level <= 0.75 ? level : 0.75 + 0.19 * Math.tanh((level - 0.75) / 0.19));
+  }
+  return curve;
+}
+
 export class AtlasPCMPlayer {
   readonly analyser: AnalyserNode;
   private source: AudioBufferSourceNode | null = null;
   private gain: GainNode | null = null;
+  private limiter: WaveShaperNode | null = null;
   private pending: Float32Array[] = [];
   private sampleCount = 0;
   private ended = false;
@@ -23,7 +42,7 @@ export class AtlasPCMPlayer {
   private resolveEnd: ((played: boolean) => void) | null = null;
   private hasAudio = false;
 
-  constructor(private context: AudioContext, private onStart: () => void) {
+  constructor(private context: AudioContext, private onStart: () => void, private confirmation = false) {
     this.analyser = context.createAnalyser();
     this.analyser.connect(context.destination);
   }
@@ -50,10 +69,15 @@ export class AtlasPCMPlayer {
         const gain = this.context.createGain();
         this.source = source; this.gain = gain;
         // One gain for the whole utterance prevents volume jumps between chunks.
-        gain.gain.value = speechGain(samples);
+        if (this.confirmation && typeof this.context.createWaveShaper === 'function') {
+          const limiter = this.context.createWaveShaper(); this.limiter = limiter;
+          limiter.curve = speechPeakCurve(); limiter.oversample = '4x';
+          gain.gain.value = confirmationSpeechGain(samples);
+          gain.connect(limiter); limiter.connect(this.analyser);
+        } else { gain.gain.value = speechGain(samples); gain.connect(this.analyser); }
         source.buffer = buffer;
         source.playbackRate.value = 1;
-        source.connect(gain); gain.connect(this.analyser);
+        source.connect(gain);
         source.onended = () => { this.disconnect(); this.settle(); };
         source.start(this.context.currentTime);
         this.hasAudio = true; this.onStart();
@@ -71,6 +95,7 @@ export class AtlasPCMPlayer {
       this.source.disconnect(); this.source = null;
     }
     this.gain?.disconnect(); this.gain = null;
+    this.limiter?.disconnect(); this.limiter = null;
     this.pending = []; this.sampleCount = 0;
   }
   private settle() {

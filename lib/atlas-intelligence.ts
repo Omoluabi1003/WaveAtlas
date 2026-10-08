@@ -1,3 +1,4 @@
+import { resolveAtlasMusicIntent } from './atlas-music-intent';
 import { answerAtlasQuestion, type AtlasAssistantContext, type AtlasAssistantReply } from '@/lib/atlas-assistant';
 
 const PIDGIN = /\b(?:abeg|wetin|dey|wan|make we|na |no be|oya|how far|una|gist|wahala|shey|abi|fit|don|go play|for me)\b/i;
@@ -56,6 +57,23 @@ function conversationalIntent(question: string, context: AtlasAssistantContext):
 }
 
 export function answerAtlasIntelligently(question: string, context: AtlasAssistantContext = {}): AtlasAssistantReply {
+  const musicIntent = resolveAtlasMusicIntent(question, lastUser(context));
+  if (musicIntent) {
+    const { music, action, subject } = musicIntent;
+    const style = music.genres.join(music.match === 'any' ? ' or ' : ' and ');
+    const reference = subject ? `${subject} is associated with ${style}. ` : '';
+    if (action === 'explain') return { answer: `${reference || `That is ${style} music. `}I can find radio stations tagged for that style.`, source: 'waveatlas-local' };
+    const query = [music.genres.join(' '), music.location].filter(Boolean).join(' ');
+    const lead = PIDGIN.test(question) ? 'Make I' : 'I’ll';
+    return {
+      answer: `${reference}${lead} ${action === 'search' ? 'search for' : 'find'} stations tagged for ${style}${music.location ? ` in ${music.location}` : ''}.${subject ? ' Live radio cannot guarantee a particular song.' : ''}`,
+      action: { type: action, query, music, ...(/another|similar|more like that/i.test(question) && action === 'play' ? { excludeCurrent: true } : {}) },
+      source: 'waveatlas-local',
+    };
+  }
+  if (/\b(?:song|track)\s+(?:called|named|by|["“])|\bmusic (?:by|like)\b/i.test(question)) {
+    return { answer: 'I don’t have a reliable genre match for that music reference yet. Tell me the artist and genre, and I’ll find stations with matching programming.', source: 'waveatlas-local' };
+  }
   const conversational = conversationalIntent(question, context);
   let result = conversational || answerAtlasQuestion(question, context);
   if (result.answer.startsWith(FALLBACK_PREFIX)) {

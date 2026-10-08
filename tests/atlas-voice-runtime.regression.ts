@@ -11,7 +11,7 @@ assert.doesNotMatch(source, /voiceContextRef\.current\?\.state !== 'closed'/);
 
 // Atlas must unlock Web Audio from the gesture and speak only the repository voice.
 assert.match(source, /void primeVoiceOutput\(\);/);
-assert.match(source, /const spoken = await speakNeural\(text\)/);
+assert.match(source, /const spoken = await speakNeural\(text, Boolean\(statusLabel\)\)/);
 assert.doesNotMatch(source, /decodeAudioData|waitForNeuralVoice/);
 assert.doesNotMatch(source, /new SpeechSynthesisUtterance|speakSystem|bestSystemVoice/);
 assert.doesNotMatch(source, /if \(typeof window === 'undefined' \|\| isIOSFamily\(\)/);
