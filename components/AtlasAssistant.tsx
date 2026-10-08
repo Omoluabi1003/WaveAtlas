@@ -13,6 +13,7 @@ import { answerAtlasIntelligently } from '@/lib/atlas-intelligence';
 import { atlasStationVoicePhrases, readyAtlasReply } from '@/lib/atlas-ready-replies';
 import type { Station } from '@/lib/stations';
 import { getSpeechRecognitionConstructor, type BrowserSpeechRecognition } from '@/lib/voice-command-engine';
+import { requestMicrophonePermission, checkPermissionStatus } from '@/lib/browser-permissions';
 
 type Props = {
   station: Station | null;
@@ -151,23 +152,26 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   }
   function stopMeter() { stopInputMeter(); signalAnalyserRef.current = null; }
   async function startInputMeter(recognition: BrowserSpeechRecognition) {
-    // Recognition owns permission and capture. Meter only an already permitted
-    // microphone; avoid a second prompt or iOS audio-session rerouting.
-    if (isIOSFamily() || !navigator.mediaDevices?.getUserMedia || !navigator.permissions?.query) return;
+    if (isIOSFamily() || !navigator.mediaDevices?.getUserMedia) return;
+    const status = await checkPermissionStatus('microphone');
+    if (status.state !== 'granted') return;
+
     const generation = inputMeterGenerationRef.current;
     const current = () => generation === inputMeterGenerationRef.current && recognitionRef.current === recognition && captureRef.current.active && openRef.current;
     let stream: MediaStream | null = null;
     try {
-      const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      if (permission.state !== 'granted' || !current()) return;
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!current()) { stream.getTracks().forEach(track => track.stop()); return; }
+      const result = await requestMicrophonePermission();
+      if (!result.granted || !result.stream || !current()) {
+        result.stream?.getTracks().forEach(track => track.stop());
+        return;
+      }
+      stream = result.stream;
       const context = await resumeVoiceContext();
       if (!context || !current()) { stream.getTracks().forEach(track => track.stop()); return; }
       const analyser = context.createAnalyser(); analyser.fftSize = 1024;
       const source = context.createMediaStreamSource(stream); source.connect(analyser);
       inputMeterRef.current = { stream, source, analyser }; signalAnalyserRef.current = analyser;
-    } catch { stream?.getTracks().forEach(track => track.stop()); /* Visual enhancement must never interrupt recognition. */ }
+    } catch { stream?.getTracks().forEach(track => track.stop()); }
   }
   function getVoiceContext() {
     if (typeof window === 'undefined') return null;
@@ -217,7 +221,6 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
           updateVoiceStatus({ type: 'progress', detail: '' });
           return;
         }
-        // Inference internals stay out of the listening and response interface.
         if (message.type === 'progress') return;
         if (message.type === 'unavailable') { unavailable(message.message || 'Personal voice unavailable on this device'); return; }
         if (!message.id) return;
@@ -253,7 +256,6 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     pcmPlayerRef.current = player;
     const id = `atlas-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
-      // Ask the worker immediately: a persistent response can play before model warmup.
       const message = await new Promise<NeuralMessage>((resolve, reject) => {
         const fail = () => { window.clearTimeout(pending.timer); window.clearTimeout(pending.deadline); neuralPendingRef.current.delete(id); worker.postMessage({ type: 'cancel' }); reject(new Error('Personal voice response timed out. Your answer is in the transcript.')); };
         const pending: PendingNeural = {
@@ -269,7 +271,6 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       });
       if (message.engine !== 'pocket-tts-omoluabi-paul' || message.voiceSource !== 'repository-canonical') throw new Error('Personal voice identity could not be verified');
       if (generation !== outputGenerationRef.current || !openRef.current) { player.stop(); return false; }
-      // Browsers can suspend the context during a long first synthesis.
       const resumed = await resumeVoiceContext();
       if (!resumed || resumed.state !== 'running') throw new Error('Audio playback is paused. Tap Atlas to retry.');
       if (generation !== outputGenerationRef.current || !openRef.current) { player.stop(); return false; }
@@ -328,8 +329,6 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     linesRef.current = [...linesRef.current, userLine]; setLines(linesRef.current); setQuestion(''); setBusy(true); busyRef.current = true; setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking);
     const controller = new AbortController(); requestControllerRef.current = controller;
     try {
-      // The API already uses this pure, keyless engine. Run it here so routine
-      // replies do not wait for a network round trip or serverless startup.
       const data = answerAtlasIntelligently(value, { station, history });
       if (controller.signal.aborted) return;
       let answer = data.answer || 'I could not answer that from the Atlas yet.';
