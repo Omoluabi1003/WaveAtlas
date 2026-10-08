@@ -2,6 +2,7 @@
 
 import { beaconLabelExclusion, labelsOverlap } from "@/lib/globe-label-layout";
 import { uniquePlaceLabel } from "@/lib/place-label";
+import { fitGlobeToViewport } from "@/lib/globe-viewport-geometry";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1179,31 +1180,30 @@ function readMobileViewport(wrap: HTMLDivElement, canvas: HTMLCanvasElement) {
   const wrapRect = wrap.getBoundingClientRect();
   const visualViewport =
     typeof window !== "undefined" ? window.visualViewport : undefined;
-  const headerRect = document
-    .querySelector('[aria-label="Open station search"]')
-    ?.getBoundingClientRect();
-  const dockRect = document
-    .querySelector('nav[class*="bottom-0"]')
-    ?.getBoundingClientRect();
-  const toastRect = document
-    .querySelector('[role="status"], [role="alert"]')
-    ?.getBoundingClientRect();
-  const playerRect = document
-    .querySelector('[data-waveatlas-player], [aria-label="Now playing"]')
-    ?.getBoundingClientRect();
+  const shell = wrap.closest('.waveatlas-mobile-shell') ?? document;
+  const visibleRect = (selector: string) => Array.from(shell.querySelectorAll(selector))
+    .find(element => element.getClientRects().length > 0 &&
+      getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).opacity !== '0')?.getBoundingClientRect();
+  const headerRect = visibleRect('.waveatlas-mobile-header');
+  const dockRect = visibleRect('.waveatlas-mobile-dock');
+  const toastRect = visibleRect('[aria-label="Station notification"]');
+  const playerRect = visibleRect('[data-waveatlas-player], [aria-label="Now playing"]');
+  const intersectsCanvas = (rect: DOMRect | undefined) => Boolean(rect &&
+    rect.bottom > canvasRect.top && rect.top < canvasRect.bottom &&
+    rect.right > canvasRect.left && rect.left < canvasRect.right);
   const visualHeight = visualViewport?.height ?? window.innerHeight;
   const safeAreaBottomEstimate = Math.max(
     0,
     window.innerHeight - visualHeight - (visualViewport?.offsetTop ?? 0),
   );
-  const topObstruction = headerRect
+  const topObstruction = intersectsCanvas(headerRect) && headerRect
     ? Math.max(0, headerRect.bottom - canvasRect.top + 16)
     : 0;
   const bottomObstruction = Math.max(
     safeAreaBottomEstimate,
-    dockRect ? Math.max(0, canvasRect.bottom - dockRect.top + 16) : 0,
-    toastRect ? Math.max(0, canvasRect.bottom - toastRect.top + 16) : 0,
-    playerRect ? Math.max(0, canvasRect.bottom - playerRect.top + 16) : 0,
+    intersectsCanvas(dockRect) && dockRect ? Math.max(0, canvasRect.bottom - dockRect.top + 16) : 0,
+    intersectsCanvas(toastRect) && toastRect ? Math.max(0, canvasRect.bottom - toastRect.top + 16) : 0,
+    intersectsCanvas(playerRect) && playerRect ? Math.max(0, canvasRect.bottom - playerRect.top + 16) : 0,
   );
   const usableBounds: GlobeUsableBounds = {
     left: 0,
@@ -1455,26 +1455,7 @@ export default function BlueMarbleGlobe({
     ): GlobeGeometry => {
       const width = Math.max(1, dimensions.width);
       const height = Math.max(1, dimensions.height);
-      const bounds = usableBounds ?? {
-        left: 0,
-        top: 0,
-        right: width,
-        bottom: height,
-      };
-      const safeBounds = {
-        left: Math.max(0, Math.min(width, bounds.left)),
-        top: Math.max(0, Math.min(height, bounds.top)),
-        right: Math.max(0, Math.min(width, bounds.right)),
-        bottom: Math.max(0, Math.min(height, bounds.bottom)),
-      };
-      return {
-        width,
-        height,
-        radius: Math.min(width, height) * (mobile ? 0.46 : 0.34) * zoom,
-        centerX: width / 2,
-        centerY: mobile ? height * 0.42 : height / 2,
-        usableBounds: safeBounds,
-      };
+      return fitGlobeToViewport(width, height, zoom, mobile ? usableBounds : undefined);
     },
     [mobile],
   );

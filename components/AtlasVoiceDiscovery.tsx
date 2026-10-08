@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Mic, X } from 'lucide-react';
-import { AtlasParticleGlobe } from './AtlasParticleGlobe';
 import { readBrowserStorage, writeBrowserStorage } from '@/lib/browser-storage';
 
 export type AtlasDiscoveryStatus = 'preparing' | 'ready' | 'unavailable' | 'listening' | 'understanding' | 'speaking';
@@ -38,7 +37,6 @@ export function AtlasVoiceSurface({ stationName }: { stationName?: string }) {
   const [preview, setPreview] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const sheet = useRef<HTMLElement>(null);
-  const analyser = useRef<AnalyserNode | null>(null);
   useEffect(() => {
     const timer = window.setInterval(() => { if (!document.hidden) setExample(value => (value + 1) % examples.length); }, 18000);
     return () => window.clearInterval(timer);
@@ -61,19 +59,15 @@ export function AtlasVoiceSurface({ stationName }: { stationName?: string }) {
   const talk = () => { setPreview(false); window.dispatchEvent(new Event('waveatlas:open-atlas-voice')); };
   const label = { preparing: 'ATLAS VOICE · PREPARING', ready: 'ATLAS VOICE · READY', unavailable: 'ATLAS · TEXT AVAILABLE', listening: 'LISTENING', understanding: 'UNDERSTANDING', speaking: 'ATLAS SPEAKING' }[status];
   return <section className="atlas-voice-surface" aria-label="Atlas voice guide" data-geometry-region="atlas">
-    <div className="atlas-voice-identity">
-      <div className="atlas-voice-presence"><AtlasParticleGlobe state="live" analyserRef={analyser} onPress={talk} /></div>
-      <div><h2>ATLAS</h2><p>Voice guide to the world&apos;s live radio</p></div>
-    </div>
-    <p className="atlas-voice-readiness" role="status">{label}</p>
     <button type="button" className="atlas-talk-button" onClick={talk}><Mic size={18} aria-hidden="true" />Talk to Atlas</button>
-    {!used && <div className="atlas-voice-invitation"><h3>Meet Atlas</h3><p>Your voice guide to the world&apos;s live radio.</p><p>Try saying: &ldquo;Atlas, take me somewhere.&rdquo;</p></div>}
-    <button ref={trigger} type="button" className="atlas-capabilities-button" onClick={() => setPreview(true)}>See what Atlas can do</button>
-    <p className="atlas-voice-example">{stationName ? [`Ask Atlas about ${stationName}`, 'Ask Atlas to find something similar', "Ask Atlas what's nearby", 'Ask Atlas to take you somewhere else'][example] : `Try: “${examples[example]}”`}</p>
-    {status === 'unavailable' && <p className="atlas-voice-recovery">Use text, or allow microphone access in your browser and try again.</p>}
+    <p className="atlas-voice-readiness" role="status">{label}</p>
+    <button ref={trigger} type="button" className="atlas-capabilities-button" onClick={() => setPreview(true)} aria-label="See what Atlas can do">Atlas help</button>
     {preview && createPortal(<div className="atlas-capabilities-layer" onClick={event => { if (event.target === event.currentTarget) setPreview(false); }}>
       <section ref={sheet} className="atlas-capabilities-sheet" role="dialog" aria-modal="true" aria-label="What Atlas can do">
         <header><h2>See what Atlas can do</h2><button type="button" onClick={() => setPreview(false)} aria-label="Close Atlas capabilities"><X size={20} /></button></header>
+        {!used && <div className="atlas-voice-invitation"><h3>Meet Atlas</h3><p>Your voice guide to the world&apos;s live radio.</p><p>Try saying: &ldquo;Atlas, take me somewhere.&rdquo;</p></div>}
+        <p className="atlas-voice-example">{stationName ? [`Ask Atlas about ${stationName}`, 'Ask Atlas to find something similar', "Ask Atlas what's nearby", 'Ask Atlas to take you somewhere else'][example] : `Try: “${examples[example]}”`}</p>
+        {status === 'unavailable' && <p className="atlas-voice-recovery">Use text, or allow microphone access in your browser and try again.</p>}
         <div className="atlas-capabilities-scroll">{Object.entries(capabilities).map(([category, commands]) => <section key={category}><h3>{category}</h3><ul>{commands.map(command => <li key={command}>{command}</li>)}</ul></section>)}</div>
         <button type="button" className="atlas-talk-button" onClick={talk}><Mic size={18} />Talk to Atlas</button>
       </section>

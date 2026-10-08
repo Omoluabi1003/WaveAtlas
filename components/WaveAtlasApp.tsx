@@ -5011,6 +5011,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         </div>
         {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
         {activeStation ? <SelectedStationTheater station={activeStation} /> : null}
+        {activeStation ? <div className="desktop-geoaudio-overlay"><GeoAudioChannelInspector station={activeStation} /></div> : null}
       </div>
       <>
         <nav className="desktop-utility-rail flex flex-col gap-2 rounded-full border border-white/10 bg-slate-950/25 p-2 text-ivory shadow-2xl backdrop-blur-2xl" aria-label="Atlas utility rail">
@@ -5077,8 +5078,8 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </aside> : null}
-      <aside className="desktop-atlas-surface"><AtlasVoiceSurface stationName={activeStation?.name} />{activeStation ? <GeoAudioChannelInspector station={activeStation} /> : null}</aside>
       </div>
+      <div className="desktop-atlas-surface"><AtlasVoiceSurface stationName={activeStation?.name} /></div>
       {activeStation ? <NewspaperBrief station={activeStation} stations={stationPool} inventoryStats={inventoryStats} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} /> : null}
       {activeStation ? <AtlasToast station={activeStation} /> : null}
       {activeStation ? <div data-waveatlas-player className="desktop-player grid gap-3 rounded-[2rem] border border-white/25 bg-[rgba(3,9,18,0.96)] p-2 text-white shadow-2xl backdrop-blur-2xl">
