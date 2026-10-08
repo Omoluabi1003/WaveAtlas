@@ -23,3 +23,17 @@ for (const state of ['live', 'listening', 'thinking', 'speaking'] as const) {
   assert.ok(first.every(Number.isFinite));
 }
 console.log('Atlas particles: frequency mapping, bounded budgets, unit sphere, audio reactivity and reduced motion passed.');
+
+// Silence still has visible movement; particles must not rotate as one rigid shell.
+updateParticles(seeds, first, 0, 'listening', silent, false);
+updateParticles(seeds, second, .5, 'listening', silent, false);
+let moved = 0;
+const distances = [];
+for (let i = 0; i < first.length; i += 8) {
+  const distance = Math.hypot(first[i] - second[i], first[i + 1] - second[i + 1]);
+  if (distance > .025) moved++;
+  distances.push(distance);
+}
+assert.ok(moved > 720 * .75, 'Most particles must visibly move within half a second, even without microphone audio');
+assert.ok(Math.max(...distances) - Math.min(...distances) > .1, 'Particles must have varied velocities');
+console.log('Atlas velocity: sustained silent motion and varied particle speeds passed.');

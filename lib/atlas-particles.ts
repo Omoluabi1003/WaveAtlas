@@ -30,13 +30,22 @@ export function createParticleSeeds(count: number) {
 export function updateParticles(seeds: Float32Array, output: Float32Array, time: number, state: AtlasParticleState, spectrum: AtlasSpectrum, reduced: boolean) {
   const count = seeds.length / 3;
   const t = reduced ? 0 : time;
-  const rotation = t * (state === 'thinking' ? .55 : .12), cos = Math.cos(rotation), sin = Math.sin(rotation);
+  // Each particle has its own angular velocity and latitude drift, so the
+  // silhouette flows instead of looking like a rigid rotating photograph.
   for (let i = 0; i < count; i++) {
-    const sx = seeds[i * 3], sy = seeds[i * 3 + 1], sz = seeds[i * 3 + 2];
+    const phase = i * 2.39996323;
+    const speed = .42 + (i % 23) / 23 * .7;
+    const direction = i % 7 === 0 ? -.65 : 1;
+    const rotation = t * speed * direction;
+    const latitude = Math.asin(seeds[i * 3 + 1]) + (reduced ? 0 : Math.sin(t * .75 + phase) * .12);
+    const longitude = Math.atan2(seeds[i * 3 + 2], seeds[i * 3]) + rotation;
+    const sy = Math.sin(latitude), ring = Math.cos(latitude);
+    const sx = Math.cos(longitude) * ring, sz = Math.sin(longitude) * ring;
     const wave = Math.sin(sy * 8 + t * 2.4 + sz * 3);
     const audio = state === 'speaking' || state === 'listening';
-    const radius = .70 * (state === 'listening' ? .93 : 1) + (reduced ? 0 : audio ? spectrum.bass * .13 + spectrum.mids * wave * .065 : state === 'thinking' ? wave * .035 : Math.sin(t + i * .07) * .008);
-    const x = sx * cos + sz * sin, z = sz * cos - sx * sin;
+    const drift = reduced ? 0 : .035 * Math.sin(t * 1.3 + phase);
+    const radius = .67 + drift + (reduced ? 0 : audio ? spectrum.bass * .13 + spectrum.mids * wave * .065 : state === 'thinking' ? wave * .035 : Math.sin(t + i * .07) * .008);
+    const x = sx, z = sz;
     const perspective = 1 / (1.7 - z * .28);
     const color = ATLAS_PARTICLE_COLORS[i % 17 === 0 ? 4 : i % 11 === 0 ? 3 : i % 5 === 0 ? 2 : i % 3 === 0 ? 1 : 0];
     const front = (z + 1) / 2, spark = audio ? spectrum.treble * Math.max(0, wave) : 0;
@@ -48,4 +57,19 @@ export function updateParticles(seeds: Float32Array, output: Float32Array, time:
     output[offset + 6] = .16 + front * .66 + spark * .16;
     output[offset + 7] = .65 + front * .75 + spark * 1.2;
   }
+}
+
+// Faint previous positions make velocity visible without a full-screen blur.
+export function particleTrails(current: Float32Array, history: Float32Array[], output: Float32Array) {
+  output.set(current);
+  for (let layer = 0; layer < history.length; layer++) {
+    const previous = history[layer], offset = current.length * (layer + 1);
+    output.set(previous, offset);
+    for (let i = 0; i < previous.length; i += 8) {
+      output[offset + i + 6] *= .38 * (1 - layer / history.length);
+      output[offset + i + 7] *= .8 - layer * .12;
+    }
+  }
+  for (let layer = history.length - 1; layer > 0; layer--) history[layer].set(history[layer - 1]);
+  history[0]?.set(current);
 }
