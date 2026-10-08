@@ -1,5 +1,8 @@
 "use client";
 
+import { readAtlasLocation } from "@/lib/atlas-location";
+import { uniquePlaceLabel } from "@/lib/place-label";
+
 import { radioAudioFocus } from "@/lib/atlas-audio-focus";
 
 import { readBrowserStorage, writeBrowserStorage } from "@/lib/browser-storage";
@@ -103,7 +106,7 @@ import { stationIdFromPath, stationPath, stationSharePayload } from "@/lib/stati
 
 
 function playerLocationLine(station: Station) {
-  return [station.city || station.state, station.country].filter(Boolean).join(" · ") || "Global signal";
+  return uniquePlaceLabel([station.city || station.state, station.country], " · ") || "Global signal";
 }
 
 function playerStatusMetadata(station: Station, status: PlaybackStatus) {
@@ -603,17 +606,7 @@ function closerStationPromptMessage(station: Station) {
 }
 
 function getBrowserLocation(timeoutMs = 2500): Promise<UserGeoPoint | undefined> {
-  if (typeof navigator === "undefined" || !navigator.geolocation) return Promise.resolve(undefined);
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = (point?: UserGeoPoint) => { if (!settled) { settled = true; resolve(point); } };
-    const timer = window.setTimeout(() => done(undefined), timeoutMs);
-    navigator.geolocation.getCurrentPosition(
-      (position) => { window.clearTimeout(timer); done({ lat: position.coords.latitude, lng: position.coords.longitude }); },
-      () => { window.clearTimeout(timer); done(undefined); },
-      { enableHighAccuracy: false, maximumAge: 5 * 60_000, timeout: timeoutMs },
-    );
-  });
+  return readAtlasLocation({ timeoutMs });
 }
 
 async function fetchNearbyScope(scope: NearbyDiscoveryScope, userLocation?: UserGeoPoint, signal?: AbortSignal) {
@@ -898,7 +891,7 @@ async function enrichAtlasLocation(lat: number, lng: number, signal?: AbortSigna
     city,
     country,
     countryCode,
-    placeLabel: [city, country].filter(Boolean).join(", ") || "Current location",
+    placeLabel: uniquePlaceLabel([city, country]) || "Current location",
     weather: [temperature, formatOpenMeteoWeather(weather?.current?.weather_code)].filter(Boolean).join(" · "),
     localTime: formatBrowserLocalTime(weather?.timezone),
   };
@@ -907,38 +900,23 @@ async function enrichAtlasLocation(lat: number, lng: number, signal?: AbortSigna
 function useAtlasLocation() {
   const location = useAtlasContext((state) => state.userLocation);
   const setLocation = useAtlasContext((state) => state.setUserLocation);
-  const requestLocation = useCallback(() => {
-    if (!("geolocation" in navigator)) {
-      setLocation({ status: "error", placeLabel: "Location unavailable", error: "This browser does not support location." });
+  const updateLocation = useCallback(async (allowPrompt: boolean) => {
+    if (allowPrompt) setLocation((current) => ({ ...current, status: "requesting", error: undefined }));
+    const coords = await readAtlasLocation({ allowPrompt, timeoutMs: 10000 });
+    if (!coords) {
+      if (allowPrompt) setLocation((current) => ({ ...current, status: "error", error: "Location unavailable. Allow location in your browser settings or choose a destination manually." }));
       return;
     }
-    setLocation((current) => ({ ...current, status: "requesting", error: undefined, placeLabel: current.placeLabel === "Location off" ? "Locating…" : current.placeLabel }));
-    const controller = new AbortController();
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const coords = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy };
-        setLocation((current) => ({ ...current, status: "ready", coords, placeLabel: "Current location", localTime: formatBrowserLocalTime() }));
-        void enrichAtlasLocation(coords.lat, coords.lng, controller.signal)
-          .then((enrichment) => setLocation((current) => current.coords?.lat === coords.lat && current.coords?.lng === coords.lng ? { ...current, ...enrichment, status: "ready", coords } : current))
-          .catch((error) => {
-            if (error instanceof DOMException && error.name === "AbortError") return;
-            setLocation((current) => ({ ...current, status: "ready", coords, error: "Open location context is temporarily unavailable." }));
-          });
-      },
-      (error) => setLocation({ status: error.code === error.PERMISSION_DENIED ? "denied" : "error", placeLabel: error.code === error.PERMISSION_DENIED ? "Location blocked" : "Location unavailable", error: error.message || "Unable to read browser location." }),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 120000 },
-    );
-    return () => controller.abort();
+    setLocation((current) => ({ ...current, status: "ready", coords, placeLabel: "Current location", localTime: formatBrowserLocalTime() }));
+    try {
+      const enrichment = await enrichAtlasLocation(coords.lat, coords.lng);
+      setLocation((current) => current.coords?.lat === coords.lat && current.coords?.lng === coords.lng ? { ...current, ...enrichment, status: "ready", coords } : current);
+    } catch {
+      // Coordinates remain useful if place/weather enrichment is unavailable.
+    }
   }, [setLocation]);
-  useEffect(() => {
-    if (typeof navigator === "undefined" || !("permissions" in navigator)) return;
-    let cancelled = false;
-    navigator.permissions.query({ name: "geolocation" as PermissionName }).then((permission) => {
-      if (!cancelled && permission.state === "granted") requestLocation();
-      permission.onchange = () => { if (permission.state === "granted") requestLocation(); };
-    }).catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [requestLocation]);
+  const requestLocation = useCallback(() => { void updateLocation(true); }, [updateLocation]);
+  useEffect(() => { void updateLocation(false); }, [updateLocation]);
   return { location, requestLocation };
 }
 
@@ -1028,7 +1006,7 @@ function AtlasLocationPill({ stations, current, mobile = false }: { stations: St
         <label className="rounded-2xl border border-white/8 bg-white/[0.05] px-3 py-2 text-left"><span className="block text-[9px] uppercase tracking-[0.18em] text-ivory/45">Manual destination search</span><input value={destinationQuery} onChange={(event) => { setDestinationQuery(event.target.value); setDestination(null); setRoute(null); if (event.target.value.trim().length < 3) setDestinationResults([]); }} onFocus={() => setCollapsed(false)} placeholder="Where are you going?" className="mt-1 w-full bg-transparent text-sm font-semibold text-white outline-none placeholder:text-ivory/35" /></label>
         {destinationResults.length && !destination ? <div className="grid max-h-36 gap-1 overflow-y-auto">{destinationResults.map((result) => <button key={`${result.lat}-${result.lng}`} type="button" onClick={() => { setDestination(result); setDestinationQuery(result.city || result.label); setDestinationResults([]); }} className="rounded-xl bg-white/[0.06] px-3 py-2 text-left text-[11px] text-ivory/75 hover:bg-radio/10"><b className="block truncate text-white">{result.city || result.country || "Destination"}</b><span className="line-clamp-1">{result.label}</span></button>)}</div> : null}
         {destination ? <div className="rounded-2xl border border-radio/15 bg-radio/10 p-3 text-[11px]"><b className="block text-white">{destination.city || destination.country || "Destination selected"}</b><span className="text-ivory/65">{route ? `${route.distanceKm.toLocaleString()} km · ${route.durationMin} min · ${route.provider}` : routeStatus === "routing" ? "Calculating free route…" : "Route unavailable; tuning destination signals."}</span><div className="mt-2 flex gap-2"><button type="button" onClick={tuneDestination} disabled={!destinationStations.length} className="rounded-full bg-radio px-3 py-1.5 font-semibold text-midnight disabled:opacity-45">Tune destination</button><button type="button" className="rounded-full border border-white/10 px-3 py-1.5 text-ivory/75">Preview route</button></div></div> : null}
-        {visibleStations.map(({ station, distance }) => <button key={station.id} type="button" onClick={() => setCurrentStationAndDestination(station, destination || intelligenceScope === "station-destination" ? "atlas-drive" : "auto")} className="flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.05] px-2.5 py-1.5 text-left transition hover:border-radio/35 hover:bg-radio/10"><span className="min-w-0"><b className="block truncate text-[11px] text-white">{station.name}</b><span className="block truncate text-[10px] text-ivory/55">{[station.city || station.state, station.country].filter(Boolean).join(" · ")} {distance !== null ? `· ${distance.toLocaleString()} km` : "· regional signal"}</span></span><Radio className="size-3.5 shrink-0 text-gold" /></button>)}
+        {visibleStations.map(({ station, distance }) => <button key={station.id} type="button" onClick={() => setCurrentStationAndDestination(station, destination || intelligenceScope === "station-destination" ? "atlas-drive" : "auto")} className="flex items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.05] px-2.5 py-1.5 text-left transition hover:border-radio/35 hover:bg-radio/10"><span className="min-w-0"><b className="block truncate text-[11px] text-white">{station.name}</b><span className="block truncate text-[10px] text-ivory/55">{uniquePlaceLabel([station.city || station.state, station.country], " · ")} {distance !== null ? `· ${distance.toLocaleString()} km` : "· regional signal"}</span></span><Radio className="size-3.5 shrink-0 text-gold" /></button>)}
       </div> : null}
     </div>
   );
@@ -1296,7 +1274,7 @@ function StationContextBrief({ station, open, onClose }: { station: Station; ope
   const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
   const context = visibleWorldContext;
   const theme = getAmbientTheme(context);
-  const place = context ? buildPlaceLabel(context) : [station.city || station.state, station.country].filter(Boolean).join(", ") || "Tuning destination";
+  const place = context ? buildPlaceLabel(context) : uniquePlaceLabel([station.city || station.state, station.country]) || "Tuning destination";
   const descriptor = context ? buildPlaceDescriptor(context) : station.language || "Live radio";
   const atmosphere = buildAtmosphereLine(context, theme);
   const climate = context?.climate;
@@ -1366,7 +1344,7 @@ function StationIntelligencePanel({ station, stations, inventoryStats, setQuery 
         <StreamHealthBadge station={station} />
       </div>
       <DailyFlightPanel stations={stations} inventoryStats={inventoryStats} activeStation={station} />
-      <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={[station.city || station.state, station.country].filter(Boolean).join(", ")} isPlaying={playing || status === "buffering"} />
+      <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={uniquePlaceLabel([station.city || station.state, station.country])} isPlaying={playing || status === "buffering"} />
       <NowPlayingEnrichmentCard station={station} />
       <RadioDNA context={visibleWorldContext} status={visibleWorldContextStatus} />
       <WorldContextPanel context={visibleWorldContext} />
@@ -3406,7 +3384,7 @@ function titleCaseTag(tag: string) {
 }
 
 function stationPlaceLabel(station: Station) {
-  return [station.city || station.state, station.country].filter(Boolean).join(", ") || station.country || "Earth";
+  return uniquePlaceLabel([station.city || station.state, station.country]) || station.country || "Earth";
 }
 
 function buildAtlasToast(station: Station, override?: Partial<AtlasToastEventDetail>): AtlasToastEventDetail {
