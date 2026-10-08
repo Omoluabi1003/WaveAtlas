@@ -19,7 +19,7 @@
     "test:station-links": "npx tsx tests/station-deep-link.regression.ts",
     "radio:health": "npx tsx scripts/check-station-health.ts",
     "test:agents": "npx tsx tests/background-agents.regression.ts",
-    "test:brief": "npx tsx tests/editorial-image.regression.ts && npx tsx tests/brief-editorial.regression.ts && npx tsx tests/brief-tabs.regression.ts",
+    "test:brief": "node --import tsx tests/editorial-image.regression.ts && node --import tsx tests/brief-editorial.regression.ts && node --import tsx tests/brief-geography.regression.ts && node --import tsx tests/brief-tabs.regression.ts",
     "agents:operate": "npx tsx scripts/run-operational-agents.ts",
     "test:operations": "npx tsx tests/operational-agents.regression.ts",
     "test:omoluabi-voice": "npx tsx tests/atlas-omoluabi-primary.regression.ts && npx tsx tests/atlas-ready-speech.regression.ts && npx tsx tests/atlas-voice-store.regression.ts && npx tsx tests/atlas-pcm-player.regression.ts && npx tsx tests/atlas-voice-status.regression.ts && npx tsx tests/atlas-voice-runtime-version.regression.ts && npx tsx tests/atlas-voice-service-worker.regression.ts && npx tsx tests/atlas-voice-readiness.regression.ts",

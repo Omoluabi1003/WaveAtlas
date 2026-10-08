@@ -21,7 +21,7 @@ const hooks = {
     if (!old || deps.some((value, i) => value !== old.deps[i])) { effects[slot] = { run, deps, cleanup: old?.cleanup }; pending.push(slot); }
   },
 };
-const storage = new Map([['waveatlas_daily_cache', JSON.stringify({ stale: 'Legacy category cache must not be reused' })]]);
+const storage = new Map([['waveatlas_daily_cache_v2', JSON.stringify({ stale: 'Previous global Front Page must not be reused' })], ['waveatlas_daily_cache', JSON.stringify({ stale: 'Legacy category cache must not be reused' })]]);
 const requests: Array<{ category: string; stationName: string; resolve: (response: Response) => void; reject: (error: Error) => void }> = [];
 const modules: Record<string, unknown> = {
   react: hooks,
@@ -71,7 +71,7 @@ async function main() {
   click(tree, 'Radio Signal'); tree = render(); flushEffects(); respond(requests.at(-1)!, 'radio-signal', 'Premier radio fixture'); await settle(); tree = render(); assert.deepEqual(titles(tree), ['Premier radio fixture']);
   station = { ...station, id: 'other', station_uuid: 'other', name: 'Other FM' }; tree = render(); assert.deepEqual(titles(tree), []); flushEffects();
   assert.equal(requests.at(-1)!.stationName, 'Other FM');
-  assert(storage.has('waveatlas_daily_cache_v2'));
+  assert(storage.has('waveatlas_daily_cache_v3'));
   console.log('Brief tabs: immediate stale-content clearing, rapid-switch races, provider failures, wrong-category rejection, cache versioning, and station isolation passed');
 }
 main().catch((error) => { console.error(error); process.exit(1); });

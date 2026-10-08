@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBriefHeadlines, type BriefCategory } from "@/lib/news-agent";
+import { resolveBriefCountry } from "@/lib/brief-geography";
 
 export const revalidate = 900;
 
@@ -14,5 +15,7 @@ export async function GET(request: Request) {
   const allowedCategories = new Set<BriefCategory>(["front-page", "local-pulse", "culture", "sports", "radio-signal"]);
   const category: BriefCategory = allowedCategories.has(requestedCategory as BriefCategory) ? requestedCategory as BriefCategory : "front-page";
   const headlines = await getBriefHeadlines({ city, country, country_code, language, category, station_name });
-  return NextResponse.json({ headlines, city, country, country_code, category }, { headers: { "Cache-Control": "public, s-maxage=900, stale-while-revalidate=900" } });
+  const resolvedCountry = resolveBriefCountry({ country, country_code });
+  const cacheSeconds = headlines.length ? 900 : 60;
+  return NextResponse.json({ headlines, city, country: resolvedCountry?.name || country, country_code: resolvedCountry?.code || country_code, category }, { headers: { "Cache-Control": `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds}` } });
 }

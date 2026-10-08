@@ -12,7 +12,7 @@ import { flagFor, type Station, type StationInventoryStats } from "@/lib/station
 import { formatEditorialNumber, guardEditorialCopy } from "@/lib/editorial-guardrail";
 import type { WorldContext } from "@/lib/world-engine/types";
 
-const CLIENT_CACHE_KEY = "waveatlas_daily_cache_v2";
+const CLIENT_CACHE_KEY = "waveatlas_daily_cache_v3";
 const CLIENT_CACHE_TTL_MS = 900_000;
 const tabs = ["Front Page", "Local Pulse", "Culture", "Sports", "Radio Signal"] as const;
 const tabCategory = { "Front Page": "front-page", "Local Pulse": "local-pulse", Culture: "culture", Sports: "sports", "Radio Signal": "radio-signal" } as const;
@@ -150,7 +150,7 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
       setLoading(!cached);
       setError("");
     }, 0);
-    const params = new URLSearchParams({ city: place.city, country: place.country, country_code: station.country_code || "", language: station.language || "", category: tabCategory[tab], station_name: station.name });
+    const params = new URLSearchParams({ edition: "geobrief-v1", city: place.city, country: place.country, country_code: station.country_code || "", language: station.language || "", category: tabCategory[tab], station_name: station.name });
     fetch(`/api/brief?${params}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("WaveAtlas Daily unavailable");
