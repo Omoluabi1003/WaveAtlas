@@ -1,5 +1,6 @@
 "use client";
 
+import { beaconLabelExclusion, labelsOverlap } from "@/lib/globe-label-layout";
 import { uniquePlaceLabel } from "@/lib/place-label";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -2011,11 +2012,7 @@ export default function BlueMarbleGlobe({
         active,
       };
       const collides = labelBoxes.some(
-        (other) =>
-          box.left < other.right &&
-          box.right > other.left &&
-          box.top < other.bottom &&
-          box.bottom > other.top,
+        (other) => labelsOverlap(box, other),
       );
       if (collides && !active && !options.force) {
         ctx.restore();
@@ -2050,6 +2047,12 @@ export default function BlueMarbleGlobe({
       zoom: number,
     ) => {
       labelBoxes.length = 0;
+      if (activeBeacon) {
+        const beacon = project(activeBeacon.lat, activeBeacon.lng, projection);
+        if (Number.isFinite(beacon.x) && Number.isFinite(beacon.y) && beacon.z > -0.08) {
+          labelBoxes.push({ ...beaconLabelExclusion(beacon.x, beacon.y, mobile), active: true });
+        }
+      }
       const labels: GlobeLabel[] = [];
       if (activeBeacon)
         labels.push({
