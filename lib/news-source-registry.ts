@@ -5,6 +5,9 @@ export type NewsFeed = {
   url: string;
   scope: NewsFeedScope;
   trusted: boolean;
+  // True only for a destination-specific domestic section, never a general/world feed.
+  domestic?: boolean;
+  language?: string;
 };
 
 export type NewsSourceRegistryEntry = {
@@ -30,18 +33,27 @@ export const newsSourceRegistry: NewsSourceRegistryEntry[] = [
   {
     country_code: "NG",
     country: "Nigeria",
+    language: "English",
     feeds: [
       { name: "Premium Times Nigeria", url: "https://www.premiumtimesng.com/feed", scope: "country", trusted: true },
       { name: "Vanguard Nigeria", url: "https://www.vanguardngr.com/feed/", scope: "country", trusted: true },
       { name: "Punch Nigeria", url: "https://punchng.com/feed/", scope: "country", trusted: true },
     ],
   },
-  { country_code: "AU", country: "Australia", feeds: [{ name: "ABC Australia", url: "https://www.abc.net.au/news/feed/51120/rss.xml", scope: "country", trusted: true }] },
-  { country_code: "CA", country: "Canada", feeds: [{ name: "CBC World", url: "https://www.cbc.ca/cmlink/rss-world", scope: "country", trusted: true }] },
-  { country_code: "IN", country: "India", feeds: [{ name: "The Hindu International", url: "https://www.thehindu.com/news/international/feeder/default.rss", scope: "country", trusted: true }] },
-  { country_code: "US", country: "United States", feeds: [{ name: "NPR News", url: "https://feeds.npr.org/1001/rss.xml", scope: "country", trusted: true }] },
-  { country_code: "GB", country: "United Kingdom", feeds: [{ name: "BBC UK", url: "https://feeds.bbci.co.uk/news/uk/rss.xml", scope: "country", trusted: true }] },
-  { country_code: "FR", country: "France", feeds: [{ name: "France24 France", url: "https://www.france24.com/en/france/rss", scope: "country", trusted: true }] },
+  { country_code: "AU", country: "Australia", language: "English", feeds: [{ name: "ABC Australia", url: "https://www.abc.net.au/news/feed/51120/rss.xml", scope: "country", trusted: true }] },
+  { country_code: "CA", country: "Canada", language: "English", feeds: [
+    { name: "CBC Canada", url: "https://www.cbc.ca/cmlink/rss-canada", scope: "country", trusted: true, domestic: true },
+    { name: "Global News Canada", url: "https://globalnews.ca/canada/feed/", scope: "country", trusted: true, domestic: true },
+  ] },
+  { country_code: "IN", country: "India", language: "Hindi", feeds: [{ name: "The Hindu National", url: "https://www.thehindu.com/news/national/feeder/default.rss", scope: "country", trusted: true, domestic: true, language: "English" }] },
+  { country_code: "US", country: "United States", language: "English", feeds: [{ name: "NPR National", url: "https://feeds.npr.org/1003/rss.xml", scope: "country", trusted: true, domestic: true }] },
+  { country_code: "GB", country: "United Kingdom", language: "English", feeds: [{ name: "BBC UK", url: "https://feeds.bbci.co.uk/news/uk/rss.xml", scope: "country", trusted: true, domestic: true }] },
+  { country_code: "FR", country: "France", language: "French", feeds: [{ name: "France24 France", url: "https://www.france24.com/en/france/rss", scope: "country", trusted: true, domestic: true, language: "English" }] },
+  { country_code: "ES", country: "Spain", language: "Spanish", feeds: [{ name: "El País España", url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/espana/portada", scope: "country", trusted: true, domestic: true }] },
+  { country_code: "BR", country: "Brazil", language: "Portuguese", feeds: [{ name: "Agência Brasil", url: "https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml", scope: "country", trusted: true }] },
+  { country_code: "JP", country: "Japan", language: "Japanese", feeds: [{ name: "NHK Society", url: "https://www3.nhk.or.jp/rss/news/cat1.xml", scope: "country", trusted: true, domestic: true }] },
+  { country_code: "CG", country: "Republic of the Congo", language: "French", feeds: [] },
+  { country_code: "CD", country: "Democratic Republic of the Congo", language: "French", feeds: [] },
 ];
 
 function sameText(a = "", b = "") {
@@ -49,7 +61,7 @@ function sameText(a = "", b = "") {
 }
 
 export function getNewsSources({ city, countryCode }: { city?: string; countryCode?: string }) {
-  const code = countryCode?.toUpperCase();
+  const code = countryCode?.trim().toUpperCase();
   const citySources = newsSourceRegistry.filter((entry) => entry.city && city && sameText(entry.city, city) && (!code || entry.country_code === code));
   const countrySources = newsSourceRegistry.filter((entry) => code && entry.country_code === code && !entry.city);
   const globalSources = newsSourceRegistry.filter((entry) => entry.country_code === "GLOBAL");
