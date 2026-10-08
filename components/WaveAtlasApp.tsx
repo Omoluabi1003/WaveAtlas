@@ -1411,12 +1411,15 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
     const doneTimer = window.setTimeout(dismiss, SIGNAL_SPLASH_DONE_MS);
     return () => { window.clearInterval(phaseTimer); window.clearTimeout(doneTimer); };
   }, [dismiss]);
-  return <AnimatePresence>{visible ? <motion.div style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }} className="fixed inset-0 z-[110] overflow-hidden bg-midnight/72 text-ivory backdrop-blur-xl" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .45 }}>
+  return <AnimatePresence>{visible ? <motion.div className="fixed inset-0 z-[110] flex flex-col items-center justify-between overflow-y-auto bg-midnight/72 px-6 py-6 text-ivory backdrop-blur-xl" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .45 }}>
     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,20,.50),rgba(7,17,31,.76))]" />
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.18),transparent_24%),radial-gradient(circle_at_50%_58%,rgba(214,168,79,.13),transparent_26%)]" />
     <div className="cloud-layer absolute inset-0 opacity-20" />
     <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:52px_52px] opacity-50" />
-    <div className="relative flex max-w-xl flex-col items-center px-6 text-center">
+    <div className="relative z-10 flex w-full max-w-xl items-center justify-end shrink-0">
+      <button type="button" onClick={dismiss} className="rounded-full border border-white/20 bg-slate-950/70 px-5 py-2.5 text-sm font-semibold text-ivory transition hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold">Skip introduction</button>
+    </div>
+    <main className="relative z-10 my-auto flex w-full max-w-xl shrink-0 flex-col items-center py-4 text-center">
       <motion.div className="relative grid size-56 place-items-center rounded-full border border-radio/20 bg-[radial-gradient(circle,rgba(0,214,143,.16),rgba(15,23,42,.42)_55%,transparent_70%)] shadow-[0_0_100px_rgba(0,214,143,.18)]" animate={{ rotate: 360 }} transition={{ duration: 24, repeat: Infinity, ease: "linear" }}>
         <div className="absolute inset-7 rounded-full border border-gold/25" />
         <div className="absolute inset-12 rounded-full border border-radio/20" />
@@ -1431,9 +1434,10 @@ function SignalInitializationSequence({ onComplete }: { onComplete?: () => void 
         <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-ivory/65">{DEVELOPER_ATTRIBUTION}</p>
         <p className="mt-1 text-[11px] font-medium tracking-[0.18em] text-gold/65">WaveAtlas™ creator credit</p>
       </div>
-    </div>
-    <button type="button" onClick={dismiss} className="absolute right-6 top-6 rounded-full border border-white/20 bg-slate-950/70 px-5 py-3 text-sm font-semibold text-ivory focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold">Skip introduction</button>
-    <p className="absolute bottom-8 left-1/2 w-full max-w-sm -translate-x-1/2 px-6 text-center text-[11px] font-medium tracking-wide text-ivory/35 sm:bottom-10">Initializing the global radio atlas</p>
+    </main>
+    <footer className="relative z-10 mt-auto pt-4 shrink-0 text-center text-[11px] font-medium tracking-wide text-ivory/35">
+      Initializing the global radio atlas
+    </footer>
   </motion.div> : null}</AnimatePresence>;
 }
 

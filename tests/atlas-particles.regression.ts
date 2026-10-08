@@ -35,14 +35,16 @@ updateParticles(seeds, first, 0, 'speaking', silent, false);
 updateParticles(seeds, second, 0, 'speaking', { bass: 1, mids: 0.7, treble: 0.6 }, false);
 assert.notDeepEqual(first, second, 'Output must change with genuine speech spectrum');
 
-// 4. Reduced motion static behavior
+// 4. Reduced motion non-frozen behavior
 for (const state of ['live', 'listening', 'thinking', 'speaking'] as const) {
-  updateParticles(seeds, first, 1, state, silent, true);
-  updateParticles(seeds, second, 100, state, silent, true);
-  assert.deepEqual(first, second, 'Reduced motion must not drift with time');
-  assert.ok(first.every(Number.isFinite));
+  const redSys = new PersistentParticleSystem(seeds);
+  updateParticles(seeds, first, 0.016, state, silent, true, redSys);
+  updateParticles(seeds, second, 0.516, state, silent, true, redSys);
+  assert.notDeepEqual(first, second, 'Reduced motion must remain smoothly animated over time rather than visually frozen');
+  assert.ok(first.every(Number.isFinite), 'Reduced motion output particle attributes must be finite numbers');
+  assert.ok(redSys.stateMultiplier < 0.65, 'Reduced motion state multiplier decays smoothly toward reduced velocity scale');
 }
-console.log('Atlas particles: frequency mapping, bounded budgets, unit sphere, audio reactivity and reduced motion passed.');
+console.log('Atlas particles: frequency mapping, bounded budgets, unit sphere, audio reactivity and non-frozen reduced motion passed.');
 
 // 5. Velocity & physical persistent motion
 const testSeeds = createParticleSeeds(720);
@@ -73,13 +75,13 @@ assert.ok(moved > 720 * 0.75, 'Most particles must visibly move within half a se
 assert.ok(Math.max(...distances) - Math.min(...distances) > 0.05, 'Particles must have varied velocities');
 console.log('Atlas velocity: sustained silent motion and varied particle speeds passed.');
 
-// 7. State transitions & velocity multipliers (live: 0.45, listening: 0.8, thinking: 1.2, speaking: 1.6)
+// 7. State transitions & velocity multipliers (live: 0.65, listening: 1.0, thinking: 1.25, speaking: 1.5)
 const stateSys = new PersistentParticleSystem(createParticleSeeds(100));
 updateParticles(stateSys.positions, first, 0.016, 'live', silent, false, stateSys);
-assert.ok(Math.abs(stateSys.stateMultiplier - 0.45) < 0.1, 'Live state target multiplier is ~0.45');
+assert.ok(Math.abs(stateSys.stateMultiplier - 0.65) < 0.1, 'Live state target multiplier is ~0.65');
 
 updateParticles(stateSys.positions, first, 0.5, 'speaking', silent, false, stateSys);
-assert.ok(stateSys.stateMultiplier > 0.8, 'Multiplier smoothly transitions upward when entering speaking state');
+assert.ok(stateSys.stateMultiplier > 1.0, 'Multiplier smoothly transitions upward when entering speaking state');
 
 // 8. Boundary soft wrapping: particles stay within volume and all coordinates are finite
 for (let step = 0; step < 50; step++) {

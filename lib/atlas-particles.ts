@@ -9,10 +9,10 @@ export const ATLAS_PARTICLE_COLORS = [
 ] as const;
 
 const STATE_VELOCITY_MULTIPLIERS: Record<AtlasParticleState, number> = {
-  live: 0.45,
-  listening: 0.8,
-  thinking: 1.2,
-  speaking: 1.6,
+  live: 0.65,
+  listening: 1.0,
+  thinking: 1.25,
+  speaking: 1.5,
 };
 
 export function particleBudget(width: number, cores = 4, reduced = false) {
@@ -50,7 +50,7 @@ export class PersistentParticleSystem {
   phases: Float32Array;
   baseSizes: Float32Array;
   colors: Float32Array;
-  stateMultiplier = 0.45;
+  stateMultiplier = 0.65;
   elapsed = 0;
   lastTime: number | null = null;
 
@@ -122,27 +122,6 @@ export function updateParticles(
   const sys = systemOverride || getParticleSystem(seeds);
   const count = sys.count;
 
-  if (reduced) {
-    // Reduced motion: static seeds placement with depth perspective and subtle colors
-    for (let i = 0; i < count; i++) {
-      const sx = seeds[i * 3];
-      const sy = seeds[i * 3 + 1];
-      const sz = seeds[i * 3 + 2];
-      const perspective = 1 / (1.7 - sz * 0.28);
-      const color = ATLAS_PARTICLE_COLORS[i % 17 === 0 ? 4 : i % 11 === 0 ? 3 : i % 5 === 0 ? 2 : i % 3 === 0 ? 1 : 0];
-      const front = (sz + 1) / 2;
-      const offset = i * 8;
-      output[offset] = sx * 0.9 * perspective * 1.8;
-      output[offset + 1] = sy * 0.9 * perspective * 1.8;
-      output[offset + 2] = sz;
-      output[offset + 3] = color[0];
-      output[offset + 4] = color[1];
-      output[offset + 5] = color[2];
-      output[offset + 6] = 0.2 + front * 0.6;
-      output[offset + 7] = 0.7 + front * 0.7;
-    }
-    return;
-  }
 
   // Determine total delta time
   let totalDt = 0.016;
@@ -168,7 +147,8 @@ export function updateParticles(
   const midsFactor = isAudioActive ? spectrum.mids : 0;
   const trebleFactor = isAudioActive ? spectrum.treble : 0;
 
-  const targetMult = STATE_VELOCITY_MULTIPLIERS[state] ?? 0.45;
+  const reducedScale = reduced ? 0.35 : 1.0;
+  const targetMult = (STATE_VELOCITY_MULTIPLIERS[state] ?? 0.65) * reducedScale;
 
   for (let s = 0; s < substeps; s++) {
     sys.elapsed += subDt;
