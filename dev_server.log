@@ -5,7 +5,7 @@
 ▲ Next.js 16.2.9 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-✓ Ready in 565ms
+✓ Ready in 684ms
 Attention: Next.js now collects completely anonymous telemetry regarding usage.
 This information is used to shape Next.js' roadmap and prioritize features.
 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
@@ -29,9 +29,10 @@ https://nextjs.org/telemetry
   returnedCount: 32,
   filterReasons: {}
 }
- HEAD / 200 in 15.0s (next.js: 11.5s, proxy.ts: 234ms, application-code: 3.2s)
- GET / 200 in 176ms (next.js: 4ms, proxy.ts: 28ms, application-code: 145ms)
- GET / 200 in 346ms (next.js: 21ms, proxy.ts: 17ms, application-code: 309ms)
+ HEAD / 200 in 13.7s (next.js: 10.8s, proxy.ts: 265ms, application-code: 2.7s)
+ GET / 200 in 232ms (next.js: 12ms, proxy.ts: 39ms, application-code: 181ms)
+ GET / 200 in 370ms (next.js: 14ms, proxy.ts: 40ms, application-code: 316ms)
+ GET /manifest.webmanifest 200 in 1590ms (next.js: 1551ms, application-code: 39ms)
 [WaveAtlas station discovery] campus-atlas import {
   importedCount: 14,
   duplicateCount: 0,
@@ -46,8 +47,7 @@ https://nextjs.org/telemetry
   needsReviewCount: 0,
   finalAcceptedCount: 14
 }
- GET /manifest.webmanifest 200 in 1553ms (next.js: 1521ms, application-code: 32ms)
- GET /api/world-context?stationName=Top+Radio+90.9+Lagos&city=Lagos&state=Lagos&country=Nigeria&countryCode=NG&language=English%2C+Pidgin&lat=6.5244&lng=3.3792 200 in 2.7s (next.js: 1683ms, application-code: 973ms)
+ GET /api/world-context?stationName=Top+Radio+90.9+Lagos&city=Lagos&state=Lagos&country=Nigeria&countryCode=NG&language=English%2C+Pidgin&lat=6.5244&lng=3.3792 200 in 3.0s (next.js: 1734ms, application-code: 1308ms)
 [WaveAtlas station discovery] fetchStations {
   fetchedCount: 3000,
   curatedCount: 49,
@@ -292,13 +292,6 @@ https://nextjs.org/telemetry
   invalidUrlCount: 0,
   needsReviewCount: 0,
   finalAcceptedCount: 14
-}
-[WaveAtlas station discovery] fetchStationsByCountry {
-  fetchedCount: 101,
-  curatedCount: 26,
-  filteredCount: 0,
-  returnedCount: 100,
-  filterReasons: {}
 }
 [WaveAtlas station discovery] fetchStationsByCountry {
   fetchedCount: 114,
@@ -315,6 +308,14 @@ https://nextjs.org/telemetry
   filterReasons: {}
 }
 [WaveAtlas station discovery] fetchStationsByCountry {
+  fetchedCount: 101,
+  curatedCount: 26,
+  filteredCount: 0,
+  returnedCount: 100,
+  filterReasons: {}
+}
+ GET /api/stations/nearby?global=true&limit=25&anchor=%7B%22id%22%3A%22ariyo-ai-jay-1019-fm-jos%22%2C%22station_uuid%22%3A%22ariyo-ai-jay-1019-fm-jos%22%2C%22name%22%3A%22Jay+101.9+FM+Jos%22%2C%22normalized_name%22%3A%22jay+101+9+fm+jos%22%2C%22url%22%3A%22https%3A%2F%2Fstream2.rcast.net%2F69640%2F%22%2C%22url_resolved%22%3A%22https%3A%2F%2Fstream2.rcast.net%2F69640%2F%22%2C%22homepage%22%3A%22https%3A%2F%2Fjayfm.ng%2F%22%2C%22favicon%22%3A%22%22%2C%22country%22%3A%22Nigeria%22%2C%22country_code%22%3A%22NG%22%2C%22state%22%3A%22Plateau%22%2C%22city%22%3A%22Jos%22%2C%22language%22%3A%22English%22%2C%22tags%22%3A%5B%22live+radio%22%2C%22ariyo-ai-seed%22%2C%22waveatlas-curated%22%2C%22curators-picks%22%2C%22verified%22%2C%22nigerian+radio%22%2C%22africa%22%2C%22african+radio%22%2C%22nigeria%22%2C%22lagos%22%2C%22pidgin%22%2C%22afrobeats%22%2C%22talk%22%2C%22news%22%2C%22plateau%22%2C%22jos%22%2C%22entertainment%22%2C%22sports%22%2C%22lifestyle%22%2C%22hits%22%2C%22local+radio%22%2C%22official+stream+verified+2026-06-24%22%2C%22radio+garden+matched%22%2C%22rcast%22%2C%22tier+1+curated+atlas%22%2C%22startup+eligible%22%2C%22teleport+eligible%22%2C%22wanderer+eligible%22%2C%22favorite+eligible%22%5D%2C%22codec%22%3A%22MP3%22%2C%22bitrate%22%3A128%2C%22latitude%22%3A9.8965%2C%22longitude%22%3A8.8583%2C%22votes%22%3A26000%2C%22click_count%22%3A86000%2C%22health_score%22%3A92%2C%22is_active%22%3Atrue%2C%22last_check_ok%22%3Atrue%2C%22last_checked_at%22%3A%222026-06-20T00%3A00%3A00.000Z%22%2C%22failure_count%22%3A0%2C%22response_time_ms%22%3A180%2C%22curation_source%22%3A%22Ariyo+AI%22%2C%22curation_tier%22%3A%22curated_atlas%22%2C%22verification_status%22%3A%22verified%22%2C%22validation_status%22%3A%22verified%22%2C%22validation_reason%22%3A%22Imported+from+Ariyo+AI+curated+station+seeds.%22%7D&recent=%7B%22countries%22%3A%5B%5D%2C%22continents%22%3A%5B%5D%2C%22cities%22%3A%5B%5D%2C%22languages%22%3A%5B%5D%2C%22genres%22%3A%5B%5D%2C%22tags%22%3A%5B%5D%2C%22stationIds%22%3A%5B%5D%7D&journey=teleport 200 in 6.6s (next.js: 2.2s, application-code: 4.4s)
+[WaveAtlas station discovery] fetchStationsByCountry {
   fetchedCount: 35,
   curatedCount: 0,
   filteredCount: 0,
@@ -329,52 +330,10 @@ https://nextjs.org/telemetry
   filterReasons: {}
 }
 [WaveAtlas station discovery] fetchStationsByCountry {
-  fetchedCount: 83,
-  curatedCount: 1,
-  filteredCount: 0,
-  returnedCount: 56,
-  filterReasons: {}
-}
-[WaveAtlas station discovery] fetchStationsByCountry {
-  fetchedCount: 300,
-  curatedCount: 1,
-  filteredCount: 0,
-  returnedCount: 250,
-  filterReasons: {}
-}
-[WaveAtlas station discovery] fetchStationsByCountry {
-  fetchedCount: 300,
+  fetchedCount: 189,
   curatedCount: 0,
   filteredCount: 0,
-  returnedCount: 249,
-  filterReasons: {}
-}
-[WaveAtlas station discovery] fetchStationsByCountry {
-  fetchedCount: 300,
-  curatedCount: 0,
-  filteredCount: 0,
-  returnedCount: 250,
-  filterReasons: {}
-}
-[WaveAtlas station discovery] fetchStationsByCountry {
-  fetchedCount: 300,
-  curatedCount: 0,
-  filteredCount: 0,
-  returnedCount: 250,
-  filterReasons: {}
-}
-[WaveAtlas station discovery] fetchStationsByCountry {
-  fetchedCount: 300,
-  curatedCount: 0,
-  filteredCount: 0,
-  returnedCount: 250,
-  filterReasons: {}
-}
-[WaveAtlas station discovery] fetchStationsByCountry {
-  fetchedCount: 300,
-  curatedCount: 0,
-  filteredCount: 0,
-  returnedCount: 242,
+  returnedCount: 46,
   filterReasons: {}
 }
 [WaveAtlas station discovery] fetchStationsByCountry {
@@ -392,10 +351,52 @@ https://nextjs.org/telemetry
   filterReasons: {}
 }
 [WaveAtlas station discovery] fetchStationsByCountry {
-  fetchedCount: 189,
+  fetchedCount: 300,
+  curatedCount: 1,
+  filteredCount: 0,
+  returnedCount: 250,
+  filterReasons: {}
+}
+[WaveAtlas station discovery] fetchStationsByCountry {
+  fetchedCount: 83,
+  curatedCount: 1,
+  filteredCount: 0,
+  returnedCount: 56,
+  filterReasons: {}
+}
+[WaveAtlas station discovery] fetchStationsByCountry {
+  fetchedCount: 300,
   curatedCount: 0,
   filteredCount: 0,
-  returnedCount: 46,
+  returnedCount: 250,
+  filterReasons: {}
+}
+[WaveAtlas station discovery] fetchStationsByCountry {
+  fetchedCount: 300,
+  curatedCount: 0,
+  filteredCount: 0,
+  returnedCount: 250,
+  filterReasons: {}
+}
+[WaveAtlas station discovery] fetchStationsByCountry {
+  fetchedCount: 300,
+  curatedCount: 0,
+  filteredCount: 0,
+  returnedCount: 249,
+  filterReasons: {}
+}
+[WaveAtlas station discovery] fetchStationsByCountry {
+  fetchedCount: 300,
+  curatedCount: 0,
+  filteredCount: 0,
+  returnedCount: 242,
+  filterReasons: {}
+}
+[WaveAtlas station discovery] fetchStationsByCountry {
+  fetchedCount: 300,
+  curatedCount: 0,
+  filteredCount: 0,
+  returnedCount: 250,
   filterReasons: {}
 }
 [WaveAtlas curated diagnostic] mergeSeedStations: Jay 101.9 FM Jos (https://stream2.rcast.net/69640/) [Ariyo AI] -> excluded: duplicate suppressed; curated metadata wins when duplicate is Radio Browser
@@ -576,8 +577,7 @@ https://nextjs.org/telemetry
 [WaveAtlas curated diagnostic] fetchTeleportCandidatePool: WIUX (https://streaming.live365.com/a06530) [campus-atlas] -> excluded from teleport pool: duplicate station id already present
 [WaveAtlas curated diagnostic] fetchTeleportCandidatePool: Radio MUCODEC (https://cdnradio.streamakaci.com/radiomucodec.mp3) [waveatlas-republic-congo-verification] -> excluded from teleport pool: duplicate station id already present
 [WaveAtlas curated diagnostic] fetchTeleportCandidatePool: Radio-Télévision Armée du Salut (https://stream.zeno.fm/k7fy7ha5u0hvv) [waveatlas-republic-congo-verification] -> excluded from teleport pool: duplicate station id already present
- GET /api/stations/nearby?global=true&limit=25&anchor=%7B%22id%22%3A%22ariyo-ai-jay-1019-fm-jos%22%2C%22station_uuid%22%3A%22ariyo-ai-jay-1019-fm-jos%22%2C%22name%22%3A%22Jay+101.9+FM+Jos%22%2C%22normalized_name%22%3A%22jay+101+9+fm+jos%22%2C%22url%22%3A%22https%3A%2F%2Fstream2.rcast.net%2F69640%2F%22%2C%22url_resolved%22%3A%22https%3A%2F%2Fstream2.rcast.net%2F69640%2F%22%2C%22homepage%22%3A%22https%3A%2F%2Fjayfm.ng%2F%22%2C%22favicon%22%3A%22%22%2C%22country%22%3A%22Nigeria%22%2C%22country_code%22%3A%22NG%22%2C%22state%22%3A%22Plateau%22%2C%22city%22%3A%22Jos%22%2C%22language%22%3A%22English%22%2C%22tags%22%3A%5B%22live+radio%22%2C%22ariyo-ai-seed%22%2C%22waveatlas-curated%22%2C%22curators-picks%22%2C%22verified%22%2C%22nigerian+radio%22%2C%22africa%22%2C%22african+radio%22%2C%22nigeria%22%2C%22lagos%22%2C%22pidgin%22%2C%22afrobeats%22%2C%22talk%22%2C%22news%22%2C%22plateau%22%2C%22jos%22%2C%22entertainment%22%2C%22sports%22%2C%22lifestyle%22%2C%22hits%22%2C%22local+radio%22%2C%22official+stream+verified+2026-06-24%22%2C%22radio+garden+matched%22%2C%22rcast%22%2C%22tier+1+curated+atlas%22%2C%22startup+eligible%22%2C%22teleport+eligible%22%2C%22wanderer+eligible%22%2C%22favorite+eligible%22%5D%2C%22codec%22%3A%22MP3%22%2C%22bitrate%22%3A128%2C%22latitude%22%3A9.8965%2C%22longitude%22%3A8.8583%2C%22votes%22%3A26000%2C%22click_count%22%3A86000%2C%22health_score%22%3A92%2C%22is_active%22%3Atrue%2C%22last_check_ok%22%3Atrue%2C%22last_checked_at%22%3A%222026-06-20T00%3A00%3A00.000Z%22%2C%22failure_count%22%3A0%2C%22response_time_ms%22%3A180%2C%22curation_source%22%3A%22Ariyo+AI%22%2C%22curation_tier%22%3A%22curated_atlas%22%2C%22verification_status%22%3A%22verified%22%2C%22validation_status%22%3A%22verified%22%2C%22validation_reason%22%3A%22Imported+from+Ariyo+AI+curated+station+seeds.%22%7D&recent=%7B%22countries%22%3A%5B%5D%2C%22continents%22%3A%5B%5D%2C%22cities%22%3A%5B%5D%2C%22languages%22%3A%5B%5D%2C%22genres%22%3A%5B%5D%2C%22tags%22%3A%5B%5D%2C%22stationIds%22%3A%5B%5D%7D&journey=teleport 200 in 10.0s (next.js: 1521ms, application-code: 8.4s)
- GET / 200 in 109ms (next.js: 6ms, proxy.ts: 10ms, application-code: 94ms)
+ GET / 200 in 124ms (next.js: 5ms, proxy.ts: 8ms, application-code: 111ms)
 [WaveAtlas curated diagnostic] fetchTeleportCandidatePool: Jay 101.9 FM Jos (https://stream2.rcast.net/69640/) [Ariyo AI] -> excluded from teleport pool: duplicate station id already present
 [WaveAtlas curated diagnostic] fetchTeleportCandidatePool: Agidigbo 88.7 FM Ibadan (https://agidigbostream.com.ng/radio/8000/radio.mp3) [Ariyo AI] -> excluded from teleport pool: duplicate station id already present
 [WaveAtlas curated diagnostic] fetchTeleportCandidatePool: Rhythm FM 93.7 Lagos (https://stream.radio.co/s61726bb1d/listen) [Ariyo AI] -> excluded from teleport pool: duplicate station id already present
@@ -660,7 +660,7 @@ https://nextjs.org/telemetry
 [WaveAtlas curated diagnostic] fetchTeleportCandidatePool: WIUX (https://streaming.live365.com/a06530) [campus-atlas] -> excluded from teleport pool: duplicate station id already present
 [WaveAtlas curated diagnostic] fetchTeleportCandidatePool: Radio MUCODEC (https://cdnradio.streamakaci.com/radiomucodec.mp3) [waveatlas-republic-congo-verification] -> excluded from teleport pool: duplicate station id already present
 [WaveAtlas curated diagnostic] fetchTeleportCandidatePool: Radio-Télévision Armée du Salut (https://stream.zeno.fm/k7fy7ha5u0hvv) [waveatlas-republic-congo-verification] -> excluded from teleport pool: duplicate station id already present
- GET /api/stations/nearby?global=true&limit=25&anchor=%7B%22id%22%3A%22ariyo-ai-jay-1019-fm-jos%22%2C%22station_uuid%22%3A%22ariyo-ai-jay-1019-fm-jos%22%2C%22name%22%3A%22Jay+101.9+FM+Jos%22%2C%22normalized_name%22%3A%22jay+101+9+fm+jos%22%2C%22url%22%3A%22https%3A%2F%2Fstream2.rcast.net%2F69640%2F%22%2C%22url_resolved%22%3A%22https%3A%2F%2Fstream2.rcast.net%2F69640%2F%22%2C%22homepage%22%3A%22https%3A%2F%2Fjayfm.ng%2F%22%2C%22favicon%22%3A%22%22%2C%22country%22%3A%22Nigeria%22%2C%22country_code%22%3A%22NG%22%2C%22state%22%3A%22Plateau%22%2C%22city%22%3A%22Jos%22%2C%22language%22%3A%22English%22%2C%22tags%22%3A%5B%22live+radio%22%2C%22ariyo-ai-seed%22%2C%22waveatlas-curated%22%2C%22curators-picks%22%2C%22verified%22%2C%22nigerian+radio%22%2C%22africa%22%2C%22african+radio%22%2C%22nigeria%22%2C%22lagos%22%2C%22pidgin%22%2C%22afrobeats%22%2C%22talk%22%2C%22news%22%2C%22plateau%22%2C%22jos%22%2C%22entertainment%22%2C%22sports%22%2C%22lifestyle%22%2C%22hits%22%2C%22local+radio%22%2C%22official+stream+verified+2026-06-24%22%2C%22radio+garden+matched%22%2C%22rcast%22%2C%22tier+1+curated+atlas%22%2C%22startup+eligible%22%2C%22teleport+eligible%22%2C%22wanderer+eligible%22%2C%22favorite+eligible%22%5D%2C%22codec%22%3A%22MP3%22%2C%22bitrate%22%3A128%2C%22latitude%22%3A9.8965%2C%22longitude%22%3A8.8583%2C%22votes%22%3A26000%2C%22click_count%22%3A86000%2C%22health_score%22%3A92%2C%22is_active%22%3Atrue%2C%22last_check_ok%22%3Atrue%2C%22last_checked_at%22%3A%222026-06-20T00%3A00%3A00.000Z%22%2C%22failure_count%22%3A0%2C%22response_time_ms%22%3A180%2C%22curation_source%22%3A%22Ariyo+AI%22%2C%22curation_tier%22%3A%22curated_atlas%22%2C%22verification_status%22%3A%22verified%22%2C%22validation_status%22%3A%22verified%22%2C%22validation_reason%22%3A%22Imported+from+Ariyo+AI+curated+station+seeds.%22%7D&recent=%7B%22countries%22%3A%5B%5D%2C%22continents%22%3A%5B%5D%2C%22cities%22%3A%5B%5D%2C%22languages%22%3A%5B%5D%2C%22genres%22%3A%5B%5D%2C%22tags%22%3A%5B%5D%2C%22stationIds%22%3A%5B%5D%7D&journey=teleport 200 in 160ms (next.js: 4ms, application-code: 156ms)
- GET /manifest.webmanifest 200 in 8ms (next.js: 4ms, application-code: 5ms)
- GET /api/world-context?stationName=Top+Radio+90.9+Lagos&city=Lagos&state=Lagos&country=Nigeria&countryCode=NG&language=English%2C+Pidgin&lat=6.5244&lng=3.3792 200 in 461ms (next.js: 3ms, application-code: 458ms)
- GET / 200 in 288ms (next.js: 11ms, proxy.ts: 15ms, application-code: 262ms)
+ GET /api/stations/nearby?global=true&limit=25&anchor=%7B%22id%22%3A%22ariyo-ai-jay-1019-fm-jos%22%2C%22station_uuid%22%3A%22ariyo-ai-jay-1019-fm-jos%22%2C%22name%22%3A%22Jay+101.9+FM+Jos%22%2C%22normalized_name%22%3A%22jay+101+9+fm+jos%22%2C%22url%22%3A%22https%3A%2F%2Fstream2.rcast.net%2F69640%2F%22%2C%22url_resolved%22%3A%22https%3A%2F%2Fstream2.rcast.net%2F69640%2F%22%2C%22homepage%22%3A%22https%3A%2F%2Fjayfm.ng%2F%22%2C%22favicon%22%3A%22%22%2C%22country%22%3A%22Nigeria%22%2C%22country_code%22%3A%22NG%22%2C%22state%22%3A%22Plateau%22%2C%22city%22%3A%22Jos%22%2C%22language%22%3A%22English%22%2C%22tags%22%3A%5B%22live+radio%22%2C%22ariyo-ai-seed%22%2C%22waveatlas-curated%22%2C%22curators-picks%22%2C%22verified%22%2C%22nigerian+radio%22%2C%22africa%22%2C%22african+radio%22%2C%22nigeria%22%2C%22lagos%22%2C%22pidgin%22%2C%22afrobeats%22%2C%22talk%22%2C%22news%22%2C%22plateau%22%2C%22jos%22%2C%22entertainment%22%2C%22sports%22%2C%22lifestyle%22%2C%22hits%22%2C%22local+radio%22%2C%22official+stream+verified+2026-06-24%22%2C%22radio+garden+matched%22%2C%22rcast%22%2C%22tier+1+curated+atlas%22%2C%22startup+eligible%22%2C%22teleport+eligible%22%2C%22wanderer+eligible%22%2C%22favorite+eligible%22%5D%2C%22codec%22%3A%22MP3%22%2C%22bitrate%22%3A128%2C%22latitude%22%3A9.8965%2C%22longitude%22%3A8.8583%2C%22votes%22%3A26000%2C%22click_count%22%3A86000%2C%22health_score%22%3A92%2C%22is_active%22%3Atrue%2C%22last_check_ok%22%3Atrue%2C%22last_checked_at%22%3A%222026-06-20T00%3A00%3A00.000Z%22%2C%22failure_count%22%3A0%2C%22response_time_ms%22%3A180%2C%22curation_source%22%3A%22Ariyo+AI%22%2C%22curation_tier%22%3A%22curated_atlas%22%2C%22verification_status%22%3A%22verified%22%2C%22validation_status%22%3A%22verified%22%2C%22validation_reason%22%3A%22Imported+from+Ariyo+AI+curated+station+seeds.%22%7D&recent=%7B%22countries%22%3A%5B%5D%2C%22continents%22%3A%5B%5D%2C%22cities%22%3A%5B%5D%2C%22languages%22%3A%5B%5D%2C%22genres%22%3A%5B%5D%2C%22tags%22%3A%5B%5D%2C%22stationIds%22%3A%5B%5D%7D&journey=teleport 200 in 146ms (next.js: 8ms, application-code: 139ms)
+ GET /manifest.webmanifest 200 in 9ms (next.js: 4ms, application-code: 5ms)
+ GET / 200 in 192ms (next.js: 20ms, proxy.ts: 21ms, application-code: 152ms)
+ GET /api/world-context?stationName=Top+Radio+90.9+Lagos&city=Lagos&state=Lagos&country=Nigeria&countryCode=NG&language=English%2C+Pidgin&lat=6.5244&lng=3.3792 200 in 502ms (next.js: 5ms, application-code: 497ms)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
+import { useEffect, useRef, useSyncExternalStore, type RefObject } from 'react';
 import { createParticleSeeds, particleTrails, particleBudget, spectrumBands, updateParticles, type AtlasParticleState, type AtlasSpectrum } from '@/lib/atlas-particles';
 
 type Props = { state: AtlasParticleState; analyserRef: RefObject<AnalyserNode | null>; onPress: () => void };
@@ -65,9 +65,7 @@ const readMotion = () => window.matchMedia(reducedMotionQuery).matches;
 export function AtlasParticleGlobe({ state, analyserRef, onPress }: Props) {
   const rootRef = useRef<HTMLButtonElement>(null), gpuRef = useRef<HTMLCanvasElement>(null), fallbackRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef(state);
-  const systemReduced = useSyncExternalStore(subscribeMotion, readMotion, () => false);
-  const [motionOverride, setMotionOverride] = useState<boolean | null>(null);
-  const reduced = motionOverride ?? systemReduced;
+  const reduced = useSyncExternalStore(subscribeMotion, readMotion, () => false);
 
   useEffect(() => {
     stateRef.current = state;
@@ -131,7 +129,7 @@ export function AtlasParticleGlobe({ state, analyserRef, onPress }: Props) {
 
     const frame = (now: number) => {
       raf = 0;
-      if (document.hidden || !visible || reduced) return;
+      if (document.hidden || !visible) return;
       draw(now);
       raf = window.requestAnimationFrame(frame);
     };
@@ -142,7 +140,7 @@ export function AtlasParticleGlobe({ state, analyserRef, onPress }: Props) {
       previous = 0;
       if (document.hidden || !visible) return;
       draw(performance.now(), true);
-      if (!reduced) raf = window.requestAnimationFrame(frame);
+      raf = window.requestAnimationFrame(frame);
     };
 
     const resize = new ResizeObserver(() => {
@@ -213,14 +211,6 @@ export function AtlasParticleGlobe({ state, analyserRef, onPress }: Props) {
         <span className="sr-only" role="status" aria-live="polite">
           Atlas is {state === 'live' ? 'ready' : state}
         </span>
-      </button>
-      <button
-        type="button"
-        onClick={() => setMotionOverride(!reduced)}
-        aria-pressed={!reduced}
-        className="mt-1 rounded-full border border-white/10 px-3 py-1.5 text-[11px] text-slate-400 transition hover:border-emerald-300/40 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
-      >
-        {reduced ? 'Animate particles' : 'Pause particles'}
       </button>
     </div>
   );
