@@ -1,3 +1,6 @@
+import type { BriefCategory } from './news-agent';
+import { briefCityTerms, normalizeEditorialText } from './brief-geography';
+
 export type NewsFeedScope = "city" | "country" | "regional" | "global";
 
 export type NewsFeed = {
@@ -8,6 +11,9 @@ export type NewsFeed = {
   // True only for a destination-specific domestic section, never a general/world feed.
   domestic?: boolean;
   language?: string;
+  categories?: BriefCategory[];
+  includeImages?: boolean;
+  aggregated?: boolean;
 };
 
 export type NewsSourceRegistryEntry = {
@@ -54,15 +60,26 @@ export const newsSourceRegistry: NewsSourceRegistryEntry[] = [
   { country_code: "JP", country: "Japan", language: "Japanese", feeds: [{ name: "NHK Society", url: "https://www3.nhk.or.jp/rss/news/cat1.xml", scope: "country", trusted: true, domestic: true }] },
   { country_code: "CG", country: "Republic of the Congo", language: "French", feeds: [] },
   { country_code: "CD", country: "Democratic Republic of the Congo", language: "French", feeds: [] },
+  { country_code: "DE", country: "Germany", language: "German", feeds: [
+    { name: "SZ Politics", url: "https://rss.sueddeutsche.de/rss/Politik", scope: "country", trusted: true, includeImages: false },
+    { name: "SZ Culture", url: "https://rss.sueddeutsche.de/rss/Kultur", scope: "country", trusted: true, language: "German", categories: ["culture"], includeImages: false },
+    { name: "SZ Sports", url: "https://rss.sueddeutsche.de/rss/Sport", scope: "country", trusted: true, language: "German", categories: ["sports"], includeImages: false },
+    { name: "RADIOSZENE", url: "https://www.radioszene.de/feed", scope: "regional", trusted: true, language: "German", categories: ["radio-signal"] },
+    { name: "radiowoche", url: "https://www.radiowoche.de/feed/", scope: "regional", trusted: true, language: "German", categories: ["radio-signal"] },
+  ] },
+  { country_code: "DE", country: "Germany", city: "Munich", language: "German", feeds: [
+    { name: "SZ Munich", url: "https://rss.sueddeutsche.de/rss/Muenchen", scope: "city", trusted: true, domestic: true, includeImages: false },
+  ] },
 ];
 
 function sameText(a = "", b = "") {
-  return a.trim().toLowerCase() === b.trim().toLowerCase();
+  return normalizeEditorialText(a) === normalizeEditorialText(b);
 }
 
 export function getNewsSources({ city, countryCode }: { city?: string; countryCode?: string }) {
   const code = countryCode?.trim().toUpperCase();
-  const citySources = newsSourceRegistry.filter((entry) => entry.city && city && sameText(entry.city, city) && (!code || entry.country_code === code));
+  const cityNames = briefCityTerms({ city, country_code: code });
+  const citySources = newsSourceRegistry.filter((entry) => entry.city && cityNames.some((name) => sameText(entry.city, name)) && code && entry.country_code === code);
   const countrySources = newsSourceRegistry.filter((entry) => code && entry.country_code === code && !entry.city);
   const globalSources = newsSourceRegistry.filter((entry) => entry.country_code === "GLOBAL");
   return { citySources, countrySources, globalSources };

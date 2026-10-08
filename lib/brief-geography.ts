@@ -34,7 +34,7 @@ const ALIASES: Record<string, string[]> = {
   GB: ['United Kingdom', 'Britain', 'British', 'England', 'Scotland', 'Wales', 'Northern Ireland', 'UK'],
   AU: ['Australia', 'Australian', 'Sydney', 'Canberra', 'Melbourne'],
   FR: ['France', 'French', 'français', 'française', 'Paris', 'Marseille', 'Lyon'],
-  DE: ['Germany', 'German', 'Deutschland', 'Berlin'],
+  DE: ['Germany', 'German', 'Deutschland', 'deutsch', 'deutsche', 'deutschen', 'Berlin', 'Munich', 'München', 'Münchner', 'Hamburg', 'Cologne', 'Köln', 'Frankfurt', 'Bayern', 'Bavaria', 'Bundesliga'],
   KR: ['South Korea', 'Republic of Korea'], KP: ['North Korea'],
   CI: ["Côte d'Ivoire", 'Ivory Coast'], TR: ['Turkey', 'Türkiye'],
 };
@@ -84,4 +84,20 @@ export function briefLanguage(value?: string) {
   const languages: Record<string, string> = { en: 'english', eng: 'english', es: 'spanish', spa: 'spanish', fr: 'french', fra: 'french', fre: 'french', pt: 'portuguese', por: 'portuguese', ja: 'japanese', jpn: 'japanese', de: 'german', deu: 'german', ger: 'german', hi: 'hindi', hin: 'hindi', zh: 'chinese', zho: 'chinese', ar: 'arabic', ara: 'arabic', ru: 'russian', rus: 'russian', it: 'italian', ita: 'italian', nl: 'dutch', nld: 'dutch', ko: 'korean', kor: 'korean' };
   const primary = value?.split(/[;,/]/)[0]?.trim().toLowerCase().split('-')[0];
   return primary && (languages[primary] || Object.values(languages).find((name) => name === primary));
+}
+
+const CITY_ALIASES: Record<string, string[][]> = {
+  DE: [['Munich', 'München', 'Muenchen', 'Múnich', 'Münchner', 'Münchens'], ['Cologne', 'Köln', 'Koeln'], ['Nuremberg', 'Nürnberg', 'Nuernberg']],
+  AT: [['Vienna', 'Wien']], IT: [['Rome', 'Roma'], ['Milan', 'Milano'], ['Florence', 'Firenze'], ['Turin', 'Torino']],
+  ES: [['Seville', 'Sevilla']], PT: [['Lisbon', 'Lisboa']],
+  JP: [['Tokyo', '東京'], ['Osaka', '大阪'], ['Kyoto', '京都']], CN: [['Beijing', '北京', 'Peking'], ['Shanghai', '上海']],
+};
+
+export function briefCityTerms(input: { city?: string; country?: string; country_code?: string }) {
+  const city = input.city?.trim();
+  if (!city) return [];
+  const normalized = normalizeEditorialText(city);
+  const country = resolveBriefCountry(input);
+  const variants = CITY_ALIASES[country?.code || '']?.find((aliases) => aliases.some((alias) => normalizeEditorialText(alias) === normalized));
+  return [...new Set([city, ...(variants || [])])];
 }

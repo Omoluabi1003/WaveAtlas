@@ -98,7 +98,7 @@ async function main() {
     }) as typeof fetch;
     for (const category of ['local-pulse', 'culture', 'sports', 'radio-signal'] as BriefCategory[]) {
       const edition = await getBriefHeadlines({ ...spanish, station_name: 'Multilingual regression', category });
-      assert.deepEqual(edition.map((item) => item.title), [sections[category]], category);
+      assert.deepEqual(edition.map((item) => item.title), category === 'local-pulse' ? [sections['local-pulse'], sections.culture, sections['radio-signal']] : [sections[category]], category);
     }
     // A dedicated domestic section may omit the country in its headline.
     global.fetch = (async (url: string | URL | Request) => String(url).includes('globalnews.ca/canada/feed')

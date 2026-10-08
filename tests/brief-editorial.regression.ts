@@ -40,7 +40,7 @@ async function main() {
       sections[category] = (await getBriefHeadlines({ ...place, category })).map((item) => item.title);
     }
     assert.equal(sections['front-page'].length, 5);
-    assert.deepEqual(sections['local-pulse'], [fixtures[0][0]]);
+    assert.deepEqual(sections['local-pulse'], [fixtures[0][0], fixtures[3][0]]);
     assert.deepEqual(sections.culture, [fixtures[1][0]]);
     assert.deepEqual(sections.sports, [fixtures[2][0]]);
     assert.deepEqual(sections['radio-signal'], [fixtures[3][0]]);

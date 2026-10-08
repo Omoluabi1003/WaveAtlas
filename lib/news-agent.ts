@@ -1,7 +1,8 @@
 import { editorialImageUrl, rssEditorialImage } from './editorial-image';
-import { briefCity, hasEditorialPhrase, headlineMatchesBrief, type BriefGeographicEvidence } from './brief-editorial';
+import { briefCity, hasEditorialPhrase, headlineMatchesBrief, headlineMatchesCity, type BriefGeographicEvidence } from './brief-editorial';
 import { briefCountryTerms, briefLanguage, gdeltSourceCountry, normalizeEditorialText, resolveBriefCountry } from './brief-geography';
 import { getNewsSources, type NewsFeedScope, type NewsSourceRegistryEntry } from './news-source-registry';
+import { briefPlaceQuery, briefTopicQuery, sectionSearchSource } from './brief-section-routing';
 
 export type Headline = {
   title: string;
@@ -36,33 +37,41 @@ function decodeEntities(value = '') {
   return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(x[0-9a-f]+|[0-9]+);/gi, (entity, number: string) => {
     const code = number[0].toLowerCase() === 'x' ? parseInt(number.slice(1), 16) : Number(number);
     return code <= 0x10ffff ? String.fromCodePoint(code) : entity;
-  }).replace(/\s+/g, ' ').trim();
+  }).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function tagValue(item: string, tag: string) {
   const match = item.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, 'i'));
   return decodeEntities(match?.[1] || '');
 }
+function rssTitle(item: string, aggregated?: boolean) {
+  const title = tagValue(item, 'title');
+  const publisher = aggregated ? tagValue(item, 'source') : '';
+  const suffix = ` - ${publisher}`;
+  return publisher && title.endsWith(suffix) ? title.slice(0, -suffix.length) : title;
+}
 
 async function fetchSource(entry: NewsSourceRegistryEntry, context: BriefRequest): Promise<ScoredHeadline[]> {
-  const batches = await Promise.all(entry.feeds.map(async (feed): Promise<ScoredHeadline[]> => {
+  const category = context.category || 'front-page';
+  const feeds = entry.feeds.filter((feed) => !feed.categories?.length || feed.categories.includes(category) || (category === 'front-page' && feed.categories.includes('local-pulse')));
+  const batches = await Promise.all(feeds.map(async (feed): Promise<ScoredHeadline[]> => {
     try {
       const res = await fetch(feed.url, { signal: AbortSignal.timeout(feed.scope === 'global' ? 6000 : 10000), next: { revalidate: 900 }, headers: { 'User-Agent': 'WaveAtlasBrief/1.0' } });
       if (!res.ok) return [];
       const items = (await res.text()).match(/<item[\s\S]*?<\/item>|<entry[\s\S]*?<\/entry>/gi) || [];
       return items.map((item) => ({
-        title: tagValue(item, 'title'), source: feed.name,
+        title: rssTitle(item, feed.aggregated), source: feed.aggregated ? tagValue(item, 'source') || feed.name : feed.name,
         url: tagValue(item, 'link') || (item.match(/<link[^>]+href=["']([^"']+)/i)?.[1] ?? ''),
         summary: tagValue(item, 'description') || tagValue(item, 'summary'),
-        imageUrl: rssEditorialImage(item),
+        imageUrl: feed.includeImages === false ? undefined : rssEditorialImage(item),
         publishedAt: tagValue(item, 'pubDate') || tagValue(item, 'published') || tagValue(item, 'updated'),
         city: context.city, country: context.country, country_code: context.country_code,
         sourceCountry: entry.country_code === 'GLOBAL' ? undefined : entry.country,
-        sourceLanguage: feed.language || entry.language,
+        sourceLanguage: feed.aggregated ? undefined : feed.language || entry.language,
         domestic: entry.country_code === context.country_code,
         score: (feed.trusted ? 18 : 0) + (feed.scope === 'city' ? 60 : feed.scope === 'country' ? 35 : 6),
         scope: feed.scope,
-        evidence: feed.domestic ? { domesticCountryCode: entry.country_code, feedCity: entry.city } : undefined,
+        evidence: { domesticCountryCode: feed.domestic ? entry.country_code : undefined, feedCity: entry.city, topics: feed.trusted ? feed.categories : undefined },
       })).filter((headline) => headline.title && /^https?:\/\//i.test(headline.url));
     } catch { return []; }
   }));
@@ -110,7 +119,7 @@ function rankAndDedupe(headlines: ScoredHeadline[], context: BriefRequest) {
     const text = `${item.title} ${item.summary || ''}`;
     const published = Date.parse(item.publishedAt || '');
     const recency = Number.isFinite(published) ? Math.max(0, 12 - Math.max(0, Date.now() - published) / 86_400_000) : 0;
-    return { ...item, score: item.score + (city && hasEditorialPhrase(text, city) ? 30 : 0) + (terms.some((term) => hasEditorialPhrase(text, term)) ? 18 : 0) + (language && briefLanguage(item.sourceLanguage) === language ? 10 : 0) + recency };
+    return { ...item, score: item.score + (headlineMatchesCity(item, context) ? 30 : 0) + (terms.some((term) => hasEditorialPhrase(text, term)) ? 18 : 0) + (language && briefLanguage(item.sourceLanguage) === language ? 10 : 0) + recency };
   }).sort((a, b) => b.score - a.score).filter((item) => {
     const title = normalizeEditorialText(item.title), url = canonicalUrl(item.url);
     if (seenTitles.has(title) || seenUrls.has(url)) return false;
@@ -128,28 +137,11 @@ function rankAndDedupe(headlines: ScoredHeadline[], context: BriefRequest) {
   };
   if (context.category === 'front-page') {
     add(ranked.filter((item) => item.domestic), 3);
-    if (city && !selected.some((item) => hasEditorialPhrase(`${item.title} ${item.summary || ''}`, city))) add(ranked.filter((item) => hasEditorialPhrase(`${item.title} ${item.summary || ''}`, city)), 1);
+    if (city && !selected.some((item) => headlineMatchesCity(item, context))) add(ranked.filter((item) => headlineMatchesCity(item, context)), 1);
     add(ranked.filter((item) => item.sourceCountry && resolveBriefCountry({ country: item.sourceCountry })?.code !== context.country_code), 1);
   }
   add(ranked, 5 - selected.length);
   return selected.sort((a, b) => b.score - a.score).map(({ score: _score, scope: _scope, evidence: _evidence, domestic: _domestic, ...item }) => item);
-}
-
-// All interpolated phrases are normalized and quoted; request text cannot inject operators.
-function phrase(value: string) { return `"${normalizeEditorialText(value).slice(0, 100)}"`; }
-function placeQuery(input: BriefRequest) {
-  const city = briefCity(input);
-  const terms = [...new Set([...briefCountryTerms(input).slice(0, 9), ...(city ? [city] : [])])];
-  return terms.length > 1 ? `(${terms.map(phrase).join(' OR ')})` : terms[0] ? phrase(terms[0]) : '';
-}
-function topicQuery(input: BriefRequest) {
-  switch (input.category) {
-    case 'local-pulse': return '(local OR community OR city OR council OR neighborhood OR business OR housing OR schools OR transport)';
-    case 'culture': return '(culture OR music OR film OR arts OR festival OR heritage OR entertainment)';
-    case 'sports': return '(sports OR football OR soccer OR basketball OR athletics OR tennis OR cricket)';
-    case 'radio-signal': return `(radio OR airwaves OR podcast${input.station_name ? ` OR ${phrase(input.station_name)}` : ''})`;
-    default: return '';
-  }
 }
 
 export async function getBriefHeadlines(input: BriefRequest): Promise<Headline[]> {
@@ -161,15 +153,15 @@ export async function getBriefHeadlines(input: BriefRequest): Promise<Headline[]
   const key = cacheKey(context);
   const hit = briefCache.get(key);
   if (hit && hit.expires > Date.now()) return hit.value;
-  const city = briefCity(context);
-  const geography = context.category === 'local-pulse' && city ? phrase(city) : placeQuery(context);
-  const query = [geography, topicQuery(context)].filter(Boolean).join(' ');
+  const nativeLanguage = sources.countrySources[0]?.language || context.language;
+  const query = [briefPlaceQuery(context), briefTopicQuery(context, nativeLanguage)].filter(Boolean).join(' ');
   const domesticQuery = `${query} sourcecountry:${gdeltSourceCountry(context)}`;
   const language = briefLanguage(context.language);
   const gdeltRequests = [fetchGdelt(domesticQuery, context, 50), fetchGdelt(query, context, 20)];
   if (language) gdeltRequests.push(fetchGdelt(`${domesticQuery} sourcelang:${language}`, context, 55));
+  const searchSource = sectionSearchSource(context, nativeLanguage);
   const [rss, gdelt] = await Promise.all([
-    Promise.all([...sources.citySources, ...sources.countrySources, ...sources.globalSources].map((entry) => fetchSource(entry, context))).then((items) => items.flat()),
+    Promise.all([...sources.citySources, ...sources.countrySources, ...sources.globalSources, ...(searchSource ? [searchSource] : [])].map((entry) => fetchSource(entry, context))).then((items) => items.flat()),
     Promise.all(gdeltRequests).then((items) => items.flat()),
   ]);
   const value = rankAndDedupe([...rss, ...gdelt], context);

@@ -12,10 +12,11 @@ import { flagFor, type Station, type StationInventoryStats } from "@/lib/station
 import { formatEditorialNumber, guardEditorialCopy } from "@/lib/editorial-guardrail";
 import type { WorldContext } from "@/lib/world-engine/types";
 
-const CLIENT_CACHE_KEY = "waveatlas_daily_cache_v3";
+const CLIENT_CACHE_KEY = "waveatlas_daily_cache_v4";
 const CLIENT_CACHE_TTL_MS = 900_000;
 const tabs = ["Front Page", "Local Pulse", "Culture", "Sports", "Radio Signal"] as const;
 const tabCategory = { "Front Page": "front-page", "Local Pulse": "local-pulse", Culture: "culture", Sports: "sports", "Radio Signal": "radio-signal" } as const;
+const sectionDescription = { "Front Page": "Leading stories from this destination.", "Local Pulse": "City news, community developments and everyday life.", Culture: "Arts, music, film, festivals and cultural life.", Sports: "Teams, competitions, results and sporting developments.", "Radio Signal": "Radio stations, broadcasting, podcasts and the airwaves." } as const;
 
 type CachedBrief = Record<string, { expires: number; headlines: Headline[] }>;
 
@@ -45,7 +46,7 @@ function readCache(key: string) {
 function writeCache(key: string, headlines: Headline[]) {
   try {
     const cache = JSON.parse(window.localStorage.getItem(CLIENT_CACHE_KEY) || "{}") as CachedBrief;
-    cache[key] = { headlines, expires: Date.now() + CLIENT_CACHE_TTL_MS };
+    cache[key] = { headlines, expires: Date.now() + (headlines.length ? CLIENT_CACHE_TTL_MS : 60_000) };
     window.localStorage.setItem(CLIENT_CACHE_KEY, JSON.stringify(cache));
   } catch {
     // Daily cache is best-effort and must never interrupt radio playback.
@@ -150,7 +151,7 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
       setLoading(!cached);
       setError("");
     }, 0);
-    const params = new URLSearchParams({ edition: "geobrief-v1", city: place.city, country: place.country, country_code: station.country_code || "", language: station.language || "", category: tabCategory[tab], station_name: station.name });
+    const params = new URLSearchParams({ edition: "geobrief-v2", city: place.city, country: place.country, country_code: station.country_code || "", language: station.language || "", category: tabCategory[tab], station_name: station.name });
     fetch(`/api/brief?${params}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("WaveAtlas Daily unavailable");
@@ -202,13 +203,14 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
               </nav>
               <section id="brief-section" role="tabpanel" aria-labelledby={`brief-tab-${tabCategory[tab]}`} aria-busy={isLoading}>
                 <div className="mb-5 flex items-center gap-4"><h3 className="shrink-0 text-[10px] font-semibold uppercase tracking-[.24em] text-[#E0C080]">{tab}</h3><span className="h-px flex-1 bg-[#D4A64A]/20" /><span className="text-[9px] uppercase tracking-[.12em] text-[#DCCEDF]">The current edit</span></div>
+                <p className="mb-5 text-xs leading-6 text-[#DCCEDF]">{sectionDescription[tab]}</p>
                 {isLoading ? <p className="rounded-2xl border border-[#D4A64A]/20 bg-[#2B2031] p-5 text-sm leading-6 text-[#E2D7E4]">Curating this edition without interrupting playback…</p> : null}
                 {currentError ? <p className="mb-4 rounded-2xl border border-[#D4A64A]/35 bg-[#382539] p-5 text-sm leading-6 text-[#F7F5EF]">{currentError}</p> : null}
                 {!isLoading && !currentError && !currentHeadlines.length ? <p className="rounded-2xl border border-[#D4A64A]/20 bg-[#2B2031] p-5 text-sm leading-6 text-[#E2D7E4]">No verified {tab.toLowerCase()} stories are available for this destination right now. WaveAtlas will not substitute unrelated headlines.</p> : null}
                 <div className="grid max-w-full grid-cols-1 gap-5 md:grid-cols-2">{currentHeadlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0} sectionLabel={tab} />)}</div>
               </section>
               <DailyPassportStrip station={station} stations={stations} inventoryStats={inventoryStats} enabled={open} />
-              <footer className="mt-8 border-t border-[#D4A64A]/25 pb-[max(16px,env(safe-area-inset-bottom))] pt-5 text-xs leading-6 text-[#DCCEDF] [overflow-wrap:anywhere]"><div className="grid gap-3 sm:grid-cols-3"><span><b className="font-medium text-[#E0C080]">Listening to</b><br />{station.name}</span><span><b className="font-medium text-[#E0C080]">Sound &amp; place</b><br />{genre} · {place.city}, {place.country}</span><span><b className="font-medium text-[#E0C080]">Local time</b><br />{localTime}</span></div><p className="mt-5 border-t border-[#D4A64A]/15 pt-4 text-[10px] leading-5"><Newspaper className="mr-2 inline size-3 text-[#E0C080]" />Open RSS + GDELT sources. Summaries and links only; full articles remain with publishers.</p></footer>
+              <footer className="mt-8 border-t border-[#D4A64A]/25 pb-[max(16px,env(safe-area-inset-bottom))] pt-5 text-xs leading-6 text-[#DCCEDF] [overflow-wrap:anywhere]"><div className="grid gap-3 sm:grid-cols-3"><span><b className="font-medium text-[#E0C080]">Listening to</b><br />{station.name}</span><span><b className="font-medium text-[#E0C080]">Sound &amp; place</b><br />{genre} · {place.city}, {place.country}</span><span><b className="font-medium text-[#E0C080]">Local time</b><br />{localTime}</span></div><p className="mt-5 border-t border-[#D4A64A]/15 pt-4 text-[10px] leading-5"><Newspaper className="mr-2 inline size-3 text-[#E0C080]" />Publisher RSS, Google News RSS and GDELT. Summaries and links only; full articles remain with publishers.</p></footer>
             </div>
           </motion.section>
         </motion.div>
