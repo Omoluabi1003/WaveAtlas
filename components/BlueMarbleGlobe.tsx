@@ -1,5 +1,7 @@
 "use client";
 
+import { uniquePlaceLabel } from "@/lib/place-label";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   geoPath,
@@ -76,6 +78,7 @@ type GlobeRuntime = {
   stationName: string;
   stationCity?: string;
   stationCountry?: string;
+  stationCountryCode?: string;
   stationLabel: string;
   basemap: GlobeBasemapKey;
   teleporting: boolean;
@@ -1338,9 +1341,7 @@ export default function BlueMarbleGlobe({
   const currentPoint = useMemo(() => stationPoint(station), [station]);
   const stationLabel = useMemo(
     () =>
-      [station.city || station.state, station.country]
-        .filter(Boolean)
-        .join(", ") || station.name,
+      uniquePlaceLabel([station.city || station.state, station.country]) || station.name,
     [station],
   );
   const globeLabels = useMemo<GlobeLabel[]>(
@@ -1387,6 +1388,7 @@ export default function BlueMarbleGlobe({
     stationName: station.name,
     stationCity: station.city || station.state,
     stationCountry: station.country,
+    stationCountryCode: station.country_code,
     stationLabel,
     basemap: effectiveBasemap,
     teleporting,
@@ -1739,6 +1741,7 @@ export default function BlueMarbleGlobe({
       stationName: station.name,
       stationCity: station.city || station.state,
       stationCountry: station.country,
+    stationCountryCode: station.country_code,
       stationLabel,
       basemap: effectiveBasemap,
       teleporting,
@@ -1757,6 +1760,7 @@ export default function BlueMarbleGlobe({
     signalConstellation,
     station.city,
     station.country,
+    station.country_code,
     station.name,
     station.state,
     stationLabel,
@@ -2057,8 +2061,12 @@ export default function BlueMarbleGlobe({
         });
       if (zoom <= 1.48) {
         const countryLimit = mobile ? 7 : zoom < 1.1 ? 12 : 22;
+        const labeledCountries = new Set<string>();
         for (const shape of runtime.landShapes) {
-          if (!shape.code || !(shape.code in isoCountryCentroids)) continue;
+          if (!shape.code || !(shape.code in isoCountryCentroids) || labeledCountries.has(shape.code)) continue;
+          labeledCountries.add(shape.code);
+          // The active beacon already names its country; avoid repeating it beneath it.
+          if (activeBeacon && (runtime.stationCountryCode === shape.code || runtime.stationCountry?.trim().toLocaleLowerCase() === shape.name.trim().toLocaleLowerCase())) continue;
           const centroid =
             isoCountryCentroids[
               shape.code as keyof typeof isoCountryCentroids
