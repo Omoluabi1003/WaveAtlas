@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import WaveAtlasApp from '@/components/WaveAtlasApp';
 import { AtlasAssistant } from '@/components/AtlasAssistant';
+import { AtlasVoiceDiscoveryProvider } from '@/components/AtlasVoiceDiscovery';
 import type { AtlasActionResult, AtlasAssistantAction } from '@/lib/atlas-assistant';
 import { atlasStationSearchParams } from '@/lib/atlas-music-search';
 import { stationMatchesMusicGenres, type AtlasMusicSearch } from '@/lib/atlas-music-intent';
@@ -10,7 +11,7 @@ import { rankStationsWithAIE } from '@/lib/atlas-intelligence-engine';
 import { stationPath } from '@/lib/station-deep-link';
 import type { Station, StationInventoryStats } from '@/lib/stations';
 
-type Props = { stations: Station[]; inventoryStats: StationInventoryStats };
+type Props = { stations: Station[]; inventoryStats: StationInventoryStats; initialStation?: Station };
 type PlaybackContext = { current?: Station; status: string };
 
 function visibleButtonMatching(pattern: RegExp) {
@@ -201,5 +202,5 @@ export default function WaveAtlasExperience(props: Props) {
     return failed();
   };
 
-  return <><WaveAtlasApp {...props}/><AtlasAssistant station={station} playbackStatus={playbackStatus} onSearch={search} onAction={executeAction}/></>;
+  return <AtlasVoiceDiscoveryProvider><WaveAtlasApp {...props}/><AtlasAssistant station={station} playbackStatus={playbackStatus} onSearch={search} onAction={executeAction}/></AtlasVoiceDiscoveryProvider>;
 }

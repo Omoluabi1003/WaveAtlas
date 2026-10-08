@@ -49,9 +49,10 @@ assert.equal(handedOff[0]?.id, 'fallback-nearest');
 assert.equal(applyGeoSelectionDecision(decision, {}), false);
 
 const globeFallbackStation = base({ id: 'globe-fallback', station_uuid: 'globe-fallback', name: 'Globe Fallback', latitude: 0, longitude: 0, health_score: 92 });
+let globeStations = [globeFallbackStation];
 const interaction = new AtlasInteractionEngine({
   dragThresholdPx: 8,
-  stationsProvider: () => [globeFallbackStation],
+  stationsProvider: () => globeStations,
   activeStationKeyProvider: () => null,
   countryResolver: () => null,
   geometryProvider: () => ({
@@ -60,12 +61,19 @@ const interaction = new AtlasInteractionEngine({
   }),
 });
 interaction.pointerDown({ pointerId: 1, clientX: 100, clientY: 100 });
-const interactionResult = interaction.pointerUp({
+const pointerUp = {
   pointerId: 1,
   clientX: 100,
   clientY: 100,
   canvasRect: { left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200, x: 0, y: 0, toJSON: () => ({}) } as DOMRect,
-});
+};
+const mismatchedGeoResult = interaction.pointerUp(pointerUp);
+assert.equal(mismatchedGeoResult.kind, 'rejected', 'A zero-coordinate US station is corrected to its distant country centroid, not treated as nearby');
+// Exercise the nearby fallback with truthful geography. Accra is near the
+// globe's (0, 0) center; the US centroid is outside the 1400 km search radius.
+globeStations = [base({ ...globeFallbackStation, country: 'Ghana', country_code: 'GH', city: 'Accra', state: 'Greater Accra', latitude: 5.6037, longitude: -0.187 })];
+interaction.pointerDown({ pointerId: 1, clientX: 100, clientY: 100 });
+const interactionResult = interaction.pointerUp(pointerUp);
 assert.equal(interactionResult.kind, 'destination');
 if (interactionResult.kind === 'destination') {
   assert.equal(interactionResult.event.station.id, 'globe-fallback');
@@ -82,8 +90,8 @@ assert.match(atlasInteraction, /getGeoSelectionCandidates/);
 assert.match(atlasInteraction, /country-boundaries-unavailable-nearest-playable-station/);
 assert.match(globe, /AtlasInteractionEngine/);
 assert.match(app, /setScopedStationAndDestination\(selected, "manual", candidates, label\)/);
-assert.match(marquee, /--waveatlas-marquee-offset/);
-assert.match(marquee, /waveatlas-auto-marquee-scroll-v2/);
+assert.match(marquee, /track\.animate\(/, 'Marquee motion uses the current WAAPI runtime');
+assert.match(marquee, /startRafFallback/, 'A fallback remains available when WAAPI cannot run');
 assert.doesNotMatch(marquee, /calc\(-1\s*\*\s*var/);
 
 console.log('Geo Selection Engine regression checks passed.');

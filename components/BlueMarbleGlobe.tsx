@@ -3324,7 +3324,7 @@ export default function BlueMarbleGlobe({
     <div
       ref={wrapRef}
       data-globe-travel-active="false"
-      className={`${mobile ? "waveatlas-globe-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-[620px]"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}
+      className={`${mobile ? "waveatlas-globe-shell fixed inset-0 h-[100dvh] min-h-[100dvh] w-full max-w-[100vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" : "relative h-full min-h-0"} w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.16),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl`}
     >
       <PublicSignalPanel mobile={mobile} anchor={currentPoint} onLocate={point => {
         const s = state.current;
@@ -3345,14 +3345,15 @@ export default function BlueMarbleGlobe({
         aria-label="Interactive audio tourism globe"
         role="img"
       />
+      <div className={mobile ? "hidden" : "globe-captions"}>
       <div
-        className={`${mobile ? "hidden" : "left-6 top-20 xl:left-8"} pointer-events-none absolute z-20 rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 ${mobile ? "shadow-none backdrop-blur-sm" : "shadow-lg backdrop-blur-xl"}`}
+        className="globe-guide-caption rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 shadow-lg backdrop-blur-xl"
       >
         {GLOBE_STYLE_COPY[effectiveBasemap]} · zoom in for Atlas Streets · tap
         to tune
       </div>
       <div
-        className={`${mobile ? "hidden" : "bottom-28 right-6 xl:right-8"} pointer-events-none absolute z-20 max-w-xs rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl`}
+        className="globe-guide-caption rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl"
       >
         <b className="block text-white">Audio Tourism layer</b>
         <span>
@@ -3360,6 +3361,7 @@ export default function BlueMarbleGlobe({
             ? `Live beacon: ${currentPoint?.label ?? station.country}`
             : "Preparing procedural globe…"}
         </span>
+      </div>
       </div>
       {globeDebugEnabled() && debugOverlay ? (
         <div className="pointer-events-none absolute bottom-4 left-4 z-30 rounded-2xl border border-emerald-300/30 bg-slate-950/80 p-3 font-mono text-[10px] leading-5 text-emerald-100 shadow-2xl backdrop-blur-xl">
