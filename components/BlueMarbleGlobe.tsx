@@ -1975,7 +1975,7 @@ export default function BlueMarbleGlobe({
         ? label.label.toLocaleUpperCase("en-US")
         : label.label;
       ctx.save();
-      ctx.font = `${weight} ${fontSize}px ${isCountry ? "var(--font-serif), ui-serif, Georgia, serif" : "var(--font-sans), Inter, system-ui, sans-serif"}`;
+      ctx.font = `${weight} ${fontSize}px Inter, system-ui, sans-serif`;
       (
         ctx as CanvasRenderingContext2D & { letterSpacing?: string }
       ).letterSpacing = isCountry ? (mobile ? "0.12em" : "0.16em") : "0px";
@@ -3326,24 +3326,7 @@ export default function BlueMarbleGlobe({
         aria-label="Interactive audio tourism globe"
         role="img"
       />
-      <div className={mobile ? "hidden" : "globe-captions"}>
-      <div
-        className="globe-guide-caption rounded-full border border-emerald-300/20 bg-slate-950/55 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200 shadow-lg backdrop-blur-xl"
-      >
-        {GLOBE_STYLE_COPY[effectiveBasemap]} · zoom in for Atlas Streets · tap
-        to tune
-      </div>
-      <div
-        className="globe-guide-caption rounded-3xl border border-white/10 bg-slate-950/60 px-4 py-3 text-xs text-ivory/75 shadow-2xl backdrop-blur-xl"
-      >
-        <b className="block text-white">Audio Tourism layer</b>
-        <span>
-          {ready
-            ? `Live beacon: ${currentPoint?.label ?? station.country}`
-            : "Preparing procedural globe…"}
-        </span>
-      </div>
-      </div>
+      {!mobile ? <details className="globe-information"><summary aria-label="Globe information">i</summary><div><strong>{GLOBE_STYLE_COPY[effectiveBasemap]}</strong><p>Drag to explore. Zoom in for Atlas Streets. Tap a signal to tune.</p><p>{ready ? `Live beacon: ${currentPoint?.label ?? station.country}` : "Preparing globe…"}</p></div></details> : null}
       {globeDebugEnabled() && debugOverlay ? (
         <div className="pointer-events-none absolute bottom-4 left-4 z-30 rounded-2xl border border-emerald-300/30 bg-slate-950/80 p-3 font-mono text-[10px] leading-5 text-emerald-100 shadow-2xl backdrop-blur-xl">
           <div>

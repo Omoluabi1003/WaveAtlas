@@ -143,7 +143,10 @@ async function geometry(label, selector) {
       if(r.left<p.left-margin || r.right>p.right+margin || (!scrollable(parent) && (r.top<p.top-margin || r.bottom>p.bottom+margin))) failures.push(`region escapes parent: ${e.className}`);
     }
     for(let i=0;i<regions.length;i++)for(let j=i+1;j<regions.length;j++) {
-      const a=regions[i].getBoundingClientRect(),b=regions[j].getBoundingClientRect();
+      const left=regions[i],right=regions[j];
+      if(left.contains(right)||right.contains(left)) continue;
+      if((left.matches('.desktop-scene') && right.matches('.desktop-context-drawer,.desktop-utility-rail')) || (right.matches('.desktop-scene') && left.matches('.desktop-context-drawer,.desktop-utility-rail'))) continue; // Drawer intentionally overlays the unchanged scene.
+      const a=left.getBoundingClientRect(),b=right.getBoundingClientRect();
       if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>margin && Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>margin) failures.push(`collision: ${regions[i].className} / ${regions[j].className}`);
     }
     return [...new Set(failures)];
@@ -195,10 +198,20 @@ try {
   console.log('Matrix: contextual drawers and capability sheets');
   for(const [width,height] of selectedCritical) for(const factor of zooms) {
     await page.setViewportSize({width,height});await zoom(factor);
-    if(await page.locator('.desktop-utility-rail').isVisible()) {
+    if(await page.locator('.desktop-app-shell .atlas-edge-handle').isVisible()) {
+      const scene = await page.locator('.desktop-scene').boundingBox();
+      await page.getByRole('button',{name:'Open Atlas drawer',exact:true}).filter({visible:true}).click();
       await page.getByRole('button',{name:'Open Settings',exact:true}).click();
-      await geometry(`settings-${width}x${height}-${factor*100}`,primary+',.desktop-context-drawer :is(button,input,a,h2,h3,p)');
-      await page.getByRole('button',{name:'Close search drawer',exact:true}).click();
+      await geometry(`settings-${width}x${height}-${factor*100}`,'.desktop-context-drawer :is(button,input,a,h2,h3,p)');
+      assert.deepEqual(await page.locator('.desktop-scene').boundingBox(),scene,'Atlas drawer must not resize or move the globe');
+      if(width===1366&&factor===1) await page.screenshot({path:`${output}/desktop-edge-panel.png`,animations:'disabled'});
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('.desktop-context-drawer').count(),0);
+      assert.equal(await page.locator('.desktop-app-shell .atlas-edge-handle').evaluate(e=>document.activeElement===e),true);
+      assert.deepEqual(await page.locator('.desktop-scene').boundingBox(),scene);
+      await page.locator('.desktop-app-shell .atlas-edge-handle').click();
+      await page.locator('.desktop-scene').click({position:{x:scene.width-20,y:scene.height/2}});
+      assert.equal(await page.locator('.desktop-context-drawer').count(),0);
     }
     await page.locator('.atlas-launcher-button:visible').hover();
     await page.locator('.atlas-capabilities-button:visible').click();
@@ -210,6 +223,15 @@ try {
     await page.setViewportSize({width,height});await zoom(1);
     await geometry(`mobile-${width}x${height}`,primary);
     await page.screenshot({path:`${output}/mobile-${width}x${height}.png`,animations:'disabled'});
+    const trigger = page.locator('.mobile-edge-handle:visible');
+    if(await trigger.count()) {
+      await trigger.click();
+      await geometry(`mobile-edge-${width}x${height}`,'.mobile-edge-panel button');
+      await page.screenshot({path:`${output}/mobile-edge-${width}x${height}.png`,animations:'disabled'});
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('.mobile-edge-panel').count(),0);
+      assert.equal(await trigger.evaluate(e=>document.activeElement===e),true);
+    }
   }
   await page.setViewportSize({width:430,height:932});await zoom(1);
   await page.getByRole('button',{name:'Open station details',exact:true}).click();

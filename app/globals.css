@@ -167,3 +167,39 @@ html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
   .atlas-launcher-popover { position: fixed; inset-inline: 1rem; bottom: calc(env(safe-area-inset-bottom) + 174px); top: auto; width: auto; }
   .mobile-empty-voice .atlas-launcher-popover { top: auto; bottom: 1rem; }
 }
+
+/* Atlas is an overlay: the globe owns the complete workspace. */
+.waveatlas-app { --font-display: Inter, sans-serif; --font-serif: Inter, sans-serif; }
+.waveatlas-app .font-mono { font-family: var(--font-body), Inter, sans-serif; letter-spacing: normal; }
+.waveatlas-app .uppercase { text-transform: none; letter-spacing: .015em; }
+.atlas-edge-handle { position: absolute; z-index: 45; left: 0; top: calc(50% - 40px); display: grid; place-items: center; width: 44px; height: 80px; border-radius: 18px; background: transparent; }
+.atlas-edge-handle span { width: 4px; height: 40px; border-radius: 8px; background: rgba(131,213,198,.65); box-shadow: 0 0 12px rgba(131,213,198,.15); }
+.atlas-edge-handle:hover span { background: #83d5c6; }
+.atlas-edge-handle:focus-visible { outline: 2px solid #83d5c6; outline-offset: -4px; }
+.globe-information { position: absolute; top: 12px; right: 12px; z-index: 35; color: #d9e4e8; }
+.globe-information summary { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #ffffff18; border-radius: 50%; background: #07111f45; cursor: pointer; font-size: 14px; font-weight: 600; list-style: none; }
+.globe-information summary::-webkit-details-marker { display: none; }
+.globe-information > div { position: absolute; right: 0; top: 44px; width: min(260px,70vw); padding: 16px; border: 1px solid #ffffff18; border-radius: 16px; background: #07111fe6; backdrop-filter: blur(16px); font-size: 13px; line-height: 1.5; }
+.globe-information p { margin-top: 8px; color: #adbdc7; }
+.atlas-voice-orb { position: relative; display: block; width: 23px; height: 23px; border-radius: 50%; background: radial-gradient(circle at 30% 25%,#c9fff3 0%,#67dfce 22%,#399fb9 47%,#776cca 70%,#182946 100%); box-shadow: inset -3px -3px 5px #07111f70,0 0 9px #67dfce25; overflow: hidden; }
+.atlas-voice-orb span { position: absolute; inset: 3px; border-radius: 50%; border: 1px solid #d4fff580; transform: rotate(-35deg) scaleX(.55); }
+[data-atlas-active="true"] .atlas-voice-orb { animation: atlasOrbBreathe 1.8s ease-in-out infinite; }
+@keyframes atlasOrbBreathe { 50% { filter: brightness(1.25); box-shadow: 0 0 12px #67dfce60; } }
+@media (prefers-reduced-motion: reduce) { [data-atlas-active="true"] .atlas-voice-orb { animation: none; } }
+@media (min-width:768px) {
+  .desktop-workspace,.desktop-workspace.has-drawer { position: relative; grid-template-columns: minmax(0,1fr); grid-template-areas: "scene"; gap: 0; }
+  .desktop-context-drawer { position: absolute; z-index: 65; inset: 0 auto 0 0; width: min(360px,calc(100% - 48px)); display: flex; background: rgba(9,21,35,.86); border-radius: 22px; backdrop-filter: blur(24px); box-shadow: 8px 0 40px #00000030; overflow: hidden; }
+  .desktop-context-drawer > .atlas-drawer-scroll { overflow-y: auto; overscroll-behavior: contain; }
+  .desktop-utility-rail { display: flex; flex-direction: row; justify-content: space-between; gap: 4px; flex-shrink: 0; padding: 6px 0 12px; margin-bottom: 4px; border: 0; border-bottom: 1px solid #ffffff12; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+  .desktop-player { background: rgba(3,9,18,.62); border-color: #ffffff18; backdrop-filter: blur(18px); }
+  .desktop-brand > div,.desktop-station-search > div { background: rgba(9,21,35,.35); border-color: #ffffff16; }
+  .desktop-scene { border-radius: 0; }
+}
+.mobile-edge-handle { position: fixed; z-index: 75; }
+.mobile-edge-layer { position: fixed; inset: 0; z-index: 110; }
+.mobile-edge-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; background: #00000020; }
+.mobile-edge-panel { position: absolute; inset: max(16px,env(safe-area-inset-top)) auto max(16px,env(safe-area-inset-bottom)) 12px; display: flex; flex-direction: column; width: min(280px,calc(100% - 64px)); padding: 16px; border: 1px solid #ffffff18; border-radius: 24px; background: #091523db; backdrop-filter: blur(24px); color: #f8f5ed; overflow-y: auto; }
+.waveatlas-mobile-dock > div { background: rgba(3,9,18,.58); border-color: #ffffff16; }
+.waveatlas-app[data-wa-appearance="day"] [class*="bg-slate-950/"] { background-color: rgba(24,52,73,.58); }
+.waveatlas-app[data-wa-appearance="day"] .desktop-context-drawer { background-color: rgba(15,34,48,.86); }
+.waveatlas-app[data-wa-appearance="day"] .desktop-station-search > div { background-color: rgba(24,52,73,.35); }
