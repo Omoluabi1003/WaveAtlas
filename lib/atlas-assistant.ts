@@ -1,10 +1,11 @@
+import type { AtlasMusicSearch } from './atlas-music-intent';
 import type { Station } from '@/lib/stations';
 
 export type AtlasConversationLine = { role: 'user' | 'atlas'; text: string };
 export type AtlasAssistantContext = { station?: Pick<Station, 'name' | 'country' | 'country_code' | 'city' | 'state' | 'language' | 'tags' | 'codec' | 'bitrate'> | null; history?: AtlasConversationLine[]; };
 export type AtlasAssistantAction =
-  | { type: 'search'; query: string }
-  | { type: 'play'; query?: string; excludeCurrent?: boolean }
+  | { type: 'search'; query: string; music?: AtlasMusicSearch }
+  | { type: 'play'; query?: string; excludeCurrent?: boolean; music?: AtlasMusicSearch }
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'volume'; value: number }

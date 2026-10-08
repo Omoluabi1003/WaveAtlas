@@ -1,3 +1,5 @@
+import { findMusicStationCandidates } from '@/lib/atlas-music-search';
+import { musicGenresInText, type AtlasMusicSearch } from '@/lib/atlas-music-intent';
 import { NextRequest, NextResponse } from "next/server";
 import { inferGenreCountries } from "@/lib/cultural-atlas";
 import { rankStationsForResolvedPlace, resolveGlobalGeoQuery } from "@/lib/global-geo-resolver";
@@ -20,6 +22,31 @@ export async function GET(req: NextRequest) {
   const explicitCountryCode = p.get("countryCode")?.toUpperCase() ?? undefined;
   const language = p.get("language") ?? undefined;
   const tag = p.get("tag") ?? p.get("genre") ?? undefined;
+
+  // Genre intent is explicit: station names are never evidence of programming.
+  const requestedGenres = p.get('genres');
+  if (requestedGenres !== null) {
+    const genres = requestedGenres.split(',').map(value => value.trim()).filter(Boolean);
+    if (!genres.length || genres.length > 6 || genres.some(value => musicGenresInText(value).length !== 1 || musicGenresInText(value)[0] !== value)) {
+      return NextResponse.json({ error: 'Use supported canonical genres' }, { status: 400 });
+    }
+    const music: AtlasMusicSearch = { genres: [...new Set(genres)], match: p.get('genreMatch') === 'any' ? 'any' : 'all' };
+    const location = p.get('location')?.trim();
+    const resolution = location ? await resolveGlobalGeoQuery(location) : null;
+    if (location && (!resolution?.location || resolution.ambiguous)) {
+      return NextResponse.json({ intent: 'genre', stations: [], ambiguous: true, message: `Please clarify the location ${location}.` });
+    }
+    const place = resolution?.location;
+    const scopedCountry = explicitCountryCode || place?.countryCode;
+    const matches = await findMusicStationCandidates(music, genre => scopedCountry
+      ? fetchStationsForCountryIntent(place?.country || explicitCountry || scopedCountry, scopedCountry, { tag: genre, language, limit: '250', offset: '0' })
+      : fetchStations({ tag: genre, language, limit: '250', offset: '0' }));
+    const scoped = scopedCountry ? matches.filter(station => station.country_code === scopedCountry) : matches;
+    const ranked = place ? rankStationsForResolvedPlace(scoped, place, location || '') : rankStations(scoped, genres.join(' '));
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 24));
+    const safeOffset = Math.max(0, Number(offset) || 0);
+    return NextResponse.json({ intent: 'genre', music, resolvedPlace: place, stations: ranked.slice(safeOffset, safeOffset + safeLimit), totalAvailable: ranked.length, totalReturned: Math.min(safeLimit, Math.max(0, ranked.length - safeOffset)), source: 'verified-station-genre-tags' });
+  }
 
   // An explicit country scope means the user is searching for a signal inside
   // the current country, not asking WaveAtlas to reinterpret the query as a

@@ -36,7 +36,8 @@
     "test:appearance": "node --import tsx tests/solar-appearance.regression.ts && node --import tsx tests/station-night-notice.regression.ts",
     "test:startup": "node --import tsx tests/browser-storage.regression.ts && node --import tsx tests/embedded-browser.regression.ts",
     "test:map": "node --import tsx tests/map-basemaps.regression.ts",
-    "test:atlas-focus": "node --import tsx tests/atlas-audio-focus.regression.ts && node --import tsx tests/atlas-pcm-player.regression.ts"
+    "test:atlas-focus": "node --import tsx tests/atlas-audio-focus.regression.ts && node --import tsx tests/atlas-pcm-player.regression.ts",
+    "test:atlas-music": "node --import tsx tests/atlas-music-intent.regression.ts && node --import tsx tests/atlas-music-search-route.regression.ts && node --import tsx tests/atlas-confirmation-loudness.regression.ts"
   },
   "dependencies": {
     "@types/d3-geo": "^3.1.0",

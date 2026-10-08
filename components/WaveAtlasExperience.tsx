@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import WaveAtlasApp from '@/components/WaveAtlasApp';
 import { AtlasAssistant } from '@/components/AtlasAssistant';
 import type { AtlasActionResult, AtlasAssistantAction } from '@/lib/atlas-assistant';
+import { atlasStationSearchParams } from '@/lib/atlas-music-search';
+import { stationMatchesMusicGenres, type AtlasMusicSearch } from '@/lib/atlas-music-intent';
 import { rankStationsWithAIE } from '@/lib/atlas-intelligence-engine';
 import { stationPath } from '@/lib/station-deep-link';
 import type { Station, StationInventoryStats } from '@/lib/stations';
@@ -80,14 +82,14 @@ function waitForPlayback(target: Station, timeoutMs = 3200): Promise<'playing' |
   });
 }
 
-async function playBestAtlasMatch(query: string, current: Station | null, playbackStatus: string, excludeCurrent = false): Promise<AtlasActionResult> {
+async function playBestAtlasMatch(query: string, current: Station | null, playbackStatus: string, excludeCurrent = false, music?: AtlasMusicSearch): Promise<AtlasActionResult> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 6000);
   try {
-    const response = await fetch(`/api/stations/search?q=${encodeURIComponent(query)}&limit=20`, { signal: controller.signal });
+    const response = await fetch(`/api/stations/search?${atlasStationSearchParams(query, music)}`, { signal: controller.signal });
     if (!response.ok) return { ok: false, status: 'failed', message: 'I could not reach the station directory.' };
     const data = await response.json() as { stations?: Station[] };
-    let candidates = (data.stations || []).filter((candidate) => Boolean(candidate.station_uuid || candidate.id));
+    let candidates = (data.stations || []).filter((candidate) => Boolean(candidate.station_uuid || candidate.id) && (!music || stationMatchesMusicGenres(candidate.tags, music)));
     if (excludeCurrent && current) candidates = candidates.filter((candidate) => stationIdentity(candidate) !== stationIdentity(current));
     if (!candidates.length) return { ok: false, status: 'not_found', message: `I couldn't find a playable station matching ${query}.` };
     const ranked = rankStationsWithAIE(candidates, (candidate) => ({ kind: 'discovery', geographicRelevance: queryRelevance(candidate, query) }));
@@ -157,15 +159,15 @@ export default function WaveAtlasExperience(props: Props) {
     if (action.type === 'search') {
       if (!await openSearchWithQuery(action.query)) return failed('I could not open search.');
       try {
-        const response = await fetch(`/api/stations/search?q=${encodeURIComponent(action.query)}&limit=20`, { signal: AbortSignal.timeout(6000) });
+        const response = await fetch(`/api/stations/search?${atlasStationSearchParams(action.query, action.music)}`, { signal: AbortSignal.timeout(6000) });
         if (!response.ok) return failed('Search is open, but I could not reach the station directory.');
         const data = await response.json() as { stations?: Station[] };
-        const matches = data.stations || [];
+        const matches = (data.stations || []).filter(candidate => !action.music || stationMatchesMusicGenres(candidate.tags, action.music));
         if (!matches.length) return { ok: false, status: 'not_found', message: `I couldn't find a station matching ${action.query}. Try a station name, city, or genre.` };
         return { ok: true, status: 'completed', message: `I found ${matches[0].name}${matches.length > 1 ? ' and other matches' : ''}. The results are open. Say play followed by the station name to listen.`, terminal: true };
       } catch { return failed('Search is open, but the directory took too long to respond. Please try again.'); }
     }
-    if (action.type === 'play') return action.query ? playBestAtlasMatch(action.query, station, playbackStatus, action.excludeCurrent) : sendPlaybackCommand('play');
+    if (action.type === 'play') return action.query ? playBestAtlasMatch(action.query, station, playbackStatus, action.excludeCurrent, action.music) : sendPlaybackCommand('play');
     if (action.type === 'pause') return sendPlaybackCommand('pause');
     if (action.type === 'resume') return sendPlaybackCommand('play');
     if (action.type === 'volume') return sendPlaybackCommand('volume', action.value);

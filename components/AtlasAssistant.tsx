@@ -221,7 +221,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       worker.postMessage({ type: 'warm' });
     } catch { setNeuralState('unavailable'); neuralStateRef.current = 'unavailable'; }
   }
-  async function speakNeural(text: string) {
+  async function speakNeural(text: string, confirmation = false) {
     const generation = outputGenerationRef.current;
     if (!neuralWorkerRef.current) warmNeuralVoice();
     const worker = neuralWorkerRef.current;
@@ -235,7 +235,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       updateVoiceStatus({ type: 'speaking' });
       setVoiceOutput('personal'); setSpeaking(true); setVoiceMessage(spokenStatusRef.current || 'Speaking');
       focusRadio(RADIO_FOCUS.speaking); meterAnalyser(player.analyser);
-    });
+    }, confirmation);
     pcmPlayerRef.current = player;
     const id = `atlas-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     try {
@@ -276,7 +276,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     if (!voiceEnabledRef.current) { spokenStatusRef.current = null; if (terminal) endConversation(); else restoreRadio(); return; }
     void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); focusRadio(RADIO_FOCUS.speaking);
     speechPendingRef.current = true; updateVoiceStatus({ type: 'preparing' });
-    const spoken = await speakNeural(text); if (generation !== outputGenerationRef.current || !openRef.current) return;
+    const spoken = await speakNeural(text, Boolean(statusLabel)); if (generation !== outputGenerationRef.current || !openRef.current) return;
     speechPendingRef.current = false; setSpeaking(false);
     if (!spoken) {
       setVoiceOutput('unavailable'); setVoiceMessage('Omoluabi voice unavailable · answer is in transcript');
