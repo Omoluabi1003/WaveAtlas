@@ -97,12 +97,10 @@ async function geometry(label, selector) {
     if(scene && visible(scene) && !workspace.classList.contains('has-drawer')) {
       const sr=scene.getBoundingClientRect(), wr=workspace.getBoundingClientRect();
       if(sr.width < wr.width*.8) failures.push('globe loses predominant workspace width');
-      const voice=document.querySelector('.desktop-atlas-surface').getBoundingClientRect();
-      if(voice.height > 96) failures.push('persistent voice toolbar is too tall');
+      if(document.querySelector('.desktop-atlas-surface')) failures.push('Atlas must not reserve a separate workspace row');
       if(sr.height < Math.min(300,innerHeight*.45)) failures.push('globe scene is too short');
     }
-    const mobileVoice=document.querySelector('.mobile-atlas-voice .atlas-voice-surface');
-    if(mobileVoice && visible(mobileVoice) && mobileVoice.getBoundingClientRect().height > 72) failures.push('mobile voice entry is too tall');
+    for(const button of document.querySelectorAll('.atlas-launcher-button')) if(visible(button) && button.getBoundingClientRect().height > 44) failures.push('Atlas launcher is larger than neighboring controls');
     const elements=[...document.querySelectorAll(selector)].filter(visible);
     for(const e of elements) {
       const r=e.getBoundingClientRect();
@@ -202,6 +200,7 @@ try {
       await geometry(`settings-${width}x${height}-${factor*100}`,primary+',.desktop-context-drawer :is(button,input,a,h2,h3,p)');
       await page.getByRole('button',{name:'Close search drawer',exact:true}).click();
     }
+    await page.locator('.atlas-launcher-button:visible').hover();
     await page.locator('.atlas-capabilities-button:visible').click();
     await geometry(`capabilities-${width}x${height}-${factor*100}`,'.atlas-capabilities-sheet :is(button,h2,h3,li)');
     await page.getByRole('button',{name:'Close Atlas capabilities'}).click();
@@ -234,6 +233,7 @@ try {
   await page.getByRole('button',{name:'Close Atlas',exact:true}).click();
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForSelector('html[data-wa-runtime="ready"]');
+  await page.locator('.atlas-launcher-button:visible').hover();
   await page.locator('.atlas-capabilities-button:visible').click();
   assert.ok(await page.locator('.atlas-voice-invitation:visible').count(),'Opening and denying Atlas does not mark it understood');
   await page.getByRole('button',{name:'Close Atlas capabilities'}).click();
@@ -246,6 +246,7 @@ try {
   await page.getByRole('button',{name:'Close Atlas',exact:true}).click();
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForSelector('html[data-wa-runtime="ready"]');
+  await page.locator('.atlas-launcher-button:visible').hover();
   await page.locator('.atlas-capabilities-button:visible').click();
   assert.equal(await page.locator('.atlas-voice-invitation:visible').count(),0,'Invitation stays retired after demonstrated usage');
   await page.getByRole('button',{name:'Close Atlas capabilities'}).click();

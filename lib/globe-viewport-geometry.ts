@@ -13,7 +13,7 @@ export function fitGlobeToViewport(width: number, height: number, zoom: number, 
   const usableHeight = Math.max(0, usableBounds.bottom - usableBounds.top);
   return {
     width, height, usableBounds,
-    radius: Math.min(usableWidth, usableHeight) * .46 * zoom / 1.2,
+    radius: Math.min(usableWidth, usableHeight) * .48 * (zoom < 1 ? zoom : zoom <= 1.2 ? 1 : zoom / 1.2),
     centerX: usableBounds.left + usableWidth / 2,
     centerY: usableBounds.top + usableHeight / 2,
   };

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Mic, X } from 'lucide-react';
+import { Mic, Sparkles, X } from 'lucide-react';
 import { readBrowserStorage, writeBrowserStorage } from '@/lib/browser-storage';
 
 export type AtlasDiscoveryStatus = 'preparing' | 'ready' | 'unavailable' | 'listening' | 'understanding' | 'speaking';
@@ -58,18 +58,22 @@ export function AtlasVoiceSurface({ stationName }: { stationName?: string }) {
   }, [preview]);
   const talk = () => { setPreview(false); window.dispatchEvent(new Event('waveatlas:open-atlas-voice')); };
   const label = { preparing: 'ATLAS VOICE · PREPARING', ready: 'ATLAS VOICE · READY', unavailable: 'ATLAS · TEXT AVAILABLE', listening: 'LISTENING', understanding: 'UNDERSTANDING', speaking: 'ATLAS SPEAKING' }[status];
-  return <section className="atlas-voice-surface" aria-label="Atlas voice guide" data-geometry-region="atlas">
-    <button type="button" className="atlas-talk-button" onClick={talk}><Mic size={18} aria-hidden="true" />Talk to Atlas</button>
-    <p className="atlas-voice-readiness" role="status">{label}</p>
-    <button ref={trigger} type="button" className="atlas-capabilities-button" onClick={() => setPreview(true)} aria-label="See what Atlas can do">Atlas help</button>
-    {preview && createPortal(<div className="atlas-capabilities-layer" onClick={event => { if (event.target === event.currentTarget) setPreview(false); }}>
+  const active = ['listening', 'understanding', 'speaking'].includes(status);
+  return <section className="atlas-voice-surface" aria-label="Atlas voice guide" data-geometry-region="atlas" data-atlas-active={active}>
+    <button type="button" className="atlas-launcher-button atlas-talk-button" onClick={event => { event.stopPropagation(); talk(); }} aria-label="Talk to Atlas" title="Talk to Atlas"><Sparkles size={18} aria-hidden="true" /></button>
+    <div className="atlas-launcher-popover">
+      <strong>Talk to Atlas</strong>
+      <p className="atlas-voice-readiness" role="status">{label}</p>
+      <button ref={trigger} type="button" className="atlas-capabilities-button" onClick={event => { event.stopPropagation(); setPreview(true); }} aria-label="See what Atlas can do">Atlas help</button>
+    </div>
+    {preview && createPortal(<div className="atlas-capabilities-layer" onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) setPreview(false); }}>
       <section ref={sheet} className="atlas-capabilities-sheet" role="dialog" aria-modal="true" aria-label="What Atlas can do">
         <header><h2>See what Atlas can do</h2><button type="button" onClick={() => setPreview(false)} aria-label="Close Atlas capabilities"><X size={20} /></button></header>
         {!used && <div className="atlas-voice-invitation"><h3>Meet Atlas</h3><p>Your voice guide to the world&apos;s live radio.</p><p>Try saying: &ldquo;Atlas, take me somewhere.&rdquo;</p></div>}
         <p className="atlas-voice-example">{stationName ? [`Ask Atlas about ${stationName}`, 'Ask Atlas to find something similar', "Ask Atlas what's nearby", 'Ask Atlas to take you somewhere else'][example] : `Try: “${examples[example]}”`}</p>
         {status === 'unavailable' && <p className="atlas-voice-recovery">Use text, or allow microphone access in your browser and try again.</p>}
         <div className="atlas-capabilities-scroll">{Object.entries(capabilities).map(([category, commands]) => <section key={category}><h3>{category}</h3><ul>{commands.map(command => <li key={command}>{command}</li>)}</ul></section>)}</div>
-        <button type="button" className="atlas-talk-button" onClick={talk}><Mic size={18} />Talk to Atlas</button>
+        <button type="button" className="atlas-talk-button" onClick={event => { event.stopPropagation(); talk(); }}><Mic size={18} />Talk to Atlas</button>
       </section>
     </div>, document.body)}
   </section>;

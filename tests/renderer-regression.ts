@@ -256,3 +256,10 @@ for (const [width,height,top,bottom] of [[320,568,204,394],[390,844,204,680],[66
 }
 const overview=fitGlobeToViewport(390,844,1.2);
 assert.ok(fitGlobeToViewport(390,844,1.8).radius>overview.radius, 'deliberate user zoom still enlarges the earth');
+
+for (const zoom of [1,1.08,1.12,1.18,1.2]) {
+  const g=fitGlobeToViewport(1600,700,zoom);
+  assert.ok(g.radius*2 >= 700*.95, 'automatic overview fills almost all scene height');
+}
+
+assert.ok(fitGlobeToViewport(1600,700,.8).radius < fitGlobeToViewport(1600,700,1).radius, 'deliberate zoom out remains available');

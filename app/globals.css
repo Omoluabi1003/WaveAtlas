@@ -93,8 +93,9 @@ html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
 
 @media (min-width:768px) {
   html,body,main { overflow-x: visible; }
-  .desktop-app-shell { position: relative; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto auto; gap: .5rem; height: 100dvh; min-height: 0; width: 100%; max-width: 100%; padding: clamp(.5rem,1vw,1rem); background: #07111f; overflow: visible; }
+  .desktop-app-shell { position: relative; display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto auto; gap: .5rem; height: 100dvh; min-height: 0; width: 100%; max-width: 100%; padding: clamp(.5rem,1vw,1rem); background: #07111f; overflow: visible; }
   .desktop-app-header { grid-column: 1/-1; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 1rem; min-width: 0; z-index: 90; }
+  .desktop-app-header.has-atlas-launcher { grid-template-columns: auto minmax(0,1fr) auto auto; }
   .desktop-brand { min-width: 0; display: flex; }
   .desktop-station-search { min-width: 0; width: 100%; max-width: 40rem; justify-self: center; }
   .desktop-station-search > div { padding: .75rem 1rem; }
@@ -108,14 +109,12 @@ html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
   .desktop-utility-rail button { flex-shrink: 0; }
   .desktop-scene { grid-area: scene; position: relative; border-radius: 1.5rem; }
   .globe-captions { position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; padding: 1rem; overflow-y: auto; pointer-events: none; }
-  .globe-guide-caption { flex-shrink: 0; width: fit-content; max-width: 100%; overflow-wrap: anywhere; pointer-events: auto; }
+  .globe-guide-caption { flex-shrink: 0; width: fit-content; max-width: 20%; overflow-wrap: anywhere; pointer-events: auto; }
   .globe-guide-caption:last-child { align-self: flex-end; }
   .desktop-atlas-view { height: 100%; min-height: 0; min-width: 0; }
   .desktop-context-drawer { grid-area: drawer; display: block; overflow-y: auto; }
   .desktop-context-drawer > .atlas-drawer-scroll { overflow: visible; }
   .desktop-context-drawer > div:first-child { flex-shrink: 0; flex-wrap: wrap; }
-  .desktop-atlas-surface { grid-column: 1; grid-row: 3; min-width: 0; align-self: center; }
-  .desktop-app-shell:not(:has(.desktop-toast)) .desktop-atlas-surface { grid-column: 1/-1; }
   .desktop-player { min-width: 0; width: 100%; grid-template-columns: minmax(0,1fr) auto; align-items: center; }
   .desktop-player > div { min-width: 0; }
   .desktop-player nav { min-width: 0; }
@@ -123,7 +122,7 @@ html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
   .desktop-app-shell .empty-atlas > div:last-child { flex: 0 0 auto; width: 100%; max-width: 48rem; min-width: 0; overflow-wrap: anywhere; }
   .desktop-context-drawer b,.desktop-context-drawer p { white-space: normal; overflow-wrap: anywhere; }
   .desktop-player-text { min-width: 0; overflow-wrap: anywhere; }
-  .desktop-toast { position: relative; grid-column: 2; grid-row: 3; width: 100%; max-width: none; max-height: none; overflow: visible; min-height: 0; }
+  .desktop-toast { position: relative; grid-column: 1; grid-row: 3; width: 100%; max-width: none; max-height: none; overflow: visible; min-height: 0; }
   .desktop-toast p,.desktop-toast span { white-space: normal; overflow: visible; }
   .desktop-player { grid-column: 1/-1; grid-row: 4; }
   .desktop-geoaudio-inspector { margin-top: 1rem; }
@@ -153,14 +152,18 @@ html[data-wa-runtime="ready"] #waveatlas-compatibility-help { display: none; }
   .waveatlas-mobile-shell > [aria-label="Station notification"] { position: relative; inset: auto; margin: .75rem 1rem; width: auto; max-width: none; max-height: none; overflow: visible; flex-shrink: 0; }
 }
 
-/* Permanent voice entry stays secondary to the globe on every viewport. */
-.atlas-voice-surface { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem .75rem; padding: .375rem .75rem; border-radius: 999px; background: #07111fe6; }
-.atlas-voice-surface > .atlas-talk-button { width: auto; flex: 0 0 auto; margin: 0; min-height: 2.75rem; padding: .5rem .875rem; }
-.atlas-voice-surface > .atlas-voice-readiness { flex: 1 1 7rem; margin: 0; font-size: .625rem; }
-.atlas-voice-surface > .atlas-capabilities-button { width: auto; flex: 0 0 auto; margin: 0; padding: .375rem; min-height: 2.75rem; }
+/* Atlas is a peer of volume/share, never a separate workspace row. */
+.atlas-voice-surface { position: relative; display: inline-flex; flex: 0 0 auto; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: none; color: #f8f5ed; }
+.atlas-voice-surface > .atlas-launcher-button { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; min-height: 0; padding: 0; margin: 0; border: 1px solid #ffffff1a; border-radius: 50%; background: #ffffff0a; color: #83d5c6; box-shadow: none; }
+.atlas-voice-surface > .atlas-launcher-button:hover { border-color: #36f5a266; background: #36f5a21a; }
+.atlas-voice-surface[data-atlas-active="true"] > .atlas-launcher-button { border-color: #36f5a2; box-shadow: 0 0 14px #36f5a24d; }
+.atlas-launcher-popover { display: none; position: absolute; right: 0; bottom: calc(100% + .5rem); z-index: 100; width: min(15rem,80vw); padding: .75rem; border: 1px solid #ffffff26; border-radius: 1rem; background: #07111f; box-shadow: 0 8px 24px #0008; font-size: .8125rem; }
+.atlas-voice-surface:hover > .atlas-launcher-popover,.atlas-voice-surface:focus-within > .atlas-launcher-popover { display: block; }
+.atlas-launcher-popover .atlas-voice-readiness { margin: .375rem 0; }
+.atlas-launcher-popover .atlas-capabilities-button { margin: 0; min-height: 2rem; text-align: left; padding: 0; }
+.desktop-app-header > .atlas-voice-surface .atlas-launcher-popover,.mobile-empty-voice .atlas-launcher-popover { top: calc(100% + .5rem); bottom: auto; }
 .desktop-geoaudio-overlay { position: absolute; right: 1rem; top: 1rem; z-index: 25; width: min(20rem,35%); max-height: calc(100% - 2rem); overflow-y: auto; }
 @media (max-width:767px) {
-  .mobile-atlas-voice .atlas-voice-surface { display: grid; grid-template-columns: auto minmax(0,1fr) auto; border-radius: 1.25rem; padding: .25rem .375rem; gap: .375rem; }
-  .mobile-atlas-voice .atlas-talk-button { padding-inline: .5rem; }
-  .mobile-atlas-voice .atlas-capabilities-button { padding-inline: .25rem; font-size: .75rem; }
+  .atlas-launcher-popover { position: fixed; inset-inline: 1rem; bottom: calc(env(safe-area-inset-bottom) + 174px); top: auto; width: auto; }
+  .mobile-empty-voice .atlas-launcher-popover { top: auto; bottom: 1rem; }
 }

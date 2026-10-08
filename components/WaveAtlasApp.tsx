@@ -3015,7 +3015,6 @@ function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings 
         <Search className="size-4 shrink-0 text-sky" />
         <span className="min-w-0 flex-1 truncate text-xs text-ivory/60">Search the atlas...</span>
       </button>
-      <div className="mobile-atlas-voice"><AtlasVoiceSurface /></div>
     </div>
   );
 }
@@ -3540,7 +3539,7 @@ function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: (
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
   return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/30 bg-[rgba(3,9,18,0.96)] p-2.5 text-white shadow-[0_26px_90px_rgba(0,0,0,.72),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
-    <div className="flex h-full items-center gap-3"><button aria-label="Play or pause current station" onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><button type="button" aria-label="Open station details" onClick={event => { event.stopPropagation(); onOpen(); }} className="min-w-0 flex-1 text-left"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></button><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
+    <div className="flex h-full items-center gap-3"><button aria-label="Play or pause current station" onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><button type="button" aria-label="Open station details" onClick={event => { event.stopPropagation(); onOpen(); }} className="min-w-0 flex-1 text-left"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></button><AtlasVoiceSurface stationName={station.name} /><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
   </div>;
 }
 
@@ -4974,7 +4973,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
       </AnimatePresence>
       {activeStation ? <MobileAtlasShell stations={stationPool} allStations={stations} current={activeStation} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} onSettingsLayerChange={setMobileSettingsLayerOpen} /> : <div className="mobile-empty-shell md:hidden"><div className="mobile-empty-voice"><AtlasVoiceSurface /></div><EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /></div>}
     <main className="desktop-app-shell" data-geometry-region="shell">
-      <header className="desktop-app-header" data-geometry-region="header">
+      <header className={`desktop-app-header ${!activeStation ? "has-atlas-launcher" : ""}`} data-geometry-region="header">
       <div className="desktop-brand">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
           WaveAtlas™
@@ -4996,6 +4995,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         </div>
         {voiceFeedback ? <p className="pointer-events-none mx-auto mt-2 w-fit rounded-full border border-radio/20 bg-slate-950/70 px-3 py-1.5 text-center text-xs font-medium text-radio shadow-xl backdrop-blur-xl" role="status" aria-live="polite">{voiceFeedback}</p> : null}
       </section>
+        {!activeStation ? <AtlasVoiceSurface /> : null}
         <div id="desktop-world-signals-slot" className="desktop-world-slot" />
       </header>
       <div className={`desktop-workspace ${desktopDrawerActive && desktopDrawerOpen ? "has-drawer" : ""}`} data-geometry-region="workspace">
@@ -5079,7 +5079,6 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         </div>
       </aside> : null}
       </div>
-      <div className="desktop-atlas-surface"><AtlasVoiceSurface stationName={activeStation?.name} /></div>
       {activeStation ? <NewspaperBrief station={activeStation} stations={stationPool} inventoryStats={inventoryStats} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} /> : null}
       {activeStation ? <AtlasToast station={activeStation} /> : null}
       {activeStation ? <div data-waveatlas-player className="desktop-player grid gap-3 rounded-[2rem] border border-white/25 bg-[rgba(3,9,18,0.96)] p-2 text-white shadow-2xl backdrop-blur-2xl">
@@ -5099,6 +5098,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
           <div className="min-w-0 flex-1">
             <PlayerTextStack station={current} status={playerStatus} wrap />
           </div>
+          <AtlasVoiceSurface stationName={current.name} />
           <button type="button" onClick={() => setPlayerVolume(playerVolume > 0 ? 0 : 1)} className="ml-auto grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-ivory/78 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={playerVolume > 0 ? "Mute player" : "Unmute player"}>
             {playerVolume > 0 ? <Volume2 className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /> : <VolumeX className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" />}
           </button>

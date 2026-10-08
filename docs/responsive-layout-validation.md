@@ -1,9 +1,9 @@
 # Desktop layout and Atlas Voice validation
 
 The globe remains the primary view and keeps its existing rotation and navigation.
-The desktop shell reserves rows for the header, workspace, compact voice/notification
-controls, and player. The workspace has only the utility rail, the globe/map, and
-an optional contextual drawer. Atlas Voice has no persistent sidebar. Content
+The desktop shell reserves rows for the header, workspace, transient notifications, and player. The workspace has only the utility rail, the globe/map, and
+an optional contextual drawer. Atlas Voice is a 40px circular player control immediately before volume, with
+no persistent sidebar or standalone row. Content
 can shrink with `minmax(0, …)` and scroll when needed without horizontal clipping.
 
 The ancestor audit found these structural problems:
@@ -140,3 +140,27 @@ the final checks are under `test-results/responsive/`.
 The final production build and TypeScript passed. Lint passed with the existing
 AtlasAssistant effect dependency warning. Renderer fitting, map basemaps, Atlas
 particles, radio audio focus and PCM playback regression checks passed.
+
+## Circular Atlas control and dominant globe
+
+Atlas now sits beside volume and share in the player. It matches their circular
+40px shape, uses a quiet accent while idle, and glows while listening, understanding
+or speaking. Hover or keyboard focus reveals its label, readiness and help; activation
+uses the existing assistant. There is no permanent Atlas strip or mobile header card.
+
+At automatic focus zooms from 1 to 1.2, the globe diameter is 96% of the shorter
+usable scene dimension. This makes it occupy almost all available height on wide
+screens and almost all available width on phones, with 2% clearance at each edge.
+The removed Atlas row also returns its entire height to the scene. Globe rotation,
+station navigation, deliberate zoom in/out, voice inference and radio focus remain
+unchanged. Renderer regressions explicitly verify the dominant default size and
+continued zoom in/out, alongside full-earth containment.
+
+Accepted circular-control layout validation on 2026-10-08: production build and
+TypeScript passed; lint passed with the existing AtlasAssistant dependency warning.
+All 143 critical desktop/zoom, drawer, help and mobile geometry cases passed with
+zero console or hydration errors. Visual review confirmed the globe's full edges
+and the Atlas button's placement alongside player controls. Renderer fitting and
+zoom, Atlas particles, audio focus and PCM regression checks passed. Atlas help
+and activation stop click propagation so they do not also open mobile station details.
+Corner captions stay within 20% of scene width to leave the globe rim visible.
