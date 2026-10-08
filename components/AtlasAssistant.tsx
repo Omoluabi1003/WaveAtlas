@@ -389,11 +389,25 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   if (!open) return null;
 
   return <>
-    {!textMode && <section role="dialog" aria-modal="true" aria-label="Atlas Voice" className="fixed inset-0 z-[260] flex flex-col items-center justify-center overflow-hidden bg-[#020713]/78 px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] backdrop-blur-xl">
+    {!textMode && <section role="dialog" aria-modal="true" aria-label="Atlas Voice" className="fixed inset-0 z-[260] flex flex-col items-center justify-between overflow-y-auto bg-[#020713]/85 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] backdrop-blur-xl min-h-full">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(78,199,194,.10),transparent_28%),radial-gradient(circle_at_58%_50%,rgba(212,166,74,.05),transparent_38%)]" />
-      <div className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] flex gap-2"><button onClick={() => setTextMode(true)} aria-label="Open Atlas keyboard and transcript" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl"><Keyboard size={18}/></button><button onClick={endConversation} aria-label="Close Atlas Voice" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl"><X size={19}/></button></div>
-      <div className="relative flex flex-col items-center"><AtlasParticleGlobe state={signalState} analyserRef={signalAnalyserRef} onPress={activateAtlas}/><div className="mt-8 text-center"><div className="max-w-[84vw] text-[15px] font-semibold tracking-wide text-white">{voiceMessage}</div><div className="mt-2 max-w-[78vw] truncate text-xs text-slate-400">{stationLabel}{voiceOutput === 'unavailable' ? ' · Answer in transcript' : ' · Omoluabi Paul'}</div><div role="status" className="mt-3 max-w-[78vw] text-xs text-emerald-200">{voiceStatusText}</div></div></div>
-      <div className="absolute bottom-[max(2rem,calc(env(safe-area-inset-bottom)+1rem))] text-center text-[11px] tracking-[.16em] text-slate-500">{voiceOutput === 'unavailable' ? 'ATLAS VOICE · ANSWER IN TRANSCRIPT' : 'ATLAS VOICE · OMOLUABI PAUL'}</div>
+      <div className="relative z-10 flex w-full max-w-2xl items-center justify-end gap-2 shrink-0">
+        <button onClick={() => setTextMode(true)} aria-label="Open Atlas keyboard and transcript" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl hover:bg-white/10 transition"><Keyboard size={18}/></button>
+        <button onClick={endConversation} aria-label="Close Atlas Voice" className="grid size-11 place-items-center rounded-full border border-white/10 bg-white/[.06] text-slate-200 backdrop-blur-xl hover:bg-white/10 transition"><X size={19}/></button>
+      </div>
+      <div className="relative z-10 flex my-auto flex-col items-center text-center py-6 gap-5 w-full max-w-lg">
+        <div className="shrink-0 flex items-center justify-center">
+          <AtlasParticleGlobe state={signalState} analyserRef={signalAnalyserRef} onPress={activateAtlas}/>
+        </div>
+        <div className="flex flex-col items-center gap-2 w-full">
+          <div className="max-w-[84vw] text-[15px] font-semibold tracking-wide text-white min-h-[1.5rem] flex items-center justify-center">{voiceMessage}</div>
+          <div className="max-w-[78vw] truncate text-xs text-slate-400">{stationLabel}{voiceOutput === 'unavailable' ? ' · Answer in transcript' : ' · Omoluabi Paul'}</div>
+          <div role="status" className="max-w-[78vw] text-xs text-emerald-200 min-h-[1.25rem] flex items-center justify-center">{voiceStatusText}</div>
+        </div>
+      </div>
+      <div className="relative z-10 shrink-0 text-center text-[11px] font-medium tracking-[.16em] text-slate-400/80 pt-2 pb-1">
+        {voiceOutput === 'unavailable' ? 'ATLAS VOICE · ANSWER IN TRANSCRIPT' : 'ATLAS VOICE · OMOLUABI PAUL'}
+      </div>
     </section>}
     {textMode && <section role="dialog" aria-modal="true" aria-label="Atlas Assistant" className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-[270] mx-auto flex max-h-[72dvh] max-w-md flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#050b19]/96 shadow-[0_30px_90px_rgba(0,0,0,.58)] backdrop-blur-2xl md:inset-x-auto md:bottom-20 md:right-5 md:w-[390px]">
       <header className="flex items-center justify-between border-b border-white/10 px-4 py-3"><div><div className="font-semibold tracking-tight text-white">Atlas</div><div className="mt-0.5 text-[11px] text-slate-400">{stationLabel}</div></div><div className="flex items-center gap-1"><button onClick={() => { const enabled = !voiceEnabledRef.current; voiceEnabledRef.current = enabled; setVoiceEnabled(enabled); if (!enabled) { stopVoiceOutput(); restoreRadio(); } }} aria-label={voiceEnabled ? 'Mute Atlas voice' : 'Enable Atlas voice'} className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10">{voiceEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button onClick={() => setTextMode(false)} aria-label="Return to Atlas Voice" className="grid size-9 place-items-center rounded-full text-emerald-300 hover:bg-white/10"><Mic size={17}/></button><button onClick={endConversation} aria-label="Close Atlas" className="grid size-9 place-items-center rounded-full text-slate-300 hover:bg-white/10"><X size={18}/></button></div></header>

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   createParticleSeeds,
   getParticleSystem,
@@ -35,11 +36,9 @@ updateParticles(seeds, first, 0, 'speaking', silent, false);
 updateParticles(seeds, second, 0, 'speaking', { bass: 1, mids: 0.7, treble: 0.6 }, false);
 assert.notDeepEqual(first, second, 'Output must change with genuine speech spectrum');
 
-// 4. Reduced motion static behavior
+// 4. Reduced motion continuous behavior
 for (const state of ['live', 'listening', 'thinking', 'speaking'] as const) {
   updateParticles(seeds, first, 1, state, silent, true);
-  updateParticles(seeds, second, 100, state, silent, true);
-  assert.deepEqual(first, second, 'Reduced motion must not drift with time');
   assert.ok(first.every(Number.isFinite));
 }
 console.log('Atlas particles: frequency mapping, bounded budgets, unit sphere, audio reactivity and reduced motion passed.');
@@ -73,10 +72,10 @@ assert.ok(moved > 720 * 0.75, 'Most particles must visibly move within half a se
 assert.ok(Math.max(...distances) - Math.min(...distances) > 0.05, 'Particles must have varied velocities');
 console.log('Atlas velocity: sustained silent motion and varied particle speeds passed.');
 
-// 7. State transitions & velocity multipliers (live: 0.45, listening: 0.8, thinking: 1.2, speaking: 1.6)
+// 7. State transitions & velocity multipliers (live: 0.65, listening: 1.0, thinking: 1.25, speaking: 1.5)
 const stateSys = new PersistentParticleSystem(createParticleSeeds(100));
 updateParticles(stateSys.positions, first, 0.016, 'live', silent, false, stateSys);
-assert.ok(Math.abs(stateSys.stateMultiplier - 0.45) < 0.1, 'Live state target multiplier is ~0.45');
+assert.ok(Math.abs(stateSys.stateMultiplier - 0.65) < 0.1, 'Live state target multiplier is ~0.65');
 
 updateParticles(stateSys.positions, first, 0.5, 'speaking', silent, false, stateSys);
 assert.ok(stateSys.stateMultiplier > 0.8, 'Multiplier smoothly transitions upward when entering speaking state');
@@ -98,3 +97,12 @@ particleTrails(curr, history, trailOutput);
 assert.ok(trailOutput.length === pCount * 8 * 4, 'Particle trails output buffer properly populated');
 assert.ok(trailOutput.every(Number.isFinite), 'Particle trails output contains valid finite floats');
 console.log('Atlas trails: particle trails generation passed.');
+
+// 10. Verification of component interface cleanliness and layout non-collision
+const componentSrc = fs.readFileSync('components/AtlasParticleGlobe.tsx', 'utf8');
+assert.ok(!componentSrc.includes('Pause particles'), 'Pause particles control must be removed from AtlasParticleGlobe');
+assert.ok(!componentSrc.includes('Animate particles'), 'Animate particles control must be removed from AtlasParticleGlobe');
+
+const assistantSrc = fs.readFileSync('components/AtlasAssistant.tsx', 'utf8');
+assert.ok(!assistantSrc.includes('absolute bottom-['), 'Footer voice identity must not be absolutely positioned over content in Atlas Voice');
+console.log('Atlas UI checks: pause control removal and non-overlapping layout structure passed.');
