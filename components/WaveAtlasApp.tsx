@@ -990,7 +990,7 @@ function AtlasLocationPill({ stations, current, mobile = false }: { stations: St
   const visibleStations = intelligenceScope === "current-location" && !destination ? nearby : destinationStations;
   const tuneDestination = () => { const station = destinationStations[0]?.station; if (station) setCurrentStationAndDestination(station, "atlas-drive"); };
   return (
-    <div className={`pointer-events-auto border border-white/10 bg-slate-950/72 text-ivory shadow-2xl backdrop-blur-2xl transition-all ${mobile ? "fixed bottom-[calc(env(safe-area-inset-bottom)+104px)] left-3 z-[57] w-[min(23rem,calc(100vw-1.5rem))] rounded-[1.35rem] p-2.5" : "w-[min(380px,calc(100vw-3rem))] rounded-[1.5rem] p-3"}`}>
+    <div className={`pointer-events-auto border border-white/10 bg-slate-950/72 text-ivory shadow-2xl backdrop-blur-2xl transition-all ${mobile ? "fixed bottom-[calc(env(safe-area-inset-bottom)+104px)] left-3 z-[57] w-[min(23rem,calc(100vw-1.5rem))] rounded-[1.35rem] p-2.5" : "w-full min-w-0 max-w-full rounded-[1.5rem] p-3"}`}>
       <div className="flex items-center justify-between gap-2">
         <button type="button" onClick={() => canCollapse ? setCollapsed((value) => !value) : requestLocation()} className="min-w-0 flex-1 text-left" aria-expanded={!collapsed}>
           <p className="font-display text-[9px] font-semibold uppercase tracking-[0.2em] text-radio/85">Atlas Drive</p>
@@ -3618,11 +3618,32 @@ function MobileStationSheet({ station, stations, inventoryStats, setQuery, open,
 }
 
 function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wandererActive }: { mode: string; setMode: (m: string) => void; onTeleport: () => void; onToggleWanderer: () => void; wandererActive: boolean }) {
+  const [edgeOpen, setEdgeOpen] = useState(false);
+  const edgePanel = useRef<HTMLElement>(null);
+  const edgeTrigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!edgeOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    edgePanel.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setEdgeOpen(false);
+      if (event.key === "Tab") {
+        const buttons = [...(edgePanel.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+        const first = buttons[0], last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener("keydown", dismiss);
+    return () => { document.removeEventListener("keydown", dismiss); if (previous?.isConnected) previous.focus(); };
+  }, [edgeOpen]);
   const reducedMotion = useReducedMotion();
   const status = usePlayer((state) => state.status);
   const pulseTeleport = !reducedMotion && (status === "idle" || status === "playing") && mode !== "Brief" && mode !== "Add Signal";
   const commands = [[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const;
-  return <nav className="waveatlas-mobile-dock pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel}  transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) {  onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
+  const secondary = commands.filter(([, label]) => ["Favorites", "Explore", "Add Signal", "History"].includes(label));
+  const primary = commands.filter(([, label]) => !["Favorites", "Explore", "Add Signal", "History"].includes(label));
+  return <><button type="button" ref={edgeTrigger} className="atlas-edge-handle mobile-edge-handle" aria-label="Open Atlas drawer" aria-expanded={edgeOpen} onClick={() => setEdgeOpen(true)}><span aria-hidden="true" /></button>{edgeOpen ? <div className="mobile-edge-layer"><button type="button" className="mobile-edge-backdrop" aria-label="Close Atlas drawer" onClick={() => setEdgeOpen(false)} /><aside ref={edgePanel} className="mobile-edge-panel" role="dialog" aria-modal="true" aria-label="Atlas drawer"><div className="flex items-center justify-between"><strong>Atlas</strong><button type="button" className="grid size-11 place-items-center" aria-label="Close Atlas drawer" onClick={() => setEdgeOpen(false)}><X className="size-4" /></button></div>{secondary.map(([Icon,label]) => <button type="button" key={label} className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm hover:bg-white/10" onClick={() => { setMode(label); setEdgeOpen(false); }}><Icon className="size-4" />{label}</button>)}</aside></div> : null}<nav className="waveatlas-mobile-dock pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-3 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{primary.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel}  transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) {  onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav></>;
 }
 
 function MobileAtlasShell({ stations, allStations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest, onVoiceIntent, onVoiceFeedback, startupPreferences, onStartupPreferencesChange, onSettingsLayerChange }: { stations: Station[]; allStations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountrySelectPayload) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number; onVoiceIntent: (intent: VoiceCommandIntent) => void; onVoiceFeedback: (message: string) => void; startupPreferences: StartupPreferences; onStartupPreferencesChange: (preferences: StartupPreferences) => void; onSettingsLayerChange?: (open: boolean) => void }) {
@@ -4323,7 +4344,6 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const [wandererIntent, setWandererIntent] = useState("Take me somewhere surprising");
   const [desktopMode, setDesktopMode] = useState("Atlas");
   const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(true);
-  const [desktopRailVisible, setDesktopRailVisible] = useState(true);
   const [briefOpen, setBriefOpen] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
   const wandererTimer = useRef<number | null>(null);
@@ -4910,36 +4930,41 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
 
   const pulseDesktopTeleport = !reducedMotion && (playerStatus === "idle" || playerStatus === "playing") && !briefOpen && desktopMode !== "Add Signal";
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let hideTimer: number | undefined;
-    const revealRail = () => {
-      setDesktopRailVisible(true);
-      if (hideTimer) window.clearTimeout(hideTimer);
-      if (activeStation) hideTimer = window.setTimeout(() => setDesktopRailVisible(false), 8000);
-    };
-    revealRail();
-    window.addEventListener("pointermove", revealRail, { passive: true });
-    window.addEventListener("pointerdown", revealRail, { passive: true });
-    window.addEventListener("keydown", revealRail);
-    return () => {
-      window.removeEventListener("pointermove", revealRail);
-      window.removeEventListener("pointerdown", revealRail);
-      window.removeEventListener("keydown", revealRail);
-      if (hideTimer) window.clearTimeout(hideTimer);
-    };
-  }, [activeStation]);
-
   const desktopDrawerWorkflows = new Set(["Favorites", "Explore", "Add Signal", "Settings", "History"]);
   const desktopDrawerActive = query.trim().length > 0 || Boolean(selectedCountry) || desktopDrawerWorkflows.has(desktopMode);
   const desktopDrawerOpen = desktopDrawerActive && !desktopDrawerCollapsed;
   const closeDesktopDrawer = useCallback(() => {
+    if (document.activeElement?.closest(".desktop-context-drawer")) document.querySelector<HTMLButtonElement>(".desktop-app-shell .atlas-edge-handle")?.focus();
     countryLoadRequests.abort({ reason: "country drawer closed" });
     setQuery("");
     setSelectedCountry(null);
     setDesktopMode("Atlas");
     setDesktopDrawerCollapsed(true);
   }, []);
+
+  const drawerSelection = useRef(selectionVersion);
+  useEffect(() => {
+    if (drawerSelection.current !== selectionVersion) closeDesktopDrawer();
+    drawerSelection.current = selectionVersion;
+  }, [selectionVersion, closeDesktopDrawer]);
+
+  useEffect(() => {
+    if (!desktopDrawerOpen) return;
+    if (document.activeElement?.matches(".desktop-app-shell .atlas-edge-handle")) document.querySelector<HTMLButtonElement>('.desktop-context-drawer button[aria-label="Close search drawer"]')?.focus();
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeDesktopDrawer();
+        document.querySelector<HTMLButtonElement>(".desktop-app-shell .atlas-edge-handle")?.focus();
+      }
+    };
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Element;
+      if (!target.closest(".desktop-context-drawer,.desktop-station-search,.atlas-edge-handle")) closeDesktopDrawer();
+    };
+    document.addEventListener("keydown", dismiss);
+    document.addEventListener("pointerdown", outside);
+    return () => { document.removeEventListener("keydown", dismiss); document.removeEventListener("pointerdown", outside); };
+  }, [desktopDrawerOpen, closeDesktopDrawer]);
 
   const visible = stationPool
     .slice(0, selectedCountry ? stationPool.length : 9)
@@ -5013,27 +5038,12 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         {activeStation ? <SelectedStationTheater station={activeStation} /> : null}
         {activeStation ? <div className="desktop-geoaudio-overlay"><GeoAudioChannelInspector station={activeStation} /></div> : null}
       </div>
-      <>
-        <nav className="desktop-utility-rail flex flex-col gap-2 rounded-full border border-white/10 bg-slate-950/25 p-2 text-ivory shadow-2xl backdrop-blur-2xl" aria-label="Atlas utility rail">
-          {([
-            [Heart, "Favorites"],
-            [Globe2, "Explore"],
-            [Signal, "Add Signal"],
-            [Radio, "History"],
-            [Settings, "Settings"],
-          ] as const).map(([Icon, label]) => {
-            const I = Icon as typeof Settings;
-            return <button key={label} type="button" onClick={() => { setDesktopRailVisible(true); setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(label); }} className="grid size-11 place-items-center rounded-full border border-white/[0.08] bg-white/[0.04] text-ivory/72 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={`Open ${label}`}>
-              <I className="size-4" />
-            </button>;
-          })}
-        </nav>
-      </>
+      <button type="button" className="atlas-edge-handle" aria-label="Open Atlas drawer" aria-expanded={desktopDrawerOpen} onClick={() => { setDesktopMode("Explore"); setDesktopDrawerCollapsed(false); }}><span aria-hidden="true" /></button>
       {desktopDrawerActive && desktopDrawerOpen ? <aside className={`desktop-context-drawer ${desktopDrawerOpen ? "is-open" : "is-collapsed"} flex flex-col rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 text-ivory shadow-2xl backdrop-blur-xl`} aria-label="Search and discovery drawer">
         <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div className="min-w-0">
-            <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold">Atlas drawer</p>
-            <p className="text-sm text-ivory/60">Search, destinations, and discovery stay off the map center.</p>
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold">Atlas</p>
+            <p className="text-sm text-ivory/60">Find a place, discover a signal.</p>
           </div>
           <div className="flex shrink-0 gap-2">
             <button type="button" onClick={() => setDesktopDrawerCollapsed((collapsed) => !collapsed)} className="grid size-10 place-items-center rounded-full border border-white/[0.12] bg-white/[0.06] text-ivory/80 transition hover:border-radio/40 hover:text-radio" aria-label={desktopDrawerOpen ? "Collapse search drawer" : "Expand search drawer"}>
@@ -5044,6 +5054,20 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
             </button>
           </div>
         </div>
+        <nav className="desktop-utility-rail flex flex-col gap-2 rounded-full border border-white/10 bg-slate-950/25 p-2 text-ivory shadow-2xl backdrop-blur-2xl" aria-label="Atlas utility rail">
+          {([
+            [Heart, "Favorites"],
+            [Globe2, "Explore"],
+            [Signal, "Add Signal"],
+            [Radio, "History"],
+            [Settings, "Settings"],
+          ] as const).map(([Icon, label]) => {
+            const I = Icon as typeof Settings;
+            return <button key={label} type="button" onClick={() => { setDesktopDrawerCollapsed(false); setBriefOpen(false); setDesktopMode(label); }} className="grid size-11 place-items-center rounded-full border border-white/[0.08] bg-white/[0.04] text-ivory/72 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={`Open ${label}`}>
+              <I className="size-4" />
+            </button>;
+          })}
+        </nav>
         <div className={`${desktopDrawerOpen ? "block" : "hidden"} atlas-drawer-scroll min-h-0 flex-1 overflow-y-auto pr-1`}>
           {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); try { window.localStorage.setItem(GLOBE_BASEMAP_STORAGE_KEY, value); } catch { /* Globe style preference is optional. */ } if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={activeStation ? <AtlasLocationPill stations={stationPool} current={activeStation} /> : undefined} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} activeStation={activeStation} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}

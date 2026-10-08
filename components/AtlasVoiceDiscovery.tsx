@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Mic, Sparkles, X } from 'lucide-react';
+import { Mic, X } from 'lucide-react';
 import { readBrowserStorage, writeBrowserStorage } from '@/lib/browser-storage';
 
 export type AtlasDiscoveryStatus = 'preparing' | 'ready' | 'unavailable' | 'listening' | 'understanding' | 'speaking';
@@ -60,7 +60,7 @@ export function AtlasVoiceSurface({ stationName }: { stationName?: string }) {
   const label = { preparing: 'ATLAS VOICE · PREPARING', ready: 'ATLAS VOICE · READY', unavailable: 'ATLAS · TEXT AVAILABLE', listening: 'LISTENING', understanding: 'UNDERSTANDING', speaking: 'ATLAS SPEAKING' }[status];
   const active = ['listening', 'understanding', 'speaking'].includes(status);
   return <section className="atlas-voice-surface" aria-label="Atlas voice guide" data-geometry-region="atlas" data-atlas-active={active}>
-    <button type="button" className="atlas-launcher-button atlas-talk-button" onClick={event => { event.stopPropagation(); talk(); }} aria-label="Talk to Atlas" title="Talk to Atlas"><Sparkles size={18} aria-hidden="true" /></button>
+    <button type="button" className="atlas-launcher-button atlas-talk-button" onClick={event => { event.stopPropagation(); talk(); }} aria-label="Talk to Atlas" title="Talk to Atlas"><span className="atlas-voice-orb" aria-hidden="true"><span /></span></button>
     <div className="atlas-launcher-popover">
       <strong>Talk to Atlas</strong>
       <p className="atlas-voice-readiness" role="status">{label}</p>
