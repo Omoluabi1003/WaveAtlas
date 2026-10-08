@@ -13,6 +13,7 @@ import { answerAtlasIntelligently } from '@/lib/atlas-intelligence';
 import { atlasStationVoicePhrases, readyAtlasReply } from '@/lib/atlas-ready-replies';
 import type { Station } from '@/lib/stations';
 import { getSpeechRecognitionConstructor, type BrowserSpeechRecognition } from '@/lib/voice-command-engine';
+import { useAtlasVoiceDiscovery } from './AtlasVoiceDiscovery';
 
 type Props = {
   station: Station | null;
@@ -38,6 +39,8 @@ function setAudioSession(type: AudioSessionKind) { try { const session = audioSe
 
 
 export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onAction }: Props) {
+  const { setStatus: setDiscoveryStatus } = useAtlasVoiceDiscovery();
+  const [microphoneBlocked, setMicrophoneBlocked] = useState(false);
   const initialLines: Line[] = [{ role: 'atlas', text: 'I’m Atlas. Talk to me about this signal, or tell me where you want to go.' }];
   const [open, setOpen] = useState(false);
   const [textMode, setTextMode] = useState(false);
@@ -80,6 +83,17 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   const activateRef = useRef<() => void>(() => undefined);
   const warmVoiceRef = useRef<() => void>(() => undefined);
   const stationSpeech = useMemo(() => JSON.stringify(atlasStationVoicePhrases(station)), [station]);
+
+  useEffect(() => {
+    let active = true;
+    let permission: PermissionStatus | undefined;
+    const update = () => { if (active) setMicrophoneBlocked(permission?.state === 'denied'); };
+    void navigator.permissions?.query({ name: 'microphone' as PermissionName }).then(result => { if (!active) return; permission = result; update(); result.addEventListener('change', update); }).catch(() => {});
+    return () => { active = false; permission?.removeEventListener('change', update); };
+  }, []);
+  useEffect(() => {
+    setDiscoveryStatus(listening ? 'listening' : speaking ? 'speaking' : busy || voiceStatus.phase === 'preparing' ? 'understanding' : microphoneBlocked || !getSpeechRecognitionConstructor() || neuralState === 'unavailable' || voiceStatus.phase === 'failed' ? 'unavailable' : neuralState === 'ready' || neuralState === 'prepared' ? 'ready' : 'preparing');
+  }, [listening, speaking, busy, voiceStatus.phase, neuralState, microphoneBlocked, setDiscoveryStatus]);
 
   useEffect(() => { const timer = window.setTimeout(() => warmVoiceRef.current(), 100); return () => window.clearTimeout(timer); }, []);
   useEffect(() => {
@@ -323,6 +337,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
 
   async function ask(text: string) {
     const value = text.trim(); if (!value || busyRef.current) return; stopVoiceOutput(); void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false);
+    window.dispatchEvent(new Event('waveatlas:atlas-used'));
     const history = linesRef.current.slice(-8);
     const userLine: Line = { role: 'user', text: value };
     linesRef.current = [...linesRef.current, userLine]; setLines(linesRef.current); setQuestion(''); setBusy(true); busyRef.current = true; setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking);
@@ -371,7 +386,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       recognition.lang = navigator.language || 'en-US'; recognition.interimResults = false; recognition.continuous = false; recognition.maxAlternatives = 1;
       recognition.onstart = () => { if (recognitionRef.current !== recognition || !conversationModeRef.current || !openRef.current) { recognition.abort(); return; } setListening(true); void startInputMeter(recognition); setVoiceMessage('Listening'); stopRecognitionWatchdog(); recognitionWatchdogRef.current = window.setTimeout(() => { if (recognitionRef.current !== recognition) return; void captureRef.current.stop(); setListening(false); setVoiceMessage('Reconnecting'); }, 12000); };
       recognition.onend = () => { stopInputMeter(); restoreRadio(); if (recognitionRef.current !== recognition) return; stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; if (!receivedResult && conversationModeRef.current && openRef.current) followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 650); };
-      recognition.onerror = (event) => { if (recognitionRef.current !== recognition) return; stopInputMeter(); stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed'; if (denied) { conversationModeRef.current = false; setConversationMode(false); setAudioSession('playback'); setVoiceMessage('Microphone access is blocked'); setTextMode(true); restoreRadio(); } else if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 700); } };
+      recognition.onerror = (event) => { if (recognitionRef.current !== recognition) return; stopInputMeter(); stopRecognitionWatchdog(); setListening(false); recognitionRef.current = null; const denied = event.error === 'not-allowed' || event.error === 'service-not-allowed'; if (denied) { setMicrophoneBlocked(true); conversationModeRef.current = false; setConversationMode(false); setAudioSession('playback'); setVoiceMessage('Microphone access is blocked'); setTextMode(true); restoreRadio(); } else if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 700); } };
       recognition.onresult = (event) => { if (recognitionRef.current !== recognition || !openRef.current) return; const result = event.results?.[event.resultIndex ?? 0] ?? event.results?.[0]; if (result?.isFinal === false) return; const text = result?.[0]?.transcript?.trim(); if (!text) return; receivedResult = true; stopRecognitionWatchdog(); stopInputMeter(); setListening(false); setVoiceMessage('Thinking'); focusRadio(RADIO_FOCUS.thinking); void captureRef.current.stop(); recognitionRef.current = null; void ask(text); }; captureRef.current.start(recognition);
     } catch { setListening(false); recognitionRef.current = null; stopRecognitionWatchdog(); if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 700); } else restoreRadio(); }
   }

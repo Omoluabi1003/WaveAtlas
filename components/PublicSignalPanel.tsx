@@ -61,8 +61,9 @@ export default function PublicSignalPanel({ mobile = false, showMobileLauncher =
   };
   if (!client) return null;
 
+  const desktopSlot = !mobile ? document.getElementById("desktop-world-signals-slot") : null;
   return createPortal(
-    <div className={mobile ? "pointer-events-none fixed inset-0 z-[95] md:hidden" : "pointer-events-auto fixed right-6 top-6 z-[90] hidden md:block"} onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+    <div className={mobile ? "pointer-events-none fixed inset-0 z-[95] md:hidden" : desktopSlot ? "desktop-world-signals hidden md:block" : "pointer-events-auto fixed right-6 top-6 z-[90] hidden md:block"} onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
       {(!mobile || showMobileLauncher) ? (
         <button type="button" aria-expanded={expanded} aria-controls={`public-signals-${mobile ? "mobile" : "desktop"}`} onClick={() => expanded ? close() : state.openPanel()}
           className={mobile ? "pointer-events-auto fixed right-4 top-[calc(env(safe-area-inset-top)+12px)] flex min-h-11 items-center gap-2 rounded-full border border-white/15 bg-slate-950/70 px-4 text-xs font-semibold text-ivory shadow-lg backdrop-blur-xl" : "flex min-h-12 items-center gap-3 rounded-2xl border border-sky-200/50 bg-sky-950 px-4 py-2 text-left text-sm font-semibold text-white shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-200"}>
@@ -73,7 +74,7 @@ export default function PublicSignalPanel({ mobile = false, showMobileLauncher =
       {expanded ? <>
         {mobile ? <button type="button" aria-label="Dismiss World signals" onClick={close} className="pointer-events-auto absolute inset-0 bg-black/55 backdrop-blur-sm" /> : null}
         <section ref={panelRef} id={`public-signals-${mobile ? "mobile" : "desktop"}`} role={mobile ? "dialog" : undefined} aria-modal={mobile ? true : undefined} aria-label="World signal layers"
-          className={mobile ? "pointer-events-auto absolute inset-x-0 bottom-0 flex max-h-[78dvh] flex-col overflow-hidden rounded-t-[2rem] border-t border-white/15 bg-[#08111D] text-sm text-white shadow-[0_-16px_64px_rgba(0,0,0,.45)]" : "mt-2 flex max-h-[min(calc(100dvh-180px),560px)] w-[min(340px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border border-sky-200/20 bg-slate-950/95 text-sm text-white shadow-2xl backdrop-blur-xl"}>
+          className={mobile ? "pointer-events-auto absolute inset-x-0 bottom-0 flex max-h-[78dvh] flex-col overflow-hidden rounded-t-[2rem] border-t border-white/15 bg-[#08111D] text-sm text-white shadow-[0_-16px_64px_rgba(0,0,0,.45)]" : "desktop-world-panel mt-2 flex max-h-[min(calc(100dvh-180px),560px)] w-[min(340px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border border-sky-200/20 bg-slate-950/95 text-sm text-white shadow-2xl backdrop-blur-xl"}>
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
             <div><h2 className="text-base font-semibold tracking-tight">World signals</h2><p className="mt-0.5 text-xs text-ivory/60">Explore Earth and space</p></div>
             <button type="button" onClick={close} aria-label="Close World signals" className="grid size-11 shrink-0 place-items-center rounded-full border border-white/10 bg-white/5 text-ivory/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-radio"><X className="size-4" /></button>
@@ -106,6 +107,6 @@ export default function PublicSignalPanel({ mobile = false, showMobileLauncher =
           </div>
         </section>
       </> : null}
-    </div>, document.body,
+    </div>, desktopSlot ?? document.body,
   );
 }

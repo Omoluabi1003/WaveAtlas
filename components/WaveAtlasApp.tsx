@@ -23,6 +23,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import NextLink from "next/link";
 import PublicSignalPanel from "@/components/PublicSignalPanel";
+import { AtlasVoiceSurface } from "@/components/AtlasVoiceDiscovery";
 import { usePublicSignals, usePublicSignalPolling } from "@/hooks/usePublicSignals";
 import PublicSignalMapLayer, { PUBLIC_SIGNAL_MAP_LAYER } from "@/components/PublicSignalMapLayer";
 import maplibregl, { type GeoJSONSource, type Map } from "maplibre-gl";
@@ -83,7 +84,7 @@ function selectGeoAudioQueueItem(channel: Station, itemIndex: number) {
 const BlueMarbleGlobe = dynamic(() => import("@/components/BlueMarbleGlobe"), {
   ssr: false,
   loading: () => (
-    <div className="relative h-full min-h-[100dvh] w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.14),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl">
+    <div className="relative h-full min-h-0 w-full overflow-hidden bg-[radial-gradient(circle_at_50%_42%,rgba(0,214,143,.14),transparent_24%),linear-gradient(135deg,#020617,#07111f_48%,#031713)] shadow-2xl">
       <div className="absolute left-1/2 top-1/2 size-[min(58vw,58vh)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/20 bg-slate-950/60 shadow-[0_0_90px_rgba(0,214,143,.18)]" />
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-slate-950/65 px-5 py-3 text-sm font-medium text-ivory shadow-2xl backdrop-blur-xl">Preparing Audio Tourism globe…</div>
     </div>
@@ -116,7 +117,8 @@ function playerStatusMetadata(station: Station, status: PlaybackStatus) {
   return `${source} · ${status}`;
 }
 
-function PlayerTextStack({ station, status, titleClassName = "text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]", locationClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]", metadataClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]" }: { station: Station; status: PlaybackStatus; titleClassName?: string; locationClassName?: string; metadataClassName?: string }) {
+function PlayerTextStack({ station, status, wrap = false, titleClassName = "text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]", locationClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]", metadataClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]" }: { station: Station; status: PlaybackStatus; titleClassName?: string; locationClassName?: string; metadataClassName?: string; wrap?: boolean }) {
+  if (wrap) return <div className="desktop-player-text"><p className={titleClassName}>{station.name}</p><p className={locationClassName}>{playerLocationLine(station)}</p><p className={metadataClassName}>{playerStatusMetadata(station, status)}</p></div>;
   return (
     <>
       <AutoMarqueeText text={station.name} className={titleClassName} />
@@ -2523,7 +2525,7 @@ function WaveAtlasMap({ station, stations, mobile = false, resetSignal = 0, base
     );
   }
   return (
-    <div className="relative h-full min-h-[620px] w-full overflow-hidden bg-slate-950 shadow-2xl">
+    <div className="waveatlas-map-region relative h-full min-h-0 w-full overflow-hidden bg-slate-950 shadow-2xl">
       <div ref={container} className="pointer-events-auto absolute inset-0 h-full w-full" />
       <PublicSignalMapLayer map={map} mobile={mobile} anchor={geo.lat !== null && geo.lng !== null ? { lat: geo.lat, lng: geo.lng } : null} />
       <SignalConstellationLayer map={map} stations={stations} currentStation={activeStation} />
@@ -2992,7 +2994,7 @@ function NowPlaying({
 
 function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings }: { viewportOffsetTop?: number; onOpenSearch: () => void; onOpenSettings: () => void }) {
   return (
-    <div style={{ top: viewportOffsetTop }} className="pointer-events-none fixed inset-x-0 z-40 bg-gradient-to-b from-slate-950/85 via-slate-950/55 to-transparent pb-8 pt-[calc(env(safe-area-inset-top)+12px)]">
+    <div style={{ top: viewportOffsetTop }} className="waveatlas-mobile-header pointer-events-none fixed inset-x-0 z-40 bg-gradient-to-b from-slate-950/85 via-slate-950/55 to-transparent pb-8 pt-[calc(env(safe-area-inset-top)+12px)]">
       <div className="mx-4 flex items-center justify-between gap-3">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/45 px-3 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-xl backdrop-blur-2xl">
           WaveAtlas™
@@ -3013,6 +3015,7 @@ function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings 
         <Search className="size-4 shrink-0 text-sky" />
         <span className="min-w-0 flex-1 truncate text-xs text-ivory/60">Search the atlas...</span>
       </button>
+      <div className="mobile-atlas-voice"><AtlasVoiceSurface /></div>
     </div>
   );
 }
@@ -3084,7 +3087,7 @@ function GeoAudioChannelInspector({ station }: { station: Station }) {
   const activeUrl = getStationStreamUrl(station);
   const activeIndex = station.geoAudio.tracks.findIndex((track) => track.url === activeUrl);
   const queueLabel = station.geoAudio.queueLabel || "Journey";
-  return <section className="fixed right-6 bottom-28 z-[69] hidden w-[360px] rounded-[2rem] border border-gold/25 bg-slate-950/92 p-4 text-white shadow-2xl backdrop-blur-2xl xl:block">
+  return <section className="desktop-geoaudio-inspector hidden w-full rounded-[2rem] border border-gold/25 bg-slate-950/92 p-4 text-white shadow-2xl backdrop-blur-2xl xl:block">
     <div className="flex gap-3">
       {station.geoAudio.coverArtUrl ? <Image src={station.geoAudio.coverArtUrl} alt={`${station.geoAudio.albumTitle} artwork`} width={72} height={72} className="size-[72px] rounded-2xl object-cover" unoptimized /> : null}
       <div className="min-w-0">
@@ -3508,7 +3511,7 @@ function AtlasToast({ station, mobile = false }: { station: Station; mobile?: bo
           onMouseLeave={() => setPaused(false)}
           onFocus={() => setPaused(true)}
           onBlur={() => setPaused(false)}
-          className={`${mobile ? "fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+174px)] z-[58] mx-auto w-auto max-w-[calc(100vw-32px)]" : "fixed bottom-28 left-1/2 z-[58] w-[min(380px,calc(100vw-32px))] -translate-x-1/2"} pointer-events-auto max-h-[92px] min-h-[52px] max-w-[380px] overflow-hidden rounded-[18px] border border-white/[0.10] bg-[rgba(8,17,29,0.88)] px-4 py-3 text-[#F8FAFC] shadow-[0_14px_42px_rgba(0,0,0,0.35)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(1.15)]`}
+          className={`${mobile ? "fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+174px)] z-[58] mx-auto w-auto max-w-[calc(100vw-32px)]" : "desktop-toast"} pointer-events-auto max-h-[92px] min-h-[52px] max-w-[380px] overflow-hidden rounded-[18px] border border-white/[0.10] bg-[rgba(8,17,29,0.88)] px-4 py-3 text-[#F8FAFC] shadow-[0_14px_42px_rgba(0,0,0,0.35)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(1.15)]`}
           aria-label="Station notification"
         >
           <div className="flex items-start gap-3">
@@ -3537,7 +3540,7 @@ function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: (
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
   return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/30 bg-[rgba(3,9,18,0.96)] p-2.5 text-white shadow-[0_26px_90px_rgba(0,0,0,.72),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
-    <div className="flex h-full items-center gap-3"><button onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><div className="min-w-0 flex-1"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></div><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
+    <div className="flex h-full items-center gap-3"><button aria-label="Play or pause current station" onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><button type="button" aria-label="Open station details" onClick={event => { event.stopPropagation(); onOpen(); }} className="min-w-0 flex-1 text-left"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></button><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
   </div>;
 }
 
@@ -3572,7 +3575,7 @@ function MobileStationSheet({ station, stations, inventoryStats, setQuery, open,
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, setOpen]);
 
-  return <motion.section
+  return <AnimatePresence>{open ? <motion.section
     drag="y"
     dragControls={controls}
     dragListener={false}
@@ -3582,10 +3585,11 @@ function MobileStationSheet({ station, stations, inventoryStats, setQuery, open,
       const collapse = info.offset.y > 72 || info.velocity.y > 520;
       if (collapse) setOpen(false);
     }}
-    initial={{ y: 680 }}
-    animate={{ y: open ? 64 : 680 }}
+    initial={{ y: "100%" }}
+    animate={{ y: 0 }}
+    exit={{ y: "100%" }}
     transition={{ type: "spring", damping: 30, stiffness: 280 }}
-    className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-[2rem] border border-white/[0.12] bg-[rgba(8,17,29,0.86)] shadow-2xl backdrop-blur-xl"
+    className="mobile-station-sheet fixed inset-x-0 bottom-0 z-[100] flex max-h-[92dvh] flex-col overflow-hidden rounded-t-[2rem] border border-white/[0.12] bg-[rgba(8,17,29,0.86)] shadow-2xl backdrop-blur-xl"
     role="dialog"
     aria-modal={open}
     aria-label="Destination Intelligence"
@@ -3611,7 +3615,7 @@ function MobileStationSheet({ station, stations, inventoryStats, setQuery, open,
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-2 [-webkit-overflow-scrolling:touch]">
       <StationIntelligencePanel station={station} stations={stations} inventoryStats={inventoryStats} setQuery={setQuery} />
     </div>
-  </motion.section>;
+  </motion.section> : null}</AnimatePresence>;
 }
 
 function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wandererActive }: { mode: string; setMode: (m: string) => void; onTeleport: () => void; onToggleWanderer: () => void; wandererActive: boolean }) {
@@ -3619,7 +3623,7 @@ function MobileCommandDock({ mode, setMode, onTeleport, onToggleWanderer, wander
   const status = usePlayer((state) => state.status);
   const pulseTeleport = !reducedMotion && (status === "idle" || status === "playing") && mode !== "Brief" && mode !== "Add Signal";
   const commands = [[Heart,"Favorites"],[Globe2,"Explore"],[Signal,"Add Signal"],[Plane,"Teleport"],[Newspaper,"Brief"],[Compass,wandererActive ? "Exit Wanderer" : "Wanderer"],[Radio,"History"]] as const;
-  return <nav className="pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel}  transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) {  onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
+  return <nav className="waveatlas-mobile-dock pointer-events-none fixed bottom-0 left-4 right-4 z-[70] max-w-full pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2"><div className="pointer-events-auto grid grid-cols-7 gap-1 rounded-[1.45rem] border border-white/10 bg-slate-950/90 p-1 shadow-2xl backdrop-blur-xl">{commands.map(([Icon,label]) => { const I = Icon as typeof Compass; const value = label as string; const isTeleport = value === "Teleport"; const isWanderer = value === "Wanderer" || value === "Exit Wanderer"; const accessibleLabel = isTeleport ? "Teleport to one new destination" : isWanderer ? (wandererActive ? "Exit Wanderer" : "Start continuous Wanderer Mode") : value; return <div key={value} className={isTeleport ? "relative" : undefined}>{isTeleport && pulseTeleport ? <span className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(0,214,143,0.35)] shadow-[0_0_24px_rgba(0,214,143,0.22)] animate-[teleportPulse_2.8s_ease-out_infinite]" /> : null}<motion.button type="button" title={accessibleLabel}  transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.45 }} onClick={() => { if (isTeleport) {  onTeleport(); } else if (isWanderer) onToggleWanderer(); setMode(isWanderer ? "Wanderer" : value); }} className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${mode === value || (isWanderer && wandererActive) ? "bg-radio text-midnight" : isTeleport ? "border border-radio/20 bg-radio/10 text-radio hover:bg-radio/15" : "text-ivory/70 hover:bg-white/10"}`} aria-label={accessibleLabel}><I className="size-4" /><span className="sr-only">{accessibleLabel}</span></motion.button></div>; })}</div></nav>;
 }
 
 function MobileAtlasShell({ stations, allStations, current, inventoryStats, query, setQuery, onCountrySelect, setWandererIntent, onQueryComplete, voiceSearchOverlayRequest, onVoiceIntent, onVoiceFeedback, startupPreferences, onStartupPreferencesChange, onSettingsLayerChange }: { stations: Station[]; allStations: Station[]; current: Station; inventoryStats?: StationInventoryStats; query: string; setQuery: (q: string) => void; onCountrySelect: (country: CountrySelectPayload) => void; setWandererIntent: (intent: string) => void; onQueryComplete: () => void; voiceSearchOverlayRequest: number; onVoiceIntent: (intent: VoiceCommandIntent) => void; onVoiceFeedback: (message: string) => void; startupPreferences: StartupPreferences; onStartupPreferencesChange: (preferences: StartupPreferences) => void; onSettingsLayerChange?: (open: boolean) => void }) {
@@ -3976,9 +3980,10 @@ function buildDidYouKnow(station: Station, region: string, stationCount?: number
 }
 
 function DailyPassportInsight({ station, stationCount, countScope = "indexed" }: { station: Station; stationCount?: number; countScope?: "indexed" | "loaded" }) {
+  const browserReady = useSyncExternalStore(subscribeBrowserReady, browserReadySnapshot, browserServerSnapshot);
   const { visibleWorldContext, visibleWorldContextStatus } = useStationWorldContext(station);
   const place = [station.city || station.state, station.country || countryNameForCode(station.country_code)].filter(Boolean).join(", ") || destinationLabel(station);
-  const localTime = visibleWorldContext?.radioDNA.localTime || localTimeForStation(station) || "Local time TBD";
+  const localTime = visibleWorldContext?.radioDNA.localTime || (browserReady ? localTimeForStation(station) : undefined) || "Local time TBD";
   const language = visibleWorldContext?.radioDNA.languages?.[0] || compactLanguageLabel(station.language);
   const region = visibleWorldContext?.radioDNA.region || stationContinent(station);
   const weather = visibleWorldContext?.climate && typeof visibleWorldContext.climate.temperatureC === "number" ? `${Math.round(visibleWorldContext.climate.temperatureC)}°C now` : visibleWorldContextStatus === "loading" ? "Loading…" : "Weather TBD";
@@ -4012,12 +4017,14 @@ function DailyPassportInsight({ station, stationCount, countScope = "indexed" }:
 }
 
 function DailyFlightPanel({ stations, inventoryStats, activeStation }: { stations: Station[]; inventoryStats?: StationInventoryStats; activeStation?: Station }) {
+  const browserReady = useSyncExternalStore(subscribeBrowserReady, browserReadySnapshot, browserServerSnapshot);
   const daily = useMemo(() => {
     if (activeStation) return activeStation;
+    if (!browserReady) return stations[0];
     const today = new Date().toISOString().slice(0, 10);
     const seed = [...today].reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return stations[seed % Math.max(1, stations.length)];
-  }, [activeStation, stations]);
+  }, [activeStation, browserReady, stations]);
   const stationCount = daily?.country_code ? inventoryStats?.countryCounts[daily.country_code] : undefined;
   const stationCountScope = stationCount ? "indexed" : "loaded";
   const resolvedStationCount = stationCount ?? (daily?.country_code ? stations.filter((item) => item.country_code === daily.country_code).length : undefined);
@@ -4953,7 +4960,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
       {deepLinkStatus !== "idle" ? <div className="fixed left-1/2 top-4 z-[80] w-[min(92vw,34rem)] -translate-x-1/2 rounded-3xl border border-white/10 bg-slate-950/90 p-4 text-sm text-ivory shadow-2xl backdrop-blur-xl"><b className="block text-base text-white">{deepLinkStatus === "loading" ? "Resolving shared station…" : "Station Not Found"}</b><p className="mt-1 text-ivory/70">{deepLinkStatus === "loading" ? `Looking up exact station ID ${deepLinkUuid}.` : `No station matched ${deepLinkUuid}. We did not substitute another signal.`}</p>{deepLinkStatus === "unavailable" ? <NextLink href="/" className="mt-3 inline-block rounded-full bg-radio px-4 py-2 font-bold text-midnight">Back to WaveAtlas discovery</NextLink> : null}</div> : null}
-      {!mobileSettingsLayerOpen ? <div className="fixed right-4 top-[calc(env(safe-area-inset-top)+68px)] z-[60] md:hidden"><VoiceCommandButton compact onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} /></div> : null}
+
       {voiceFeedback ? <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+118px)] z-[61] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-radio/20 bg-slate-950/86 px-3 py-2 text-center text-xs font-medium text-radio shadow-2xl backdrop-blur-xl md:hidden" role="status" aria-live="polite">{voiceFeedback}</div> : null}
       <AnimatePresence>
         {closerStationPrompt ? <motion.div initial={{ opacity: 0, y: -14, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: -10, x: "-50%" }} className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+72px)] z-[82] w-[min(92vw,26rem)] rounded-3xl border border-radio/25 bg-slate-950/92 p-4 text-ivory shadow-2xl backdrop-blur-2xl" role="dialog" aria-live="polite" aria-label="Closer local station available">
@@ -4965,27 +4972,15 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
           </div>
         </motion.div> : null}
       </AnimatePresence>
-      {activeStation ? <MobileAtlasShell stations={stationPool} allStations={stations} current={activeStation} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} onSettingsLayerChange={setMobileSettingsLayerOpen} /> : <div className="md:hidden"><EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /></div>}
-    <main className="hidden h-screen min-h-0 w-full overflow-hidden bg-slate-950 md:block">
-      <div className="pointer-events-none fixed left-6 right-6 top-6 z-40 flex items-start justify-between xl:left-8 xl:right-8">
+      {activeStation ? <MobileAtlasShell stations={stationPool} allStations={stations} current={activeStation} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} onSettingsLayerChange={setMobileSettingsLayerOpen} /> : <div className="mobile-empty-shell md:hidden"><div className="mobile-empty-voice"><AtlasVoiceSurface /></div><EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /></div>}
+    <main className="desktop-app-shell" data-geometry-region="shell">
+      <header className="desktop-app-header" data-geometry-region="header">
+      <div className="desktop-brand">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
           WaveAtlas™
         </b>
       </div>
-      <div className="absolute inset-0 z-0">
-        <div className="hidden"><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={activeStation} /></div>
-        {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-30 rounded-[2rem] border border-radio/30 bg-slate-950/55 px-4 py-3 text-left text-sm font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
-        <div id="atlas-map" className="h-full w-full scroll-mt-0" onMouseDown={() => { if (desktopDrawerOpen) closeDesktopDrawer(); }}>
-          {!activeStation ? <EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /> : globeFallbackReason || desktopAtlasView === "map" ? (
-            <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={activeStation} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={activeDesktopTransitionContext} onCountrySelect={selectCountry} onStationSelect={(selected, candidates, label) => { setStationPool((prev) => uniqueStationCandidates([selected, ...candidates, ...prev])); setScopedStationAndDestination(selected, "manual", candidates, label); }} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
-          ) : (
-            <AtlasViewErrorBoundary key={`desktop-globe-${activeStation.station_uuid || activeStation.id}-${desktopTransition.state.transitionVersion}-${voiceFocusNonce}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={activeStation} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onStationSelect={(station, candidates, label) => { setStationPool((prev) => uniqueStationCandidates([station, ...candidates, ...prev])); setScopedStationAndDestination(station, "manual", candidates, label); }} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
-          )}
-        </div>
-        {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
-        {activeStation ? <SelectedStationTheater station={activeStation} /> : null}
-      </div>
-      <section aria-label="Desktop station search" className="desktop-station-search pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+1.5rem)] z-50 w-[min(520px,calc(100vw-36rem))] -translate-x-1/2">
+      <section aria-label="Desktop station search" className="desktop-station-search">
         <div className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/40 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl">
           <div className="flex items-center gap-3">
             <Search className="shrink-0 text-sky" />
@@ -4996,13 +4991,29 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
               placeholder="Search country, city, destination..."
               className="min-w-0 w-full bg-transparent outline-none placeholder:text-ivory/45"
             />
-            <VoiceCommandButton active={!desktopDrawerActive && !briefOpen} onIntent={handleVoiceIntent} onFeedback={showVoiceFeedback} />
+
           </div>
         </div>
         {voiceFeedback ? <p className="pointer-events-none mx-auto mt-2 w-fit rounded-full border border-radio/20 bg-slate-950/70 px-3 py-1.5 text-center text-xs font-medium text-radio shadow-xl backdrop-blur-xl" role="status" aria-live="polite">{voiceFeedback}</p> : null}
       </section>
+        <div id="desktop-world-signals-slot" className="desktop-world-slot" />
+      </header>
+      <div className={`desktop-workspace ${desktopDrawerActive && desktopDrawerOpen ? "has-drawer" : ""}`} data-geometry-region="workspace">
+      <div className="desktop-scene" data-geometry-region="scene">
+        <div className="hidden"><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={activeStation} /></div>
+        {wandererActive ? <button onClick={() => setWandererActive(false)} className="absolute left-6 top-28 z-30 rounded-[2rem] border border-radio/30 bg-slate-950/55 px-4 py-3 text-left text-sm font-medium text-radio shadow-2xl backdrop-blur-xl xl:left-8">Wanderer Mode · continuous global exploration active · Exit Wanderer</button> : null}
+        <div id="atlas-map" className="desktop-atlas-view" onMouseDown={() => { if (desktopDrawerOpen) closeDesktopDrawer(); }}>
+          {!activeStation ? <EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /> : globeFallbackReason || desktopAtlasView === "map" ? (
+            <AtlasViewErrorBoundary key={`desktop-map-${desktopTransition.state.transitionVersion}`} name="desktop map" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Map view is recovering…</div>}><WaveAtlasMap station={activeStation} stations={stationPool} resetSignal={desktopResetSignal} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} onMapContextChange={setDesktopMapContext} onWorldZoomRequest={returnDesktopToGlobe} initialContext={activeDesktopTransitionContext} onCountrySelect={selectCountry} onStationSelect={(selected, candidates, label) => { setStationPool((prev) => uniqueStationCandidates([selected, ...candidates, ...prev])); setScopedStationAndDestination(selected, "manual", candidates, label); }} searchActive={query.trim().length > 0} transitionLocked={desktopTransition.transitionLocked} /></AtlasViewErrorBoundary>
+          ) : (
+            <AtlasViewErrorBoundary key={`desktop-globe-${activeStation.station_uuid || activeStation.id}-${desktopTransition.state.transitionVersion}-${voiceFocusNonce}`} name="desktop globe" fallback={<div className="grid h-full place-items-center bg-slate-950 text-ivory">Globe view is unavailable on this device right now.</div>} onError={(error) => desktopTransition.failTransition(error.message)}><BlueMarbleGlobe station={activeStation} stations={stationPool} previousStation={previousDesktopStation} selectionVersion={selectionVersion} teleporting={desktopTeleporting} basemap={desktopGlobeBasemap} onCountrySelect={selectCountry} onStationSelect={(station, candidates, label) => { setStationPool((prev) => uniqueStationCandidates([station, ...candidates, ...prev])); setScopedStationAndDestination(station, "manual", candidates, label); }} onFallback={(reason) => desktopTransition.failTransition(reason)} onStreetZoomRequest={enterDesktopStreets} /></AtlasViewErrorBoundary>
+          )}
+        </div>
+        {globeFallbackReason ? <div className="pointer-events-none absolute left-6 top-[8.5rem] z-40 max-w-sm rounded-2xl border border-gold/20 bg-slate-950/75 px-4 py-3 text-xs text-ivory/70 shadow-2xl backdrop-blur-xl xl:left-8"><b className="block text-gold">2D atlas fallback active</b>{globeFallbackReason}</div> : null}
+        {activeStation ? <SelectedStationTheater station={activeStation} /> : null}
+      </div>
       <>
-        <nav className={`${desktopRailVisible ? "flex translate-x-0 opacity-100" : "hidden -translate-x-3 opacity-25 min-[1440px]:flex"} pointer-events-auto fixed left-6 top-28 z-30 flex-col gap-2 rounded-full border border-white/10 bg-slate-950/25 p-2 text-ivory shadow-2xl backdrop-blur-2xl transition duration-500 [backdrop-filter:blur(18px)_saturate(1.05)] xl:left-8`} aria-label="Atlas utility rail">
+        <nav className="desktop-utility-rail flex flex-col gap-2 rounded-full border border-white/10 bg-slate-950/25 p-2 text-ivory shadow-2xl backdrop-blur-2xl" aria-label="Atlas utility rail">
           {([
             [Heart, "Favorites"],
             [Globe2, "Explore"],
@@ -5016,15 +5027,12 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
             </button>;
           })}
         </nav>
-        <button type="button" onClick={() => { setDesktopRailVisible(true); }} className={`${desktopRailVisible ? "hidden" : "grid"} pointer-events-auto fixed left-4 top-1/2 z-30 size-10 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-slate-950/25 text-ivory/70 shadow-2xl backdrop-blur-2xl transition hover:border-radio/35 hover:text-radio min-[1440px]:hidden`} aria-label="Expand atlas utility rail">
-          <ChevronRight className="size-4" />
-        </button>
       </>
-      {desktopDrawerActive ? <aside className={`${desktopDrawerOpen ? "translate-x-0 opacity-100" : "-translate-x-[calc(100%-3.5rem)] opacity-95"} pointer-events-auto fixed bottom-28 left-6 top-32 z-40 flex w-[min(400px,calc(100vw-3rem))] flex-col rounded-[2rem] border border-white/10 bg-[rgba(8,17,29,0.62)] p-4 text-ivory shadow-[0_16px_48px_rgba(0,0,0,0.32)] backdrop-blur-[16px] [backdrop-filter:blur(16px)_saturate(1.08)] transition duration-300 xl:left-8`} aria-label="Search and discovery drawer">
+      {desktopDrawerActive && desktopDrawerOpen ? <aside className={`desktop-context-drawer ${desktopDrawerOpen ? "is-open" : "is-collapsed"} flex flex-col rounded-[2rem] border border-white/10 bg-slate-950/95 p-4 text-ivory shadow-2xl backdrop-blur-xl`} aria-label="Search and discovery drawer">
         <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div className="min-w-0">
             <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-gold">Atlas drawer</p>
-            <p className="truncate text-sm text-ivory/60">Search, destinations, and discovery stay off the map center.</p>
+            <p className="text-sm text-ivory/60">Search, destinations, and discovery stay off the map center.</p>
           </div>
           <div className="flex shrink-0 gap-2">
             <button type="button" onClick={() => setDesktopDrawerCollapsed((collapsed) => !collapsed)} className="grid size-10 place-items-center rounded-full border border-white/[0.12] bg-white/[0.06] text-ivory/80 transition hover:border-radio/40 hover:text-radio" aria-label={desktopDrawerOpen ? "Collapse search drawer" : "Expand search drawer"}>
@@ -5069,10 +5077,11 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
           {selectedCountry ? <button disabled={loadingCountry} onClick={() => loadCountryStations(selectedCountry, offset)} className="mt-5 w-full rounded-full bg-radio px-5 py-3 font-medium text-midnight disabled:opacity-50">{loadingCountry ? `Acquiring ${selectedCountry.name} signals…` : "Load More stations"}</button> : null}
         </div>
       </aside> : null}
+      <aside className="desktop-atlas-surface"><AtlasVoiceSurface stationName={activeStation?.name} />{activeStation ? <GeoAudioChannelInspector station={activeStation} /> : null}</aside>
+      </div>
       {activeStation ? <NewspaperBrief station={activeStation} stations={stationPool} inventoryStats={inventoryStats} open={briefOpen} onClose={() => { setBriefOpen(false); setDesktopMode("Atlas"); }} /> : null}
       {activeStation ? <AtlasToast station={activeStation} /> : null}
-      {activeStation ? <GeoAudioChannelInspector station={activeStation} /> : null}
-      {activeStation ? <div className="fixed inset-x-6 bottom-6 z-[70] mx-auto grid w-fit max-w-[min(920px,calc(100vw-3rem))] pointer-events-auto grid-cols-[minmax(280px,360px)_auto] gap-3 rounded-[2rem] border border-white/25 bg-[rgba(3,9,18,0.96)] p-2 text-white shadow-[0_28px_95px_rgba(0,0,0,.70),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)] xl:bottom-8">
+      {activeStation ? <div data-waveatlas-player className="desktop-player grid gap-3 rounded-[2rem] border border-white/25 bg-[rgba(3,9,18,0.96)] p-2 text-white shadow-2xl backdrop-blur-2xl">
         <div className="flex min-w-0 items-center gap-3 px-3">
           <button
             onClick={() => {
@@ -5086,8 +5095,8 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
           >
             {playerPlaying ? <Pause /> : <Play />}
           </button>
-          <div className="min-w-0">
-            <PlayerTextStack station={current} status={playerStatus} />
+          <div className="min-w-0 flex-1">
+            <PlayerTextStack station={current} status={playerStatus} wrap />
           </div>
           <button type="button" onClick={() => setPlayerVolume(playerVolume > 0 ? 0 : 1)} className="ml-auto grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-ivory/78 transition hover:border-radio/35 hover:bg-radio/10 hover:text-radio focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" aria-label={playerVolume > 0 ? "Mute player" : "Unmute player"}>
             {playerVolume > 0 ? <Volume2 className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /> : <VolumeX className="size-4 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" />}
