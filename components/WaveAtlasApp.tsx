@@ -68,6 +68,8 @@ import { countryAliases, flagFor, isCuratedStation, isVerifiedNigerianStation, t
 import { ArrivalCard } from "@/components/arrival-card";
 import { PlaceHero } from "@/components/PlaceHero";
 import { NewspaperBrief } from "@/components/NewspaperBrief";
+import { decodeJourney, type JourneyRoute } from "@/lib/atlas-journey-contract";
+const AtlasJourney = dynamic(() => import("@/components/AtlasJourney"), { ssr: false });
 import { ActiveStationBeacon } from "@/components/ActiveStationBeacon";
 import { AutoMarqueeText } from "@/components/common/AutoMarqueeText";
 import { RadioDNA } from "@/components/RadioDNA";
@@ -3006,15 +3008,18 @@ function MobileHeaderCard({ viewportOffsetTop = 0, onOpenSearch, onOpenSettings 
         </button>
         </div>
       </div>
+      <div className="mx-4 mt-3 flex min-w-0 gap-2">
       <button
         type="button"
         onClick={onOpenSearch}
-        className="pointer-events-auto mx-auto mt-3 flex h-11 w-[min(520px,72vw)] md:hidden items-center gap-2 rounded-full border border-white/15 bg-slate-950/80 px-4 text-left shadow-[0_18px_46px_rgba(0,0,0,.42)] backdrop-blur-2xl"
+        className="pointer-events-auto flex h-11 min-w-0 flex-1 md:hidden items-center gap-2 rounded-full border border-white/15 bg-slate-950/80 px-4 text-left shadow-[0_18px_46px_rgba(0,0,0,.42)] backdrop-blur-2xl"
         aria-label="Open station search"
       >
         <Search className="size-4 shrink-0 text-sky" />
         <span className="min-w-0 flex-1 truncate text-xs text-ivory/60">Search the atlas...</span>
       </button>
+      <button type="button" onClick={() => window.dispatchEvent(new Event("waveatlas:open-journey"))} className="pointer-events-auto flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-gold/30 bg-slate-950/80 px-3 text-xs font-semibold text-gold" aria-label="Open Atlas Journey"><Plane className="size-4" />Journey</button>
+      </div>
     </div>
   );
 }
@@ -4346,6 +4351,15 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(true);
   const [briefOpen, setBriefOpen] = useState(false);
   const [wandererActive, setWandererActive] = useState(false);
+  const [journeyOpen, setJourneyOpen] = useState(false);
+  const [sharedJourney, setSharedJourney] = useState<JourneyRoute | null>(null);
+  useEffect(() => {
+    const openJourney = () => { setWandererActive(false); setBriefOpen(false); setJourneyOpen(true); };
+    window.addEventListener("waveatlas:open-journey", openJourney);
+    const route = decodeJourney(new URLSearchParams(window.location.search).get("journey"));
+    const timer = route ? window.setTimeout(() => { setSharedJourney(route); openJourney(); }, 0) : null;
+    return () => { window.removeEventListener("waveatlas:open-journey", openJourney); if (timer !== null) window.clearTimeout(timer); };
+  }, []);
   const wandererTimer = useRef<number | null>(null);
   const [desktopMapContext, setDesktopMapContext] = useState<MapTeleportContext | null>(null);
   const [desktopTransitionContext, setDesktopTransitionContext] = useState<AtlasTransitionContext | null>(null);
@@ -4980,6 +4994,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
     <div className="waveatlas-app" data-wa-appearance={appearance}>
       <style jsx global>{`@keyframes teleportPulse { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(1.08); opacity: 0; } } @media (prefers-reduced-motion: reduce) { .animate-\[teleportPulse_2\.8s_ease-out_infinite\] { animation: none !important; } }`}</style>
       <AudioEngine stations={stationPool} />
+      {!activeStation ? <button type="button" onClick={() => window.dispatchEvent(new Event("waveatlas:open-journey"))} className="pointer-events-auto fixed left-4 top-[calc(env(safe-area-inset-top)+16px)] z-[60] flex min-h-11 items-center gap-2 rounded-full border border-gold/30 bg-slate-950/90 px-4 text-xs font-semibold text-gold md:hidden" aria-label="Open Atlas Journey"><Plane className="size-4" />Journey</button> : null}
       {!activeStation ? <><PublicSignalPanel mobile showMobileLauncher onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /><PublicSignalPanel onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /></> : null}
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
       <AnimatePresence>{arrivalVisible && !hasCompletedArrival ? <ArrivalCard arrival={arrival} replacementReason={replacementReason} onEnter={completeArrivalFlow} /> : null}</AnimatePresence>
@@ -4999,10 +5014,11 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
       {activeStation ? <MobileAtlasShell stations={stationPool} allStations={stations} current={activeStation} inventoryStats={inventoryStats} query={query} setQuery={setQuery} onCountrySelect={selectCountry} setWandererIntent={setWandererIntent} onQueryComplete={centerAppAfterQuery} voiceSearchOverlayRequest={voiceSearchOverlayRequest} onVoiceIntent={handleVoiceIntent} onVoiceFeedback={showVoiceFeedback} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} onSettingsLayerChange={setMobileSettingsLayerOpen} /> : <div className="mobile-empty-shell md:hidden"><div className="mobile-empty-voice"><AtlasVoiceSurface /></div><EmptyAtlasState onExploreNearby={exploreNearbyFromEmpty} onWander={wanderFromEmpty} onSearch={focusSearchFromEmpty} onVoiceSearch={voiceSearchFromEmpty} onEditorialPicks={editorialPicksFromEmpty} /></div>}
     <main className="desktop-app-shell" data-geometry-region="shell">
       <header className={`desktop-app-header ${!activeStation ? "has-atlas-launcher" : ""}`} data-geometry-region="header">
-      <div className="desktop-brand">
+      <div className="desktop-brand !flex-col !items-start">
         <b className="pointer-events-auto rounded-full border border-white/10 bg-slate-950/40 px-4 py-2 font-display text-[18px] font-bold leading-none text-ivory shadow-2xl backdrop-blur-2xl">
           WaveAtlas™
         </b>
+        <button type="button" onClick={() => window.dispatchEvent(new Event("waveatlas:open-journey"))} className="pointer-events-auto mt-2 flex min-h-11 items-center gap-2 rounded-full border border-gold/30 bg-slate-950/80 px-4 text-xs font-semibold text-gold" aria-label="Open Atlas Journey"><Plane className="size-4" />Atlas Journey</button>
       </div>
       <section aria-label="Desktop station search" className="desktop-station-search">
         <div className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/40 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl">
@@ -5133,6 +5149,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         </nav>
       </div> : null}
     </main>
+      {journeyOpen ? <AtlasJourney stations={[...stations, ...stationPool]} current={activeStation} initialRoute={sharedJourney} onListen={(station) => { setWandererActive(false); setScopedStationAndDestination(station, "manual", [station]); setStationPool((previous) => previous.some((item) => stationKey(item) === stationKey(station)) ? previous : [station, ...previous]); }} onClose={() => setJourneyOpen(false)} /> : null}
     </div>
   );
 }
