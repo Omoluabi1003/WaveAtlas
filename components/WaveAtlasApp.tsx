@@ -1,5 +1,6 @@
 "use client";
 
+import { attachRadioStream, releaseRadioStream } from '@/lib/radio-stream-player';
 import { readAtlasLocation } from "@/lib/atlas-location";
 import { uniquePlaceLabel } from "@/lib/place-label";
 
@@ -1606,6 +1607,12 @@ function AudioEngine({ stations }: { stations: Station[] }) {
   }, [currentKey, current, scopedSearchSessionId, setStatus, stations]);
 
   useEffect(() => {
+    const origins = [...new Set(stations.slice(0, 4).flatMap(station => { try { const url = new URL(getStationStreamUrl(station)); return url.protocol === 'https:' ? [url.origin] : []; } catch { return []; } }))].slice(0, 3);
+    const links = origins.map(origin => { const link = document.createElement('link'); link.rel = 'preconnect'; link.href = origin; document.head.appendChild(link); return link; });
+    return () => links.forEach(link => link.remove());
+  }, [stations]);
+
+  useEffect(() => {
     const element = new Audio();
     element.preload = "auto";
     element.volume = 1;
@@ -1631,6 +1638,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       unbindMediaSession();
       element.removeEventListener("error", onError);
       element.pause();
+      releaseRadioStream(element);
       element.removeAttribute("src");
       element.load();
       audio.current = null;
@@ -1816,12 +1824,13 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       try {
         setStatus("buffering", policy.message);
         element.pause();
-        element.src = streamUrl;
         element.preload = "auto";
         radioAudioFocus(element).setVolume(volume);
-        element.load();
+        await attachRadioStream(element, streamUrl, message => { if (usePlayer.getState().current?.station_uuid === current.station_uuid) skipToNextCandidate(current, "network_error", message); });
+        if (cancelled || usePlayer.getState().current?.station_uuid !== current.station_uuid) return;
         await element.play();
       } catch (error) {
+        if (cancelled) return;
         const message = error instanceof Error ? error.message : "Playback was blocked or the stream failed.";
         const isAutoplay = /user|gesture|allowed|interact/i.test(message);
         if (isAutoplay) {
@@ -3700,6 +3709,11 @@ function MobileAtlasShell({ stations, allStations, current, inventoryStats, quer
     schedule();
     return () => { if (wandererTimer.current) window.clearTimeout(wandererTimer.current); };
   }, [makeWandererHop, wandererActive]);
+  useEffect(() => {
+    const stopWanderer = () => setWandererActive(false);
+    window.addEventListener('waveatlas:open-journey', stopWanderer);
+    return () => window.removeEventListener('waveatlas:open-journey', stopWanderer);
+  }, []);
   const visualViewport = useIOSVisualViewport();
   useWaveAtlasLayoutDebug(process.env.NEXT_PUBLIC_WAVEATLAS_DEBUG_LAYOUT === "true");
   const handleMobileGlobeFallback = useCallback((reason?: string) => {
@@ -5149,7 +5163,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         </nav>
       </div> : null}
     </main>
-      {journeyOpen ? <AtlasJourney stations={[...stations, ...stationPool]} current={activeStation} initialRoute={sharedJourney} onListen={(station) => { setWandererActive(false); setScopedStationAndDestination(station, "manual", [station]); setStationPool((previous) => previous.some((item) => stationKey(item) === stationKey(station)) ? previous : [station, ...previous]); }} onClose={() => setJourneyOpen(false)} /> : null}
+      {journeyOpen ? <AtlasJourney stations={[...stations, ...stationPool]} current={activeStation} initialRoute={sharedJourney} onListen={(station, candidates) => { setWandererActive(false); setScopedStationAndDestination(station, "manual", candidates || [station]); setStationPool((previous) => previous.some((item) => stationKey(item) === stationKey(station)) ? previous : [station, ...previous]); }} onClose={() => setJourneyOpen(false)} /> : null}
     </div>
   );
 }

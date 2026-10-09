@@ -26,6 +26,7 @@ type AriyoSeedInput = {
   include_default_nigeria_tags?: boolean;
   codec?: string;
   bitrate?: number;
+  checked_at?: string;
 };
 
 function slugify(value: string) {
@@ -80,7 +81,7 @@ function ariyoSeedStation(input: AriyoSeedInput): Station {
     health_score: isVerified ? 92 : 0,
     is_active: input.is_active ?? true,
     last_check_ok: input.last_check_ok ?? true,
-    last_checked_at: ARIYO_SEED_CHECKED_AT,
+    last_checked_at: input.checked_at ?? ARIYO_SEED_CHECKED_AT,
     failure_count: 0,
     response_time_ms: 180,
     curation_source: input.curation_source ?? 'Ariyo AI',
@@ -92,6 +93,9 @@ function ariyoSeedStation(input: AriyoSeedInput): Station {
 }
 
 const sourceStations: AriyoSeedInput[] = [
+  { name: 'Amuludun FM 99.1 Moniya Ibadan', checked_at: '2026-10-09T17:00:00Z', id: 'ariyo-ai-amuludun-991-ibadan', url: 'https://centova57.instainternet.com/proxy/amuludun?mp=/stream', city: 'Moniya, Ibadan', state: 'Oyo', country: 'Nigeria', country_code: 'NG', latitude: 7.524, longitude: 3.914, language: 'Yoruba', tags: ['amuludun', '99.1', 'moniya', 'ibadan', 'frcn', 'public radio', 'culture'], homepage: 'https://radionigeriafm.com/amuludun/', include_default_nigeria_tags: false, codec: 'MP3', bitrate: 64, curation_source: 'FRCN official player', validation_reason: 'Official FRCN player source returned MPEG audio bytes on 2026-10-09.' },
+  { name: 'Gold FM 95.5 Ilesa', checked_at: '2026-10-09T17:00:00Z', id: 'ariyo-ai-gold-955-ilesa', url: 'https://centova57.instainternet.com/proxy/gold?mp=/stream', city: 'Ilesa', state: 'Osun', country: 'Nigeria', country_code: 'NG', latitude: 7.627, longitude: 4.742, language: 'Yoruba, English', tags: ['gold fm', '95.5', 'ilesa', 'ilesha', 'osun', 'frcn', 'public radio'], homepage: 'https://radionigeriafm.com/gold/', include_default_nigeria_tags: false, codec: 'AAC', bitrate: 48, curation_source: 'FRCN official player', validation_reason: 'Official FRCN player source returned AAC audio bytes on 2026-10-09.' },
+
   {
     name: 'Premier FM 93.5 Ibadan',
     id: 'ariyo-ai-premier-935-fm-ibadan',

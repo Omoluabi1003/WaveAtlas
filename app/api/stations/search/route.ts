@@ -6,6 +6,7 @@ import { rankStationsForResolvedPlace, resolveGlobalGeoQuery } from "@/lib/globa
 import {
   countryAliases,
   fetchStations,
+  mergeSeedStations,
   fetchStationsForCountryIntent,
   rankStations,
   resolveCountryIntent,
@@ -46,6 +47,21 @@ export async function GET(req: NextRequest) {
     const safeLimit = Math.min(100, Math.max(1, Number(limit) || 24));
     const safeOffset = Math.max(0, Number(offset) || 0);
     return NextResponse.json({ intent: 'genre', music, resolvedPlace: place, stations: ranked.slice(safeOffset, safeOffset + safeLimit), totalAvailable: ranked.length, totalReturned: Math.min(safeLimit, Math.max(0, ranked.length - safeOffset)), source: 'verified-station-genre-tags' });
+  }
+
+  if (/^(?:middle east|middle eastern|gulf|gulf states)$/i.test(q.trim()) && !explicitCountryCode) {
+    const codes = ['AE', 'SA', 'QA', 'OM', 'KW', 'BH', 'JO', 'LB', 'IQ', 'YE', 'PS', 'IL', 'IR', 'SY'];
+    const results = await Promise.all(codes.map(code => fetchStationsForCountryIntent(code, code, { limit: '30', offset: '0' })));
+    const pool = rankStations(results.flat().filter(station => codes.includes(station.country_code) && station.is_active), q);
+    const start = Math.max(0, Number(offset) || 0), count = Math.min(100, Math.max(1, Number(limit) || 24));
+    return NextResponse.json({ intent: 'region', query: q, source: 'country-scoped-middle-east', stations: pool.slice(start, start + count), totalAvailable: pool.length, totalReturned: pool.slice(start, start + count).length });
+  }
+
+  // Direct curated name hits need no directory or geocoder round trip.
+  const curated = mergeSeedStations([]).filter(station => station.name.toLowerCase().includes(normalizedQuery) && normalizedQuery.length >= 4 && (!explicitCountryCode || station.country_code === explicitCountryCode));
+  if (curated.length && curated.some(station => station.name.toLowerCase().split(/\s+/)[0] === normalizedQuery.split(/\s+/)[0])) {
+    const ranked = rankStations(curated, q);
+    return NextResponse.json({ query: normalizedQuery, intent: 'station', source: 'curated-direct-stream', stations: ranked.slice(Number(offset) || 0, (Number(offset) || 0) + (Number(limit) || 24)), totalAvailable: ranked.length, totalReturned: ranked.length });
   }
 
   // An explicit country scope means the user is searching for a signal inside
