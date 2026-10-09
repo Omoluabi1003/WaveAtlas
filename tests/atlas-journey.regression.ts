@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { geoDistance } from 'd3-geo';
-import { JOURNEY_PRESETS, JOURNEY_COUNTRIES, decodeJourney, journeyClock, journeyDistance, journeyPosition, journeyRegion, nearbyJourneyStations, validJourneyRoute } from '../lib/atlas-journey';
+import { JOURNEY_PRESETS, JOURNEY_COUNTRIES, decodeJourney, journeyClock, journeyFlightSeconds, journeyFlightLabel, journeyRouteCountries, journeyDistance, journeyPosition, journeyRegion, nearbyJourneyStations, validJourneyRoute } from '../lib/atlas-journey';
 import type { Station } from '../lib/stations';
 
 const route = JOURNEY_PRESETS[0];
@@ -36,3 +36,14 @@ assert.equal(available.length, 1, 'Deduplicate and exclude offline, failed, unlo
 assert.equal(available[0].station.id, 'good');
 assert(available[0].distanceKm < 1);
 console.log('Atlas Journey: route distances, constant progress, dateline, country/ocean geography, shared-route validation, worldwide destination choices, countdown and nearby station eligibility passed');
+
+assert(journeyFlightSeconds(route) > 7 * 3600 && journeyFlightSeconds(route) < 8 * 3600, 'Lagos to Dubai estimate is hours, not four preview minutes');
+assert(journeyFlightSeconds(JOURNEY_PRESETS[1]) > journeyFlightSeconds(route), 'Longer route has longer ETA');
+assert(journeyFlightSeconds(route, 700) > journeyFlightSeconds(route, 900), 'Cruise speed changes flight estimate');
+assert(Number.isFinite(journeyFlightSeconds(route, NaN)), 'Invalid speed has safe default');
+assert.equal(journeyFlightLabel(7 * 3600 + 25 * 60), '7h 25m');
+const itinerary = journeyRouteCountries(route);
+assert.equal(itinerary[0].code, 'NG'); assert.equal(itinerary.at(-1)?.code, 'AE');
+assert(itinerary.length > 3 && itinerary.length <= 15, 'Route discovery includes intermediate countries');
+assert.equal(new Set(itinerary.map(region => region.code)).size, itinerary.length);
+console.log('Journey flight estimates, cruise adjustment, bounded regional itinerary and distinct preview time passed');

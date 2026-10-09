@@ -53,7 +53,7 @@ export function journeyClock(seconds: number) {
   const total = Math.max(0, Math.ceil(seconds));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
-export function nearbyJourneyStations(stations: Station[], point: { lat: number; lng: number }, radiusKm = 800) {
+export function nearbyJourneyStations(stations: Station[], point: { lat: number; lng: number }, radiusKm = 800, limit = 6) {
   const seen = new Set<string>();
   return stations.flatMap((station) => {
     const id = station.station_uuid || station.id;
@@ -65,5 +65,29 @@ export function nearbyJourneyStations(stations: Station[], point: { lat: number;
     if (!place || place.approximate) return [];
     const distanceKm = geoDistance([point.lng, point.lat], [place.lng, place.lat]) * 6371;
     return distanceKm <= radiusKm ? [{ station, place, distanceKm }] : [];
-  }).sort((a, b) => a.distanceKm - b.distanceKm || b.station.health_score - a.station.health_score).slice(0, 6);
+  }).sort((a, b) => a.distanceKm - b.distanceKm || b.station.health_score - a.station.health_score).slice(0, limit);
+}
+
+/** Planning estimate only: adjustable cruise speed plus climb/descent allowance. */
+export function journeyFlightSeconds(route: JourneyRoute, cruiseKmh = 850) {
+  const speed = Math.max(400, Math.min(1000, Number.isFinite(cruiseKmh) ? cruiseKmh : 850));
+  return Math.round((journeyDistance(route) * 1.04 / speed * 60 + 25) * 60);
+}
+export function journeyFlightLabel(seconds: number) {
+  const minutes = Math.max(0, Math.round(seconds / 60));
+  return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`;
+}
+export function journeyRouteCountries(route: JourneyRoute) {
+  const regions = [route.from.countryCode ? { code: route.from.countryCode, name: route.from.label } : null,
+    ...Array.from({ length: 25 }, (_, i) => journeyRegion(journeyPosition(route, i / 24))),
+    route.to.countryCode ? { code: route.to.countryCode, name: route.to.label } : null];
+  return regions.filter((region, i, all): region is { code: string; name: string } => Boolean(region && /^[A-Z]{2}$/.test(region.code) && all.findIndex(r => r?.code === region.code) === i)).slice(0, 15);
+}
+
+export function journeyRadioCandidates(stations: Station[], position: { lat: number; lng: number }, country?: string) {
+  return nearbyJourneyStations(stations, position, 800, 60).sort((a, b) =>
+    Number(b.station.country_code === country) - Number(a.station.country_code === country)
+    || Number(b.station.last_check_ok === true) - Number(a.station.last_check_ok === true)
+    || (Date.parse(b.station.last_checked_at) || 0) - (Date.parse(a.station.last_checked_at) || 0)
+    || b.station.health_score - a.station.health_score || a.distanceKm - b.distanceKm).slice(0, 8);
 }

@@ -26,11 +26,7 @@ export const BRAND = {
   logoPath: WAVEATLAS_LOGO_PATH,
   shortName: "WaveAtlas",
   title: "WaveAtlas™ | The Entire World. Live.",
-  description: `If it's broadcasting on Earth, it belongs here.
-
-The entire world. Live.
-
-Explore Humanity Through Sound™`,
+  description: `Explore humanity through sound with WaveAtlas: discover live radio worldwide, travel between destinations with Atlas Journey, and read local news, culture, sports, and destination briefs.`,
   tagline: "Explore Humanity Through Sound",
   shareTitle: "WaveAtlas™ | The Entire World. Live.",
   siteUrl: WAVEATLAS_SITE_URL,

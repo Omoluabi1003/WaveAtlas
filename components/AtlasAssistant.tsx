@@ -61,6 +61,10 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   const recognitionWatchdogRef = useRef<number | null>(null);
   const followUpTimerRef = useRef<number | null>(null);
   const openRef = useRef(false);
+  const journeyNarratingRef = useRef(false);
+  const journeyQueuedRef = useRef<{ id: number; text: string } | null>(null);
+  const journeySpeechRef = useRef<(detail: { id: number; text: string }) => void>(() => undefined);
+  const journeyStopRef = useRef<() => void>(() => undefined);
   const conversationModeRef = useRef(false);
   const busyRef = useRef(false);
   const voiceEnabledRef = useRef(true);
@@ -127,6 +131,16 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     window.addEventListener('waveatlas:open-atlas-voice', openAtlas);
     document.addEventListener('click', interceptExistingVoiceButton, true);
     return () => { window.removeEventListener('waveatlas:open-atlas-voice', openAtlas); document.removeEventListener('click', interceptExistingVoiceButton, true); };
+  }, []);
+  useEffect(() => {
+    const narrate = (event: Event) => {
+      const detail = (event as CustomEvent<{ id: number; text: string }>).detail;
+      if (detail && Number.isFinite(detail.id) && typeof detail.text === 'string' && detail.text.length <= 600) journeySpeechRef.current(detail);
+    };
+    const stop = () => journeyStopRef.current();
+    window.addEventListener('waveatlas:journey-narrate', narrate);
+    window.addEventListener('waveatlas:journey-narration-stop', stop);
+    return () => { window.removeEventListener('waveatlas:journey-narrate', narrate); window.removeEventListener('waveatlas:journey-narration-stop', stop); stop(); };
   }, []);
   useEffect(() => () => {
     requestControllerRef.current?.abort();
@@ -255,9 +269,9 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     if (!worker) return false;
     stopInputMeter();
     await captureRef.current.stop();
-    if (generation !== outputGenerationRef.current || !openRef.current) return false;
+    if (generation !== outputGenerationRef.current || (!openRef.current && !journeyNarratingRef.current)) return false;
     const context = await prepareAudiblePlayback();
-    if (!context || generation !== outputGenerationRef.current || !openRef.current) return false;
+    if (!context || generation !== outputGenerationRef.current || (!openRef.current && !journeyNarratingRef.current)) return false;
     updateVoiceStatus({ type: 'preparing' }); setVoiceMessage(spokenStatusRef.current || 'Thinking');
     const player = new AtlasPCMPlayer(context, () => {
       updateVoiceStatus({ type: 'speaking' });
@@ -273,7 +287,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
         const pending: PendingNeural = {
           resolve, reject, timer: window.setTimeout(fail, 120000), deadline: window.setTimeout(fail, 240000),
           onChunk: (chunk) => {
-            if (generation !== outputGenerationRef.current || !openRef.current) return;
+            if (generation !== outputGenerationRef.current || (!openRef.current && !journeyNarratingRef.current)) return;
             if (chunk.engine !== 'pocket-tts-omoluabi-paul' || chunk.voiceSource !== 'repository-canonical' || !chunk.samples) throw new Error('Personal voice identity could not be verified');
             window.clearTimeout(pending.timer); pending.timer = window.setTimeout(fail, 45000);
             player.push(chunk.samples, chunk.sampleRate || 0);
@@ -282,11 +296,11 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
         neuralPendingRef.current.set(id, pending); worker.postMessage({ type: 'speak', id, text });
       });
       if (message.engine !== 'pocket-tts-omoluabi-paul' || message.voiceSource !== 'repository-canonical') throw new Error('Personal voice identity could not be verified');
-      if (generation !== outputGenerationRef.current || !openRef.current) { player.stop(); return false; }
+      if (generation !== outputGenerationRef.current || (!openRef.current && !journeyNarratingRef.current)) { player.stop(); return false; }
       // Browsers can suspend the context during a long first synthesis.
       const resumed = await resumeVoiceContext();
       if (!resumed || resumed.state !== 'running') throw new Error('Audio playback is paused. Tap Atlas to retry.');
-      if (generation !== outputGenerationRef.current || !openRef.current) { player.stop(); return false; }
+      if (generation !== outputGenerationRef.current || (!openRef.current && !journeyNarratingRef.current)) { player.stop(); return false; }
       const played = await player.finish();
       if (pcmPlayerRef.current === player) pcmPlayerRef.current = null;
       if (generation === outputGenerationRef.current) { stopMeter(); updateVoiceStatus({ type: 'idle' }); } return played;
@@ -302,15 +316,15 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     const generation = outputGenerationRef.current;
     spokenStatusRef.current = statusLabel || null;
     if (!voiceEnabledRef.current) { spokenStatusRef.current = null; if (terminal) endConversation(); else restoreRadio(); return; }
-    void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); focusRadio(RADIO_FOCUS.speaking);
+    void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false); if (!journeyNarratingRef.current) focusRadio(RADIO_FOCUS.speaking);
     speechPendingRef.current = true; updateVoiceStatus({ type: 'preparing' });
-    const spoken = await speakNeural(text, Boolean(statusLabel)); if (generation !== outputGenerationRef.current || !openRef.current) return;
+    const spoken = await speakNeural(text, Boolean(statusLabel)); if (generation !== outputGenerationRef.current || (!openRef.current && !journeyNarratingRef.current)) return;
     speechPendingRef.current = false; setSpeaking(false);
     if (!spoken) {
       setVoiceOutput('unavailable'); setVoiceMessage('Omoluabi voice unavailable · answer is in transcript');
       setTextMode(true); setAudioSession('playback'); restoreRadio();
       spokenStatusRef.current = null;
-      return;
+      return false;
     }
     if (terminal && openRef.current) {
       setVoiceMessage(statusLabel || text); spokenStatusRef.current = null; setAudioSession('playback'); endConversation(); return;
@@ -321,6 +335,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       setAudioSession('play-and-record'); focusRadio(RADIO_FOCUS.listening);
       followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, isIOSFamily() ? 650 : 350);
     } else { setVoiceMessage('Ready'); setAudioSession('playback'); restoreRadio(); }
+    return spoken;
   }
   function endConversation() {
     requestControllerRef.current?.abort(); requestControllerRef.current = null;
@@ -391,11 +406,39 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
     } catch { setListening(false); recognitionRef.current = null; stopRecognitionWatchdog(); if (conversationModeRef.current && openRef.current) { setVoiceMessage('Reconnecting'); followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current && !busyRef.current) void listen(true); }, 700); } else restoreRadio(); }
   }
   function activateAtlas() {
+    journeyStopRef.current();
     void primeVoiceOutput(); if (neuralStateRef.current === 'unavailable') { neuralWorkerRef.current?.terminate(); neuralWorkerRef.current = null; neuralStateRef.current = 'idle'; setNeuralState('idle'); } warmNeuralVoice();
     if (!openRef.current) { openRef.current = true; setOpen(true); setTextMode(false); setVoiceMessage('Listening'); focusRadio(RADIO_FOCUS.opening); conversationModeRef.current = true; setConversationMode(true); followUpTimerRef.current = window.setTimeout(() => { if (conversationModeRef.current && openRef.current) void listen(true); }, 40); return; }
     if (speaking || speechPendingRef.current) { stopVoiceOutput(); setVoiceMessage('Listening'); void listen(true); return; }
     if (conversationModeRef.current) endConversation(); else void listen();
   }
+  journeyStopRef.current = () => {
+    if (!journeyNarratingRef.current) return;
+    journeyQueuedRef.current = null; journeyNarratingRef.current = false; stopVoiceOutput(); restoreRadio();
+  };
+  journeySpeechRef.current = ({ id, text }) => {
+    // Conversation owns the microphone and voice. A tour never interrupts it.
+    if (openRef.current || conversationModeRef.current || busyRef.current) {
+      window.dispatchEvent(new CustomEvent('waveatlas:journey-voice-status', { detail: { id, status: 'Atlas conversation is active. Journey guidance appears in captions.' } })); return;
+    }
+    if (journeyNarratingRef.current) { journeyQueuedRef.current = { id, text }; return; }
+    stopVoiceOutput(); restoreRadio(); journeyNarratingRef.current = true;
+    const generation = outputGenerationRef.current;
+    void primeVoiceOutput();
+    const deadline = window.setTimeout(() => {
+      if (generation !== outputGenerationRef.current || !journeyNarratingRef.current) return;
+      journeyStopRef.current();
+      window.dispatchEvent(new CustomEvent('waveatlas:journey-voice-status', { detail: { id, status: 'Omoluabi voice is not ready on this device. Radio continues; tap Hear Atlas to retry.' } }));
+    }, 30000);
+    void speak(text).then(played => {
+      window.clearTimeout(deadline);
+      if (generation !== outputGenerationRef.current) return;
+      journeyNarratingRef.current = false; restoreRadio();
+      window.dispatchEvent(new CustomEvent('waveatlas:journey-voice-status', { detail: { id, status: !voiceEnabledRef.current ? 'Atlas voice is muted.' : played === true ? 'Atlas guidance complete.' : 'Omoluabi voice unavailable. Journey guidance remains in captions.' } }));
+      const queued = journeyQueuedRef.current; journeyQueuedRef.current = null;
+      if (queued && played === true) journeySpeechRef.current(queued);
+    });
+  };
   activateRef.current = activateAtlas;
   warmVoiceRef.current = warmNeuralVoice;
 
