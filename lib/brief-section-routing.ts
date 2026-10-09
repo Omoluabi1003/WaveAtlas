@@ -45,14 +45,17 @@ const EDITIONS: Record<string, [string, string]> = {
   NG: ['NG', 'en'], IN: ['IN', 'en'], BR: ['BR', 'pt-BR'], JP: ['JP', 'ja'], IT: ['IT', 'it'],
   NL: ['NL', 'nl'], PT: ['PT', 'pt-PT'], ZA: ['ZA', 'en'], KE: ['KE', 'en'], NZ: ['NZ', 'en'],
 };
-export function sectionSearchSource(input: BriefRequest, nativeLanguage?: string): NewsSourceRegistryEntry | undefined {
+export function sectionSearchSource(input: BriefRequest, nativeLanguage?: string, days = 7): NewsSourceRegistryEntry | undefined {
   const country = resolveBriefCountry(input);
-  if (!country || !input.category || input.category === 'front-page') return undefined;
+  if (!country) return undefined;
   const language = briefLanguage(nativeLanguage || input.language);
   const [region, locale] = EDITIONS[country.code] || (language === 'french' ? ['FR', 'fr'] : language === 'spanish' ? ['ES', 'es'] : ['US', 'en']);
-  const query = [briefPlaceQuery(input), briefTopicQuery(input, nativeLanguage), 'when:7d'].filter(Boolean).join(' ');
+  const query = [briefPlaceQuery(input), briefTopicQuery(input, nativeLanguage), `when:${days}d`].filter(Boolean).join(' ');
   const params = new URLSearchParams({ q: query, hl: locale, gl: region, ceid: `${region}:${locale}` });
   return { country_code: 'GLOBAL', country: 'Global', language: language || 'English', feeds: [{
     name: 'Google News', url: `https://news.google.com/rss/search?${params}`, scope: 'global', trusted: false, aggregated: true, includeImages: false,
-  }] };
+  }, ...(days === 7 ? [{
+    name: 'Bing News', url: `https://www.bing.com/news/search?${new URLSearchParams({ q: [quote(input.category === 'local-pulse' && briefCity(input) ? briefCity(input)! : country.name), briefTopicQuery(input, nativeLanguage)].filter(Boolean).join(' '), format: 'rss' })}`,
+    scope: 'global' as const, trusted: false, aggregated: true, includeImages: false,
+  }] : [])] };
 }

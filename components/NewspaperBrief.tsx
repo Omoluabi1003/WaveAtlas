@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Newspaper, Radio, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NewspaperHeadline } from "@/components/NewspaperHeadline";
+import { briefPlaceQuery, briefTopicQuery } from "@/lib/brief-section-routing";
 import type { BriefCategory, Headline } from "@/lib/news-agent";
 import { stationContinent } from "@/lib/discovery/station-picker";
 import { stationGenre } from "@/lib/discovery/history";
@@ -12,7 +13,7 @@ import { flagFor, type Station, type StationInventoryStats } from "@/lib/station
 import { formatEditorialNumber, guardEditorialCopy } from "@/lib/editorial-guardrail";
 import type { WorldContext } from "@/lib/world-engine/types";
 
-const CLIENT_CACHE_KEY = "waveatlas_daily_cache_v4";
+const CLIENT_CACHE_KEY = "waveatlas_daily_cache_v5";
 const CLIENT_CACHE_TTL_MS = 900_000;
 const tabs = ["Front Page", "Local Pulse", "Culture", "Sports", "Radio Signal"] as const;
 const tabCategory = { "Front Page": "front-page", "Local Pulse": "local-pulse", Culture: "culture", Sports: "sports", "Radio Signal": "radio-signal" } as const;
@@ -51,6 +52,26 @@ function writeCache(key: string, headlines: Headline[]) {
   } catch {
     // Daily cache is best-effort and must never interrupt radio playback.
   }
+}
+
+// Available even when every news provider is offline. This is station metadata
+// and a destination research guide, explicitly separate from publisher reports.
+function DestinationGuide({ station, category, sectionLabel }: { station: Station; category: BriefCategory; sectionLabel: string }) {
+  const place = destination(station);
+  const context = { ...place, country_code: station.country_code, language: station.language, category, station_name: station.name };
+  const query = [briefPlaceQuery(context) || place.country, briefTopicQuery(context, station.language)].filter(Boolean).join(" ");
+  const search = `https://news.google.com/search?${new URLSearchParams({ q: query })}`;
+  const profile = `https://en.wikipedia.org/wiki/Special:Search?${new URLSearchParams({ search: place.country })}`;
+  const details = category === "radio-signal"
+    ? `${station.name} is the selected listening station for ${passportPlace(station)}. Its listed sound is ${stationGenre(station)} and its listed language is ${compactLanguageLabel(station.language)}.`
+    : `Your listening destination is ${passportPlace(station)}, through ${station.name}. Explore ${sectionDescription[sectionLabel as keyof typeof sectionDescription].toLowerCase()}`;
+  return <article aria-label={`${sectionLabel} destination guide`} className="rounded-[1.4rem] border border-[#D4A64A]/25 bg-[#2B2031] p-5 sm:p-7 [overflow-wrap:anywhere]">
+    <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#E0C080]">Destination guide · {sectionLabel}</p>
+    <h3 className="mt-3 font-serif text-2xl text-[#F7F5EF]">{passportPlace(station)}</h3>
+    <p className="mt-4 text-sm leading-7 text-[#E2D7E4]">{details}</p>
+    <p className="mt-3 text-xs leading-6 text-[#DCCEDF]">Live reports are currently unavailable for this section. This guide uses the selected station’s listed details.</p>
+    <div className="mt-5 flex flex-wrap gap-3"><a href={search} target="_blank" rel="noopener noreferrer" className="rounded-full border border-[#D4A64A]/40 px-4 py-2 text-xs text-[#E0C080]">Explore {sectionLabel} coverage ↗</a><a href={profile} target="_blank" rel="noopener noreferrer" className="rounded-full border border-[#D4A64A]/40 px-4 py-2 text-xs text-[#E0C080]">Country reference ↗</a></div>
+  </article>;
 }
 
 function compactLanguageLabel(language?: string) {
@@ -151,7 +172,7 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
       setLoading(!cached);
       setError("");
     }, 0);
-    const params = new URLSearchParams({ edition: "geobrief-v2", city: place.city, country: place.country, country_code: station.country_code || "", language: station.language || "", category: tabCategory[tab], station_name: station.name });
+    const params = new URLSearchParams({ edition: "geobrief-v3", city: place.city, country: place.country, country_code: station.country_code || "", language: station.language || "", category: tabCategory[tab], station_name: station.name });
     fetch(`/api/brief?${params}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("WaveAtlas Daily unavailable");
@@ -206,11 +227,11 @@ export function NewspaperBrief({ station, stations = [], inventoryStats, open, o
                 <p className="mb-5 text-xs leading-6 text-[#DCCEDF]">{sectionDescription[tab]}</p>
                 {isLoading ? <p className="rounded-2xl border border-[#D4A64A]/20 bg-[#2B2031] p-5 text-sm leading-6 text-[#E2D7E4]">Curating this edition without interrupting playback…</p> : null}
                 {currentError ? <p className="mb-4 rounded-2xl border border-[#D4A64A]/35 bg-[#382539] p-5 text-sm leading-6 text-[#F7F5EF]">{currentError}</p> : null}
-                {!isLoading && !currentError && !currentHeadlines.length ? <p className="rounded-2xl border border-[#D4A64A]/20 bg-[#2B2031] p-5 text-sm leading-6 text-[#E2D7E4]">No verified {tab.toLowerCase()} stories are available for this destination right now. WaveAtlas will not substitute unrelated headlines.</p> : null}
+                {!isLoading && !currentHeadlines.length ? <DestinationGuide station={station} category={tabCategory[tab]} sectionLabel={tab} /> : null}
                 <div className="grid max-w-full grid-cols-1 gap-5 md:grid-cols-2">{currentHeadlines.map((headline, index) => <NewspaperHeadline key={`${headline.title}-${headline.url}`} headline={headline} lead={index === 0} sectionLabel={tab} />)}</div>
               </section>
               <DailyPassportStrip station={station} stations={stations} inventoryStats={inventoryStats} enabled={open} />
-              <footer className="mt-8 border-t border-[#D4A64A]/25 pb-[max(16px,env(safe-area-inset-bottom))] pt-5 text-xs leading-6 text-[#DCCEDF] [overflow-wrap:anywhere]"><div className="grid gap-3 sm:grid-cols-3"><span><b className="font-medium text-[#E0C080]">Listening to</b><br />{station.name}</span><span><b className="font-medium text-[#E0C080]">Sound &amp; place</b><br />{genre} · {place.city}, {place.country}</span><span><b className="font-medium text-[#E0C080]">Local time</b><br />{localTime}</span></div><p className="mt-5 border-t border-[#D4A64A]/15 pt-4 text-[10px] leading-5"><Newspaper className="mr-2 inline size-3 text-[#E0C080]" />Publisher RSS, Google News RSS and GDELT. Summaries and links only; full articles remain with publishers.</p></footer>
+              <footer className="mt-8 border-t border-[#D4A64A]/25 pb-[max(16px,env(safe-area-inset-bottom))] pt-5 text-xs leading-6 text-[#DCCEDF] [overflow-wrap:anywhere]"><div className="grid gap-3 sm:grid-cols-3"><span><b className="font-medium text-[#E0C080]">Listening to</b><br />{station.name}</span><span><b className="font-medium text-[#E0C080]">Sound &amp; place</b><br />{genre} · {place.city}, {place.country}</span><span><b className="font-medium text-[#E0C080]">Local time</b><br />{localTime}</span></div><p className="mt-5 border-t border-[#D4A64A]/15 pt-4 text-[10px] leading-5"><Newspaper className="mr-2 inline size-3 text-[#E0C080]" />Publisher RSS, Google News RSS, Bing News RSS and GDELT. Summaries and links only; full articles remain with publishers.</p></footer>
             </div>
           </motion.section>
         </motion.div>

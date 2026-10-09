@@ -28,7 +28,7 @@ assert.equal(headlineMatchesBrief(article('München beschließt einen Haushalt')
 assert(briefPlaceQuery({ ...munich, category: 'local-pulse' }).includes('München'));
 assert.equal(briefTopicQuery({ ...munich, category: 'local-pulse' }), '');
 assert(briefTopicQuery({ ...munich, category: 'sports' }).includes('Fußball'));
-assert.equal(sectionSearchSource({ ...munich, category: 'front-page' }), undefined);
+assert(sectionSearchSource({ ...munich, category: 'front-page' }), 'Front Page must have the universal fallback');
 
 async function main() {
   const originalFetch = global.fetch;

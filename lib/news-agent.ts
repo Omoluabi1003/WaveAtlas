@@ -46,9 +46,21 @@ function tagValue(item: string, tag: string) {
 }
 function rssTitle(item: string, aggregated?: boolean) {
   const title = tagValue(item, 'title');
-  const publisher = aggregated ? tagValue(item, 'source') : '';
+  const publisher = aggregated ? tagValue(item, 'source') || tagValue(item, 'News:Source') : '';
   const suffix = ` - ${publisher}`;
   return publisher && title.endsWith(suffix) ? title.slice(0, -suffix.length) : title;
+}
+
+function rssLink(item: string) {
+  const value = tagValue(item, 'link') || (item.match(/<link[^>]+href=["']([^"']+)/i)?.[1] ?? '');
+  try {
+    const url = new URL(value);
+    if (['www.bing.com', 'bing.com'].includes(url.hostname) && url.pathname === '/news/apiclick.aspx') {
+      const publisher = url.searchParams.get('url');
+      if (publisher && new URL(publisher).protocol === 'https:') return publisher;
+    }
+  } catch { return ''; }
+  return value;
 }
 
 async function fetchSource(entry: NewsSourceRegistryEntry, context: BriefRequest): Promise<ScoredHeadline[]> {
@@ -56,12 +68,12 @@ async function fetchSource(entry: NewsSourceRegistryEntry, context: BriefRequest
   const feeds = entry.feeds.filter((feed) => !feed.categories?.length || feed.categories.includes(category) || (category === 'front-page' && feed.categories.includes('local-pulse')));
   const batches = await Promise.all(feeds.map(async (feed): Promise<ScoredHeadline[]> => {
     try {
-      const res = await fetch(feed.url, { signal: AbortSignal.timeout(feed.scope === 'global' ? 6000 : 10000), next: { revalidate: 900 }, headers: { 'User-Agent': 'WaveAtlasBrief/1.0' } });
+      const res = await fetch(feed.url, { signal: AbortSignal.timeout(feed.scope === 'global' && !feed.aggregated ? 6000 : 10000), next: { revalidate: 60 }, headers: { 'User-Agent': 'WaveAtlasBrief/1.0' } });
       if (!res.ok) return [];
       const items = (await res.text()).match(/<item[\s\S]*?<\/item>|<entry[\s\S]*?<\/entry>/gi) || [];
       return items.map((item) => ({
-        title: rssTitle(item, feed.aggregated), source: feed.aggregated ? tagValue(item, 'source') || feed.name : feed.name,
-        url: tagValue(item, 'link') || (item.match(/<link[^>]+href=["']([^"']+)/i)?.[1] ?? ''),
+        title: rssTitle(item, feed.aggregated), source: feed.aggregated ? tagValue(item, 'source') || tagValue(item, 'News:Source') || feed.name : feed.name,
+        url: rssLink(item),
         summary: tagValue(item, 'description') || tagValue(item, 'summary'),
         imageUrl: feed.includeImages === false ? undefined : rssEditorialImage(item),
         publishedAt: tagValue(item, 'pubDate') || tagValue(item, 'published') || tagValue(item, 'updated'),
@@ -72,7 +84,7 @@ async function fetchSource(entry: NewsSourceRegistryEntry, context: BriefRequest
         score: (feed.trusted ? 18 : 0) + (feed.scope === 'city' ? 60 : feed.scope === 'country' ? 35 : 6),
         scope: feed.scope,
         evidence: { domesticCountryCode: feed.domestic ? entry.country_code : undefined, feedCity: entry.city, topics: feed.trusted ? feed.categories : undefined },
-      })).filter((headline) => headline.title && /^https?:\/\//i.test(headline.url));
+      })).filter((headline) => headline.title && /^https?:\/\//i.test(headline.url) && (!feed.aggregated || !Number.isFinite(Date.parse(headline.publishedAt)) || Date.now() - Date.parse(headline.publishedAt) <= 90 * 86_400_000));
     } catch { return []; }
   }));
   return batches.flat();
@@ -85,7 +97,7 @@ function gdeltDate(value?: string) {
 async function fetchGdelt(query: string, context: BriefRequest, score: number): Promise<ScoredHeadline[]> {
   try {
     const params = new URLSearchParams({ query, mode: 'ArtList', format: 'json', maxrecords: '30', sort: 'HybridRel', timespan: '3d' });
-    const res = await fetch(`${GDELT_ENDPOINT}?${params}`, { signal: AbortSignal.timeout(6000), next: { revalidate: 900 } });
+    const res = await fetch(`${GDELT_ENDPOINT}?${params}`, { signal: AbortSignal.timeout(6000), next: { revalidate: 60 } });
     if (!res.ok) return [];
     const data = (await res.json()) as { articles?: { title?: string; url?: string; sourcecountry?: string; sourceCountry?: string; language?: string; domain?: string; seendate?: string; socialimage?: string }[] };
     if (!Array.isArray(data.articles)) return [];
@@ -164,8 +176,20 @@ export async function getBriefHeadlines(input: BriefRequest): Promise<Headline[]
     Promise.all([...sources.citySources, ...sources.countrySources, ...sources.globalSources, ...(searchSource ? [searchSource] : [])].map((entry) => fetchSource(entry, context))).then((items) => items.flat()),
     Promise.all(gdeltRequests).then((items) => items.flat()),
   ]);
-  const value = rankAndDedupe([...rss, ...gdelt], context);
-  for (const [cacheId, entry] of briefCache) if (entry.expires <= Date.now()) briefCache.delete(cacheId);
+  const candidates = [...rss, ...gdelt];
+  let value = rankAndDedupe(candidates, context);
+  // Sparse destinations often have no reports in the past week. Widen time,
+  // preserving topic/location checks and the publisher's actual publication date.
+  for (const days of [30, 90]) {
+    if (value.length >= (context.category === 'front-page' ? 3 : 1)) break;
+    const fallback = sectionSearchSource(context, nativeLanguage, days);
+    if (fallback) candidates.push(...await fetchSource(fallback, context));
+    value = rankAndDedupe(candidates, context);
+  }
+  // Keep a previously verified edition through a temporary upstream outage.
+  // Its timestamps remain visible; never renew retention by serving it again.
+  if (!value.length && hit && hit.expires + 86_400_000 > Date.now() && hit.value.length) return hit.value;
+  for (const [cacheId, entry] of briefCache) if (entry.expires + 86_400_000 <= Date.now()) briefCache.delete(cacheId);
   if (briefCache.size >= MAX_CACHE_ENTRIES) briefCache.delete(briefCache.keys().next().value!);
   briefCache.set(key, { value, expires: Date.now() + (value.length ? CACHE_TTL_MS : EMPTY_CACHE_TTL_MS) });
   return value;
