@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import { briefPlaceQuery, briefTopicQuery } from '../lib/brief-section-routing';
 
 // Exercise the real component's hooks and handlers without a browser or a new dependency.
 const require = createRequire(import.meta.url);
@@ -26,6 +27,7 @@ storage.set('waveatlas_daily_cache_v3', JSON.stringify({ 'ibadan|nigeria|ng|prem
 const requests: Array<{ category: string; stationName: string; edition: string; resolve: (response: Response) => void; reject: (error: Error) => void }> = [];
 const modules: Record<string, unknown> = {
   react: hooks,
+  '@/lib/brief-section-routing': { briefPlaceQuery, briefTopicQuery },
   'framer-motion': { AnimatePresence: 'presence', motion: { div: 'div', section: 'section' } },
   'lucide-react': { Newspaper: 'icon', Radio: 'icon', X: 'icon' },
   '@/components/NewspaperHeadline': { NewspaperHeadline: 'test-headline' },
@@ -58,7 +60,7 @@ function respond(request: typeof requests[number], category: string, title: stri
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 async function main() {
-  let tree = render(); flushEffects(); tree = render(); assert.deepEqual(titles(tree), []); assert.equal(requests[0].edition, 'geobrief-v2'); respond(requests[0], 'front-page', 'Front Page fixture'); await settle(); tree = render();
+  let tree = render(); flushEffects(); tree = render(); assert.deepEqual(titles(tree), []); assert.equal(requests[0].edition, 'geobrief-v3'); respond(requests[0], 'front-page', 'Front Page fixture'); await settle(); tree = render();
   assert.deepEqual(titles(tree), ['Front Page fixture']);
   click(tree, 'Sports'); tree = render(); assert.deepEqual(titles(tree), []); flushEffects();
   const sports = requests.at(-1)!;
@@ -74,7 +76,23 @@ async function main() {
   click(tree, 'Sports'); tree = render(); assert.deepEqual(titles(tree), []); flushEffects(); assert.equal(requests.at(-1)!.category, 'sports'); respond(requests.at(-1)!, 'sports', 'Sports fixture'); await settle(); tree = render(); assert.deepEqual(titles(tree), ['Sports fixture']);
   station = { ...station, id: 'other', station_uuid: 'other', name: 'Other FM' }; tree = render(); assert.deepEqual(titles(tree), []); flushEffects();
   assert.equal(requests.at(-1)!.stationName, 'Other FM');
-  assert(storage.has('waveatlas_daily_cache_v4'));
+  assert(storage.has('waveatlas_daily_cache_v5'));
+  click(tree, 'Front Page'); tree = render(); flushEffects();
+  requests.at(-1)!.resolve(new Response(JSON.stringify({ category: 'front-page', headlines: [] })));
+  await settle(); tree = render();
+  const emptyGuide = nodes(tree).find((node) => typeof node.type === 'function' && (node.type as Function).name === 'DestinationGuide');
+  assert(emptyGuide, 'Empty news still displays the destination guide');
+  assert.equal(emptyGuide.props!.station, station);
+  assert.equal(emptyGuide.props!.category, 'front-page');
+  const guideTree = (emptyGuide.type as (props: Record<string, unknown>) => unknown)(emptyGuide.props!);
+  assert(nodes(guideTree).some((node) => node.props?.['aria-label'] === 'Front Page destination guide'));
+  const guideLinks = nodes(guideTree).filter((node) => node.type === 'a').map((node) => String(node.props!.href));
+  assert.equal(guideLinks.length, 2);
+  assert(new URL(guideLinks[0]).searchParams.get('q')!.includes('Nigeria'));
+  assert(new URL(guideLinks[1]).searchParams.get('search') === 'Nigeria');
+  station = { ...station, id: 'outage', station_uuid: 'outage' }; tree = render(); flushEffects();
+  requests.at(-1)!.reject(new Error('All providers unavailable')); await settle(); tree = render();
+  assert(nodes(tree).some((node) => typeof node.type === 'function' && (node.type as Function).name === 'DestinationGuide'), 'Request failures also display the guide');
   console.log('Brief tabs: immediate stale-content clearing, rapid-switch races, provider failures, wrong-category rejection, cache versioning, and station isolation passed');
 }
 main().catch((error) => { console.error(error); process.exit(1); });

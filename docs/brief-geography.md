@@ -89,3 +89,11 @@ Brazil while GDELT and all publisher feeds fail.
 Feed directories:
 https://www.sueddeutsche.de/updates-rss
 https://www.br.de/service/br-rss-feeds-100.html
+
+## Coverage for sparse destinations
+
+Front Page now uses Google News and independent Bing News search RSS fallbacks for every registered country and territory, even without a domestic publisher in the registry. Sparse editions expand their searches from 7 to 30 and 90 days, preserving publication dates and the same geographic/topic filters. Front Page attempts to collect at least three reports; specialist sections widen only when empty. Provider fetch caches refresh after 60 seconds, preventing a cached empty RSS response from blocking recovery for 15 minutes. A previously verified server edition can survive a provider outage for up to 24 hours after its initial expiry, without renewing its retention.
+
+When no reports can be verified, or the API fails, the client displays a clearly labelled destination guide using the selected station's listed location, genre and language, with destination/topic search and country-reference links. It never presents this guide as breaking news or a publisher article. Live news cannot be guaranteed for every territory or during simultaneous provider outages; useful destination content remains visible in those cases.
+
+Bing publisher names are read from its namespaced source element. Valid HTTPS publisher URLs are extracted from Bing redirect links. Aggregated reports dated more than 90 days ago are excluded. Bing is queried once alongside the initial searches; subsequent time-window expansions use Google.
