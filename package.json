@@ -19,6 +19,8 @@
     "test:station-links": "npx tsx tests/station-deep-link.regression.ts",
     "radio:health": "npx tsx scripts/check-station-health.ts",
     "test:agents": "npx tsx tests/background-agents.regression.ts",
+    "test:journey": "node --import tsx tests/atlas-journey.regression.ts",
+    "test:journey:browser": "node tests/atlas-journey.browser.mjs",
     "test:brief": "node --import tsx tests/editorial-image.regression.ts && node --import tsx tests/brief-editorial.regression.ts && node --import tsx tests/brief-geography.regression.ts && node --import tsx tests/brief-sections.regression.ts && node --import tsx tests/brief-country-coverage.regression.ts && node --import tsx tests/brief-tabs.regression.ts",
     "agents:operate": "npx tsx scripts/run-operational-agents.ts",
     "test:operations": "npx tsx tests/operational-agents.regression.ts",
