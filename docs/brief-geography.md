@@ -22,7 +22,8 @@ and language remain separate cache inputs.
   the headline; a passing reference in a summary is insufficient.
 - Country names in multiple scripts, selected national demonyms/localities, and
   multilingual topic terms improve destination and section matching. Local Pulse
-  still requires the selected city when one is available.
+  requires a selected-city match, including native city aliases, or a verified
+  dedicated feed for that city. A local headline need not contain a civic keyword.
 - Front Page targets three domestic stories, local coverage when available, and one
   relevant international story. Available relevant stories fill remaining slots.
   Publisher diversity is preferred. Normalized duplicate titles and canonical URLs
@@ -32,8 +33,9 @@ and language remain separate cache inputs.
 
 Populated editions cache for 15 minutes. Empty editions cache for one minute,
 including the API's shared cache, so recovered providers are retried promptly.
-The in-process cache is bounded to 300 editions. Client cache version 3 and the
-`geobrief-v1` request version avoid reusing pre-change global editions.
+The in-process cache is bounded to 300 editions. Client cache version 4 and the
+`geobrief-v2` request version avoid reusing editions fetched before section routing.
+Empty client cache entries also expire after one minute.
 
 All providers use bounded timeouts and fail independently. GDELT needs no API key.
 Countries with sparse coverage, blocked feeds, or provider outages can have fewer
@@ -53,3 +55,37 @@ world-summary leakage, normalized cache reuse, failures, and empty-cache recover
 Provider documentation:
 https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
 https://data.gdeltproject.org/api/v2/guides/LOOKUP-COUNTRIES.TXT
+
+## Section routing
+
+Local Pulse collects city news and community life. Culture collects arts, music,
+film, festivals, and cultural activity. Sports collects teams, competitions, and
+sporting developments. Radio Signal collects stations, broadcasting, podcasts,
+and radio industry developments. A city story may legitimately appear in Local
+Pulse and its specialist section; sections are filtered independently rather
+than copying Front Page.
+
+The registry supports category-specific feeds. A curated publisher's section
+metadata can establish the topic, including headlines that do not repeat a topic
+keyword; it does not establish the destination. Feeds assigned to one specialist
+section are not requested for another. Munich uses its dedicated city feed,
+German category feeds, native spelling aliases, and German topic recognition.
+Publisher images are disabled on the added SZ feeds.
+
+Specialist sections also query Google News RSS using the destination, native city
+spellings, English/native topic terms, and a seven-day window. Every result is
+filtered again; a search query does not constitute geographic or topic evidence.
+The original publisher name is retained separately from the title. This keyless
+fallback works independently of GDELT and applies to destinations without a
+curated city/category source. Unsupported local Google editions use a supported
+language edition, with relevance still controlled by the explicit query and
+response filtering. Provider availability remains variable.
+
+The section regression verifies four distinct populated Munich sections, native
+city aliases, German topics, dedicated-topic provenance, category source isolation,
+and independently filtered fallback sections for Canada, Republic of Congo, and
+Brazil while GDELT and all publisher feeds fail.
+
+Feed directories:
+https://www.sueddeutsche.de/updates-rss
+https://www.br.de/service/br-rss-feeds-100.html

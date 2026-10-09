@@ -22,7 +22,8 @@ const hooks = {
   },
 };
 const storage = new Map([['waveatlas_daily_cache_v2', JSON.stringify({ stale: 'Previous global Front Page must not be reused' })], ['waveatlas_daily_cache', JSON.stringify({ stale: 'Legacy category cache must not be reused' })]]);
-const requests: Array<{ category: string; stationName: string; resolve: (response: Response) => void; reject: (error: Error) => void }> = [];
+storage.set('waveatlas_daily_cache_v3', JSON.stringify({ 'ibadan|nigeria|ng|premier|premier fm|english|front-page': { expires: Date.now() + 900_000, headlines: [{ title: 'Old country-only cache', source: 'Publisher', url: 'https://publisher.example/stale' }] } }));
+const requests: Array<{ category: string; stationName: string; edition: string; resolve: (response: Response) => void; reject: (error: Error) => void }> = [];
 const modules: Record<string, unknown> = {
   react: hooks,
   'framer-motion': { AnimatePresence: 'presence', motion: { div: 'div', section: 'section' } },
@@ -38,7 +39,7 @@ runInNewContext(code, {
   module: componentModule, exports: componentModule.exports, require: (name: string) => modules[name] ?? (name.startsWith('@/') ? {} : require(name)),
   Date, Intl, AbortController, DOMException, URLSearchParams,
   window: { setTimeout: (fn: () => void) => { timers.push(fn); }, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: (key: string) => storage.get(key), setItem: (key: string, value: string) => storage.set(key, value) } },
-  fetch: (url: string) => new Promise<Response>((resolve, reject) => { const query = new URL(url, 'https://example.com').searchParams; requests.push({ category: query.get('category')!, stationName: query.get('station_name')!, resolve, reject }); }),
+  fetch: (url: string) => new Promise<Response>((resolve, reject) => { const query = new URL(url, 'https://example.com').searchParams; requests.push({ category: query.get('category')!, stationName: query.get('station_name')!, edition: query.get('edition')!, resolve, reject }); }),
 });
 const Component = componentModule.exports.NewspaperBrief as (props: Record<string, unknown>) => unknown;
 let station = { id: 'premier', station_uuid: 'premier', name: 'Premier FM', city: 'Ibadan', country: 'Nigeria', country_code: 'NG', language: 'English' };
@@ -57,7 +58,7 @@ function respond(request: typeof requests[number], category: string, title: stri
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 async function main() {
-  let tree = render(); flushEffects(); respond(requests[0], 'front-page', 'Front Page fixture'); await settle(); tree = render();
+  let tree = render(); flushEffects(); tree = render(); assert.deepEqual(titles(tree), []); assert.equal(requests[0].edition, 'geobrief-v2'); respond(requests[0], 'front-page', 'Front Page fixture'); await settle(); tree = render();
   assert.deepEqual(titles(tree), ['Front Page fixture']);
   click(tree, 'Sports'); tree = render(); assert.deepEqual(titles(tree), []); flushEffects();
   const sports = requests.at(-1)!;
@@ -69,9 +70,11 @@ async function main() {
   requests.at(-1)!.reject(new Error('Network unavailable')); await settle(); tree = render(); assert.deepEqual(titles(tree), []);
   click(tree, 'Sports'); tree = render(); flushEffects(); respond(requests.at(-1)!, 'front-page', 'Wrong Category fixture'); await settle(); tree = render(); assert.deepEqual(titles(tree), []);
   click(tree, 'Radio Signal'); tree = render(); flushEffects(); respond(requests.at(-1)!, 'radio-signal', 'Premier radio fixture'); await settle(); tree = render(); assert.deepEqual(titles(tree), ['Premier radio fixture']);
+  click(tree, 'Local Pulse'); tree = render(); assert.deepEqual(titles(tree), []); flushEffects(); assert.equal(requests.at(-1)!.category, 'local-pulse'); respond(requests.at(-1)!, 'local-pulse', 'City news fixture'); await settle(); tree = render(); assert.deepEqual(titles(tree), ['City news fixture']);
+  click(tree, 'Sports'); tree = render(); assert.deepEqual(titles(tree), []); flushEffects(); assert.equal(requests.at(-1)!.category, 'sports'); respond(requests.at(-1)!, 'sports', 'Sports fixture'); await settle(); tree = render(); assert.deepEqual(titles(tree), ['Sports fixture']);
   station = { ...station, id: 'other', station_uuid: 'other', name: 'Other FM' }; tree = render(); assert.deepEqual(titles(tree), []); flushEffects();
   assert.equal(requests.at(-1)!.stationName, 'Other FM');
-  assert(storage.has('waveatlas_daily_cache_v3'));
+  assert(storage.has('waveatlas_daily_cache_v4'));
   console.log('Brief tabs: immediate stale-content clearing, rapid-switch races, provider failures, wrong-category rejection, cache versioning, and station isolation passed');
 }
 main().catch((error) => { console.error(error); process.exit(1); });
