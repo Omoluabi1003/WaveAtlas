@@ -1,5 +1,596 @@
 {
-  "generatedAt": null,
+  "generatedAt": "2026-10-10T20:19:54.748Z",
   "cursor": 0,
-  "records": {}
+  "records": {
+    "http://antbiome-jhb-01.radio.co.za:80/MetroFM": {
+      "stationId": "ariyo-ai-metro-fm-johannesburg",
+      "url": "http://antbiome-jhb-01.radio.co.za:80/MetroFM",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 87
+    },
+    "http://antbiome-jhb-01.radio.co.za:80/5FM": {
+      "stationId": "ariyo-ai-5fm-johannesburg",
+      "url": "http://antbiome-jhb-01.radio.co.za:80/5FM",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 91
+    },
+    "http://coolfm.abuja.stream.cdnstream1.com/coolfm_abuja": {
+      "stationId": "ariyo-ai-cool-fm-abuja",
+      "url": "http://coolfm.abuja.stream.cdnstream1.com/coolfm_abuja",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 175
+    },
+    "http://cbc_r1_tor.akacast.akamaistream.net/7/364/451661/v1/rc.akacast.akamaistream.net/cbc_r1_tor": {
+      "stationId": "ariyo-ai-cbc-radio-one-toronto",
+      "url": "http://cbc_r1_tor.akacast.akamaistream.net/7/364/451661/v1/rc.akacast.akamaistream.net/cbc_r1_tor",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 178
+    },
+    "http://as-hls-uk-live.akamaized.net/pool_904/live/uk/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio=320000.m3u8": {
+      "stationId": "ariyo-ai-bbc-radio-1-london",
+      "url": "http://as-hls-uk-live.akamaized.net/pool_904/live/uk/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio=320000.m3u8",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-410",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 200
+    },
+    "https://ais.streamonkey.net/coolfm_lagos-mp3": {
+      "stationId": "ariyo-ai-cool-fm-96-9-lagos",
+      "url": "https://ais.streamonkey.net/coolfm_lagos-mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 273
+    },
+    "https://centova57.instainternet.com/proxy/amuludun?mp=/stream": {
+      "stationId": "ariyo-ai-amuludun-991-ibadan",
+      "url": "https://centova57.instainternet.com/proxy/amuludun?mp=/stream",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 701
+    },
+    "https://centova57.instainternet.com/proxy/gold?mp=/stream": {
+      "stationId": "ariyo-ai-gold-955-ilesa",
+      "url": "https://centova57.instainternet.com/proxy/gold?mp=/stream",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 632
+    },
+    "https://centova57.instainternet.com/proxy/premier?mp=/stream": {
+      "stationId": "ariyo-ai-premier-935-fm-ibadan",
+      "url": "https://centova57.instainternet.com/proxy/premier?mp=/stream",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 669
+    },
+    "https://agidigbostream.com.ng/radio/8000/radio.mp3": {
+      "stationId": "ariyo-ai-agidigbo-887-fm-ibadan",
+      "url": "https://agidigbostream.com.ng/radio/8000/radio.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 1369,
+      "responseTimeMs": 895
+    },
+    "https://live-radio01.mediahubaustralia.com/2LRW/mp3/": {
+      "stationId": "abc-radio-sydney",
+      "url": "https://live-radio01.mediahubaustralia.com/2LRW/mp3/",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 108
+    },
+    "https://city1051.radio12345.com/stream": {
+      "stationId": "ariyo-ai-city-fm-105-1-lagos",
+      "url": "https://city1051.radio12345.com/stream",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 816
+    },
+    "https://nprice.streamguys1.com/live.mp3": {
+      "stationId": "ariyo-ai-npr-news-washington-dc",
+      "url": "https://nprice.streamguys1.com/live.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 294
+    },
+    "https://playerservices.streamtheworld.com/api/livestream-redirect/TOKYOFM.mp3": {
+      "stationId": "tokyo-fm",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/TOKYOFM.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 362
+    },
+    "https://icecast.radiofrance.fr/fip-midfi.mp3": {
+      "stationId": "fip-paris",
+      "url": "https://icecast.radiofrance.fr/fip-midfi.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 737
+    },
+    "https://ice3.securenetsystems.net/BRILAFM": {
+      "stationId": "ariyo-ai-brila-fm-88-9-lagos",
+      "url": "https://ice3.securenetsystems.net/BRILAFM",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 1292
+    },
+    "https://icecast.radiofrance.fr/franceinfo-midfi.mp3": {
+      "stationId": "france-info",
+      "url": "https://icecast.radiofrance.fr/franceinfo-midfi.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 979
+    },
+    "https://stream.coolwazobiainfo.com/coolfm-lagos": {
+      "stationId": "cool-fm-lagos",
+      "url": "https://stream.coolwazobiainfo.com/coolfm-lagos",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 62
+    },
+    "https://stream.coolwazobiainfo.com/wazobia-lagos": {
+      "stationId": "wazobia-fm-lagos",
+      "url": "https://stream.coolwazobiainfo.com/wazobia-lagos",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 34
+    },
+    "https://radiok.broadcasttool.stream/stream": {
+      "stationId": "campus-atlas-radio-k",
+      "url": "https://radiok.broadcasttool.stream/stream",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 420
+    },
+    "https://playerservices.streamtheworld.com/api/livestream-redirect/WRASFM.mp3": {
+      "stationId": "campus-atlas-wras-album-88",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WRASFM.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 952
+    },
+    "https://stream.klsuradio.fm/listen": {
+      "stationId": "campus-atlas-klsu",
+      "url": "https://stream.klsuradio.fm/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 475
+    },
+    "https://npr-ice.streamguys1.com/live.mp3": {
+      "stationId": "npr-news",
+      "url": "https://npr-ice.streamguys1.com/live.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 1552
+    },
+    "https://stream.kalx.berkeley.edu:8443/kalx-128.mp3": {
+      "stationId": "campus-atlas-kalx-berkeley",
+      "url": "https://stream.kalx.berkeley.edu:8443/kalx-128.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 1400,
+      "responseTimeMs": 575
+    },
+    "https://stream.kwva.uoregon.edu/listen.mp3": {
+      "stationId": "campus-atlas-kwva",
+      "url": "https://stream.kwva.uoregon.edu/listen.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 133
+    },
+    "https://playerservices.streamtheworld.com/api/livestream-redirect/WERSFM.mp3": {
+      "stationId": "campus-atlas-wers",
+      "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WERSFM.mp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 1541
+    },
+    "https://stream.radio.co/s117769268/listen": {
+      "stationId": "ariyo-ai-top-radio-90-9-lagos",
+      "url": "https://stream.radio.co/s117769268/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 885
+    },
+    "https://stream.radio.co/s191a34ec1/listen": {
+      "stationId": "ariyo-ai-splash-fm-105-5-ibadan",
+      "url": "https://stream.radio.co/s191a34ec1/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 876
+    },
+    "https://stream.radio.co/s1bce13736/listen": {
+      "stationId": "ariyo-ai-raypower-100-5-fm-lagos",
+      "url": "https://stream.radio.co/s1bce13736/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 870
+    },
+    "https://stream.radio.co/s21132626e/listen": {
+      "stationId": "ariyo-ai-soundcity-98-5-lagos",
+      "url": "https://stream.radio.co/s21132626e/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 858
+    },
+    "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service": {
+      "stationId": "bbc-world-service",
+      "url": "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 2800,
+      "responseTimeMs": 1495
+    },
+    "https://stream.radio.co/s325f19c96/listen": {
+      "stationId": "ariyo-ai-inspiration-fm-92-3-lagos",
+      "url": "https://stream.radio.co/s325f19c96/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 688
+    },
+    "https://stream.radio.co/s3c462acf3/listen": {
+      "stationId": "ariyo-ai-fresh-fm-105-9-ibadan",
+      "url": "https://stream.radio.co/s3c462acf3/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 859
+    },
+    "https://stream.radio.co/s4c93f0b24/listen": {
+      "stationId": "ariyo-ai-wazobia-fm-95-1-lagos",
+      "url": "https://stream.radio.co/s4c93f0b24/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 859
+    },
+    "https://stream.radio.co/s5145b2311/listen": {
+      "stationId": "ariyo-ai-classic-fm-97-3-lagos",
+      "url": "https://stream.radio.co/s5145b2311/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 895
+    },
+    "https://stream.radio.co/s5f042e61a/listen": {
+      "stationId": "ariyo-ai-beat-fm-99-9-lagos",
+      "url": "https://stream.radio.co/s5f042e61a/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 833
+    },
+    "https://stream.radio.co/s61726bb1d/listen": {
+      "stationId": "ariyo-ai-rhythm-fm-93-7-lagos",
+      "url": "https://stream.radio.co/s61726bb1d/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 771
+    },
+    "https://stream.radio.co/s627197125/listen": {
+      "stationId": "ariyo-ai-traffic-radio-96-1-fm-lagos",
+      "url": "https://stream.radio.co/s627197125/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 690
+    },
+    "https://stream.radio.co/s653c30953/listen": {
+      "stationId": "ariyo-ai-bond-fm-92-9-lagos",
+      "url": "https://stream.radio.co/s653c30953/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 784
+    },
+    "https://stream.radio.co/s698d28713/listen": {
+      "stationId": "ariyo-ai-urban-96-fm-lagos",
+      "url": "https://stream.radio.co/s698d28713/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 690
+    },
+    "https://stream.radio.co/s6a9924515/listen": {
+      "stationId": "ariyo-ai-faaji-fm-106-5-lagos",
+      "url": "https://stream.radio.co/s6a9924515/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 688
+    },
+    "https://stream.wfuv.org/wfuvmp3": {
+      "stationId": "campus-atlas-wfuv",
+      "url": "https://stream.wfuv.org/wfuvmp3",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 120
+    },
+    "https://stream.radio.co/s769b7f516/listen": {
+      "stationId": "ariyo-ai-eko-fm-89-7-lagos",
+      "url": "https://stream.radio.co/s769b7f516/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 803
+    },
+    "https://stream.wptsradio.org/wpts": {
+      "stationId": "campus-atlas-wpts",
+      "url": "https://stream.wptsradio.org/wpts",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 41
+    },
+    "https://stream.radio.co/s78174f857/listen": {
+      "stationId": "ariyo-ai-freedom-fm-99-5-lagos",
+      "url": "https://stream.radio.co/s78174f857/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 735
+    },
+    "https://stream.radio.co/s7d3a04a37/listen": {
+      "stationId": "ariyo-ai-smooth-98-1-fm-lagos",
+      "url": "https://stream.radio.co/s7d3a04a37/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 783
+    },
+    "https://stream.wsum.wisc.edu/wsum128": {
+      "stationId": "campus-atlas-wsum",
+      "url": "https://stream.wsum.wisc.edu/wsum128",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 171
+    },
+    "https://stream.wruv.org/wruv_fm_256": {
+      "stationId": "campus-atlas-wruv",
+      "url": "https://stream.wruv.org/wruv_fm_256",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "network-or-invalid-url",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 194
+    },
+    "https://stream.radio.co/s87779d714/listen": {
+      "stationId": "ariyo-ai-nigeria-info-fm-99-3-lagos",
+      "url": "https://stream.radio.co/s87779d714/listen",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-403",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 715
+    },
+    "https://stream.zeno.fm/8v8nq5v8m0quv": {
+      "stationId": "ariyo-ai-joy-fm-accra",
+      "url": "https://stream.zeno.fm/8v8nq5v8m0quv",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 408
+    },
+    "https://streaming.live365.com/a06530": {
+      "stationId": "campus-atlas-wiux",
+      "url": "https://streaming.live365.com/a06530",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 173
+    },
+    "https://stream.zeno.fm/arisenews": {
+      "stationId": "arise-news-radio",
+      "url": "https://stream.zeno.fm/arisenews",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 440
+    },
+    "https://stream.zeno.fm/mangoradio": {
+      "stationId": "mangoradio",
+      "url": "https://stream.zeno.fm/mangoradio",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 435
+    },
+    "https://streaming.live365.com/a74426": {
+      "stationId": "campus-atlas-kcou",
+      "url": "https://streaming.live365.com/a74426",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 89
+    },
+    "https://stream2.rcast.net/69640/": {
+      "stationId": "ariyo-ai-jay-1019-fm-jos",
+      "url": "https://stream2.rcast.net/69640/",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 239,
+      "responseTimeMs": 524
+    },
+    "https://streaming.live365.com/a45877": {
+      "stationId": "campus-atlas-kvrx",
+      "url": "https://streaming.live365.com/a45877",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 292
+    },
+    "https://woub.streamguys1.com/live": {
+      "stationId": "campus-atlas-woub",
+      "url": "https://woub.streamguys1.com/live",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 774
+    },
+    "https://wazobiafm.com/lagos.m3u": {
+      "stationId": "ariyo-ai-wazobia-fm-lagos",
+      "url": "https://wazobiafm.com/lagos.m3u",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "http-404",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 1833
+    },
+    "https://stream.capitalfm.co.ke/capitalfm": {
+      "stationId": "ariyo-ai-capital-fm-nairobi",
+      "url": "https://stream.capitalfm.co.ke/capitalfm",
+      "checkedAt": "2026-10-10T20:19:54.748Z",
+      "status": "degraded",
+      "reason": "timeout",
+      "consecutiveFailures": 1,
+      "bytesSampled": 0,
+      "responseTimeMs": 8003
+    }
+  }
 }
