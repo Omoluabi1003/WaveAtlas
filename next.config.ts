@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  htmlLimitedBots: /.*/,
+  outputFileTracingIncludes: { "/station/*/opengraph-image": ["./assets/social-fonts/*", "./public/flags/*", "./public/brand/waveatlas-atlas-compass.svg"] },
   experimental: { optimizePackageImports: ["lucide-react"] },
   images: {
     remotePatterns: [

@@ -14,7 +14,7 @@ async function main() {
   assert.equal(stationLocation(premier), "Ibadan, Oyo, Nigeria");
   assert.deepEqual(stationSharePayload(premier, "https://waveatlas.example/"), {
     title: "Premier FM 93.5 Ibadan | WaveAtlas",
-    text: "Listen to Premier FM 93.5 Ibadan on WaveAtlas.",
+    text: `Listen to Premier FM 93.5 Ibadan on WaveAtlas.\n\nhttps://waveatlas.example/station/${premierId}`,
     url: `https://waveatlas.example/station/${premierId}`,
   });
   assert.equal(await fetchStationByUuid("not-a-real-waveatlas-station"), null, "invalid IDs never resolve to a substitute");
@@ -30,10 +30,10 @@ async function main() {
   let copied = "";
   const browser = { share: async (payload: ShareData) => { nativePayload = payload; }, clipboard: { writeText: async (url: string) => { copied = url; } } } as unknown as Navigator;
   assert.equal(await shareStation(unicode, browser), "shared");
-  assert.equal(nativePayload?.url, stationSharePayload(unicode).url);
+  assert.equal(nativePayload?.text, stationSharePayload(unicode).text);
   browser.share = async () => { throw new Error("Native sharing unavailable"); };
   assert.equal(await shareStation(unicode, browser), "copied");
-  assert.equal(copied, nativePayload?.url);
+  assert.equal(copied, nativePayload?.text);
   browser.share = async () => { throw new DOMException("Cancelled", "AbortError"); };
   copied = "";
   assert.equal(await shareStation(unicode, browser), "cancelled");

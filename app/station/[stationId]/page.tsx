@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import WaveAtlasExperience from "@/components/WaveAtlasExperience";
-import { WAVEATLAS_SHARE_IMAGE_URL } from "@/lib/branding";
-import { stationPath } from "@/lib/station-deep-link";
+import { stationSocialMetadata } from "@/lib/station-social-metadata";
 import { fetchStationByUuid, fetchStations, getStationInventoryStats } from "@/lib/stations";
 
 type Props = { params: Promise<{ stationId: string }> };
@@ -11,19 +10,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { stationId } = await params;
   const station = await fetchStationByUuid(stationId).catch(() => null);
   if (!station) return { title: "Station Not Found | WaveAtlas", robots: { index: false, follow: false } };
-  const canonical = stationPath(station);
-  const city = station.city || station.state;
-  const location = [city, station.country].filter(Boolean).join(", ");
-  const title = `${station.name} | WaveAtlas`;
-  const description = `Listen to ${station.name} from ${location} on WaveAtlas. Explore humanity through sound.`;
-  const image = station.favicon && /^https:\/\//i.test(station.favicon) && station.curation_tier === "curated_atlas" ? station.favicon : WAVEATLAS_SHARE_IMAGE_URL;
-  return {
-    title: { absolute: title },
-    description,
-    alternates: { canonical },
-    openGraph: { title, description, type: "website", url: canonical, images: [image] },
-    twitter: { card: "summary_large_image", title, description, images: [image] },
-  };
+  return stationSocialMetadata(station);
 }
 
 export default async function StationPage({ params }: Props) {
