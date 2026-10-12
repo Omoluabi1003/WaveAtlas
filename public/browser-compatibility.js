@@ -7,7 +7,7 @@
   var fullRequested = /(?:\?|&)full=1(?:&|$)/.test(location.search);
   if (oldAndroid && !fullRequested) {
     var station = /(?:\?|&)station=([^&]+)/.exec(location.search);
-    var pathStation = /^\/station\/([a-zA-Z0-9-]+)\/?$/.exec(location.pathname);
-    location.replace("/listen" + (station ? "?station=" + station[1] : pathStation ? "?station=" + encodeURIComponent(pathStation[1]) : ""));
+    var pathStation = /^\/station\/([^/]+)\/?$/.exec(location.pathname);
+    location.replace("/listen" + (station ? "?station=" + station[1] : pathStation ? "?station=" + pathStation[1] : ""));
   }
 }());
