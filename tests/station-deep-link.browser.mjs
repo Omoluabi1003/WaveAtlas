@@ -38,12 +38,15 @@ try {
       const share = page.getByRole('button', { name: `Share ${name}`, exact: true }).filter({ visible: true }).first();
       await share.click();
       const payload = await page.evaluate(() => window.__shares.at(-1));
-      assert.equal(payload.url, `https://wave-atlas.vercel.app/station/${id}`);
+      assert.equal(payload.text, `Listen to ${name} on WaveAtlas.\n\nhttps://wave-atlas.vercel.app/station/${id}`);
       await page.evaluate(() => { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); });
       await share.click();
-      assert.equal(await page.evaluate(() => window.__copies.at(-1)), payload.url);
+      assert.equal(await page.evaluate(() => window.__copies.at(-1)), payload.text);
       await page.waitForTimeout(1200);
       assert.equal(await page.evaluate(() => window.__station.station_uuid), id);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForFunction(id => window.__station?.station_uuid === id, id);
+      assert.equal(await page.evaluate(() => window.__playCalls), 0);
     }
     await page.goto(`${base}/?station=${b}`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(id => window.__station?.station_uuid === id, b);

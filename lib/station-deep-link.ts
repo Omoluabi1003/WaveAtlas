@@ -21,10 +21,14 @@ export function stationLocation(station: Pick<Station, "city" | "state" | "count
   return [station.city, station.state, station.country].filter((part, index, all) => Boolean(part) && all.indexOf(part) === index).join(", ");
 }
 
+export function stationShareMessage(station: Station, origin: string = WAVEATLAS_SITE_URL) {
+  return `Listen to ${station.name} on WaveAtlas.\n\n${origin.replace(/\/$/, "")}${stationPath(station)}`;
+}
+
 export function stationSharePayload(station: Station, origin: string = WAVEATLAS_SITE_URL) {
   return {
     title: `${station.name} | WaveAtlas`,
-    text: `Listen to ${station.name} on WaveAtlas.`,
+    text: stationShareMessage(station, origin),
     url: `${origin.replace(/\/$/, "")}${stationPath(station)}`,
   };
 }
@@ -36,9 +40,9 @@ export function stationIdFromUrl(url: Pick<URL, "pathname" | "search">) {
 export async function shareStation(station: Station, browser: Pick<Navigator, "share" | "clipboard">): Promise<"shared" | "copied" | "cancelled"> {
   const payload = stationSharePayload(station);
   if (browser.share) {
-    try { await browser.share(payload); return "shared"; }
+    try { await browser.share({ title: payload.title, text: payload.text }); return "shared"; }
     catch (error) { if (error && typeof error === "object" && "name" in error && error.name === "AbortError") return "cancelled"; }
   }
-  await browser.clipboard.writeText(payload.url);
+  await browser.clipboard.writeText(payload.text);
   return "copied";
 }
