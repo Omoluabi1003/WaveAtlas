@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const query = (params.get("q") || "").trim().slice(0, 120);
   const rawCountry = (params.get("country") || "").toUpperCase();
   const country = /^[A-Z]{2}$/.test(rawCountry) ? rawCountry : "";
-  const id = (params.get("station") || "").slice(0, 100);
+  const id = (params.get("station") || "").slice(0, 256);
   const seeds = mergeSeedStations(fallbackStations, [...ariyoSeedStations, ...republicCongoStations]);
   const playable = (station: Station) => station.sourceType !== "geoaudio" && Boolean(compatibilityStream(station));
   const matches = (station: Station) => playable(station) && (!country || station.country_code === country) && (!query || [station.name, station.country, station.city, station.state, station.language].join(" ").toLowerCase().includes(query.toLowerCase()));
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const loaded = await within(fetchStations({ q: query, countryCode: country || undefined, limit: "64", allowFallback: "true" }), fallback);
   const stations = mergeSeedStations(loaded, fallback).filter(matches).slice(0, 64);
   let selected = id ? [...stations, ...seeds].find((station) => station.station_uuid === id || station.id === id) : undefined;
-  if (!selected && /^[a-z0-9-]{8,80}$/i.test(id)) selected = await within(fetchStationByUuid(id), null) || undefined;
+  if (id) selected = await within(fetchStationByUuid(id), null) || undefined;
   const html = renderCompatibilityPlayer(stations, selected, query, country, Boolean(id && !selected));
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
 }

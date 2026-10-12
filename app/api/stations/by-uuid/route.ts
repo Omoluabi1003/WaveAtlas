@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   }
 
   const station = await fetchStationByUuid(stationUuid);
-  if (!station || station.station_uuid !== stationUuid) {
+  if (!station) {
     return NextResponse.json({ error: 'Station unavailable or moved', station_uuid: stationUuid }, { status: 404 });
   }
 

@@ -105,7 +105,7 @@ import { useNavigationEngine, type NavigationSelectionSource } from "@/lib/navig
 import { getSpeechRecognitionConstructor, parseVoiceCommand, type BrowserSpeechRecognition, type VoiceCommandIntent } from "@/lib/voice-command-engine";
 import { LiveTrackMetadataEngine, type LiveTrackMetadataState } from "@/lib/live-track-metadata-engine";
 import { applyGeoSelectionDecision, normalizeGeoClick, selectStationFromGeoClick } from "@/lib/geo-selection-engine";
-import { stationIdFromPath, stationPath, stationSharePayload } from "@/lib/station-deep-link";
+import { stationIdFromUrl, stationPath, shareStation } from "@/lib/station-deep-link";
 
 
 
@@ -345,7 +345,7 @@ const usePlayer = create<PlayerState>((set) => ({
       playing: false,
       status: "buffering",
       error: undefined,
-      userActivated: true,
+      userActivated: stationSelectionSource !== "deeplink",
     }),
   prepareStation: (current, stationSelectionSource = "startup") => {
     useNavigationEngine.getState().setActiveStation(current, stationSelectionSource);
@@ -1140,27 +1140,25 @@ function SaveStationButton({ station }: { station: Station }) {
 
 function ShareStationButton({ station, compact = false }: { station: Station; compact?: boolean }) {
   const [copied, setCopied] = useState(false);
+  const [shareError, setShareError] = useState(false);
   const share = async () => {
-    const payload = stationSharePayload(station, window.location.origin);
+    setShareError(false);
     window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_share_requested", stationId: stationKey(station) } }));
-    if (navigator.share) {
-      try {
-        await navigator.share(payload);
-        window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_share_completed", stationId: stationKey(station) } }));
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-      }
+    try {
+      const result = await shareStation(station, navigator);
+      if (result !== "cancelled") window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: result === "shared" ? "station_share_completed" : "station_link_copied", stationId: stationKey(station) } }));
+      if (result !== "copied") return;
+    } catch {
+      setShareError(true);
+      return;
     }
-    await navigator.clipboard.writeText(payload.url);
-    window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_link_copied", stationId: stationKey(station) } }));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   };
   return (
     <button type="button" onClick={(event) => { event.stopPropagation(); void share(); }} aria-label={`Share ${station.name}`} className={`${compact ? "grid size-10 shrink-0 place-items-center" : "px-4 py-2 text-sm"} rounded-full border border-white/10 transition hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold`}>
       {copied ? <Check className={`${compact ? "" : "mr-2 inline"} size-4 text-radio`} /> : <Share2 className={`${compact ? "" : "mr-2 inline"} size-4`} />}
-      <span className={compact ? "sr-only" : undefined} aria-live="polite">{copied ? "Station link copied" : "Share"}</span>
+      <span className={compact ? "sr-only" : undefined} aria-live="polite">{shareError ? "Could not copy link. Try again." : copied ? "Station link copied" : "Share"}</span>
     </button>
   );
 }
@@ -4383,6 +4381,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const [desktopBasemap, setDesktopBasemap] = useState<BasemapKey>("atlasStreets");
   const [previousDesktopStation, setPreviousDesktopStation] = useState<Station | undefined>();
   const lastDesktopStationRef = useRef<Station | undefined>(undefined);
+  const [deepLinkNavigation, setDeepLinkNavigation] = useState(0);
   const [deepLinkUuid, setDeepLinkUuid] = useState(initialStation ? stationKey(initialStation) : "");
   const initialStationPoolRef = useRef(stationPool);
   const [closerStationPrompt, setCloserStationPrompt] = useState<CloserStationPromptState | null>(null);
@@ -4402,8 +4401,8 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
       setDesktopGlobeBasemap(getInitialGlobeBasemap());
       const params = new URLSearchParams(window.location.search);
       if (params.get("mode") === "add-signal") setDesktopMode("Add Signal");
-      const id = initialStation ? stationKey(initialStation) : stationIdFromPath(window.location.pathname) || params.get("station")?.trim() || "";
-      if (/^[a-z0-9-]{8,80}$/i.test(id)) setDeepLinkUuid(id);
+      const id = initialStation ? stationKey(initialStation) : stationIdFromUrl(window.location);
+      if (id) setDeepLinkUuid(id);
     });
     return () => { active = false; };
   }, [initialStation]);
@@ -4531,12 +4530,13 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
     const existing = (initialStation && stationKey(initialStation) === stationUuid ? initialStation : undefined) ?? initialStationPoolRef.current.find((station) => station.station_uuid === stationUuid || station.id === stationUuid);
     if (existing) {
       setStationPool((prev) => prev.some((station) => stationKey(station) === stationKey(existing)) ? prev : [existing, ...prev]);
-      setCurrentStationAndDestination(existing, "deeplink");
+      setCurrentStationAndDestination(existing, window.history.state?.atlasAssistant ? "manual" : "deeplink");
       window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_deeplink_opened", stationId: stationKey(existing) } }));
       setDeepLinkStatus("idle");
       return;
     }
     const controller = new AbortController();
+    const selectionAtRequest = usePlayer.getState().selectionVersion;
     setDeepLinkStatus("loading");
     fetch(`/api/stations/by-uuid?station_uuid=${encodeURIComponent(stationUuid)}`, { signal: controller.signal })
       .then(async (res) => {
@@ -4544,23 +4544,25 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
         return (await res.json()) as { station: Station };
       })
       .then(({ station }) => {
-        if (station.station_uuid !== stationUuid) throw new Error("Station identity mismatch");
+        if (controller.signal.aborted) return;
+        if (usePlayer.getState().selectionVersion !== selectionAtRequest) { setDeepLinkStatus("idle"); return; }
         setStationPool((prev) => prev.some((item) => item.station_uuid === stationUuid) ? prev : [station, ...prev]);
-        setCurrentStationAndDestination(station, "deeplink");
+        setCurrentStationAndDestination(station, window.history.state?.atlasAssistant ? "manual" : "deeplink");
         window.dispatchEvent(new CustomEvent("waveatlas:analytics", { detail: { event: "station_deeplink_opened", stationId: stationKey(station) } }));
         setDeepLinkStatus("idle");
       })
       .catch((error) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (controller.signal.aborted) return;
+        if (usePlayer.getState().selectionVersion !== selectionAtRequest) { setDeepLinkStatus("idle"); return; }
         setDeepLinkStatus("unavailable");
       });
     return () => controller.abort();
-  }, [deepLinkUuid, initialStation]);
+  }, [deepLinkUuid, initialStation, deepLinkNavigation]);
 
   useEffect(() => {
     const onPopState = () => {
-      const stationId = stationIdFromPath(window.location.pathname);
-      if (stationId) setDeepLinkUuid(stationId);
+      const stationId = stationIdFromUrl(window.location);
+      if (stationId) { setDeepLinkUuid(stationId); setDeepLinkNavigation((value) => value + 1); }
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);

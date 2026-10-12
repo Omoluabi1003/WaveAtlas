@@ -383,29 +383,55 @@ function stationFromDatabase(row: Record<string, unknown>): Station {
 }
 
 export async function fetchStationByUuid(stationUuid: string): Promise<Station | null> {
-  const uuid = stationUuid.trim();
-  if (!uuid) return null;
+  let uuid = stationUuid.trim();
+  if (!uuid || uuid.length > 256) return null;
   const collected = [...nonGeoAudioSeeds(), ...ariyoGeoAudioChannels, ...fallbackStations];
-  const local = collected.find((station) => station.station_uuid === uuid || station.id === uuid);
-  if (local) return local;
   const config = supabaseReadConfig();
-  if (config) {
-    const select = 'id,station_uuid,name,normalized_name,url,url_resolved,homepage,favicon,country,country_code,city,state,language,tags,codec,bitrate,latitude,longitude,votes,click_count,health_score,is_active,last_check_ok,last_checked_at,failure_count,response_time_ms';
-    const res = await fetch(`${config.url}/rest/v1/stations?select=${select}&station_uuid=eq.${encodeURIComponent(uuid)}&limit=1`, { headers: { apikey: config.key, Authorization: `Bearer ${config.key}` }, next: { revalidate: 60 } });
-    if (res.ok) {
-      const rows = (await res.json()) as Record<string, unknown>[];
-      if (rows[0]) return stationFromDatabase(rows[0]);
+  const seen = new Set<string>();
+  // Redirects are authoritative, including when the old identity is still in a seed.
+  for (let hop = 0; hop < 8; hop += 1) {
+    if (seen.has(uuid)) return null;
+    seen.add(uuid);
+    if (config) {
+      const read = async (table: string, params: Record<string, string>) => {
+        const res = await fetch(`${config.url}/rest/v1/${table}?${new URLSearchParams(params)}`, {
+          headers: { apikey: config.key, Authorization: `Bearer ${config.key}` },
+          signal: AbortSignal.timeout(4000), next: { revalidate: 60 },
+        });
+        return res.ok ? await res.json() as Record<string, unknown>[] : [];
+      };
+      try {
+        const redirects = await read('station_redirects', { select: 'new_station_uuid', old_station_uuid: `eq.${uuid}`, limit: '1' });
+        if (redirects[0]?.new_station_uuid) { uuid = String(redirects[0].new_station_uuid); continue; }
+        let rows = await read('stations', { select: '*', station_uuid: `eq.${uuid}`, limit: '1' });
+        // Database primary keys were also used by older clients.
+        if (!rows.length && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+          rows = await read('stations', { select: '*', id: `eq.${uuid}`, limit: '1' });
+        }
+        if (rows[0]) return stationFromDatabase(rows[0]);
+        // Only an unambiguous, exact alias is safe; never guess from a name search.
+        const aliases = await read('station_aliases', { select: 'station_id', alias: `eq.${uuid}` });
+        const ids = [...new Set(aliases.map((row) => String(row.station_id)))];
+        if (ids.length > 1) return null;
+        if (ids.length === 1) {
+          const targets = await read('stations', { select: 'station_uuid', id: `eq.${ids[0]}`, limit: '1' });
+          if (targets[0]?.station_uuid) { uuid = String(targets[0].station_uuid); continue; }
+        }
+      } catch {
+        // A catalog outage must not prevent exact locally known identities resolving.
+      }
     }
-  }
-  try {
-    const rb = await fetch(`${API_BASE}/stations/byuuid/${encodeURIComponent(uuid)}`, { headers: { 'User-Agent': UA }, next: { revalidate: 300 } });
-    if (rb.ok) {
-      const rows = (await rb.json()) as RadioBrowserStation[];
-      const exact = rows.find((row) => row.stationuuid === uuid);
-      if (exact) return normalize(exact);
-    }
-  } catch {
-    // Deep links must fail closed instead of substituting a different station.
+    const local = collected.find((station) => station.station_uuid === uuid || station.id === uuid);
+    if (local) return local;
+    try {
+      const rb = await fetch(`${API_BASE}/stations/byuuid/${encodeURIComponent(uuid)}`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(4000), next: { revalidate: 300 } });
+      if (rb.ok) {
+        const rows = (await rb.json()) as RadioBrowserStation[];
+        const exact = rows.find((row) => row.stationuuid === uuid);
+        if (exact) return normalize(exact);
+      }
+    } catch { /* Fail closed instead of substituting another station. */ }
+    return null;
   }
   return null;
 }
