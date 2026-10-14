@@ -19,7 +19,7 @@ type Props = {
   station: Station | null;
   playbackStatus?: string;
   onSearch?: (query: string) => void;
-  onAction?: (action: AtlasAssistantAction) => AtlasActionResult | boolean | Promise<AtlasActionResult | boolean>;
+  onAction?: (action: AtlasAssistantAction, signal?: AbortSignal) => AtlasActionResult | boolean | Promise<AtlasActionResult | boolean>;
 };
 type Line = AtlasConversationLine;
 type NeuralVoiceState = 'idle' | 'prepared' | 'loading' | 'ready' | 'unavailable';
@@ -351,7 +351,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   }
 
   async function ask(text: string) {
-    const value = text.trim(); if (!value || busyRef.current) return; stopVoiceOutput(); void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false);
+    const value = text.trim(); if (!value) return; requestControllerRef.current?.abort(); stopVoiceOutput(); void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false);
     window.dispatchEvent(new Event('waveatlas:atlas-used'));
     const history = linesRef.current.slice(-8);
     const userLine: Line = { role: 'user', text: value };
@@ -367,7 +367,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
       let actionOutcome: AtlasActionResult | boolean | undefined;
       if (data.action) {
         try {
-          const outcome = await onAction?.(data.action);
+          const outcome = await onAction?.(data.action, controller.signal);
           actionOutcome = outcome;
           if (outcome === false) answer = `${answer} I could not complete that action.`;
           else if (outcome && typeof outcome === 'object') {

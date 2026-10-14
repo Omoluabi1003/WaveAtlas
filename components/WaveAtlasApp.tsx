@@ -1,5 +1,13 @@
 "use client";
 
+import { stationLocalTime, stationFrequency } from '@/lib/station-intelligence-facts';
+import { normalizeReliability } from '@/lib/stream-reliability';
+import { readStationHealthMemory, stationHealthKey } from '@/lib/station-health';
+import { canonicalStreamCandidates, FailoverCycle, coordinatedPlaybackState, type StreamCandidate } from '@/lib/stream-failover';
+import { rememberSuccessfulStation, readListeningMemory, toggleFavorite } from '@/lib/listening-memory';
+const ListeningMemoryPanel = dynamic(() => import('@/components/ListeningMemoryPanel'));
+const CommunityStreamReport = dynamic(() => import('@/components/CommunityStreamReport'));
+const AudioTourismJourneys = dynamic(() => import('@/components/AudioTourismJourneys'));
 import { attachRadioStream, releaseRadioStream } from '@/lib/radio-stream-player';
 import { readAtlasLocation } from "@/lib/atlas-location";
 import { uniquePlaceLabel } from "@/lib/place-label";
@@ -121,12 +129,12 @@ function playerStatusMetadata(station: Station, status: PlaybackStatus) {
 }
 
 function PlayerTextStack({ station, status, wrap = false, titleClassName = "text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]", locationClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]", metadataClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]" }: { station: Station; status: PlaybackStatus; titleClassName?: string; locationClassName?: string; metadataClassName?: string; wrap?: boolean }) {
-  if (wrap) return <div className="desktop-player-text"><p className={titleClassName}>{station.name}</p><p className={locationClassName}>{playerLocationLine(station)}</p><p className={metadataClassName}>{playerStatusMetadata(station, status)}</p></div>;
+  if (wrap) return <div className="desktop-player-text"><p className={titleClassName}>{station.name}</p><p className={locationClassName}>{playerLocationLine(station)}</p><p className={metadataClassName}>{playerStatusMetadata(station, status)} · {getStreamHealth(station).label}</p></div>;
   return (
     <>
       <AutoMarqueeText text={station.name} className={titleClassName} />
       <AutoMarqueeText text={playerLocationLine(station)} className={locationClassName} />
-      <AutoMarqueeText text={playerStatusMetadata(station, status)} className={metadataClassName} />
+      <AutoMarqueeText text={`${playerStatusMetadata(station, status)} · ${getStreamHealth(station).label}`} className={metadataClassName} />
     </>
   );
 }
@@ -286,6 +294,10 @@ function useWaveAtlasLayoutDebug(enabled: boolean) {
 
 type PlayerState = {
   current?: Station;
+  streamEndpoint?: string;
+  failingOver: boolean;
+  voiceActive: boolean;
+  coordinatedState: ReturnType<typeof coordinatedPlaybackState>;
   stationSelectionSource: StationSelectionSource;
   selectionVersion: number;
   playing: boolean;
@@ -315,6 +327,10 @@ type PlayerState = {
 
 const usePlayer = create<PlayerState>((set) => ({
   playing: false,
+  streamEndpoint: undefined,
+  failingOver: false,
+  voiceActive: false,
+  coordinatedState: "idle",
   status: "idle",
   stationSelectionSource: "startup",
   selectionVersion: 0,
@@ -333,47 +349,59 @@ const usePlayer = create<PlayerState>((set) => ({
     set((state) => ({
       arrivalStation: next,
       current: state.current && stationKey(state.current) === stationKey(previous) ? next : state.current,
+      streamEndpoint: state.current && stationKey(state.current) === stationKey(previous) ? undefined : state.streamEndpoint,
+      failingOver: state.current && stationKey(state.current) === stationKey(previous) ? false : state.failingOver,
+      selectionVersion: state.current && stationKey(state.current) === stationKey(previous) ? ++stationSelectionVersion : state.selectionVersion,
       startupQueue: [next, ...state.startupQueue.filter((station) => stationKey(station) !== stationKey(next) && stationKey(station) !== stationKey(previous))],
       replacementReason: reason,
     }));
   },
   setStation: (current, stationSelectionSource = "manual", selectionVersion = stationSelectionVersion) =>
-    set({
+    set((state) => ({
       current,
+      streamEndpoint: undefined,
+      failingOver: false,
+      coordinatedState: state.voiceActive ? "voice_active" : "connecting",
       stationSelectionSource,
       selectionVersion,
       playing: false,
       status: "buffering",
       error: undefined,
       userActivated: stationSelectionSource !== "deeplink",
-    }),
+    })),
   prepareStation: (current, stationSelectionSource = "startup") => {
     useNavigationEngine.getState().setActiveStation(current, stationSelectionSource);
     set((state) => ({
       current,
+      streamEndpoint: undefined,
+      failingOver: false,
       stationSelectionSource,
       startupQueue: state.arrivalStation && stationKey(state.arrivalStation) === stationKey(current) ? [current, ...state.startupQueue.filter((station) => stationKey(station) !== stationKey(current))] : state.startupQueue,
       playing: false,
       status: state.userActivated ? "buffering" : "idle",
+      coordinatedState: state.voiceActive ? "voice_active" : state.userActivated ? "connecting" : "idle",
       error: undefined,
     }));
   },
   toggle: () =>
     set((s) => {
       if (!s.current) return s;
-      return s.playing
-        ? { playing: false, status: "paused", error: undefined }
+      return s.playing || s.status === "buffering"
+        ? { playing: false, status: "paused", coordinatedState: s.voiceActive ? "voice_active" : "paused", failingOver: false, error: undefined }
         : {
             playing: false,
             status: "buffering",
             error: undefined,
             userActivated: true,
+            selectionVersion: s.status === "failed" ? ++stationSelectionVersion : s.selectionVersion,
+            streamEndpoint: s.status === "failed" ? undefined : s.streamEndpoint,
+            coordinatedState: s.voiceActive ? "voice_active" : "connecting",
           };
     }),
   setVolume: (volume) => set({ volume }),
-  stopPlayback: (message) => set({ playing: false, status: "paused", error: message }),
+  stopPlayback: (message) => set((state) => ({ playing: false, status: "paused", coordinatedState: state.voiceActive ? "voice_active" : "paused", failingOver: false, error: message })),
   setStatus: (status, error) =>
-    set({ status, error, playing: status === "playing" }),
+    set((state) => ({ status, error, playing: status === "playing", failingOver: status === "playing" || status === "failed" || status === "paused" ? false : state.failingOver, coordinatedState: coordinatedPlaybackState(status, state.voiceActive, state.failingOver && status !== "playing" && status !== "failed") })),
 }));
 
 function stationTone(countryCode?: string): GeoPoint["tone"] {
@@ -764,15 +792,10 @@ function getPrimaryGenre(station: Station) {
 }
 
 function getStreamHealth(station: Station) {
-  if (!station.is_active || station.failure_count > 2 || station.health_score < 35)
-    return { label: "Offline", tone: "text-red-200", dot: "bg-red-400" };
-  if (station.health_score >= 85)
-    return { label: "Excellent", tone: "text-emerald-200", dot: "bg-radio" };
-  if (station.health_score >= 65)
-    return { label: "Good", tone: "text-sky-200", dot: "bg-sky" };
-  if (station.health_score > 0)
-    return { label: "Weak", tone: "text-amber-200", dot: "bg-gold" };
-  return { label: "Unknown", tone: "text-slate-200", dot: "bg-slate-400" };
+  const state = usePlayer.getState();
+  const selected = state.current?.station_uuid === station.station_uuid;
+  const label = normalizeReliability(station, { memory: readStationHealthMemory()[stationHealthKey(station)], playback: selected ? state.status : undefined, failingOver: selected && state.failingOver });
+  return { label, tone: label === "Excellent" || label === "Stable" ? "text-emerald-200" : label === "Unknown" ? "text-slate-200" : "text-amber-200", dot: label === "Excellent" || label === "Stable" ? "bg-radio" : label === "Unknown" ? "bg-slate-400" : "bg-gold" };
 }
 
 function getTrendingRank(station: Station, stations: Station[]) {
@@ -1092,46 +1115,33 @@ function NowPlayingEnrichmentCard({ station }: { station: Station }) {
 }
 
 function StreamHealthBadge({ station }: { station: Station }) {
+  usePlayer(state => state.status);
+  usePlayer(state => state.failingOver);
   const health = getStreamHealth(station);
   return (
     <span className={`inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium ${health.tone}`}>
       <span className={`size-2 rounded-full ${health.dot}`} />
-      {health.label}
+      <span aria-label={`Stream reliability: ${health.label}`}>{health.label}</span>
     </span>
   );
 }
 
-function readFavoriteStationIds() {
-  const raw = readBrowserStorage("local", "waveatlas:favorites");
-  if (!raw) return [] as string[];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed)
-      ? parsed.filter((id): id is string => typeof id === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
+function readFavoriteStationIds() { return readListeningMemory().favorites; }
 
 function SaveStationButton({ station }: { station: Station }) {
   const [saved, setSaved] = useState(false);
   useEffect(() => {
-    window.queueMicrotask(() => {
-      setSaved(readFavoriteStationIds().includes(station.station_uuid || station.id));
-    });
+    const refresh = () => setSaved(readFavoriteStationIds().includes(station.station_uuid || station.id));
+    window.queueMicrotask(refresh);
+    window.addEventListener("waveatlas:memory-changed", refresh); window.addEventListener("storage", refresh);
+    return () => { window.removeEventListener("waveatlas:memory-changed", refresh); window.removeEventListener("storage", refresh); };
   }, [station.id, station.station_uuid]);
   const toggleSave = () => {
     const key = station.station_uuid || station.id;
-    const favorites = readFavoriteStationIds();
-    const next = favorites.includes(key)
-      ? favorites.filter((id) => id !== key)
-      : [...favorites, key];
-    try { window.localStorage.setItem("waveatlas:favorites", JSON.stringify(next)); } catch { /* Favorites are optional when storage is unavailable. */ }
-    setSaved(next.includes(key));
+    setSaved(toggleFavorite(key));
   };
   return (
-    <button onClick={toggleSave} className="rounded-full border border-white/10 px-4 py-2 text-sm transition hover:bg-white/[0.08]">
+    <button onClick={toggleSave} aria-pressed={saved} className="min-h-11 rounded-full border border-white/10 px-4 py-2 text-sm transition hover:bg-white/[0.08]">
       <Heart className={`mr-2 inline size-4 ${saved ? "fill-radio text-radio" : ""}`} />
       {saved ? "Saved" : "Save destination"}
     </button>
@@ -1184,7 +1194,9 @@ function MiniCountryMapCard({ station }: { station: Station }) {
 }
 
 function SimilarStationsList({ station, stations }: { station: Station; stations: Station[] }) {
-  const similar = stations.filter((s) => s.id !== station.id && (s.country_code === station.country_code || s.language === station.language || s.tags.some((tag) => station.tags.includes(tag)))).slice(0, 5);
+  const preferences = readListeningMemory().preferences;
+  const preferenceScore = (item: Station) => Math.min(5, preferences.countries[item.country_code] ?? 0) + Math.min(5, preferences.languages[item.language] ?? 0) + item.tags.reduce((sum, tag) => sum + Math.min(3, preferences.genres[tag] ?? 0), 0);
+  const similar = stations.filter((s) => s.station_uuid !== station.station_uuid && s.is_active && (s.country_code === station.country_code || s.language === station.language || s.tags.some((tag) => station.tags.includes(tag)))).sort((a,b) => b.health_score - a.health_score || preferenceScore(b) - preferenceScore(a)).slice(0, 5);
   return <ListCard title="Nearby echoes" items={similar.map((s) => ({ key: s.id, label: s.name, meta: `${s.country} · ${getPrimaryGenre(s)}`, action: () => setCurrentStationAndDestination(s) }))} />;
 }
 
@@ -1346,6 +1358,10 @@ function StationIntelligencePanel({ station, stations, inventoryStats, setQuery 
         </div>
         <StreamHealthBadge station={station} />
       </div>
+      <StationFacts key={station.station_uuid} station={station} />
+      <AudioTourismJourneys stations={stations} current={station} status={status} onSelect={selectTourismStation} />
+      <ListeningMemoryPanel stations={stations} />
+      <CommunityStreamReport key={station.station_uuid} stationId={station.station_uuid} />
       <DailyFlightPanel stations={stations} inventoryStats={inventoryStats} activeStation={station} />
       <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={uniquePlaceLabel([station.city || station.state, station.country])} isPlaying={playing || status === "buffering"} />
       <NowPlayingEnrichmentCard station={station} />
@@ -1369,6 +1385,22 @@ function StationIntelligencePanel({ station, stations, inventoryStats, setQuery 
       <NearbyCountriesList station={station} setQuery={setQuery} />
     </section>
   );
+}
+
+function selectTourismStation(station: Station) { setCurrentStationAndDestination(station, "manual"); }
+function StationFacts({ station }: { station: Station }) {
+  const geo = resolveStationGeo(station);
+  const [distance, setDistance] = useState<number | null>(null);
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    const updateTime = () => setTime(stationLocalTime(station) ?? "");
+    queueMicrotask(updateTime); const timer = window.setInterval(updateTime, 60000);
+    void readAtlasLocation({ allowPrompt: false }).then(location => { if (!cancelled && location && (geo.precision === "station" || geo.precision === "city") && geo.lat !== null && geo.lng !== null) setDistance(Math.round(haversineKm(location, { lat: geo.lat, lng: geo.lng }) / 10) * 10); });
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [station, geo.lat, geo.lng, geo.precision]);
+  const website = /^https?:\/\//i.test(station.homepage || "") ? station.homepage : undefined;
+  return <div className="rounded-2xl border border-white/10 p-4 text-sm text-ivory/80"><p className="break-words font-semibold text-white">{station.name}</p><p className="mt-2">{station.country === "Global" ? "🌐" : flagFor(station.country_code)} {geo.precision === "city" || geo.precision === "station" ? uniquePlaceLabel([station.city || station.state, station.country]) : station.country === "Global" ? "Location unknown" : station.country}</p>{time && <p className="mt-2">Local time: {time}</p>}{stationFrequency(station) && <p className="mt-2">Frequency: {stationFrequency(station)}</p>}{distance !== null && <p className="mt-2">Approximately {distance.toLocaleString()} km away</p>}{website && <a className="mt-2 inline-block min-h-11 py-3 text-radio" href={website} target="_blank" rel="noopener noreferrer">Broadcaster website</a>}<details><summary className="min-h-11 cursor-pointer py-3">Stream details</summary><p>{station.codec || "Unknown codec"} · {station.bitrate ? `${station.bitrate} kbps` : "Bitrate unknown"}</p><p>Last directory check: {station.last_checked_at ? new Date(station.last_checked_at).toLocaleString() : "Unknown"}</p></details></div>;
 }
 
 function GeoTrustCards({ station }: { station: Station }) {
@@ -1497,8 +1529,10 @@ function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch, o
 }
 
 function AudioEngine({ stations }: { stations: Station[] }) {
-  const { current, status, volume, userActivated, stationSelectionSource, scopedSearchSessionId, setStatus, stopPlayback } = usePlayer();
+  const { current, status, volume, userActivated, stationSelectionSource, scopedSearchSessionId, setStatus, stopPlayback, streamEndpoint, selectionVersion } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
+  const endpointCycle = useRef({ key: "", cycle: new FailoverCycle(), candidates: Promise.resolve([] as StreamCandidate[]) });
+  const endpointBusy = useRef("");
   const attempted = useRef<string[]>([]);
   const skipTimestamps = useRef<number[]>([]);
   const currentKey = current ? stationKey(current) : "";
@@ -1534,7 +1568,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     return true;
   }, [setStatus, stopPlayback]);
 
-  const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
+  const skipToDifferentStation = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
     const hardFailure = ["audio_error", "network_error", "unsupported_media", "autoplay_blocked", "missing_url", "abort", "playback_error"].includes(errorType);
     const state = usePlayer.getState();
     if (state.stationSelectionSource === "deeplink") {
@@ -1587,6 +1621,43 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     return false;
   }, [setStatus, playNextGeoAudioTrack]);
 
+  const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
+    const selected = usePlayer.getState();
+    if (errorType !== "autoplay_blocked" && failed.sourceType !== "geoaudio") {
+      const key = `${selected.selectionVersion}:${failed.station_uuid}`;
+      const url = selected.streamEndpoint || getStationStreamUrl(failed);
+      if (endpointBusy.current === `${key}:${url}`) return true;
+      if (endpointCycle.current.key !== key) {
+        endpointCycle.current = { key, cycle: new FailoverCycle(), candidates: fetch(`/api/stations/streams?station=${encodeURIComponent(failed.station_uuid)}`, { signal: AbortSignal.timeout(3000) }).then(response => response.ok ? response.json() : null).then(data => [...canonicalStreamCandidates(failed), ...(data?.candidates ?? [])] as StreamCandidate[]).catch(() => canonicalStreamCandidates(failed)) };
+      }
+      const context = endpointCycle.current;
+      endpointBusy.current = `${key}:${url}`;
+      usePlayer.setState({ failingOver: true, coordinatedState: selected.voiceActive ? "voice_active" : "failing_over" });
+      audio.current?.pause();
+      const record = (endpoint: string, outcome: string) => { void fetch("/api/stations/failover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stationId: failed.station_uuid, endpoint, outcome }) }).catch(() => undefined); };
+      record(url, "failure");
+      void context.candidates.then(async candidates => {
+        const next = context.cycle.next(candidates, url);
+        if (next) await new Promise(resolve => window.setTimeout(resolve, context.cycle.backoffMs));
+        const state = usePlayer.getState();
+        if (endpointBusy.current === `${key}:${url}`) endpointBusy.current = "";
+        if (`${state.selectionVersion}:${state.current?.station_uuid}` !== key || state.status === "paused") return;
+        if (next) {
+          usePlayer.setState({ streamEndpoint: next.url, failingOver: true, coordinatedState: state.voiceActive ? "voice_active" : "failing_over", status: "buffering", playing: false, error: "Recovering this signal…" });
+        } else {
+          markStationFailure(failed, "playback_error", detail);
+          usePlayer.setState({ failingOver: false, coordinatedState: "unavailable" });
+          if (state.teleportQueue.length && state.stationSelectionSource !== "deeplink" && !new URLSearchParams(location.search).get("tour")) {
+            skipToDifferentStation(failed, "playback_error", detail);
+          } else setStatus("failed", "This station is temporarily unavailable. Choose a similar destination below.");
+          window.dispatchEvent(new CustomEvent("waveatlas:station-unavailable", { detail: { stationId: failed.station_uuid } }));
+        }
+      });
+      return true;
+    }
+    return skipToDifferentStation(failed, errorType, detail);
+  }, [setStatus, skipToDifferentStation]);
+
   useEffect(() => {
     if (!current) return;
     const queue = buildFastConnectQueue(stations, current, FAST_CONNECT_PARALLEL_CANDIDATES - 1);
@@ -1626,13 +1697,39 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       document,
       audio: element,
     });
+    const onVoiceCommand = (event: Event) => {
+      const command = (event as CustomEvent).detail?.command;
+      if (command !== "duck" && command !== "restore") return;
+      const state = usePlayer.getState(); const voiceActive = command === "duck";
+      usePlayer.setState({ voiceActive, coordinatedState: coordinatedPlaybackState(state.status, voiceActive, state.failingOver) });
+    };
+    window.addEventListener("waveatlas:assistant-playback", onVoiceCommand);
+    let liveStallTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearLiveStall = () => { clearTimeout(liveStallTimer); liveStallTimer = undefined; };
+    const onLiveWaiting = () => {
+      const state = usePlayer.getState();
+      if (state.status !== "playing" || liveStallTimer) return;
+      usePlayer.setState({ coordinatedState: state.voiceActive ? "voice_active" : "buffering" });
+      const version = state.selectionVersion;
+      liveStallTimer = setTimeout(() => { liveStallTimer = undefined; const next = usePlayer.getState(); if (next.selectionVersion === version && next.status === "playing" && next.current) skipToNextCandidate(next.current, "buffer_timeout", "The live stream stopped making progress."); }, 12000);
+    };
+    const onLivePlaying = () => { clearLiveStall(); const state = usePlayer.getState(); usePlayer.setState({ coordinatedState: coordinatedPlaybackState(state.status, state.voiceActive, state.failingOver) }); };
+    const onLiveEnded = () => { const state = usePlayer.getState(); if (state.status === "playing" && state.current && state.current.sourceType !== "geoaudio") skipToNextCandidate(state.current, "network_error", "The live stream ended."); };
+    element.addEventListener("ended", onLiveEnded);
+    element.addEventListener("waiting", onLiveWaiting); element.addEventListener("stalled", onLiveWaiting); element.addEventListener("playing", onLivePlaying);
     const onError = () => {
-      const failed = usePlayer.getState().current;
+      const state = usePlayer.getState();
+      if (!state.userActivated || state.status === "paused" || state.status === "failed") return;
+      const failed = state.current;
       if (failed) skipToNextCandidate(failed, element.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ? "unsupported_media" : "audio_error", element.error?.message);
     };
     element.addEventListener("error", onError);
 
     return () => {
+      clearLiveStall();
+      element.removeEventListener("ended", onLiveEnded);
+      element.removeEventListener("waiting", onLiveWaiting); element.removeEventListener("stalled", onLiveWaiting); element.removeEventListener("playing", onLivePlaying);
+      window.removeEventListener("waveatlas:assistant-playback", onVoiceCommand);
       unbindMediaSession();
       element.removeEventListener("error", onError);
       element.pause();
@@ -1653,7 +1750,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     const element = audio.current;
     if (!element || !current) return;
 
-    const streamUrl = getStationStreamUrl(current);
+    const streamUrl = streamEndpoint || getStationStreamUrl(current);
     if (!streamUrl) {
       skipToNextCandidate(current, "missing_url", "Station did not provide a stream URL.");
       return;
@@ -1749,7 +1846,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
         scheduleBufferTimer("buffer_timeout");
         return;
       }
-      if ((errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled") && (manualSelection || hasProgress()) && attempt < policy.maxAttempts) {
+      if ((errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled") && (manualSelection || hasProgress()) && attempt < policy.maxAttempts && current.sourceType === "geoaudio") {
         attempt += 1;
         clearStartupTimer();
         clearBufferTimer();
@@ -1763,10 +1860,6 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       clearBufferTimer();
       debugPlayback("abandoning stream", { station: current.name, stationSelectionSource: selectionSource, errorType, failed, bufferExtensionCount: verifiedNigerianHoldExtensions });
       if (policy.trusted && (errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled")) setStatus("buffering", policy.timeoutMessage);
-      if (manualSelection && (errorType === "startup_timeout" || errorType === "buffer_timeout") && hasProgress()) {
-        setStatus("buffering", policy.timeoutMessage);
-        return;
-      }
       skipToNextCandidate(current, errorType, detail);
     };
     const onLoadedMetadata = () => { logAudioEvent("loadedmetadata"); loadedMetadata = true; debugPlayback("recovery event", { station: current.name, stationSelectionSource: selectionSource, event: "loadedmetadata", failed }); noteProgress(); };
@@ -1778,6 +1871,8 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       clearStartupTimer();
       clearBufferTimer();
       markStationSuccess(current);
+      rememberSuccessfulStation(current);
+      if (streamEndpoint) void fetch("/api/stations/failover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stationId: current.station_uuid, endpoint: streamEndpoint, outcome: "success" }) }).catch(() => undefined);
       rememberTeleport(current);
       const startupArrivalStation = usePlayer.getState().arrivalStation;
       if (startupArrivalStation && stationKey(startupArrivalStation) === stationKey(current)) markArrivalCompleted();
@@ -1824,8 +1919,8 @@ function AudioEngine({ stations }: { stations: Station[] }) {
         element.pause();
         element.preload = "auto";
         radioAudioFocus(element).setVolume(volume);
-        await attachRadioStream(element, streamUrl, message => { if (usePlayer.getState().current?.station_uuid === current.station_uuid) skipToNextCandidate(current, "network_error", message); });
-        if (cancelled || usePlayer.getState().current?.station_uuid !== current.station_uuid) return;
+        await attachRadioStream(element, streamUrl, message => { if (usePlayer.getState().current?.station_uuid === current.station_uuid && usePlayer.getState().selectionVersion === selectionVersion && usePlayer.getState().streamEndpoint === streamEndpoint) skipToNextCandidate(current, "network_error", message); });
+        if (cancelled || usePlayer.getState().current?.station_uuid !== current.station_uuid || usePlayer.getState().selectionVersion !== selectionVersion || usePlayer.getState().streamEndpoint !== streamEndpoint) return;
         await element.play();
       } catch (error) {
         if (cancelled) return;
@@ -1857,7 +1952,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       element.removeEventListener("abort", onAbort);
       element.removeEventListener("ended", onEnded);
     };
-  }, [current, currentKey, status, userActivated, stationSelectionSource, setStatus, volume, stations, skipToNextCandidate, playNextGeoAudioTrack]);
+  }, [current, currentKey, status, userActivated, stationSelectionSource, setStatus, volume, stations, skipToNextCandidate, playNextGeoAudioTrack, streamEndpoint, selectionVersion]);
 
   useEffect(() => {
     const element = audio.current;
@@ -4365,6 +4460,31 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
   const [wandererActive, setWandererActive] = useState(false);
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [sharedJourney, setSharedJourney] = useState<JourneyRoute | null>(null);
+  // Journey recovery belongs to the experience, not the visibility of its details panel.
+  useEffect(() => {
+    const tour = new URLSearchParams(location.search).get("tour");
+    if (!tour) return;
+    let cancelled = false;
+    const failed = new Set<string>();
+    const onUnavailable = (event: Event) => {
+      const id = (event as CustomEvent<{ stationId: string }>).detail?.stationId;
+      if (!id || failed.has(id) || usePlayer.getState().current?.station_uuid !== id) return;
+      failed.add(id);
+      const version = usePlayer.getState().selectionVersion;
+      void import("@/lib/audio-tourism-journeys").then(({ AUDIO_TOURISM_JOURNEYS, resolveTourismJourney }) => {
+        if (cancelled || usePlayer.getState().selectionVersion !== version) return;
+        const journey = AUDIO_TOURISM_JOURNEYS.find(row => row.id === tour);
+        if (!journey) return;
+        const stops = resolveTourismJourney(journey, stationPool);
+        const index = stops.findIndex(stop => stop.station.station_uuid === id);
+        const next = stops.slice(Math.max(0, index + 1)).find(stop => !failed.has(stop.station.station_uuid));
+        if (next) setCurrentStationAndDestination(next.station, "manual");
+      });
+    };
+    window.addEventListener("waveatlas:station-unavailable", onUnavailable);
+    return () => { cancelled = true; window.removeEventListener("waveatlas:station-unavailable", onUnavailable); };
+  }, [stationPool]);
+
   useEffect(() => {
     const openJourney = () => { setWandererActive(false); setBriefOpen(false); setJourneyOpen(true); };
     window.addEventListener("waveatlas:open-journey", openJourney);
@@ -4401,11 +4521,20 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
       setDesktopGlobeBasemap(getInitialGlobeBasemap());
       const params = new URLSearchParams(window.location.search);
       if (params.get("mode") === "add-signal") setDesktopMode("Add Signal");
+      if (params.get("tour")) { setDesktopMode("Explore"); setDesktopDrawerCollapsed(false); }
       const id = initialStation ? stationKey(initialStation) : stationIdFromUrl(window.location);
       if (id) setDeepLinkUuid(id);
+      else if (readStartupPreferences().resumeLastStation && !usePlayer.getState().current) {
+        const last = readListeningMemory().history[0]?.id;
+        if (last) {
+          const cached = findStationByPersistentId(stations, last);
+          if (cached) usePlayer.getState().prepareStation(cached);
+          else void fetch(`/api/stations/by-uuid?uuid=${encodeURIComponent(last)}`).then(response => response.ok ? response.json() : null).then(data => { if (active && data?.station && !usePlayer.getState().current) usePlayer.getState().prepareStation(data.station); }).catch(() => undefined);
+        }
+      }
     });
     return () => { active = false; };
-  }, [initialStation]);
+  }, [initialStation, stations]);
 
   const clearVoiceFeedback = useCallback(() => {
     if (voiceFeedbackTimerRef.current !== null) {
@@ -4505,7 +4634,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
 
   useEffect(() => {
     if (!activeStation || typeof window === "undefined") return;
-    writeBrowserStorage("local", LAST_STATION_ID_KEY, stationPersistentId(activeStation));
+    if (usePlayer.getState().status === "playing") writeBrowserStorage("local", LAST_STATION_ID_KEY, stationPersistentId(activeStation));
     try { persistArrival(activeStation, stationContinent(activeStation), window.localStorage); } catch { /* Playback does not require saved history. */ }
   }, [activeStation]);
 
@@ -4837,7 +4966,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
     }
     if (intent.type === "pause") {
       const player = usePlayer.getState();
-      if (player.playing || player.status === "buffering") player.toggle();
+      player.stopPlayback();
       showVoiceFeedback("Paused playback.");
       return;
     }
@@ -5104,7 +5233,9 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
           {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); try { window.localStorage.setItem(GLOBE_BASEMAP_STORAGE_KEY, value); } catch { /* Globe style preference is optional. */ } if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={activeStation ? <AtlasLocationPill stations={stationPool} current={activeStation} /> : undefined} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} activeStation={activeStation} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={current} /></div> : null}
-          {desktopMode === "History" ? <div className="mt-5"><RecentlyVisitedPanel /></div> : null}
+          {desktopMode === "History" ? <div className="mt-5 space-y-4"><ListeningMemoryPanel stations={stationPool} /><RecentlyVisitedPanel /></div> : null}
+          {desktopMode === "Favorites" ? <div className="mt-5"><ListeningMemoryPanel stations={stationPool} /></div> : null}
+          {desktopMode === "Explore" && activeStation ? <StationIntelligencePanel station={activeStation} stations={stationPool} inventoryStats={inventoryStats} setQuery={setQuery} /> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station, candidates) => { setScopedStationAndDestination(station, "manual", candidates); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} compact /> : null}
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">

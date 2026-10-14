@@ -1,0 +1,79 @@
+
+> build
+> next build --webpack
+
+▲ Next.js 16.2.9 (webpack)
+- Experiments (use with caution):
+  · optimizePackageImports
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 15.6s
+  Running TypeScript ...
+  Finished TypeScript in 23.3s ...
+  Collecting page data using 2 workers ...
+  Generating static pages using 2 workers (0/46) ...
+  Generating static pages using 2 workers (11/46) 
+  Generating static pages using 2 workers (22/46) 
+  Generating static pages using 2 workers (34/46) 
+✓ Generating static pages using 2 workers (46/46) in 1834ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ○ /about
+├ ƒ /api/agents/station-steward
+├ ƒ /api/agents/status
+├ ƒ /api/ai/discover
+├ ƒ /api/atlas-assistant
+├ ƒ /api/atlas-speech/resolve
+├ ƒ /api/atlas-voice-reference
+├ ƒ /api/brief
+├ ƒ /api/countries/search
+├ ƒ /api/diagnostics/jay-fm
+├ ƒ /api/live-track-metadata
+├ ƒ /api/nearby-context
+├ ƒ /api/public-signals
+├ ƒ /api/radio-intelligence/degraded
+├ ƒ /api/radio-intelligence/diagnostics
+├ ƒ /api/radio-intelligence/genres
+├ ƒ /api/radio-intelligence/health
+├ ƒ /api/radio-intelligence/nearby
+├ ƒ /api/radio-intelligence/search
+├ ƒ /api/radio-intelligence/validate
+├ ƒ /api/signals/submit
+├ ƒ /api/stations/active
+├ ƒ /api/stations/by-country
+├ ƒ /api/stations/by-uuid
+├ ƒ /api/stations/discovery-diagnostics
+├ ƒ /api/stations/failover
+├ ƒ /api/stations/nearby
+├ ƒ /api/stations/reports
+├ ƒ /api/stations/search
+├ ƒ /api/stations/streams
+├ ƒ /api/stations/trending
+├ ƒ /api/stations/validate
+├ ƒ /api/world-context
+├ ƒ /api/world-search
+├ ○ /demo
+├ ƒ /journeys/[journeyId]
+├ ○ /legal
+├ ○ /legal/attribution
+├ ○ /legal/community-signals
+├ ○ /legal/copyright
+├ ○ /legal/privacy
+├ ○ /legal/terms
+├ ƒ /listen
+├ ○ /manifest.webmanifest
+├ ƒ /ops
+├ ○ /press
+├ ƒ /station/[stationId]
+└ ƒ /station/-/opengraph-image
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

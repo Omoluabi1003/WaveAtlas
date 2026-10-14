@@ -25,7 +25,7 @@ function naturalCommand(question: string) {
   return question.trim()
     .replace(/^(?:hey\s+)?atlas[,:]?\s*/i, '')
     .replace(/^(?:(?:can|could|would|will)\s+you\s+|please\s+)/i, '')
-    .trim();
+    .replace(/[?.!]+$/g, '').trim();
 }
 
 function previousUserIntent(history?: AtlasConversationLine[]) { return [...(history || [])].reverse().find((line) => line.role === 'user')?.text || ''; }
@@ -112,6 +112,12 @@ export function answerAtlasQuestion(question: string, context: AtlasAssistantCon
     const query = [country, primaryTag].filter(Boolean).join(' ');
     return reply(`I’ll keep the thread and find another ${primaryTag || 'signal'}${country ? ` from ${country}` : ''}.`, { type: 'play', query: query || undefined, excludeCurrent: /another|something else/i.test(q) });
   }
+
+  // Context-sensitive intents must precede generic "play" and geography questions.
+  if (/another station from (?:this|the same) country|another.*same country/i.test(q)) return country ? reply(`Finding another signal from ${country}.`, { type: 'play', query: country, excludeCurrent: true }) : reply('This station has no verified country yet.');
+  if (/another.*like this|another.*similar|give me another station/i.test(q)) return reply('Finding another signal with a similar format.', { type: 'play', query: [country, primaryTag].filter(Boolean).join(' ') || undefined, excludeCurrent: true });
+  if (/find.*nearby|something nearby|stations? near me/i.test(q)) return reply('Finding nearby radio. Location permission is optional.', { type: 'search', query: 'nearby' });
+  if (/what city.*listening|which city/i.test(q)) return reply(city ? `${name} is associated with ${city}.` : `I don’t have a verified city for ${name}.`);
 
   const command = commandReply(q);
   if (command) return command;

@@ -1,3 +1,4 @@
+import { loadStationArtwork } from '@/lib/station-artwork';
 import { stationCardVisualText } from '@/lib/station-card-text';
 import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
@@ -32,10 +33,11 @@ export default async function StationImage({ params }: { params: Promise<{ stati
   if (/\p{Script=Hebrew}/u.test(visibleText)) fontNames.push('NotoSansHebrew');
   if (/\p{Script=Devanagari}/u.test(visibleText)) fontNames.push('NotoSansDevanagari');
   if (/\p{Script=Thai}/u.test(visibleText)) fontNames.push('NotoSansThai');
-  const [logo, flag, fonts] = await Promise.all([
+  const [logo, flag, fonts, artwork] = await Promise.all([
     branding,
     details.country ? readFile(path.join(process.cwd(), "public/flags", `${details.country.code.toLowerCase()}.svg`)).then(data => `data:image/svg+xml;base64,${data.toString('base64')}`).catch(() => null) : null,
     Promise.all(fontNames.map(async name => ({ name, data: await font(name), weight: 400 as const, style: 'normal' as const }))),
+    station ? loadStationArtwork(station) : null,
   ]);
   const fontFamily = fontNames.join(', ');
   const lines = cardNameLines(name, details.fontSize);
@@ -46,6 +48,7 @@ export default async function StationImage({ params }: { params: Promise<{ stati
         <div style={{ display: 'flex', position: 'absolute', left: 80, width: 300, height: 470, border: '1px solid #00D68F30', borderRadius: '50%' }} />
         <div style={{ display: 'flex', position: 'absolute', top: 155, width: 470, height: 160, border: '1px solid #00D68F30', borderRadius: '50%' }} />
       </div>
+      {artwork ? <img src={artwork} alt="" width={100} height={100} style={{ position: 'absolute', right: 56, top: 190, borderRadius: 16, objectFit: 'contain' }} /> : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         {/* ImageResponse renders embedded SVGs server-side. */}
         <img src={logo} alt="" width={64} height={64} />

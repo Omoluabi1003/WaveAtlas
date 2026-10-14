@@ -1,0 +1,10 @@
+
+> lint
+> eslint .
+
+
+/workspace/WaveAtlas/components/AtlasAssistant.tsx
+  158:6  warning  React Hook useEffect has missing dependencies: 'restoreRadio' and 'stopMeter'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 1 problem (0 errors, 1 warning)
+
