@@ -1,5 +1,8 @@
 "use client";
 
+import { ReliabilityIndicator } from '@/components/maturity/ReliabilityIndicator';
+import { readListeningMemory, writeListeningMemory, rememberPlayed } from '@/lib/maturity/listening-memory';
+import { FailoverCycle, coordinatedPlayback, type StreamCandidate } from '@/lib/maturity/stream-failover';
 import { attachRadioStream, releaseRadioStream } from '@/lib/radio-stream-player';
 import { readAtlasLocation } from "@/lib/atlas-location";
 import { uniquePlaceLabel } from "@/lib/place-label";
@@ -21,6 +24,9 @@ import { bindPlaybackMediaSession } from "@/lib/playback-media-session";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import dynamic from "next/dynamic";
+const StationDestination = dynamic(() => import("@/components/maturity/StationDestination"));
+const AudioJourneys = dynamic(() => import("@/components/maturity/AudioJourneys"));
+const ListeningLibrary = dynamic(() => import("@/components/maturity/ListeningLibrary"));
 import Image from "next/image";
 import NextLink from "next/link";
 import PublicSignalPanel from "@/components/PublicSignalPanel";
@@ -121,12 +127,14 @@ function playerStatusMetadata(station: Station, status: PlaybackStatus) {
 }
 
 function PlayerTextStack({ station, status, wrap = false, titleClassName = "text-sm font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]", locationClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]", metadataClassName = "text-[11px] font-medium text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.45)]" }: { station: Station; status: PlaybackStatus; titleClassName?: string; locationClassName?: string; metadataClassName?: string; wrap?: boolean }) {
-  if (wrap) return <div className="desktop-player-text"><p className={titleClassName}>{station.name}</p><p className={locationClassName}>{playerLocationLine(station)}</p><p className={metadataClassName}>{playerStatusMetadata(station, status)}</p></div>;
+  const coordinated = usePlayer(state => coordinatedPlayback(status, state.voiceActive, state.failingOver));
+  if (wrap) return <div className="desktop-player-text"><p className={titleClassName}>{station.name}</p><p className={locationClassName}>{playerLocationLine(station)}</p><p className={metadataClassName}>{playerStatusMetadata(station, status)}</p><ReliabilityIndicator station={station} status={coordinated} compact /></div>;
   return (
     <>
       <AutoMarqueeText text={station.name} className={titleClassName} />
       <AutoMarqueeText text={playerLocationLine(station)} className={locationClassName} />
       <AutoMarqueeText text={playerStatusMetadata(station, status)} className={metadataClassName} />
+      <ReliabilityIndicator station={station} status={coordinated} compact />
     </>
   );
 }
@@ -286,6 +294,9 @@ function useWaveAtlasLayoutDebug(enabled: boolean) {
 
 type PlayerState = {
   current?: Station;
+  endpointUrl: string;
+  failingOver: boolean;
+  voiceActive: boolean;
   stationSelectionSource: StationSelectionSource;
   selectionVersion: number;
   playing: boolean;
@@ -315,6 +326,9 @@ type PlayerState = {
 
 const usePlayer = create<PlayerState>((set) => ({
   playing: false,
+  endpointUrl: "",
+  failingOver: false,
+  voiceActive: false,
   status: "idle",
   stationSelectionSource: "startup",
   selectionVersion: 0,
@@ -340,6 +354,8 @@ const usePlayer = create<PlayerState>((set) => ({
   setStation: (current, stationSelectionSource = "manual", selectionVersion = stationSelectionVersion) =>
     set({
       current,
+      endpointUrl: "",
+      failingOver: false,
       stationSelectionSource,
       selectionVersion,
       playing: false,
@@ -361,6 +377,8 @@ const usePlayer = create<PlayerState>((set) => ({
   toggle: () =>
     set((s) => {
       if (!s.current) return s;
+      if (s.failingOver) return { playing: false, status: "paused", failingOver: false, error: undefined };
+      if (s.status === "failed") return { playing: false, status: "buffering", endpointUrl: "", failingOver: false, selectionVersion: ++stationSelectionVersion, error: undefined, userActivated: true };
       return s.playing
         ? { playing: false, status: "paused", error: undefined }
         : {
@@ -371,9 +389,9 @@ const usePlayer = create<PlayerState>((set) => ({
           };
     }),
   setVolume: (volume) => set({ volume }),
-  stopPlayback: (message) => set({ playing: false, status: "paused", error: message }),
+  stopPlayback: (message) => set({ playing: false, status: "paused", failingOver: false, error: message }),
   setStatus: (status, error) =>
-    set({ status, error, playing: status === "playing" }),
+    set({ status, error, playing: status === "playing", ...(status === "paused" ? { failingOver: false } : {}) }),
 }));
 
 function stationTone(countryCode?: string): GeoPoint["tone"] {
@@ -1092,13 +1110,8 @@ function NowPlayingEnrichmentCard({ station }: { station: Station }) {
 }
 
 function StreamHealthBadge({ station }: { station: Station }) {
-  const health = getStreamHealth(station);
-  return (
-    <span className={`inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium ${health.tone}`}>
-      <span className={`size-2 rounded-full ${health.dot}`} />
-      {health.label}
-    </span>
-  );
+  const status = usePlayer(state => state.failingOver ? "failing_over" : state.status);
+  return <ReliabilityIndicator station={station} status={status} compact />;
 }
 
 function readFavoriteStationIds() {
@@ -1117,9 +1130,9 @@ function readFavoriteStationIds() {
 function SaveStationButton({ station }: { station: Station }) {
   const [saved, setSaved] = useState(false);
   useEffect(() => {
-    window.queueMicrotask(() => {
-      setSaved(readFavoriteStationIds().includes(station.station_uuid || station.id));
-    });
+    const refresh = () => setSaved(readFavoriteStationIds().includes(station.station_uuid || station.id));
+    window.queueMicrotask(refresh); window.addEventListener("waveatlas:listening-memory", refresh);
+    return () => window.removeEventListener("waveatlas:listening-memory", refresh);
   }, [station.id, station.station_uuid]);
   const toggleSave = () => {
     const key = station.station_uuid || station.id;
@@ -1127,7 +1140,7 @@ function SaveStationButton({ station }: { station: Station }) {
     const next = favorites.includes(key)
       ? favorites.filter((id) => id !== key)
       : [...favorites, key];
-    try { window.localStorage.setItem("waveatlas:favorites", JSON.stringify(next)); } catch { /* Favorites are optional when storage is unavailable. */ }
+    writeListeningMemory({ ...readListeningMemory(), favorites: next });
     setSaved(next.includes(key));
   };
   return (
@@ -1156,7 +1169,7 @@ function ShareStationButton({ station, compact = false }: { station: Station; co
     window.setTimeout(() => setCopied(false), 1800);
   };
   return (
-    <button type="button" onClick={(event) => { event.stopPropagation(); void share(); }} aria-label={`Share ${station.name}`} className={`${compact ? "grid size-10 shrink-0 place-items-center" : "px-4 py-2 text-sm"} rounded-full border border-white/10 transition hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold`}>
+    <button type="button" onClick={(event) => { event.stopPropagation(); void share(); }} aria-label={`Share ${station.name}`} className={`${compact ? "grid size-11 shrink-0 place-items-center" : "min-h-11 px-4 py-2 text-sm"} rounded-full border border-white/10 transition hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold`}>
       {copied ? <Check className={`${compact ? "" : "mr-2 inline"} size-4 text-radio`} /> : <Share2 className={`${compact ? "" : "mr-2 inline"} size-4`} />}
       <span className={compact ? "sr-only" : undefined} aria-live="polite">{shareError ? "Could not copy link. Try again." : copied ? "Station link copied" : "Share"}</span>
     </button>
@@ -1346,6 +1359,8 @@ function StationIntelligencePanel({ station, stations, inventoryStats, setQuery 
         </div>
         <StreamHealthBadge station={station} />
       </div>
+      <StationDestination station={station} status={usePlayer.getState().failingOver ? "failing_over" : status} />
+      <AudioJourneys onSelect={(station, candidates) => setCurrentStationAndDestination(station, "manual", candidates)} />
       <DailyFlightPanel stations={stations} inventoryStats={inventoryStats} activeStation={station} />
       <PlaceHero context={visibleWorldContext} stationName={station.name} fallbackPlace={uniquePlaceLabel([station.city || station.state, station.country])} isPlaying={playing || status === "buffering"} />
       <NowPlayingEnrichmentCard station={station} />
@@ -1497,7 +1512,7 @@ function EmptyAtlasState({ onExploreNearby, onWander, onSearch, onVoiceSearch, o
 }
 
 function AudioEngine({ stations }: { stations: Station[] }) {
-  const { current, status, volume, userActivated, stationSelectionSource, scopedSearchSessionId, setStatus, stopPlayback } = usePlayer();
+  const { current, status, volume, userActivated, stationSelectionSource, scopedSearchSessionId, selectionVersion, endpointUrl, setStatus, stopPlayback } = usePlayer();
   const audio = useRef<HTMLAudioElement | null>(null);
   const attempted = useRef<string[]>([]);
   const skipTimestamps = useRef<number[]>([]);
@@ -1534,7 +1549,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     return true;
   }, [setStatus, stopPlayback]);
 
-  const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
+  const advanceAfterFailure = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
     const hardFailure = ["audio_error", "network_error", "unsupported_media", "autoplay_blocked", "missing_url", "abort", "playback_error"].includes(errorType);
     const state = usePlayer.getState();
     if (state.stationSelectionSource === "deeplink") {
@@ -1586,6 +1601,61 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     }
     return false;
   }, [setStatus, playNextGeoAudioTrack]);
+
+  const streamCycle = useRef<{ version: number; cycle: FailoverCycle; pending: Promise<StreamCandidate[]> } | null>(null);
+  const failoverPending = useRef(false);
+  useEffect(() => {
+    const state = usePlayer.getState();
+    if (!state.current || state.current.sourceType === "geoaudio") return;
+    const version = state.selectionVersion; const id = stationKey(state.current);
+    const controller = new AbortController();
+    const pending = fetch(`/api/stations/streams?station=${encodeURIComponent(id)}`, { signal: controller.signal }).then(async response => response.ok ? (await response.json()).candidates as StreamCandidate[] : []).catch(() => []);
+    streamCycle.current = { version, cycle: new FailoverCycle(id), pending }; failoverPending.current = false;
+    return () => controller.abort();
+  }, [currentKey, selectionVersion]);
+  const skipToNextCandidate = useCallback((failed: Station, errorType: SignalFailureType, detail?: string) => {
+    if (failed.sourceType === "geoaudio" || errorType === "autoplay_blocked") return advanceAfterFailure(failed, errorType, detail);
+    if (failoverPending.current) return true;
+    const state = usePlayer.getState(); const version = state.selectionVersion;
+    if (!state.userActivated) { setStatus("blocked", "Tap to Play: audio starts only after your interaction."); return false; }
+    const cycle = streamCycle.current;
+    if (!cycle || cycle.version !== version) return advanceAfterFailure(failed, errorType, detail);
+    failoverPending.current = true;
+    const failedUrl = state.endpointUrl || getStationStreamUrl(failed);
+    audio.current?.pause();
+    if (audio.current) releaseRadioStream(audio.current);
+    usePlayer.setState({ failingOver: true, status: "paused", playing: false });
+    void cycle.pending.then(candidates => {
+      if (usePlayer.getState().selectionVersion !== version) return;
+      const failedCandidate = candidates.find(item => item.url === failedUrl);
+      if (failedCandidate?.token) void fetch('/api/stations/failover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: failedCandidate.token, outcome: 'failure' }) }).catch(() => {});
+      const next = cycle.cycle.next(failedUrl, candidates);
+      if (!next) { failoverPending.current = false; usePlayer.setState({ failingOver: false }); if (usePlayer.getState().teleportQueue.length) advanceAfterFailure(failed, errorType, detail); else setStatus("failed", "This station is temporarily unavailable. Try another related signal or retry later."); return; }
+      window.setTimeout(() => {
+        const latest = usePlayer.getState();
+        if (latest.selectionVersion !== version || !latest.failingOver) { failoverPending.current = false; return; }
+        failoverPending.current = false;
+        usePlayer.setState({ endpointUrl: next.candidate.url, failingOver: true, status: "buffering", playing: false, error: "Recovering this station through a verified alternate stream…" });
+      }, next.delayMs);
+    });
+    return true;
+  }, [advanceAfterFailure, setStatus]);
+  useEffect(() => {
+    const onFocus = (event: Event) => {
+      const command = (event as CustomEvent<{ command?: string }>).detail?.command;
+      if (command === 'duck') usePlayer.setState({ voiceActive: true });
+      if (command === 'restore') usePlayer.setState({ voiceActive: false });
+    };
+    const onPlaying = (event: Event) => {
+      const station = (event as CustomEvent<{ station?: Station }>).detail?.station;
+      if (station) writeListeningMemory(rememberPlayed(readListeningMemory(), station));
+      usePlayer.setState({ failingOver: false });
+      const candidateUrl = usePlayer.getState().endpointUrl;
+      void streamCycle.current?.pending.then(candidates => { const candidate = candidates.find(item => item.url === (candidateUrl || (station && getStationStreamUrl(station)))); if (candidate?.token) void fetch('/api/stations/failover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: candidate.token, outcome: candidateUrl ? 'recovered' : 'success' }) }).catch(() => {}); });
+    };
+    window.addEventListener('waveatlas:assistant-playback', onFocus); window.addEventListener('waveatlas:station-playing', onPlaying);
+    return () => { window.removeEventListener('waveatlas:assistant-playback', onFocus); window.removeEventListener('waveatlas:station-playing', onPlaying); };
+  }, []);
 
   useEffect(() => {
     if (!current) return;
@@ -1653,7 +1723,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
     const element = audio.current;
     if (!element || !current) return;
 
-    const streamUrl = getStationStreamUrl(current);
+    const streamUrl = endpointUrl || getStationStreamUrl(current);
     if (!streamUrl) {
       skipToNextCandidate(current, "missing_url", "Station did not provide a stream URL.");
       return;
@@ -1749,7 +1819,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
         scheduleBufferTimer("buffer_timeout");
         return;
       }
-      if ((errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled") && (manualSelection || hasProgress()) && attempt < policy.maxAttempts) {
+      if ((errorType === "startup_timeout" || errorType === "buffer_timeout" || errorType === "waiting" || errorType === "stalled") && (manualSelection || hasProgress()) && current.sourceType === "geoaudio" && attempt < policy.maxAttempts) {
         attempt += 1;
         clearStartupTimer();
         clearBufferTimer();
@@ -1857,7 +1927,7 @@ function AudioEngine({ stations }: { stations: Station[] }) {
       element.removeEventListener("abort", onAbort);
       element.removeEventListener("ended", onEnded);
     };
-  }, [current, currentKey, status, userActivated, stationSelectionSource, setStatus, volume, stations, skipToNextCandidate, playNextGeoAudioTrack]);
+  }, [current, currentKey, endpointUrl, status, userActivated, stationSelectionSource, setStatus, volume, stations, skipToNextCandidate, playNextGeoAudioTrack]);
 
   useEffect(() => {
     const element = audio.current;
@@ -3551,7 +3621,7 @@ function MobileNowPlayingMini({ station, onOpen }: { station: Station; onOpen: (
   const { playing, status, toggle, setStation } = usePlayer();
   const play = () => { if (!usePlayer.getState().current) setCurrentStationAndDestination(station); else toggle(); };
   return <div data-waveatlas-player onClick={onOpen} className="fixed bottom-[74px] left-4 right-4 z-40 min-h-[58px] rounded-[1.35rem] border border-white/30 bg-[rgba(3,9,18,0.96)] p-2.5 text-white shadow-[0_26px_90px_rgba(0,0,0,.72),0_0_0_1px_rgba(54,245,162,.08)] backdrop-blur-[28px] [backdrop-filter:blur(28px)_saturate(1.22)]">
-    <div className="flex h-full items-center gap-3"><button aria-label="Play or pause current station" onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-9 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><button type="button" aria-label="Open station details" onClick={event => { event.stopPropagation(); onOpen(); }} className="min-w-0 flex-1 text-left"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></button><AtlasVoiceSurface stationName={station.name} /><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
+    <div className="flex h-full items-center gap-3"><button aria-label="Play or pause current station" onClick={(e) => { e.stopPropagation(); play(); }} className="grid size-11 shrink-0 place-items-center rounded-full bg-radio text-midnight shadow-[0_0_24px_rgba(54,245,162,.38)] transition-[transform,box-shadow,filter] duration-150 ease-out hover:scale-[1.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transform-none motion-reduce:transition-none">{playing ? <Pause className="size-5" /> : <Play className="size-5" />}</button><button type="button" aria-label="Open station details" onClick={event => { event.stopPropagation(); onOpen(); }} className="min-w-0 flex-1 text-left"><PlayerTextStack station={station} status={status} titleClassName="font-display text-xs font-extrabold text-white drop-shadow-[0_2px_7px_rgba(0,0,0,.55)]" /></button><AtlasVoiceSurface stationName={station.name} /><ShareStationButton station={station} compact /><Volume2 className="size-4 text-ivory/82 drop-shadow-[0_1px_5px_rgba(0,0,0,.5)]" /></div>
   </div>;
 }
 
@@ -3624,6 +3694,8 @@ function MobileStationSheet({ station, stations, inventoryStats, setQuery, open,
       </div>
     </div>
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+96px)] pt-2 [-webkit-overflow-scrolling:touch]">
+      <ListeningLibrary favorites onSelect={station => setCurrentStationAndDestination(station, "deeplink")} />
+      <ListeningLibrary onSelect={station => setCurrentStationAndDestination(station, "deeplink")} />
       <StationIntelligencePanel station={station} stations={stations} inventoryStats={inventoryStats} setQuery={setQuery} />
     </div>
   </motion.section> : null}</AnimatePresence>;
@@ -4522,7 +4594,13 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
     // Saved home/resume preferences remain persisted for settings, but they must not
     // auto-select a station before the listener explicitly chooses a journey.
     if (!splashComplete || deepLinkUuid || activeStation || !stationPool.length) return;
-  }, [activeStation, deepLinkUuid, splashComplete, stationPool.length]);
+    if (!startupPreferences.resumeLastStation) return;
+    const id = readListeningMemory().recent[0]?.id; if (!id) return;
+    const version = usePlayer.getState().selectionVersion;
+    const controller = new AbortController();
+    void fetch(`/api/stations/by-uuid?uuid=${encodeURIComponent(id)}`, { signal: controller.signal }).then(async response => response.ok ? (await response.json()).station as Station : null).then(station => { if (!station || controller.signal.aborted || usePlayer.getState().selectionVersion !== version || stationIdFromUrl(window.location)) return; setCurrentStationAndDestination(station, "deeplink"); }).catch(() => {});
+    return () => controller.abort();
+  }, [activeStation, deepLinkUuid, splashComplete, stationPool.length, startupPreferences.resumeLastStation]);
 
   useEffect(() => {
     const stationUuid = deepLinkUuid;
@@ -4929,6 +5007,8 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
     return "Finding the fastest nearby live signal now. Audio will start as soon as the first playable station responds.";
   }, [current, dismissCloserStationPrompt, stations]);
 
+  useEffect(() => { const nearby = () => { exploreNearbyFromEmpty(); }; window.addEventListener("waveatlas:explore-nearby", nearby); return () => window.removeEventListener("waveatlas:explore-nearby", nearby); }, [exploreNearbyFromEmpty]);
+
   const wanderFromEmpty = useCallback(() => {
     setWandererActive(true);
     const version = startWandererDiscovery(stations);
@@ -5010,6 +5090,7 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
     <div className="waveatlas-app" data-wa-appearance={appearance}>
       <style jsx global>{`@keyframes teleportPulse { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(1.08); opacity: 0; } } @media (prefers-reduced-motion: reduce) { .animate-\[teleportPulse_2\.8s_ease-out_infinite\] { animation: none !important; } }`}</style>
       <AudioEngine stations={stationPool} />
+      {!activeStation ? <details className="relative z-[65] mx-4 mt-20 max-w-md rounded-xl border border-white/10 bg-slate-950/90 p-3"><summary className="min-h-11 cursor-pointer content-center text-sm">Your listening library and journeys</summary><AudioJourneys onSelect={(station, candidates) => setCurrentStationAndDestination(station, "manual", candidates)} /><ListeningLibrary onSelect={station => setCurrentStationAndDestination(station, "deeplink")} /></details> : null}
       {!activeStation ? <button type="button" onClick={() => window.dispatchEvent(new Event("waveatlas:open-journey"))} className="pointer-events-auto fixed left-4 top-[calc(env(safe-area-inset-top)+16px)] z-[60] flex min-h-11 items-center gap-2 rounded-full border border-gold/30 bg-slate-950/90 px-4 text-xs font-semibold text-gold md:hidden" aria-label="Open Atlas Journey"><Plane className="size-4" />Journey</button> : null}
       {!activeStation ? <><PublicSignalPanel mobile showMobileLauncher onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /><PublicSignalPanel onLocate={() => showVoiceFeedback("Choose a radio station to view this signal on the atlas.")} /></> : null}
       {splashVisible ? <SignalInitializationSequence onComplete={() => { setSplashVisible(false); setSplashComplete(true); }} /> : null}
@@ -5104,7 +5185,8 @@ export default function WaveAtlasApp({ stations, inventoryStats, initialStation 
           {desktopMode === "Settings" ? <div className="mt-5"><UtilityLinksPanel atlasView={desktopAtlasView} onChooseAtlasView={chooseDesktopAtlasView} atlasViewTransitioning={desktopTransition.transitionLocked} globeFallbackReason={globeFallbackReason} basemap={desktopBasemap} onBasemapChange={setDesktopBasemap} globeBasemap={desktopGlobeBasemap} onGlobeBasemapChange={(value) => { setDesktopGlobeBasemap(value); try { window.localStorage.setItem(GLOBE_BASEMAP_STORAGE_KEY, value); } catch { /* Globe style preference is optional. */ } if (desktopAtlasView !== "globe" || globeFallbackReason) desktopTransition.retryGlobe("globe style selection", desktopTransitionContext); }} atlasDrive={activeStation ? <AtlasLocationPill stations={stationPool} current={activeStation} /> : undefined} startupPreferences={startupPreferences} onStartupPreferencesChange={updateStartupPreferences} activeStation={activeStation} /></div> : null}
           {desktopMode === "Add Signal" ? <div className="mt-5"><AddYourSignalPanel /></div> : null}
           {desktopMode === "Brief" ? <div className="mt-5"><div className="mb-4 rounded-3xl border border-radio/20 bg-radio/10 p-4"><p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-radio">Global indexed signals</p><p className="mt-1 text-2xl font-bold text-ivory">{signalLabel(inventoryStats?.globalCount ?? stationPool.length)}</p><p className="text-xs text-ivory/55">{inventoryStats?.source === "radio-browser" ? "Full Radio Browser country inventory" : "Curated fallback inventory"}</p></div><DailyFlightPanel stations={stationPool} inventoryStats={inventoryStats} activeStation={current} /></div> : null}
-          {desktopMode === "History" ? <div className="mt-5"><RecentlyVisitedPanel /></div> : null}
+          {desktopMode === "Explore" ? <AudioJourneys onSelect={(station, candidates) => setCurrentStationAndDestination(station, "manual", candidates)} /> : null}
+          {desktopMode === "History" || desktopMode === "Favorites" ? <div className="mt-5"><ListeningLibrary favorites={desktopMode === "Favorites"} onSelect={station => setCurrentStationAndDestination(station, "deeplink")} /></div> : null}
           {query.trim() ? <GroupedSearchResults query={query} stations={stationPool} onStationSelect={(station, candidates) => { setScopedStationAndDestination(station, "manual", candidates); setStationPool((prev) => prev.some((s) => s.id === station.id) ? prev : [station, ...prev]); setSelectedCountry(null); setQuery(""); setDesktopDrawerCollapsed(true); centerAppAfterQuery(); }} onCountrySelect={selectCountry} setQuery={setQuery} compact /> : null}
           {selectedCountry ? (
             <div className="mt-4 rounded-3xl border border-gold/20 bg-gold/10 p-4">

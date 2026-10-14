@@ -6,6 +6,7 @@ export type AtlasAssistantContext = { station?: Pick<Station, 'name' | 'country'
 export type AtlasAssistantAction =
   | { type: 'search'; query: string; music?: AtlasMusicSearch }
   | { type: 'play'; query?: string; excludeCurrent?: boolean; music?: AtlasMusicSearch }
+  | { type: 'nearby' }
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'volume'; value: number }
