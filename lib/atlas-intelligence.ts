@@ -1,3 +1,4 @@
+import { maturityVoiceIntent } from './maturity/voice-intents';
 import { resolveAtlasMusicIntent } from './atlas-music-intent';
 import { answerAtlasQuestion, type AtlasAssistantContext, type AtlasAssistantReply } from '@/lib/atlas-assistant';
 
@@ -57,6 +58,8 @@ function conversationalIntent(question: string, context: AtlasAssistantContext):
 }
 
 export function answerAtlasIntelligently(question: string, context: AtlasAssistantContext = {}): AtlasAssistantReply {
+  const maturityIntent = maturityVoiceIntent(question, context);
+  if (maturityIntent) return maturityIntent;
   const musicIntent = resolveAtlasMusicIntent(question, lastUser(context));
   if (musicIntent) {
     const { music, action, subject } = musicIntent;

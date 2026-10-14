@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import WaveAtlasApp from '@/components/WaveAtlasApp';
 import { AtlasAssistant } from '@/components/AtlasAssistant';
 import { AtlasVoiceDiscoveryProvider } from '@/components/AtlasVoiceDiscovery';
@@ -83,13 +83,14 @@ function waitForPlayback(target: Station, timeoutMs = 3200): Promise<'playing' |
   });
 }
 
-async function playBestAtlasMatch(query: string, current: Station | null, playbackStatus: string, excludeCurrent = false, music?: AtlasMusicSearch): Promise<AtlasActionResult> {
+async function playBestAtlasMatch(query: string, current: Station | null, playbackStatus: string, excludeCurrent = false, music?: AtlasMusicSearch, isCurrent = () => true): Promise<AtlasActionResult> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 6000);
   try {
     const response = await fetch(`/api/stations/search?${atlasStationSearchParams(query, music)}`, { signal: controller.signal });
     if (!response.ok) return { ok: false, status: 'failed', message: 'I could not reach the station directory.' };
     const data = await response.json() as { stations?: Station[] };
+    if (!isCurrent()) return { ok: false, status: "failed", message: "A newer instruction replaced this request." };
     let candidates = (data.stations || []).filter((candidate) => Boolean(candidate.station_uuid || candidate.id) && (!music || stationMatchesMusicGenres(candidate.tags, music)));
     if (excludeCurrent && current) candidates = candidates.filter((candidate) => stationIdentity(candidate) !== stationIdentity(current));
     if (!candidates.length) return { ok: false, status: 'not_found', message: `I couldn't find a playable station matching ${query}.` };
@@ -102,6 +103,7 @@ async function playBestAtlasMatch(query: string, current: Station | null, playba
     }
 
     for (let index = 0; index < choices.length; index += 1) {
+      if (!isCurrent()) return { ok: false, status: "failed" };
       const match = choices[index];
       const playback = waitForPlayback(match, index < choices.length - 1 ? 2600 : 3200);
       window.history.pushState({ atlasAssistant: true }, '', stationPath(match));
@@ -129,6 +131,7 @@ function sendPlaybackCommand(command: 'play' | 'pause' | 'volume', value?: numbe
 }
 
 export default function WaveAtlasExperience(props: Props) {
+  const actionGeneration = useRef(0);
   const [station, setStation] = useState<Station | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState('idle');
 
@@ -157,6 +160,8 @@ export default function WaveAtlasExperience(props: Props) {
   const search = (query: string) => { void openSearchWithQuery(query); };
 
   const executeAction = async (action: AtlasAssistantAction): Promise<AtlasActionResult> => {
+    const generation = ++actionGeneration.current;
+    if (action.type === "nearby") { window.dispatchEvent(new Event("waveatlas:explore-nearby")); return completed(); }
     if (action.type === 'search') {
       if (!await openSearchWithQuery(action.query)) return failed('I could not open search.');
       try {
@@ -168,12 +173,12 @@ export default function WaveAtlasExperience(props: Props) {
         return { ok: true, status: 'completed', message: `I found ${matches[0].name}${matches.length > 1 ? ' and other matches' : ''}. The results are open. Say play followed by the station name to listen.`, terminal: true };
       } catch { return failed('Search is open, but the directory took too long to respond. Please try again.'); }
     }
-    if (action.type === 'play') return action.query ? playBestAtlasMatch(action.query, station, playbackStatus, action.excludeCurrent, action.music) : sendPlaybackCommand('play');
+    if (action.type === 'play') return action.query ? playBestAtlasMatch(action.query, station, playbackStatus, action.excludeCurrent, action.music, () => actionGeneration.current === generation) : sendPlaybackCommand('play');
     if (action.type === 'pause') return sendPlaybackCommand('pause');
     if (action.type === 'resume') return sendPlaybackCommand('play');
     if (action.type === 'volume') return sendPlaybackCommand('volume', action.value);
     if (action.type === 'teleport') {
-      if (action.query) return playBestAtlasMatch(action.query, station, playbackStatus);
+      if (action.query) return playBestAtlasMatch(action.query, station, playbackStatus, false, undefined, () => actionGeneration.current === generation);
       const button = visibleButtonMatching(/teleport/i);
       if (!button) return failed('I could not find the teleport control.');
       button.click(); return completed();

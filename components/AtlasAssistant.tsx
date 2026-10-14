@@ -351,7 +351,7 @@ export function AtlasAssistant({ station, playbackStatus = 'idle', onSearch, onA
   }
 
   async function ask(text: string) {
-    const value = text.trim(); if (!value || busyRef.current) return; stopVoiceOutput(); void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false);
+    const value = text.trim(); if (!value) return; requestControllerRef.current?.abort(); stopVoiceOutput(); void captureRef.current.stop(); recognitionRef.current = null; stopRecognitionWatchdog(); setListening(false);
     window.dispatchEvent(new Event('waveatlas:atlas-used'));
     const history = linesRef.current.slice(-8);
     const userLine: Line = { role: 'user', text: value };

@@ -1,3 +1,4 @@
+import { stationArtwork } from '@/lib/maturity/station-artwork';
 import { stationCardVisualText } from '@/lib/station-card-text';
 import { ImageResponse } from 'next/og';
 import { readFile } from 'node:fs/promises';
@@ -32,10 +33,11 @@ export default async function StationImage({ params }: { params: Promise<{ stati
   if (/\p{Script=Hebrew}/u.test(visibleText)) fontNames.push('NotoSansHebrew');
   if (/\p{Script=Devanagari}/u.test(visibleText)) fontNames.push('NotoSansDevanagari');
   if (/\p{Script=Thai}/u.test(visibleText)) fontNames.push('NotoSansThai');
-  const [logo, flag, fonts] = await Promise.all([
+  const [logo, flag, fonts, artwork] = await Promise.all([
     branding,
     details.country ? readFile(path.join(process.cwd(), "public/flags", `${details.country.code.toLowerCase()}.svg`)).then(data => `data:image/svg+xml;base64,${data.toString('base64')}`).catch(() => null) : null,
     Promise.all(fontNames.map(async name => ({ name, data: await font(name), weight: 400 as const, style: 'normal' as const }))),
+    stationArtwork(station),
   ]);
   const fontFamily = fontNames.join(', ');
   const lines = cardNameLines(name, details.fontSize);
@@ -52,6 +54,7 @@ export default async function StationImage({ params }: { params: Promise<{ stati
         <div style={{ display: 'flex', fontSize: 30, letterSpacing: -1 }}>WaveAtlas</div>
         <div style={{ display: 'flex', marginLeft: 'auto', color: '#00D68F', fontSize: 16, letterSpacing: 3 }}>GLOBAL RADIO ATLAS</div>
       </div>
+      {artwork ? <img src={artwork} alt="" width={140} height={140} style={{ position: "absolute", right: 52, top: 240, objectFit: "contain", borderRadius: 18 }} /> : null}
       <div style={{ display: 'flex', alignItems: 'center', marginTop: 38, gap: 14, height: 32 }}>
         {flag ? <img src={flag} alt="" width={40} height={30} style={{ borderRadius: 4 }} /> : <div style={{ display: 'flex', width: 28, height: 28, border: '2px solid #D4A64A', borderRadius: '50%', alignItems: 'center', justifyContent: 'center', color: '#D4A64A' }}><div style={{ display: 'flex', width: 10, height: 24, border: '1px solid #D4A64A', borderRadius: '50%' }} /></div>}
         <div style={{ display: 'flex', fontSize: 18, color: '#D4A64A', letterSpacing: 3 }}>{details.country?.name.toUpperCase() || 'WORLDWIDE'}</div>

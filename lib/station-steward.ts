@@ -1,3 +1,5 @@
+import { coverageIntelligence, balancedDiscoveryQueue } from './maturity/coverage';
+import { bundledCanonicalStations } from './stations';
 import { resolveStationGeo } from './geotruth-resolver';
 import { buildRadioBrowserClaim, reconcileStationTruth } from './source-oracle';
 import { fetchStations, fetchStationsByCountry, isCuratedStation, type Station, validateStream } from './stations';
@@ -173,6 +175,13 @@ async function upsertStation(config: SupabaseConfig, station: Station, validatio
 }
 
 export async function discoverCandidateStations() {
+  let coverage = coverageIntelligence(bundledCanonicalStations());
+  const config = supabaseConfig();
+  if (config) try {
+    const snapshots = await supabaseRequest<{ summary: typeof coverage; scope: string }[]>(config, 'coverage_snapshots?select=summary,scope&order=measured_at.desc&limit=1');
+    if (snapshots[0]?.scope === 'Canonical stations') coverage = snapshots[0].summary;
+  } catch { /* Bundled evidence remains an honest fallback. */ }
+  const priorities = coverage.gaps.map(row => row.code);
   const seen = new Set<string>();
   const candidates: Station[] = [];
   const coverage_stats: StewardRunSummary['coverage_stats'] = {};
@@ -186,6 +195,7 @@ export async function discoverCandidateStations() {
       }
     }
   };
+  for (const countryCode of priorities.slice(0, 6)) addStations(await fetchStationsByCountry({ countryCode, limit: "20", offset: "0" }));
   for (const params of RADIO_BROWSER_SCAN_PLAN) {
     addStations(await fetchStations(params));
   }
@@ -200,7 +210,7 @@ export async function discoverCandidateStations() {
     }
   }
   return {
-    candidates: candidates.sort((a, b) => b.health_score - a.health_score || b.votes - a.votes),
+    candidates: balancedDiscoveryQueue(candidates, priorities),
     coverage_stats,
     countries_with_no_results,
   };
@@ -217,6 +227,7 @@ export async function runStationStewardAgent(options: { dryRun?: boolean; valida
   let coverage_stats: StewardRunSummary['coverage_stats'] = {};
   let countries_with_no_results: string[] = [];
   let geo_conflicts_flagged = 0;
+  const discoveryAttempts: Record<string, { attemptedAt: string; successRate: number; successes: number; failures: number }> = {};
 
   try {
     const discovery = await discoverCandidateStations();
@@ -227,6 +238,7 @@ export async function runStationStewardAgent(options: { dryRun?: boolean; valida
     for (const [index, station] of candidates.entries()) {
       const validation = index < validateLimit ? await validateStream(station.url, { curated: isCuratedStation(station) }) : undefined;
       const normalized = normalizeForDatabase(station, validation);
+      if (validation) { const prior=discoveryAttempts[station.country_code] || { attemptedAt: started_at, successRate: 0, successes: 0, failures: 0 }; if(normalized.last_check_ok)prior.successes++;else prior.failures++;prior.successRate=prior.successes/(prior.successes+prior.failures);discoveryAttempts[station.country_code]=prior; }
       if (resolveStationGeo(station).warning) geo_conflicts_flagged += 1;
       if (normalized.is_retired) stations_retired += 1;
       if (dryRun || !config) {
@@ -249,5 +261,14 @@ export async function runStationStewardAgent(options: { dryRun?: boolean; valida
     await supabaseRequest(config, 'agent_runs', { method: 'POST', body: JSON.stringify(summary) }).catch((error) => errors.push(error instanceof Error ? error.message : 'Failed to log agent run'));
   }
 
+  if (config && !dryRun) {
+    try {
+      const rows: Record<string, unknown>[] = [];
+      for (let offset=0; offset<100000; offset+=1000) { const batch=await supabaseRequest<Record<string,unknown>[]>(config, `stations?select=*&order=station_uuid.asc&limit=1000&offset=${offset}`); rows.push(...batch);if(batch.length<1000)break; }
+      const { stationFromDatabase } = await import('./stations');
+      await supabaseRequest(config, 'coverage_snapshots', { method: 'POST', body: JSON.stringify({ scope: rows.length >= 100000 ? 'Canonical stations (partial)' : 'Canonical stations', summary: { ...coverageIntelligence(rows.map(stationFromDatabase), discoveryAttempts), discoveryAttempts } }) });
+      await supabaseRequest(config, 'rpc/aggregate_station_reports', { method: 'POST', body: '{}' });
+    } catch { errors.push('Coverage snapshot or report aggregation unavailable; station updates were preserved.'); }
+  }
   return summary;
 }

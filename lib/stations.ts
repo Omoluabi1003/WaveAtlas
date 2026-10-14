@@ -438,3 +438,8 @@ export async function fetchStationByUuid(stationUuid: string): Promise<Station |
 
 export { ariyoSeedStations, republicCongoStations, fallbackStations };
 export function discoverIntent(query: string) { const q = query.toLowerCase(); const tags = ['gospel','jazz','news','talk','afrobeats','classical','reggae','sports','local','music']; return { country: Object.keys(countryAliases).find(c=>q.includes(c)), countryCode: Object.entries(countryAliases).find(([name])=>q.includes(name))?.[1], tag: tags.find(t=>q.includes(t)), language: q.includes('french')?'french':q.includes('english')?'english':undefined } as Record<string,string|undefined>; }
+
+export function bundledCanonicalStations() {
+  return [...new Map([...nonGeoAudioSeeds(), ...ariyoGeoAudioChannels, ...fallbackStations].map(station => [station.station_uuid || station.id, station])).values()];
+}
+export { stationFromDatabase };
