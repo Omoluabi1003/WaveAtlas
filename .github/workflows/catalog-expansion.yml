@@ -42,6 +42,7 @@ jobs:
           node --import tsx tests/stream-probe.regression.ts
           node --import tsx tests/republic-congo-stations.regression.ts
           node --import tsx tests/catalog-expansion.regression.ts
+          node --import tsx tests/catalog-expansion-inventory.regression.ts
           npm run typecheck
           npm run lint
           npm run build
