@@ -1,5 +1,5 @@
 import { readQueenMemory, emptyQueenMemory } from '../lib/agents/queen-coordinator';
-import { probeStream } from '../lib/agents/stream-probe';
+import { probeStream, probeOutcome } from '../lib/agents/stream-probe';
 import { fallbackStations } from '../lib/stations';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { candidateToStation, existingStationKeys, isDuplicateCandidate, normalizeUrl, qualityScore, rejectReason, type DiscoveryMetadata, type RadioBrowserCandidate } from '../lib/radio-discovery';
@@ -21,7 +21,7 @@ const COUNTRIES_PER_RUN = Math.max(1, Number(process.env.RADIO_DISCOVERY_COUNTRI
 const SIGNAL_TIMEOUT_MS = Number(process.env.RADIO_DISCOVERY_SIGNAL_TIMEOUT_MS ?? '8000');
 
 type ReportItem = { name?: string; url?: string; sourceStationUuid?: string; reason?: string; qualityScore?: number };
-type Report = { generatedAt: string; dryRun: boolean; source: string; countries: { code: string; name?: string; available?: number; covered: number }[]; fetched: number; added: ReportItem[]; skipped: ReportItem[]; duplicate: ReportItem[]; failed: ReportItem[]; suspicious: ReportItem[] };
+type Report = { generatedAt: string; dryRun: boolean; source: string; countries: { code: string; name?: string; available?: number; covered: number }[]; fetched: number; added: ReportItem[]; skipped: ReportItem[]; duplicate: ReportItem[]; failed: ReportItem[]; inconclusive: ReportItem[]; suspicious: ReportItem[] };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function fetchCountryInventory() {
@@ -61,14 +61,14 @@ async function writeGenerated(stations: ReturnType<typeof candidateToStation>[],
 async function writeReports(report: Report) {
   await mkdir('reports', { recursive: true });
   await writeFile('reports/radio-discovery-report.json', `${JSON.stringify(report, null, 2)}\n`);
-  const md = [`# WaveAtlas Radio Discovery Report`, ``, `Generated: ${report.generatedAt}`, `Dry run: ${report.dryRun}`, `Source: ${report.source}`, ``, `| Bucket | Count |`, `| --- | ---: |`, `| Added | ${report.added.length} |`, `| Skipped | ${report.skipped.length} |`, `| Duplicate | ${report.duplicate.length} |`, `| Failed | ${report.failed.length} |`, `| Suspicious | ${report.suspicious.length} |`, ``, `## Added candidates`, ...report.added.map((i) => `- ${i.name} (${i.url}) score=${i.qualityScore}`), ``].join('\n');
+  const md = [`# WaveAtlas Radio Discovery Report`, ``, `Generated: ${report.generatedAt}`, `Dry run: ${report.dryRun}`, `Source: ${report.source}`, ``, `| Bucket | Count |`, `| --- | ---: |`, `| Added | ${report.added.length} |`, `| Skipped | ${report.skipped.length} |`, `| Duplicate | ${report.duplicate.length} |`, `| Failed | ${report.failed.length} |`, `| Inconclusive | ${report.inconclusive.length} |`, `| Suspicious | ${report.suspicious.length} |`, ``, `## Added candidates`, ...report.added.map((i) => `- ${i.name} (${i.url}) score=${i.qualityScore}`), ``].join('\n');
   await writeFile('reports/radio-discovery-report.md', md);
 }
 
 async function main() {
   const generatedAt = new Date().toISOString();
-  const report: Report = { generatedAt, dryRun: DRY_RUN, source: API_BASE, countries: [], fetched: 0, added: [], skipped: [], duplicate: [], failed: [], suspicious: [] };
-  const keys = existingStationKeys([...ariyoSeedStations, ...campusAtlasStations, ...discoveredRadioStations, ...fallbackStations]);
+  const report: Report = { generatedAt, dryRun: DRY_RUN, source: API_BASE, countries: [], fetched: 0, added: [], skipped: [], duplicate: [], failed: [], inconclusive: [], suspicious: [] };
+  const keys = existingStationKeys([...ariyoSeedStations, ...campusAtlasStations, ...republicCongoStations, ...discoveredRadioStations, ...fallbackStations]);
   const accepted = [...discoveredRadioStations];
   const metadata: DiscoveryMetadata[] = JSON.parse(await readFile('lib/stations/discoveredRadioMetadata.json', 'utf8'));
   for (const item of metadata) keys.sourceUuids.add(item.sourceStationUuid);
@@ -79,7 +79,7 @@ async function main() {
   let candidates: RadioBrowserCandidate[] = [];
   try {
     const countryCounts = new Map<string, number>();
-    for (const station of [...ariyoSeedStations, ...campusAtlasStations, ...discoveredRadioStations, ...fallbackStations]) {
+    for (const station of [...ariyoSeedStations, ...campusAtlasStations, ...republicCongoStations, ...discoveredRadioStations, ...fallbackStations]) {
       const code = station.country_code?.toUpperCase();
       if (code) countryCounts.set(code, (countryCounts.get(code) ?? 0) + 1);
     }
@@ -100,13 +100,19 @@ async function main() {
     const item = { name: c.name, url: c.url_resolved || c.url, sourceStationUuid: c.stationuuid, qualityScore: qualityScore(c) };
     const reason = rejectReason(c, MIN_BITRATE, REQUIRE_GEO);
     if (reason) { (reason === 'suspicious_name' ? report.suspicious : report.skipped).push({ ...item, reason }); continue; }
+    if (!item.url?.startsWith('https://')) { report.skipped.push({ ...item, reason: 'official_https_endpoint_required_for_new_station' }); continue; }
     if (isDuplicateCandidate(c, keys)) { report.duplicate.push({ ...item, reason: 'duplicate_existing_station' }); continue; }
     if (Date.parse(memory.cooldowns[item.url || ''] || '') > Date.now()) {
       report.skipped.push({ ...item, reason: 'shared_memory_retry_cooldown' }); continue;
     }
     probes++;
     const signal = await probeStream(c.url_resolved || c.url || '', SIGNAL_TIMEOUT_MS);
-    if (!signal.ok) { report.failed.push({ ...item, reason: `stream_validation_failed_${signal.reason}` }); continue; }
+    if (!signal.ok) {
+      const outcome = probeOutcome(signal);
+      (outcome === 'inconclusive' ? report.inconclusive : report.failed).push({ ...item, reason: `${outcome === 'inconclusive' ? 'stream_validation_inconclusive' : 'stream_validation_failed'}_${signal.reason}` });
+      continue;
+    }
+    if (!signal.resolvedUrl?.startsWith('https://')) { report.skipped.push({ ...item, reason: 'resolved_endpoint_not_https' }); continue; }
     if (isDuplicateCandidate({ ...c, url_resolved: signal.resolvedUrl }, keys)) { report.duplicate.push({ ...item, reason: 'duplicate_resolved_stream' }); continue; }
     const station = candidateToStation({ ...c, url_resolved: signal.resolvedUrl || c.url_resolved }, generatedAt);
     accepted.push(station); keys.urls.add(normalizeUrl(station.url_resolved || station.url)); keys.names.add(`${station.country_code}:${station.normalized_name || ''}`); keys.sourceUuids.add(c.stationuuid || station.station_uuid);

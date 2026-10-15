@@ -11,7 +11,7 @@ export function normalizeReliability(station: Station, options: { now?: number; 
   if (memory?.lastSuccessAt && now - memory.lastSuccessAt >= 0 && now - memory.lastSuccessAt < 86400000 && memory.lastSuccessAt > (memory.lastFailureAt ?? 0)) return memory.lastFailureAt ? 'Recovering' : 'Stable';
   if (memory?.lastFailureAt && now - memory.lastFailureAt >= 0 && now - memory.lastFailureAt < 86400000) return 'Intermittent';
   const evidence = (options.evidence ?? snapshot as HealthSnapshot).records[station.url_resolved || station.url];
-  if (evidence && now - Date.parse(evidence.checkedAt) >= 0 && now - Date.parse(evidence.checkedAt) < HEALTH_EVIDENCE_TTL_MS) return evidence.status === 'healthy' ? 'Excellent' : 'Intermittent';
+  if (evidence && now - Date.parse(evidence.checkedAt) >= 0 && now - Date.parse(evidence.checkedAt) < HEALTH_EVIDENCE_TTL_MS) return evidence.status === 'healthy' ? 'Excellent' : evidence.status === 'unknown' ? 'Unknown' : 'Intermittent';
   const age = now - Date.parse(station.last_checked_at);
   // A synthetic score or an active flag is not evidence of successful playback.
   if (station.last_check_ok === undefined || !Number.isFinite(age) || age < 0 || age >= HEALTH_EVIDENCE_TTL_MS) return 'Unknown';

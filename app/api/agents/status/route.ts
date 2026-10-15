@@ -22,7 +22,7 @@ export async function GET() {
         const age = operationalStatus.generatedAt ? Date.now() - Date.parse(operationalStatus.generatedAt) : Infinity;
         return { ...role, mode: 'scheduled-background', cadence: 'every-8-hours', status: recorded ? (age >= 0 && age < 24 * 60 * 60 * 1000 ? recorded.status : 'report-stale') : 'awaiting-first-run', lastReport: operationalStatus.generatedAt, advisoryOnly: true };
       }),
-      { id: 'stream-health', mode: 'scheduled-background', lastRun: health.generatedAt, status: health.generatedAt ? (fresh.length ? 'evidence-available' : 'evidence-stale') : 'awaiting-first-run', freshChecks: fresh.length, healthy: fresh.filter((record) => record.status === 'healthy').length, degraded: fresh.filter((record) => record.status === 'degraded').length, deletesStations: false },
+      { id: 'stream-health', mode: 'scheduled-background', lastRun: health.generatedAt, status: health.generatedAt ? (fresh.length ? 'evidence-available' : 'evidence-stale') : 'awaiting-first-run', freshChecks: fresh.length, healthy: fresh.filter((record) => record.status === 'healthy').length, degraded: fresh.filter((record) => record.status === 'degraded').length, unknown: fresh.filter((record) => record.status === 'unknown').length, deletesStations: false },
       { id: 'station-discovery', mode: 'scheduled-background', status: verifiedAt ? 'verified-additions-available' : 'awaiting-verified-additions', lastVerifiedAddition: verifiedAt, acceptedStations: discoveredRadioStations.length, changesRequireReview: true },
     ],
   }, { headers: { 'Cache-Control': 'public, max-age=300' } });

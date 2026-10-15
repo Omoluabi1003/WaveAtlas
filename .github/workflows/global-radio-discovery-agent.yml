@@ -8,6 +8,10 @@ on:
         type: choice
         options: [all, both, stream-health, station-discovery, operations]
         default: all
+      full_audit:
+        description: Check the entire canonical radio catalog (health worker)
+        type: boolean
+        default: false
       dry_run:
         description: Produce reports without proposing catalog changes
         type: boolean
@@ -41,6 +45,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:queen
+      - run: node --import tsx tests/stream-probe.regression.ts
       - run: npm run test:agents
       - run: npm run test:operations
       - run: npm run test:brief
@@ -63,6 +68,37 @@ jobs:
       - run: npm run radio:validate
       - run: npm run typecheck
       - run: npm run build
+
+  catalog-audit:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Audit all canonical streams without changing inventory
+        run: node --import tsx scripts/check-station-health.ts
+        env:
+          STATION_HEALTH_FULL_AUDIT: 'true'
+          STATION_HEALTH_DRY_RUN: 'true'
+      - name: Discover a bounded sample without adding unreviewed stations
+        run: node --import tsx scripts/discover-radio-stations.ts
+        env:
+          RADIO_DISCOVERY_DRY_RUN: 'true'
+          RADIO_DISCOVERY_MAX_ADD: '10'
+          RADIO_DISCOVERY_MAX_PROBES: '30'
+          RADIO_DISCOVERY_COUNTRIES_PER_RUN: '6'
+      - name: Record measured evidence in job logs and summary
+        if: always()
+        run: |
+          node -e "const fs=require('fs');for(const path of ['reports/station-health-report.json','reports/station-catalog-audit.json','reports/radio-discovery-report.json'])if(fs.existsSync(path))console.log(path,fs.readFileSync(path,'utf8'))"
+          for report in reports/station-health-report.md reports/station-catalog-audit.md reports/radio-discovery-report.md; do
+            if test -f "$report"; then cat "$report" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
 
   queen:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agents-bootstrap]'))
@@ -93,6 +129,7 @@ jobs:
           QUEEN_SCHEDULE: ${{ github.event.schedule }}
           QUEEN_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
           STATION_HEALTH_LIMIT: '120'
+          STATION_HEALTH_FULL_AUDIT: ${{ inputs.full_audit || false }}
           RADIO_DISCOVERY_MAX_ADD: '50'
           RADIO_DISCOVERY_MAX_PROBES: '150'
           RADIO_DISCOVERY_COUNTRIES_PER_RUN: '24'
@@ -104,6 +141,7 @@ jobs:
           if test -f reports/queen-memory.json; then
             bash scripts/publish-agent-report.sh chore/waveatlas-queen-memory reports/queen-memory.json
           fi
+      - run: node --import tsx tests/stream-probe.regression.ts
       - run: npm run test:agents
       - run: npm run test:operations
       - run: npm run radio:validate
@@ -113,7 +151,7 @@ jobs:
         if: success() && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
         run: |
           paths=(reports/queen-report.json)
-          for file in lib/stations/stationHealthSnapshot.json lib/stations/discoveredRadioStations.ts lib/stations/discoveredRadioMetadata.json lib/agents/operational-status.json reports/station-health-report.json reports/station-health-report.md reports/radio-discovery-report.json reports/radio-discovery-report.md reports/operational-agents.json reports/operational-agents.md; do
+          for file in lib/stations/stationHealthSnapshot.json lib/stations/discoveredRadioStations.ts lib/stations/discoveredRadioMetadata.json lib/agents/operational-status.json reports/station-health-report.json reports/station-health-report.md reports/station-catalog-audit.json reports/station-catalog-audit.md reports/radio-discovery-report.json reports/radio-discovery-report.md reports/operational-agents.json reports/operational-agents.md; do
             if test -f "$file"; then paths+=("$file"); fi
           done
           bash scripts/publish-agent-report.sh chore/waveatlas-queen-reports "${paths[@]}"

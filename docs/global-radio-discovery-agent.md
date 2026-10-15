@@ -6,9 +6,9 @@ Nine bounded background roles use the existing station catalogs: two stream work
 
 `scripts/discover-radio-stations.ts` orders countries by coverage and rotates the eight-hour scan across that inventory in the public Radio Browser directory. It deduplicates against seed, campus, fallback, and previously discovered stations and source UUID provenance. It also checks the resolved stream URL for duplicates; matching names in different countries remain eligible. URL path and query case are preserved. Accepted stations are appended to the complete existing generated catalog. Missing or malformed provenance stops the run rather than silently replacing it.
 
-A GET probe must return sampled MPEG/AAC/Ogg/FLAC/WAV audio evidence. HTTP 401/403, HTML, empty responses, and unverified playlists do not qualify as working streams. A short sample is evidence of availability at that time, not a guarantee of uninterrupted playback, browser codec support, or CORS availability. Existing playlist stations are preserved. New playlist support needs a separate reviewed resolver.
+A GET probe must return sampled MPEG/AAC/Ogg/FLAC/WAV audio evidence. HTTP 401/403, HTML, empty responses, and unverified playlists do not qualify as working streams. A short sample is evidence of availability at that time, not a guarantee of uninterrupted playback, browser codec support, or CORS availability. HLS master/media, M3U and PLS playlists are followed using the same pinned transport. HLS requires sampled segment audio (or an audio-track CMAF initialization map plus media fragment); manifest text alone never qualifies. Encrypted and byte-range playlists remain inconclusive. The stable playlist URL is preserved rather than replacing it with an expiring segment URL.
 
-DNS addresses are checked and pinned to each connection; private/local addresses, embedded credentials, unsupported schemes, and unsafe redirects are blocked. Each probe samples at most 4096 bytes, cancels its response, follows at most four redirects, and has an eight-second deadline including DNS and body sampling. Scheduled runs inspect at most 150 candidate streams across 24 countries and append at most 50 verified additions. Low or unknown directory bitrates are eligible; actual sampled audio is still required.
+DNS addresses are checked and pinned to each connection; private/local addresses, embedded credentials, unsupported schemes, and unsafe redirects are blocked. Direct streams sample at most 4096 bytes; manifests, initialization maps and segments sample at most 64 KiB each. Each probe allows at most 12 requests, four redirects per resource and four nested playlist levels within one eight-second deadline including DNS and body sampling. Every child URL is independently validated and pinned. Scheduled runs inspect at most 150 candidate streams across 24 countries and append at most 50 verified additions. Low or unknown directory bitrates are eligible; actual sampled audio is still required.
 
 ```bash
 npm run radio:discover:dry
@@ -23,6 +23,8 @@ RADIO_DISCOVERY_DRY_RUN=false RADIO_DISCOVERY_MAX_ADD=10 npm run radio:discover
 STATION_HEALTH_DRY_RUN=true STATION_HEALTH_LIMIT=10 npm run radio:health
 npm run test:agents
 ```
+
+404/410 responses at the station endpoint count as unavailable evidence. Network errors, access restrictions, unsupported formats and expired child segments remain unknown and never add a ranking penalty or discovery failure cooldown. Existing HTTP-only endpoints are flagged for authoritative HTTPS repair, never upgraded by guessing. Newly discovered stations require HTTPS at both the supplied and resolved endpoint to reduce mixed-content failures.
 
 Fresh healthy evidence provides a small ranking boost. A single failed check has no ranking penalty. Two or more recent failures provide a bounded penalty only; evidence fades and expires after 48 hours, and a changed stream URL ignores the old record. These adjustments affect normal station ranking, trust ranking, and the Atlas reliability index. They never change active flags or remove catalog entries. Browser playback history continues to operate independently. GeoAudio tracks are excluded from these radio probes.
 
@@ -45,6 +47,8 @@ Stream workers validate tests, TypeScript, and a production build before publish
 | `RADIO_DISCOVERY_PAGES` | `1` | Directory pages per country. |
 | `RADIO_DISCOVERY_PAGE_SIZE` | `100` | Candidates per page, capped at 500. |
 | `STATION_HEALTH_LIMIT` | `120` | Unique streams per batch, capped at 250. |
+| `STATION_HEALTH_FULL_AUDIT` | `false` | Check the complete canonical radio inventory (including Republic Congo); also available as a manual workflow input. |
+| `STATION_HEALTH_STATIC_ONLY` | `false` | Produce an inventory audit without broadcaster probes; preserve health snapshot and cursor. |
 | `STATION_HEALTH_DRY_RUN` | `false` | Reports only when true. |
 
 The legacy Supabase Station Steward remains separate and is neither invoked nor given new privileges by these workers.
@@ -77,3 +81,9 @@ Coverage analysis describes the bundled catalog, not all stations available thro
 The shared memory branch stores at most 90 worker outcomes and 1,000 failed-endpoint cooldowns. Discovery consults this memory before probing and retries failed URLs after 24 hours. Successful endpoints and station additions are still checked against the existing catalog and must pass audio validation. Unmerged candidate additions are not treated as deployed stations. Memory persistence is automatic; catalog, health, and operational status updates require review and merge. Manual dry-runs persist execution outcomes and cooldowns but do not publish catalog changes.
 
 Standard GitHub-hosted runners are free for this public repository. The new coordinator adds no model-provider calls or artifact uploads. If the repository becomes private or the runner is changed, hosting costs must be reassessed. External directory availability and GitHub schedule delays still apply. There is no paid-model fallback: complex work remains a human review task. Reference architecture: https://github.com/ruvnet/ruflo (MIT license). This implementation uses original WaveAtlas code and does not copy the Ruflo runtime.
+
+## Catalog repair review
+
+`reports/station-catalog-audit.{json,md}` includes all canonical bundled radio stations, freshness, HTTP-only URLs, missing broadcaster homepages and HLS review priorities. `STATION_HEALTH_FULL_AUDIT=true npm run radio:health` produces live evidence on a runner with direct broadcaster access. Known restricted Codex runners automatically preserve existing evidence instead of marking every stream failed. These static audit counts do not claim browser playability. Review official broadcaster sources before changing URLs; retain canonical IDs and all station records. Merge validated Queen report output to deploy verified additions. No new account, paid provider, database migration or production environment variable is required.
+
+Pull requests run a read-only live catalog audit and a bounded discovery sample on GitHub-hosted runners. Their job logs and summary contain measured endpoint results and candidate additions; the job never commits station or health changes. Browser playback and official-source review remain necessary before promoting replacements.
