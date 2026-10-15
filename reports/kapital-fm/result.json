@@ -1,6 +1,6 @@
 {
-  "verifierRevision": "fedde5cd3696e25190ae572b09b875d74a3e5f80ecc0d164d53020000900115b",
-  "checkedAt": "2026-10-15T21:44:22.513Z",
+  "verifierRevision": "5fec0d97b2cfa32d3670d0cfa999d41d2487150812aa6e826323318d1b71bd61",
+  "checkedAt": "2026-10-15T21:48:08.804Z",
   "status": "not_verified",
   "directory": [],
   "pages": [
@@ -10,66 +10,94 @@
       "title": "KapitalFM 92.9 Abuja - The Station that Rocks!",
       "bytes": 100019,
       "playerHints": [
-        "el-css' href='https://kapitalfm.gov.ng/wp-content/themes/proradio/components/owl-carousel/dist/assets/owl.carousel.min.css?ver=2.3.2' media='all' />",
-        "\t\t\t\t<li id=\"media_video-3\" class=\"proradio-widget proradio-col proradio-s12 proradio-m12 proradio-l12  widget_media_video\"><h6 class=\"proradio-widget__title proradio-caption proradio-caption__s proradio-anim\" data-qtwaypo",
-        "video></div></li><li id=\"block-5\" class=\"proradio-widget proradio-col proradio-s12 proradio-m12 proradio-l12  widget_block\"><div class=\"wp-block-group\"><div class=\"wp-block-group__inner-container is-layout-flow wp-block-group-is",
-        "</div></div></li><li id=\"block-6\" class=\"proradio-widget proradio-col proradio-s12 proradio-m12 proradio-l12  widget_block\"><div class=\"wp-block-group\"><div class=\"wp-block-group__inner-container is-layout-flow wp-block-group-is",
-        "\t\t\t<div class=\"proradio-container\">",
-        "\t\t\t<div class=\"proradio-container\">",
-        "\t\t\t\t\t<div class=\"proradio-col proradio-s12 proradio-m12 proradio-l8\">",
-        "\t\t<div class=\"proradio-clearfix  proradio-col proradio-s12 proradio-m12 proradio-l12\">",
-        "\t\t\t\t\t<div id=\"proradio-sidebarcontainer\" class=\"proradio-col proradio-s12 proradio-m12 proradio-l4 proradio-stickycol\">",
-        "\t\t\t<li id=\"media_video-5\" class=\"proradio-widget proradio-col proradio-s12 proradio-m6 proradio-l12  widget_media_video\"><h6 class=\"proradio-widget__title proradio-caption proradio-caption__s proradio-anim\" data-qtwaypoi",
-        "video></div></li><li id=\"block-2\" class=\"proradio-widget proradio-col proradio-s12 proradio-m6 proradio-l12  widget_block widget_search\"><form role=\"search\" method=\"get\" action=\"https://kapitalfm.gov.ng/\" class=\"wp-block-search_",
-        "/div></form></li><li id=\"block-3\" class=\"proradio-widget proradio-col proradio-s12 proradio-m6 proradio-l12  widget_block\"><div class=\"wp-block-group\"><div class=\"wp-block-group__inner-container is-layout-flow wp-block-group-is-",
-        "\t<div id=\"proradio-copybar\" class=\"proradio-footer__copy proradio-primary\">",
-        "\t\t<div class=\"proradio-container\">"
+        " id=\"qtmplayer\" class=\"qtmplayer qtmplayer-scrollbarstyle \" data-qtmplayer-detailedwaveform=\"0\" data-qtmplayer-startvol=\"82\" data-qtmplayer-debugger=\"0\" data-artwork=\"1\"  data-showplayer=\"\" data-analyzer=\"\" data-autoplay=\"1\" data-hiquality=\"\" data-qtmp",
+        "layer-api=\"https://kapitalfm.gov.ng/?qtmplayer_json_data=\" data-qtmplayer-smflash=\"https://kapitalfm.gov.ng/wp-content/plugins/qtmplayer/assets/soundmanager/swf/\">",
+        "\t\t\t<a id=\"qtmplayerPlay\" data-qtmplayer-playbtn class=\"qtmplayer__play qtmplayer-btn-secondary\">",
+        "\t\t\t\t<i id=\"qtmplayerNotif\" data-qtmplayerNotif class=\"qtmplayer__notification\"></i>",
+        "\t\t\t\t<a data-qtmplayer-playbtn class=\"qtmplayer__playmob\">",
+        "\t\t\t\t\t<i id=\"qtmplayerNotifM\" data-qtmplayerNotif class=\"qtmplayer__notification qtmplayer-content-secondary\"></i>",
+        "\t\t\t\t<div id=\"qtmplayerTrackControl\" data-qtmplayer-trackcontrol class=\"qtmplayer__track\">",
+        "\t\t\t\t\t<span id=\"qtMplayerTadv\" data-qtmplayer-trackadv class=\"qtmplayer-track-adv qtmplayer-content-accent\"></span>",
+        "\t\t\t\t\t<span id=\"qtMplayerMiniCue\" data-qtmplayer-minicue class=\"qtmplayer-track-minicue\"></span>",
+        "ss=\"qtmplayer__fullwaveform qtmplayer__fullwaveform--large\" data-qtmplayer-color=\"#ffffff\" data-qtmplayer-color-clone=\"#0000ff\">",
+        "\t\t\t<i data-qtmplayer-vicon class=\"material-icons\" aria-label=\"Mute or unmute\">volume_up</i>",
+        "\t\t\t\t<div data-qtmplayer-vcontrol class=\"qtmplayer__vcontrol\">",
+        "\t\t\t\t\t<span data-qtmplayer-vtrack class=\"qtmplayer__vtrack\"></span>",
+        "\t\t\t\t\t<span data-qtmplayer-vfill class=\"qtmplayer__vfill\"></span>",
+        "\t\t\t\t\t<span data-qtmplayer-vball class=\"qtmplayer-track-minicue qtmplayer__vball\"></span>",
+        "ontent/uploads/2023/03/Logo-KFM.jpg\" alt=\"cover\">\t\t<span \t\t\tdata-qtmplayer-qtmpid=\"7025\"",
+        "\t\t\t\t\t\tdata-qtmplayer-cover=\"https://kapitalfm.gov.ng/wp-content/uploads/2023/03/Logo-KFM.jpg\"",
+        "\t\t\t\t\t\tdata-qtmplayer-file=\"https://cast4.asurahosting.com/proxy/radioni1/stream/;/&#039;\"",
+        "\t\t\t\t\t\tdata-qtmplayer-file_mobile=\"https://cast4.asurahosting.com/proxy/radioni1/stream;/&#039;\"",
+        "\t\t\t\t\t\tdata-qtmplayer-title=\"Kapital FM 92.9\"",
+        "\t\t\t\t\t\tdata-qtmplayer-artist=\"The Station that Rocks!\"",
+        "\t\t\t\t\t\tdata-qtmplayer-link=\"https://kapitalfm.gov.ng/radiochannel/the-station-that-rocks/\"",
+        "\t\t\t\t\t\tdata-qtmplayer-buylink=\"https://kapitalfm.gov.ng/radiochannel/the-station-that-rocks/\"",
+        "\t\t\t\t\t\tdata-qtmplayer-icon=\"radio\"",
+        "\t\t\t\t\t\tdata-qtmplayer-type=\"radio\""
       ]
     },
     {
-      "url": "https://kapitalfm.gov.ng/wp-includes/js/mediaelement/mediaelementplayer-legacy.min.css?ver=4.2.17",
+      "url": "https://liveonlineradio.net/kapital-fm-92-9",
       "status": 206,
-      "bytes": 11256,
-      "playerHints": []
-    },
-    {
-      "url": "https://kapitalfm.gov.ng/wp-content/plugins/qtmplayer/assets/css/qtmplayer.css?ver=6.3.4",
-      "status": 206,
-      "bytes": 25964,
-      "playerHints": []
-    },
-    {
-      "url": "https://kapitalfm.gov.ng/wp-content/plugins/qtmplayer/assets/components/jquery.marquee-min.js?ver=6.3.4",
-      "status": 206,
-      "bytes": 5823,
-      "playerHints": []
-    },
-    {
-      "url": "https://kapitalfm.gov.ng/wp-content/plugins/qtmplayer/assets/js/qtmplayer-waveform.js?ver=6.3.4",
-      "status": 206,
-      "bytes": 12437,
-      "playerHints": []
-    },
-    {
-      "url": "https://kapitalfm.gov.ng/wp-content/plugins/qtmplayer/assets/js/qtmplayer-min.js?ver=6.3.4",
-      "status": 206,
-      "bytes": 171471,
+      "title": "Kapital FM 92.9 | Live Online Radio",
+      "bytes": 23310,
       "playerHints": [
-        "tocol:\"http\",u=void 0!==n.channel?n.channel:\"\",c=void 0!==n.icecasturl?n.icecasturl:\"\",d=void 0!==n.icecastmountpoint?n.icecastmountpoint:\"\",p=void 0!==n.icecastchannel?n.icecastchannel:\"\",h=void 0!==n.radiodotco?n.radiodotco:\"",
-        "g&&(N=M,R={qtproxycall:window.btoa(c)}),a.log(\"Radio feed - Icecast \"+c),t.ajax({type:\"GET\",cache:!1,url:N,async:!0,jsonpCallback:\"parseMusic\",jsonp:!1,data:R,success:function(e){a.log(\"Ajax response\"),a.log(e),\"object\"!=typeof",
-        "se\"),a.log(t)}})}else{if(\"\"!==o&&\"\"!==s&&void 0!==o){var D={shoutcast_host:o,shoutcast_port:s,shoutcast_protocol:l,shoutcast_channel:u},H=D.shoutcast_channel||1,z=\"http\";\"443\"!==D.shoutcast_port&&\"https\"!==D.shoutcast_protocol||(",
-        "z=\"https\");var U=z+\"://\"+D.shoutcast_host+\":\"+D.shoutcast_port+\"/stats?sid=\"+H+\"&json=1\";N=U;g&&(N=M,R={qtproxycall:window.btoa(U)});try{t.ajax({type:\"GET\",cache:!1,url:N,async:!0,data:R,dataType:t.qtmplayerRadioFeedO",
-        ".log(t)}return}if(\"\"!==h&&void 0!==h){var V=\"https://public.radio.co/stations/\"+h+\"/status\";t.ajax({type:\"GET\",cache:!1,url:V,async:!0,contentType:\"application/json\",success:function(t){if(t.current_track){if(I=t.current_track.t",
-        "itle,a.log(\"Radio.co artwork: \"+t.current_track.artwork_url_large),t.current_track.artwork_url_large&&\"function\"==typeof r){var e=t.current_track.artwork_url_large;\"\"!==e&&(r(e),r=",
-        " * http://proradio.com/"
+        "pital FM 92.9, a popular online radio station from Nigeria. Listen live and explore the best AM, FM, and online radio stations on Liveonlineradio.net.\" /><meta property=\"og:type\" content=\"music.radio_station\" /><meta property=\"og:s",
+        "pital FM 92.9, a popular online radio station from Nigeria. Listen live and explore the best AM, FM, and online radio stations on Liveonlineradio.net.\" /><link rel=\"preconnect\" href=\"https://pagead2.googlesyndication.com\" crossorig",
+        "pital FM 92.9, a popular online radio station from Nigeria. Listen live and explore the best AM, FM, and online radio stations on Liveonlineradio.net.\" /><link rel=\"canonical\" href=\"https://liveonlineradio.net/kapital-fm-92-9\" />",
+        "pital FM 92.9, a popular online radio station from Nigeria. Listen live and explore the best AM, FM, and online radio stations on Liveonlineradio.net.\", \"url\": \"https://liveonlineradio.net/kapital-fm-92-9\"}, {\"@context\": \"https://s",
+        "\"></div></div></div></div><div id=\"a-player\" class=\"player\" data-stream=\"http://protostar.shoutca.st:8710/stream/1/\" data-http='no'></div></div><div id=\"offair\"></div></div></div> <script id=\"main-js-js\" defer src=\"https://liveonli"
       ]
     },
     {
-      "url": "https://kapitalfm.gov.ng/wp-includes/js/mediaelement/mediaelement-and-player.min.js?ver=4.2.17",
-      "status": 206,
-      "bytes": 158005,
+      "url": "https://onlineradiobox.com/ng/kapitalfm/",
+      "status": 200,
+      "title": "Kapital FM Listen Live - 92.9 MHz FM, Abuja, Nigeria | Online Radio Box",
+      "bytes": 71300,
+      "playerHints": [
+        "ion 92.9 MHz FM for free – great choice for Abuja, Nigeria. Listen live Kapital FM radio with Onlineradiobox.com\" />",
+        "l FM Nigeria, Kapital FM Abuja, Kapital FM 92.9, Kapital FM listen live\" />",
+        "\t<title>Kapital FM Listen Live - 92.9 MHz FM, Abuja, Nigeria | Online Radio Box</title>",
+        "<audio id=\"top_player\" crossorigin=\"true\" style=\"width:1px;height:1px;overflow:hidden;position:absolute;\"></audio>",
+        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/1b/1115_thumb.v3.webp, https://cdn.puzzlegarage.com/img/puzzle/1b/1115_thumb_r.v3.webp 2x\" type=\"image/webp\">",
+        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/18/1400_thumb.v1.webp, https://cdn.puzzlegarage.com/img/puzzle/18/1400_thumb_r.v1.webp 2x\" type=\"image/webp\">",
+        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/14/3828_thumb.v3.webp, https://cdn.puzzlegarage.com/img/puzzle/14/3828_thumb_r.v3.webp 2x\" type=\"image/webp\">",
+        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/10/1264_thumb.v2.webp, https://cdn.puzzlegarage.com/img/puzzle/10/1264_thumb_r.v2.webp 2x\" type=\"image/webp\">",
+        "                    <source srcset=\"//cdn.onlineradiobox.com/img/bubbleshooter_preview.webp\" type=\"image/webp\">",
+        "                    <source srcset=\"//cdn.onlineradiobox.com/img/colormerge_preview.webp\" type=\"image/webp\">",
+        "                    <source srcset=\"//cdn.onlineradiobox.com/img/numberquest_preview.webp\" type=\"image/webp\">",
+        "                    <source srcset=\"//cdn.onlineradiobox.com/img/crossmath_preview.webp\" type=\"image/webp\">",
+        "                    <source srcset=\"//cdn.onlineradiobox.com/img/hexasort_preview.webp\" type=\"image/webp\">",
+        "                    <source srcset=\"//cdn.onlineradiobox.com/img/blockblast_preview.webp\" type=\"image/webp\">",
+        "  <button  class=\"b-play station_play\" aria-label=\"Listen live\" title=\"Listen to radio\" stream=\"https://cast4.asurahosting.com/proxy/radioni1/stream/;/&#39;\" streamType=\"mp3\" radioId=\"ng.kapitalfm\" radioImg=\"//cdn.onlinera",
+        "ons__pill\"><button  class=\"b-play station_play\" aria-label=\"Listen live\" title=\"Listen to radio\" stream=\"https://cast4.asurahosting.com/proxy/radioni1/stream/;/&#39;\" streamType=\"mp3\" radioId=\"ng.kapitalfm\" radioImg=\"//cdn.onlinera",
+        "diobox.com/img/l/4/6814.v16.png\" radioName=\"Kapital FM\">Listen live</button>",
+        ": none;\" played=\"0\" class=\"b-play station_play\" aria-label=\"Listen live\" title=\"Listen to radio\" stream=\"https://cast4.asurahosting.com/proxy/radioni1/stream/;/&#39;\" streamType=\"mp3\" radioId=\"ng.kapitalfm\" radioImg=\"//cdn.onlinera"
+      ]
+    },
+    {
+      "url": "https://onlineradiobox.com/",
+      "status": 200,
+      "title": "Free online radio stations – listen for free at OnlineRadioBox.com",
+      "bytes": 50077,
       "playerHints": []
     }
   ],
-  "attempts": []
+  "attempts": [
+    {
+      "url": "https://youtu.be/8yqrjGx3k84?si=ul64xHxUCY_5B5-j&#038;_=1",
+      "source": "https://kapitalfm.gov.ng/",
+      "reason": "no-audio-evidence",
+      "status": 200,
+      "bytesSampled": 4096
+    },
+    {
+      "url": "https://youtu.be/GRxE0jCAIaA?si=fBX7OgG7jKk7TRpE&#038;_=2",
+      "source": "https://kapitalfm.gov.ng/",
+      "reason": "no-audio-evidence",
+      "status": 200,
+      "bytesSampled": 4096
+    }
+  ]
 }
