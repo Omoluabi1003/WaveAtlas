@@ -1,7 +1,7 @@
 import snapshot from '../stations/stationHealthSnapshot.json';
 import type { Station } from '../stations';
 
-export type HealthEvidence = { stationId: string; url: string; checkedAt: string; status: 'healthy' | 'degraded'; reason: string; consecutiveFailures: number; bytesSampled: number; responseTimeMs: number };
+export type HealthEvidence = { stationId: string; url: string; checkedAt: string; status: 'healthy' | 'degraded' | 'unknown'; lastSuccessAt?: string; resolvedUrl?: string; reason: string; consecutiveFailures: number; bytesSampled: number; responseTimeMs: number };
 export type HealthSnapshot = { generatedAt: string | null; cursor: number; records: Record<string, HealthEvidence> };
 export const HEALTH_EVIDENCE_TTL_MS = 48 * 60 * 60 * 1000;
 export function healthEvidenceKey(station: Pick<Station, 'url' | 'url_resolved'>) { return (station.url_resolved || station.url || '').trim(); }
@@ -12,6 +12,7 @@ export function scheduledHealthBoost(station: Station, now = Date.now(), evidenc
   const age = now - Date.parse(record.checkedAt);
   if (!Number.isFinite(age) || age < -300_000 || age >= HEALTH_EVIDENCE_TTL_MS) return 0;
   // A single failed probe never penalizes or disables a station.
+  if (record.status === 'unknown') return 0;
   const boost = record.status === 'healthy' ? 8 : record.consecutiveFailures >= 2 ? -Math.min(16, record.consecutiveFailures * 4) : 0;
   return boost * Math.max(0, 1 - Math.max(0, age) / HEALTH_EVIDENCE_TTL_MS);
 }

@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-10-15T12:46:43.030Z",
+  "catalogSize": 61,
+  "checked": 0,
+  "healthy": 0,
+  "degraded": 0,
+  "unknown": 61,
+  "scope": "full-catalog",
+  "network": "runner-restricted",
+  "preserved": true,
+  "results": [],
+  "notice": "Retest from an appropriately configured runner. A network failure does not establish that the station is offline."
+}
