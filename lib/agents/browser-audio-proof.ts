@@ -16,12 +16,12 @@ export async function browserAudioProof(page: Page, url: string, kind: string, d
       const audio = document.createElement('audio'); audio.muted=true; audio.preload='auto'; audio.src=blob;
       return await new Promise<{ok:boolean;reason:string;seconds:number}>(resolve=>{
         let settled=false;
-        const finish=(ok:boolean,reason:string)=>{
+        const {finish} = { finish(ok:boolean,reason:string) {
           if(settled)return;settled=true;clearTimeout(timeout);
           const seconds=Number.isFinite(audio.currentTime)?audio.currentTime:0;
           audio.pause();audio.removeAttribute('src');audio.load();URL.revokeObjectURL(blob);
           resolve({ok,reason,seconds});
-        };
+        }};
         const timeout=setTimeout(()=>finish(false,'decoder_timeout'),4000);
         audio.onloadeddata=()=>{void audio.play().catch(()=>finish(false,'decoder_play_rejected'));};
         audio.ontimeupdate=()=>{if(audio.currentTime>=0.15)finish(true,'chromium_sample_decoded');};

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 import { allRuntimeStations, candidateToStation, existingStationKeys, isDuplicateCandidate, normalizeUrl, qualityScore, rejectReason, type RadioBrowserCandidate, type DiscoveryMetadata } from '../lib/radio-discovery';
+import { middleEastStations } from '../lib/stations/middleEastStations';
 import { fallbackStations } from '../lib/stations';
 import { startupStations } from '../lib/startupStations';
 import { discoveredRadioStations } from '../lib/stations/discoveredRadioStations';
@@ -28,7 +29,7 @@ async function directory(path:string) {
 }
 async function main() {
   if(!Number.isInteger(target)||target<350||target>1000||!Number.isInteger(maxProbes)||maxProbes<target||maxProbes>5000)throw new Error('Invalid bounded expansion configuration');
-  const generatedAt=new Date().toISOString(),before=[...allRuntimeStations(),...fallbackStations,...startupStations];
+  const generatedAt=new Date().toISOString(),before=[...allRuntimeStations(),...fallbackStations,...middleEastStations,...startupStations];
   const accepted=[...discoveredRadioStations];
   const metadata:DiscoveryMetadata[]=JSON.parse(await readFile('lib/stations/discoveredRadioMetadata.json','utf8'));
   const baselineCount=accepted.length,keys=existingStationKeys(before);
