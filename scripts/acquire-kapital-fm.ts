@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {chromium} from '@playwright/test';
 import {allRuntimeStations,type DiscoveryMetadata,type RadioBrowserCandidate} from '../lib/radio-discovery';
@@ -13,12 +14,14 @@ import type {HealthSnapshot} from '../lib/agents/station-health-policy';
 type Source={url:string;homepage:string;source:string;sourceUuid?:string};
 async function publicPage(input:string){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
- try{let url=input;for(let hop=0;hop<4;hop++){const page=await fetchProbeResource(url,controller.signal,{}, {media:true,maxBytes:65536});if(page.redirect){url=new URL(page.redirect,url).href;continue;}return{url,status:page.status,text:page.bytes.toString('utf8')};}throw new Error('redirect_limit');}
+ try{let url=input;for(let hop=0;hop<4;hop++){const page=await fetchProbeResource(url,controller.signal,{}, {media:true,document:true,maxBytes:1048576});if(page.redirect){url=new URL(page.redirect,url).href;continue;}return{url,status:page.status,text:page.bytes.toString('utf8')};}throw new Error('redirect_limit');}
  finally{clearTimeout(timer);}
 }
 async function main(){
+ const revision=createHash('sha256').update(await readFile('scripts/acquire-kapital-fm.ts','utf8')).digest('hex');
+ try{const previous=JSON.parse(await readFile('reports/kapital-fm/result.json','utf8'));if(previous.verifierRevision===revision){console.log(JSON.stringify(previous));return;}}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
  const before=[...allRuntimeStations(),...fallbackStations,...middleEastStations],checkedAt=new Date().toISOString();
- const report:{checkedAt:string;status:string;directory:unknown[];pages:unknown[];attempts:unknown[];stationId?:string;endpoint?:string;browserDecoder?:unknown}={checkedAt,status:'not_verified',directory:[],pages:[],attempts:[]};
+ const report:{verifierRevision:string;checkedAt:string;status:string;directory:unknown[];pages:unknown[];attempts:unknown[];stationId?:string;endpoint?:string;browserDecoder?:unknown}={verifierRevision:revision,checkedAt,status:'not_verified',directory:[],pages:[],attempts:[]};
  const existing=before.find(station=>station.country_code==='NG'&&/\bkapital\b/i.test(station.name));
  if(existing){
   try{const previous=JSON.parse(await readFile('reports/kapital-fm/result.json','utf8'));if(previous.stationId===existing.station_uuid&&['added','already_present'].includes(previous.status)){console.log(JSON.stringify(previous));return;}}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
@@ -44,10 +47,13 @@ async function main(){
  for(let index=0;!existing&&index<pages.length&&index<9;index++){
   const url=pages[index];if(seenPages.has(url))continue;seenPages.add(url);
   try{
-   const page=await publicPage(url);report.pages.push({url:page.url,status:page.status,title:page.text.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]});
+   const page=await publicPage(url);report.pages.push({url:page.url,status:page.status,title:page.text.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1],bytes:Buffer.byteLength(page.text),playerHints:[...page.text.matchAll(/.{0,60}(?:<iframe|<audio|stream\.zeno|listen.live|live.stream|icecast|shoutcast|radiocast|radio.co).{0,160}/gi)].map(match=>match[0]).slice(0,25)});
    if(page.status!==200)continue;
-   const official=homepages.has(url)&&/kapital/i.test(page.text);
+   const official=[...homepages].some(home=>{try{return new URL(home).hostname===new URL(url).hostname;}catch{return false;}})&&/kapital/i.test(page.text);
    if(!official&&!/zeno\.fm\//.test(url))continue;
+   for(const tag of page.text.matchAll(/(?:href|src)=["']([^"']+)["']/gi)){
+    try{const link=new URL(tag[1].replace(/&amp;/g,'&'),page.url);if(link.protocol==='https:'&&link.origin===new URL(page.url).origin&&/listen|live|player|stream/i.test(link.pathname)&&pages.length<9)pages.push(link.href);}catch{/* Ignore malformed links. */}
+   }
    const html=page.text.replace(/\\\//g,'/').replace(/&amp;/g,'&');
    for(const match of html.matchAll(/https?:\/\/[^\s"'<>\\]+/g)){
     const candidate=match[0];let parsed:URL;try{parsed=new URL(candidate);}catch{continue;}
