@@ -28,14 +28,14 @@ async function main(){
   report.status='already_present';report.stationId=existing.station_uuid;
  }
  const sources:Source[]=[],homepages=new Set(['https://kapitalfm.gov.ng/']);
- if(!existing)for(const name of ['kapital','capital']){
+ if(!existing)for(const name of ['kapital','capital','kapital-global']){
   try{
-   const query=new URLSearchParams({name,countrycode:'NG',limit:'100'});
+   const query=new URLSearchParams({name:name==='kapital-global'?'kapital':name,limit:'100',...(name==='kapital-global'?{}:{countrycode:'NG'})});
    const response=await fetch(`https://de1.api.radio-browser.info/json/stations/search?${query}`,{headers:{'User-Agent':'WaveAtlasStationSteward/1.0'},signal:AbortSignal.timeout(15000)});
    if(!response.ok)throw new Error(`directory_http_${response.status}`);
    const rows:RadioBrowserCandidate[]=await response.json();
    for(const row of rows){
-    if(row.countrycode?.toUpperCase()!=='NG')continue;
+    if(row.countrycode?.toUpperCase()!=='NG'&&!/abuja|kapitalfm\.gov\.ng/i.test(`${row.name} ${row.state} ${row.homepage}`))continue;
     report.directory.push({name:row.name,state:row.state,homepage:row.homepage,url:row.url,urlResolved:row.url_resolved,lastCheckOk:row.lastcheckok});
     if(!/kapital/i.test(row.name||'')&&!/abuja|fct/i.test(`${row.name} ${row.state}`))continue;
     if(row.homepage&&/^https?:\/\//.test(row.homepage))homepages.add(row.homepage);
@@ -43,18 +43,22 @@ async function main(){
    }
   }catch(error){report.directory.push({query:name,error:error instanceof Error?error.message:'directory_unavailable'});}
  }
- const pages=[...homepages].slice(0,5),seenPages=new Set<string>();
+ const pages=[...homepages,'https://liveonlineradio.net/kapital-fm','https://onlineradiobox.com/ng/kapitalfm/','https://onlineradiobox.com/ng/kapital929fm/'].slice(0,8),seenPages=new Set<string>();
  for(let index=0;!existing&&index<pages.length&&index<9;index++){
   const url=pages[index];if(seenPages.has(url))continue;seenPages.add(url);
   try{
-   const page=await publicPage(url);report.pages.push({url:page.url,status:page.status,title:page.text.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1],bytes:Buffer.byteLength(page.text),playerHints:[...page.text.matchAll(/.{0,60}(?:<iframe|<audio|stream\.zeno|listen.live|live.stream|icecast|shoutcast|radiocast|radio.co).{0,160}/gi)].map(match=>match[0]).slice(0,25)});
+   const page=await publicPage(url);report.pages.push({url:page.url,status:page.status,title:page.text.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1],bytes:Buffer.byteLength(page.text),playerHints:[...page.text.matchAll(/.{0,60}(?:<iframe|<audio|<source|data-stream|data-qt[^=]*=|stream\.zeno|listen.live|live.stream|icecast|shoutcast|radiocast|radio\.co\b).{0,160}/gi)].map(match=>match[0]).slice(0,25)});
    if(page.status!==200)continue;
    const official=[...homepages].some(home=>{try{return new URL(home).hostname===new URL(url).hostname;}catch{return false;}})&&/kapital/i.test(page.text);
-   if(!official&&!/zeno\.fm\//.test(url))continue;
+   const identifiedDirectory=/liveonlineradio\.net|onlineradiobox\.com/.test(new URL(url).hostname)&&/kapital/i.test(page.text)&&/abuja/i.test(page.text);
+   if(!official&&!identifiedDirectory&&!/zeno\.fm\//.test(url))continue;
    for(const tag of page.text.matchAll(/(?:href|src)=["']([^"']+)["']/gi)){
-    try{const link=new URL(tag[1].replace(/&amp;/g,'&'),page.url);if(link.protocol==='https:'&&link.origin===new URL(page.url).origin&&/listen|live|player|stream/i.test(link.pathname)&&pages.length<9)pages.push(link.href);}catch{/* Ignore malformed links. */}
+    try{const link=new URL(tag[1].replace(/&amp;/g,'&'),page.url);if(link.protocol==='https:'&&link.origin===new URL(page.url).origin&&!/\.(?:css|js|map|png|jpg)(?:[?#]|$)/i.test(link.href)&&!/\/wp-content\/|\/wp-includes\//i.test(link.pathname)&&/listen|live|player|stream/i.test(link.pathname)&&pages.length<9)pages.push(link.href);}catch{/* Ignore malformed links. */}
    }
    const html=page.text.replace(/\\\//g,'/').replace(/&amp;/g,'&');
+   for(const match of html.matchAll(/(?:<(?:audio|source)\b[^>]*?\bsrc|data-(?:stream|radio-url|audio-url))=["']([^"']+)["']/gi)){
+    try{const media=new URL(match[1],page.url);if(media.protocol==='https:'&&!temporaryStreamUrl(media.href))sources.push({url:media.href,homepage:[...homepages][0],source:page.url});}catch{/* Ignore malformed media references. */}
+   }
    for(const match of html.matchAll(/https?:\/\/[^\s"'<>\\]+/g)){
     const candidate=match[0];let parsed:URL;try{parsed=new URL(candidate);}catch{continue;}
     if(parsed.protocol!=='https:')continue;
