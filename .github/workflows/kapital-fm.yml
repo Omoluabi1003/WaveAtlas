@@ -1,0 +1,50 @@
+name: Kapital FM Abuja verification
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths: ['scripts/acquire-kapital-fm.ts', '.github/workflows/kapital-fm.yml']
+permissions:
+  contents: read
+concurrency:
+  group: kapital-fm-verification
+  cancel-in-progress: false
+jobs:
+  verify-and-acquire:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/kapital-fm-abuja'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --import tsx scripts/acquire-kapital-fm.ts
+        env:
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE: /usr/bin/google-chrome
+      - name: Validate inventory and playback before publication
+        run: |
+          node --import tsx tests/catalog-expansion-inventory.regression.ts
+          node --import tsx tests/radio-discovery.regression.ts
+          node --import tsx tests/stream-probe.regression.ts
+          npm run typecheck
+          npm run lint
+          npm run build
+      - name: Publish measured results to review branch
+        env:
+          EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- lib/stations/discoveredRadioStations.ts lib/stations/discoveredRadioMetadata.json lib/stations/stationHealthSnapshot.json reports/kapital-fm/result.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: record Kapital FM Abuja verification results'
+            git push origin HEAD:refs/heads/codex/kapital-fm-abuja --force-with-lease="refs/heads/codex/kapital-fm-abuja:$EXPECTED_COMMIT"
+          fi
+      - name: Check verified outcome
+        run: node -e "const r=require('./reports/kapital-fm/result.json');console.log(JSON.stringify(r));if(!['added','already_present'].includes(r.status))process.exit(1)"
