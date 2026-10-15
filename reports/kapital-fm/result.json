@@ -1,12 +1,74 @@
 {
-  "checkedAt": "2026-10-15T21:40:36.612Z",
+  "verifierRevision": "fedde5cd3696e25190ae572b09b875d74a3e5f80ecc0d164d53020000900115b",
+  "checkedAt": "2026-10-15T21:44:22.513Z",
   "status": "not_verified",
   "directory": [],
   "pages": [
     {
       "url": "https://kapitalfm.gov.ng/",
       "status": 200,
-      "title": "KapitalFM 92.9 Abuja - The Station that Rocks!"
+      "title": "KapitalFM 92.9 Abuja - The Station that Rocks!",
+      "bytes": 100019,
+      "playerHints": [
+        "el-css' href='https://kapitalfm.gov.ng/wp-content/themes/proradio/components/owl-carousel/dist/assets/owl.carousel.min.css?ver=2.3.2' media='all' />",
+        "\t\t\t\t<li id=\"media_video-3\" class=\"proradio-widget proradio-col proradio-s12 proradio-m12 proradio-l12  widget_media_video\"><h6 class=\"proradio-widget__title proradio-caption proradio-caption__s proradio-anim\" data-qtwaypo",
+        "video></div></li><li id=\"block-5\" class=\"proradio-widget proradio-col proradio-s12 proradio-m12 proradio-l12  widget_block\"><div class=\"wp-block-group\"><div class=\"wp-block-group__inner-container is-layout-flow wp-block-group-is",
+        "</div></div></li><li id=\"block-6\" class=\"proradio-widget proradio-col proradio-s12 proradio-m12 proradio-l12  widget_block\"><div class=\"wp-block-group\"><div class=\"wp-block-group__inner-container is-layout-flow wp-block-group-is",
+        "\t\t\t<div class=\"proradio-container\">",
+        "\t\t\t<div class=\"proradio-container\">",
+        "\t\t\t\t\t<div class=\"proradio-col proradio-s12 proradio-m12 proradio-l8\">",
+        "\t\t<div class=\"proradio-clearfix  proradio-col proradio-s12 proradio-m12 proradio-l12\">",
+        "\t\t\t\t\t<div id=\"proradio-sidebarcontainer\" class=\"proradio-col proradio-s12 proradio-m12 proradio-l4 proradio-stickycol\">",
+        "\t\t\t<li id=\"media_video-5\" class=\"proradio-widget proradio-col proradio-s12 proradio-m6 proradio-l12  widget_media_video\"><h6 class=\"proradio-widget__title proradio-caption proradio-caption__s proradio-anim\" data-qtwaypoi",
+        "video></div></li><li id=\"block-2\" class=\"proradio-widget proradio-col proradio-s12 proradio-m6 proradio-l12  widget_block widget_search\"><form role=\"search\" method=\"get\" action=\"https://kapitalfm.gov.ng/\" class=\"wp-block-search_",
+        "/div></form></li><li id=\"block-3\" class=\"proradio-widget proradio-col proradio-s12 proradio-m6 proradio-l12  widget_block\"><div class=\"wp-block-group\"><div class=\"wp-block-group__inner-container is-layout-flow wp-block-group-is-",
+        "\t<div id=\"proradio-copybar\" class=\"proradio-footer__copy proradio-primary\">",
+        "\t\t<div class=\"proradio-container\">"
+      ]
+    },
+    {
+      "url": "https://kapitalfm.gov.ng/wp-includes/js/mediaelement/mediaelementplayer-legacy.min.css?ver=4.2.17",
+      "status": 206,
+      "bytes": 11256,
+      "playerHints": []
+    },
+    {
+      "url": "https://kapitalfm.gov.ng/wp-content/plugins/qtmplayer/assets/css/qtmplayer.css?ver=6.3.4",
+      "status": 206,
+      "bytes": 25964,
+      "playerHints": []
+    },
+    {
+      "url": "https://kapitalfm.gov.ng/wp-content/plugins/qtmplayer/assets/components/jquery.marquee-min.js?ver=6.3.4",
+      "status": 206,
+      "bytes": 5823,
+      "playerHints": []
+    },
+    {
+      "url": "https://kapitalfm.gov.ng/wp-content/plugins/qtmplayer/assets/js/qtmplayer-waveform.js?ver=6.3.4",
+      "status": 206,
+      "bytes": 12437,
+      "playerHints": []
+    },
+    {
+      "url": "https://kapitalfm.gov.ng/wp-content/plugins/qtmplayer/assets/js/qtmplayer-min.js?ver=6.3.4",
+      "status": 206,
+      "bytes": 171471,
+      "playerHints": [
+        "tocol:\"http\",u=void 0!==n.channel?n.channel:\"\",c=void 0!==n.icecasturl?n.icecasturl:\"\",d=void 0!==n.icecastmountpoint?n.icecastmountpoint:\"\",p=void 0!==n.icecastchannel?n.icecastchannel:\"\",h=void 0!==n.radiodotco?n.radiodotco:\"",
+        "g&&(N=M,R={qtproxycall:window.btoa(c)}),a.log(\"Radio feed - Icecast \"+c),t.ajax({type:\"GET\",cache:!1,url:N,async:!0,jsonpCallback:\"parseMusic\",jsonp:!1,data:R,success:function(e){a.log(\"Ajax response\"),a.log(e),\"object\"!=typeof",
+        "se\"),a.log(t)}})}else{if(\"\"!==o&&\"\"!==s&&void 0!==o){var D={shoutcast_host:o,shoutcast_port:s,shoutcast_protocol:l,shoutcast_channel:u},H=D.shoutcast_channel||1,z=\"http\";\"443\"!==D.shoutcast_port&&\"https\"!==D.shoutcast_protocol||(",
+        "z=\"https\");var U=z+\"://\"+D.shoutcast_host+\":\"+D.shoutcast_port+\"/stats?sid=\"+H+\"&json=1\";N=U;g&&(N=M,R={qtproxycall:window.btoa(U)});try{t.ajax({type:\"GET\",cache:!1,url:N,async:!0,data:R,dataType:t.qtmplayerRadioFeedO",
+        ".log(t)}return}if(\"\"!==h&&void 0!==h){var V=\"https://public.radio.co/stations/\"+h+\"/status\";t.ajax({type:\"GET\",cache:!1,url:V,async:!0,contentType:\"application/json\",success:function(t){if(t.current_track){if(I=t.current_track.t",
+        "itle,a.log(\"Radio.co artwork: \"+t.current_track.artwork_url_large),t.current_track.artwork_url_large&&\"function\"==typeof r){var e=t.current_track.artwork_url_large;\"\"!==e&&(r(e),r=",
+        " * http://proradio.com/"
+      ]
+    },
+    {
+      "url": "https://kapitalfm.gov.ng/wp-includes/js/mediaelement/mediaelement-and-player.min.js?ver=4.2.17",
+      "status": 206,
+      "bytes": 158005,
+      "playerHints": []
     }
   ],
   "attempts": []
