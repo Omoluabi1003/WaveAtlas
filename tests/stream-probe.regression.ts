@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type { request } from 'node:http';
-import { probeStream, parseStreamPlaylist, hasCmafAudio, hlsAudioSampleKind, type ProbeDependencies } from '../lib/agents/stream-probe';
+import { fetchProbeResource, probeStream, parseStreamPlaylist, hasCmafAudio, hlsAudioSampleKind, type ProbeDependencies } from '../lib/agents/stream-probe';
 import { assessStreamProbe, healthEvidenceFromProbe, buildCatalogAudit } from '../lib/agents/station-audit';
 import { scheduledHealthBoost } from '../lib/agents/station-health-policy';
 import { allRuntimeStations } from '../lib/radio-discovery';
@@ -49,6 +49,10 @@ async function main() {
   assert.equal(hlsAudioSampleKind(ts(0xc0)),'aac');
   assert.equal(hlsAudioSampleKind(ts(0xe0)),undefined,'video PES is not audio evidence');
   assert.equal(hlsAudioSampleKind(Buffer.concat([fragment,aac]),init('vide')),undefined,'video CMAF is not audio evidence');
+  const documentFixture=fixtures({'/document':{body:'x'.repeat(1200000)}});
+  const signal=new AbortController().signal;
+  assert.equal((await fetchProbeResource(`${origin}/document`,signal,documentFixture.dependencies,{media:true,maxBytes:1048576})).bytes.length,65536,'media limits remain unchanged');
+  assert.equal((await fetchProbeResource(`${origin}/document`,signal,documentFixture.dependencies,{document:true,maxBytes:2000000})).bytes.length,1048576,'explicit document reads remain bounded');
   const f=fixtures({
     '/start':{status:302,location:'/master.m3u8'},
     '/master.m3u8':{body:'#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",URI="audio/live.m3u8"\n#EXT-X-STREAM-INF:CODECS="avc1,mp4a"\n/video.m3u8'},

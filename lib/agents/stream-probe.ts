@@ -39,7 +39,7 @@ function looksLikePlaylist(bytes: Buffer, url: string, type: string) {
 }
 
 /** Bounded GET with DNS pinning. Every redirect, playlist, init map and segment uses this path. */
-export async function fetchProbeResource(url: string, signal: AbortSignal, dependencies: ProbeDependencies = {}, options: { media?: boolean; maxBytes?: number } = {}): Promise<ProbeResource> {
+export async function fetchProbeResource(url: string, signal: AbortSignal, dependencies: ProbeDependencies = {}, options: { media?: boolean; maxBytes?: number; document?: boolean } = {}): Promise<ProbeResource> {
   const target = new URL(url);
   if (url.length > 8192 || !['http:', 'https:'].includes(target.protocol) || target.username || target.password) throw new Error('unsafe-url');
   const host = target.hostname.replace(/^\[|\]$/g, '');
@@ -52,7 +52,7 @@ export async function fetchProbeResource(url: string, signal: AbortSignal, depen
   if (signal.aborted) throw new Error('timeout');
   if (!addresses.length || addresses.some(({ address }) => !isPublicAddress(address))) throw new Error('non-public-address');
   const address = addresses.find(item => item.family === 4) ?? addresses[0];
-  const maximum = Math.min(MAX_MANIFEST_BYTES, Math.max(4096, options.maxBytes ?? MAX_MANIFEST_BYTES));
+  const maximum = Math.min(options.document ? 1048576 : MAX_MANIFEST_BYTES, Math.max(4096, options.maxBytes ?? MAX_MANIFEST_BYTES));
   return new Promise((resolve, reject) => {
     const request = (dependencies.request ?? (target.protocol === 'https:' ? httpsRequest : httpRequest))(target, {
       method: 'GET', agent: false, family: address.family, signal,
@@ -72,7 +72,7 @@ export async function fetchProbeResource(url: string, signal: AbortSignal, depen
         if (settled) return;
         const incoming = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         const peek = bytes.length < 256 ? Buffer.concat([bytes, incoming.subarray(0, 256)]) : bytes;
-        const limit = options.media || looksLikePlaylist(peek, target.href, contentType) ? maximum : 4096;
+        const limit = options.media || options.document || looksLikePlaylist(peek, target.href, contentType) ? maximum : 4096;
         bytes = Buffer.concat([bytes, incoming.subarray(0, Math.max(0, limit - bytes.length))]);
         if ((!options.media && !looksLikePlaylist(bytes, target.href, contentType) && audioSampleKind(bytes)) || bytes.length >= limit) finish(bytes.length >= limit);
       });

@@ -1,5 +1,18 @@
 {
-  "generatedAt": null,
+  "generatedAt": "2026-10-15T21:52:13.740Z",
   "cursor": 0,
-  "records": {}
+  "records": {
+    "https://cast4.asurahosting.com/proxy/radioni1/stream": {
+      "stationId": "ng-kapital-fm-abuja",
+      "url": "https://cast4.asurahosting.com/proxy/radioni1/stream",
+      "checkedAt": "2026-10-15T21:52:13.740Z",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "consecutiveFailures": 0,
+      "bytesSampled": 4096,
+      "responseTimeMs": 764,
+      "lastSuccessAt": "2026-10-15T21:52:13.740Z",
+      "resolvedUrl": "https://cast4.asurahosting.com/proxy/radioni1/stream"
+    }
+  }
 }
