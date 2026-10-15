@@ -57,6 +57,7 @@ function conversationalIntent(question: string, context: AtlasAssistantContext):
 }
 
 export function answerAtlasIntelligently(question: string, context: AtlasAssistantContext = {}): AtlasAssistantReply {
+  if (/another station from (?:this|the same) country|another.*same country|what city.*listening|which city|find.*nearby|something nearby|stations? near me/i.test(question)) return answerAtlasQuestion(question, context);
   const musicIntent = resolveAtlasMusicIntent(question, lastUser(context));
   if (musicIntent) {
     const { music, action, subject } = musicIntent;

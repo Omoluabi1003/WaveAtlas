@@ -1,0 +1,8 @@
+'use client';
+import { useState } from 'react';
+import { REPORT_REASONS } from '@/lib/community-report';
+export default function CommunityStreamReport({ stationId }: { stationId: string }) {
+  const [reason, setReason] = useState<string>(REPORT_REASONS[0]); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
+  async function submit() { setBusy(true); setMessage(''); try { const response = await fetch('/api/stations/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stationId, reason }) }); const data = await response.json(); setMessage(response.ok ? data.message : data.error || 'Please try again later.'); } catch { setMessage('Could not send your report. Please try again later.'); } finally { setBusy(false); } }
+  return <details className="rounded-2xl border border-white/10 p-4"><summary className="min-h-11 cursor-pointer text-sm text-ivory/70">Report stream</summary><p className="mb-3 text-xs text-ivory/60">Reports help review the signal. They do not change station information automatically.</p><label className="block text-sm">Reason<select className="mt-2 block min-h-11 w-full rounded-xl border border-white/15 bg-slate-950 px-3" value={reason} onChange={event => setReason(event.target.value)}>{REPORT_REASONS.map(value => <option key={value} value={value}>{value.replaceAll('_',' ')}</option>)}</select></label><button disabled={busy} className="mt-3 min-h-11 rounded-full border border-white/15 px-4 text-sm disabled:opacity-50" onClick={submit}>{busy ? 'Sending…' : 'Submit report'}</button><p className="mt-2 text-sm text-radio" role="status">{message}</p></details>;
+}

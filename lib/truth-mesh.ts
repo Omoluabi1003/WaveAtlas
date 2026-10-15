@@ -42,7 +42,7 @@ function label(score: number, conflictCount: number): ConfidenceLabel {
   return 'low';
 }
 
-export function resolveStationTruthMesh(evidence: NormalizedStationEvidence[]): TruthMeshResult {
+export function resolveStationTruthMesh(evidence: NormalizedStationEvidence[], community: CommunityStreamEvidence[] = []): TruthMeshResult {
   if (!evidence.length) throw new Error('Truth Mesh requires station source evidence.');
   const stationUuid = evidence.find((item) => item.sourceName === 'curated')?.stationUuid ?? evidence[0].stationUuid;
   const canonical: Partial<Station> = {
@@ -67,7 +67,7 @@ export function resolveStationTruthMesh(evidence: NormalizedStationEvidence[]): 
   const conflictList = [...conflicts(evidence, 'name', (i) => i.rawName), ...conflicts(evidence, 'country_code', (i) => i.rawCountryCode), ...conflicts(evidence, 'city', (i) => i.rawCity), ...conflicts(evidence, 'stream_url', (i) => i.rawStreamUrl)];
   const consensus = clamp((identity * 0.3 + geoScore * 0.25 + metadata * 0.2 + streamHealth * 0.25) * 100 - Math.min(15, conflictList.length * 3));
   const updated_at = new Date().toISOString();
-  return { stationUuid, canonical, scores: { station_uuid: stationUuid, identity_score: clamp(identity * 100), geo_score: clamp(geoScore * 100), metadata_score: clamp(metadata * 100), stream_health_score: clamp(streamHealth * 100), consensus_score: consensus, confidence_label: label(consensus, conflictList.length), updated_at }, conflicts: conflictList, auditLog: [`Resolved ${stationUuid} from ${evidence.length} evidence record(s).`, geo.warning ? `GeoTruth warning: ${geo.warning}` : `GeoTruth accepted ${geo.source} at ${geo.confidence}.`, conflictList.length ? `Flagged ${conflictList.length} conflict(s) for review.` : 'No source conflicts detected.'] };
+  return { stationUuid, canonical, scores: { station_uuid: stationUuid, identity_score: clamp(identity * 100), geo_score: clamp(geoScore * 100), metadata_score: clamp(metadata * 100), stream_health_score: clamp(streamHealth * 100), consensus_score: consensus, confidence_label: label(consensus, conflictList.length), updated_at }, conflicts: conflictList, auditLog: [...summarizeCommunityStreamEvidence(stationUuid, community).map(row => `Community ${row.reason}: ${row.independentReports} independent reports, confidence ${row.confidence}; review/probe only.`), `Resolved ${stationUuid} from ${evidence.length} evidence record(s).`, geo.warning ? `GeoTruth warning: ${geo.warning}` : `GeoTruth accepted ${geo.source} at ${geo.confidence}.`, conflictList.length ? `Flagged ${conflictList.length} conflict(s) for review.` : 'No source conflicts detected.'] };
 }
 
 export function calculateCoverageGaps(evidence: NormalizedStationEvidence[]) {
@@ -80,4 +80,10 @@ export function calculateCoverageGaps(evidence: NormalizedStationEvidence[]) {
     byCountry.set(code, row);
   }
   return [...byCountry.entries()].map(([country_code, row]) => ({ country_code, country: row.country, continent: 'unknown', active_station_count: row.stations.size, verified_station_count: row.verified.size, coverage_score: clamp((Math.min(row.stations.size, 50) / 50) * 70 + (row.verified.size / Math.max(1, row.stations.size)) * 30), last_checked_at: new Date().toISOString() }));
+}
+
+export type CommunityStreamEvidence = { station_uuid: string; reason: string; independent_reports: number; evidence_confidence: number };
+// This evidence can prompt review/probing. It cannot vote on names, URLs or geography.
+export function summarizeCommunityStreamEvidence(stationUuid: string, rows: CommunityStreamEvidence[]) {
+  return rows.filter(row => row.station_uuid === stationUuid && row.independent_reports > 0).map(row => ({ reason: row.reason, independentReports: Math.min(100, row.independent_reports), confidence: Math.max(0, Math.min(.1, Number.isFinite(row.evidence_confidence) ? row.evidence_confidence : 0)), action: 'review_or_probe' as const }));
 }

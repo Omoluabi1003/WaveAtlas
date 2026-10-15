@@ -7,7 +7,8 @@ import type { Station } from './stations';
 export function stationSocialMetadata(station: Station): Metadata {
   const country = countryMetadata(station);
   const title = `${station.name} | WaveAtlas`;
-  const description = `Listen to ${station.name}${country ? ` from ${country.name}` : ''} on WaveAtlas.`;
+  const city = station.city?.trim();
+  const description = `Listen to ${station.name}${country ? ` from ${[city, country.name].filter(Boolean).join(', ')}` : ''} on WaveAtlas.`;
   const canonical = `${WAVEATLAS_SITE_URL}${stationPath(station)}`;
   const image = { url: `${canonical}/opengraph-image`, width: 1200, height: 630, alt: `${station.name} | ${country?.name || 'Global radio'} | WaveAtlas` };
   return {
@@ -39,7 +40,7 @@ export function cardNameLines(name: string, fontSize: number) {
         line = line.slice(space + 1); width = [...line].length * fontSize * 0.68;
       } else { lines.push(line.trim()); line = ''; width = 0; }
     }
-    if (lines.length === 4) { lines[3] = lines[3].slice(0, -2) + '…'; return lines; }
+    if (lines.length === 4) { lines[3] = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(lines[3])].map(item => item.segment).slice(0, -2).join('') + '…'; return lines; }
     line += segment; width += advance;
   }
   if (line) lines.push(line.trim());
