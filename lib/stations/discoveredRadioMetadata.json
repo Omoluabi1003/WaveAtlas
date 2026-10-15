@@ -3148,5 +3148,3155 @@
     "lastSignalCheck": "2026-10-15T19:14:03.288Z",
     "qualityScore": 70,
     "resolvedUrl": "https://s2.free-shoutcast.com/stream/18214"
+  },
+  {
+    "stationUuid": "radio-browser-107-9-pearl-fm-bf8d199f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bf8d199f-e158-4205-bd1d-7cec0b8158aa",
+    "verifiedAt": "2026-10-15T19:19:00.862Z",
+    "lastSignalCheck": "2026-10-15T19:19:00.862Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://dc4.serverse.com/proxy/pearlfm/stream/1/"
+  },
+  {
+    "stationUuid": "radio-browser-rccg-central-parish-radio-0bbe1392",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0bbe1392-8d92-447a-8381-7615cc33369b",
+    "verifiedAt": "2026-10-15T19:19:01.517Z",
+    "lastSignalCheck": "2026-10-15T19:19:01.517Z",
+    "qualityScore": 53,
+    "resolvedUrl": "https://s2.radio.co/s82911d13a/low"
+  },
+  {
+    "stationUuid": "radio-browser-nuru-fm-e05c3c87",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e05c3c87-946e-4dde-b4b8-e0244917c068",
+    "verifiedAt": "2026-10-15T19:19:01.924Z",
+    "lastSignalCheck": "2026-10-15T19:19:01.924Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://radiotadio.co.tz/nuru-fm-stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-thiossane-0e3d65a4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0e3d65a4-98a9-43a1-81a8-05647c85d886",
+    "verifiedAt": "2026-10-15T19:19:02.549Z",
+    "lastSignalCheck": "2026-10-15T19:19:02.549Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://listen.senemultimedia.net:8112/stream"
+  },
+  {
+    "stationUuid": "radio-browser-addis-music-5188257a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5188257a-5ae1-4294-b6b5-479caae85f31",
+    "verifiedAt": "2026-10-15T19:19:02.844Z",
+    "lastSignalCheck": "2026-10-15T19:19:02.844Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://stream-282.surfernetwork.com/umguj2baxdctv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ1bWd1ajJiYXhkY3R2IiwiaG9zdCI6InN0cmVhbS0yODIuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjU4Nm1QYXJlUWoyUHo2ZDMxY2dlWFEiLCJpYXQiOjE3OTIwOTE5NDEsImV4cCI6MTc5MjA5MjAwMX0.t7becMQscFvMahQCLCg6NNgcYF527ezj-qvxMXelv50"
+  },
+  {
+    "stationUuid": "radio-browser-radio-achkid-fm-716b3744",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "716b3744-d497-4dcf-a0fb-d4563c3e58b1",
+    "verifiedAt": "2026-10-15T19:19:03.095Z",
+    "lastSignalCheck": "2026-10-15T19:19:03.095Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://stream-280.surfernetwork.com/7nqu31p6xg0uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiI3bnF1MzFwNnhnMHV2IiwiaG9zdCI6InN0cmVhbS0yODAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InNTeWJnc3FxUjJHMXhiZWpCbjNMSHciLCJpYXQiOjE3OTIwOTE5NDIsImV4cCI6MTc5MjA5MjAwMn0.7aYy_MlrofZuhuIxRqLriENZx7Rf7aiPjWOuJVk9g4s"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-3f5d8a52",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3f5d8a52-dea9-4201-9575-a58adc8e9263",
+    "verifiedAt": "2026-10-15T19:19:03.970Z",
+    "lastSignalCheck": "2026-10-15T19:19:03.970Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://qurango.net/radio/mahmoud_khalil_alhussary_warsh"
+  },
+  {
+    "stationUuid": "radio-browser-amaryllis-e-radio-d5c8ae88",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d5c8ae88-3b49-4fd9-8e68-4cfa9cc877d5",
+    "verifiedAt": "2026-10-15T19:19:04.318Z",
+    "lastSignalCheck": "2026-10-15T19:19:04.318Z",
+    "qualityScore": 58,
+    "resolvedUrl": "https://s4.radio.co/s40c05d6b1/low"
+  },
+  {
+    "stationUuid": "radio-browser-diwanfm-3dcd0385",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3dcd0385-1171-4a95-b31e-81d78af8bfac",
+    "verifiedAt": "2026-10-15T19:19:05.267Z",
+    "lastSignalCheck": "2026-10-15T19:19:05.267Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://streaming.diwanfm.net/stream"
+  },
+  {
+    "stationUuid": "radio-browser-energyfm-0b3b3d2e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0b3b3d2e-da13-43ca-9063-880174892737",
+    "verifiedAt": "2026-10-15T19:19:06.751Z",
+    "lastSignalCheck": "2026-10-15T19:19:06.751Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://ukwesta.streaming.broadcast.radio/energyfm"
+  },
+  {
+    "stationUuid": "radio-browser-radio-navahang-aa408a3b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "aa408a3b-3d07-415d-8af1-a60b64e07043",
+    "verifiedAt": "2026-10-15T19:19:07.048Z",
+    "lastSignalCheck": "2026-10-15T19:19:07.048Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://navairan.com/;stream.nsv"
+  },
+  {
+    "stationUuid": "radio-browser-utvarp-saga-4123d652",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4123d652-36c9-41fd-b780-238cd3717f43",
+    "verifiedAt": "2026-10-15T19:19:07.829Z",
+    "lastSignalCheck": "2026-10-15T19:19:07.829Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://stream.utvarpsaga.is/Hljodver"
+  },
+  {
+    "stationUuid": "radio-browser-radio-jamaica-94-fm-20164ed9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "20164ed9-c400-4aa1-8e73-ebb8dd5d8401",
+    "verifiedAt": "2026-10-15T19:19:08.517Z",
+    "lastSignalCheck": "2026-10-15T19:19:08.517Z",
+    "qualityScore": 93,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/ebqnzkvyv9duv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJlYnFuemt2eXY5ZHV2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Il9FRU9JRTcwVER5cy1QbWFISDlEcVEiLCJpYXQiOjE3OTIwOTE5NDcsImV4cCI6MTc5MjA5MjAwN30.HFJXDk6qsy8zXJAFPf2SPfFu7U_issnHTNsvm-Aetek"
+  },
+  {
+    "stationUuid": "radio-browser-channel-103-42280119",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "42280119-54e3-48d4-ab57-05f766075827",
+    "verifiedAt": "2026-10-15T19:19:09.267Z",
+    "lastSignalCheck": "2026-10-15T19:19:09.267Z",
+    "qualityScore": 61,
+    "resolvedUrl": "https://n02-eu1.rcs.revma.com/1b7wddebanzuv?rj-ttl=5&rj-tok=AAABoUEKKRQAC62dQHrIUSKCXA&rp_source=1&___cb=931531437397347"
+  },
+  {
+    "stationUuid": "radio-browser-family-fm-99-5-witthyu-krousar-cc20bea1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cc20bea1-aeea-4801-8f62-6aaab144f150",
+    "verifiedAt": "2026-10-15T19:19:10.518Z",
+    "lastSignalCheck": "2026-10-15T19:19:10.518Z",
+    "qualityScore": 67,
+    "resolvedUrl": "https://s14.myradiostream.com/:10064/;.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-darusalam-radio-448ba0a5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "448ba0a5-0c40-4f53-adc6-9d7f8b6e5f6a",
+    "verifiedAt": "2026-10-15T19:19:11.360Z",
+    "lastSignalCheck": "2026-10-15T19:19:11.360Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://streams.radio.co/s0975ec186/listen"
+  },
+  {
+    "stationUuid": "radio-browser-radio-kiribati-1440-khz-a4335dd7",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a4335dd7-4b89-449d-ba05-8d4ca9df4a98",
+    "verifiedAt": "2026-10-15T19:19:12.142Z",
+    "lastSignalCheck": "2026-10-15T19:19:12.142Z",
+    "qualityScore": 50,
+    "resolvedUrl": "https://streamer5.rightclickitservices.com:19790/stream"
+  },
+  {
+    "stationUuid": "radio-browser-quran-radio-mishary-alafasy-5c04a6d1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5c04a6d1-2444-4ae1-8a2b-024cf9a0d033",
+    "verifiedAt": "2026-10-15T19:19:13.345Z",
+    "lastSignalCheck": "2026-10-15T19:19:13.345Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://radio.mp3islam.com/listen/mishary/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-coldstar-online-radio-low-quality-4fea1367",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4fea1367-c881-4e25-b50b-64591ba7b1b8",
+    "verifiedAt": "2026-10-15T19:19:13.610Z",
+    "lastSignalCheck": "2026-10-15T19:19:13.610Z",
+    "qualityScore": 81,
+    "resolvedUrl": "https://ice.coldstar.online/low.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-rooster-101-d53fe71a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d53fe71a-30a9-49bd-99bb-688bce2dd16d",
+    "verifiedAt": "2026-10-15T19:19:13.954Z",
+    "lastSignalCheck": "2026-10-15T19:19:13.954Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://rooster101-hurleysmedia.radioca.st/stream"
+  },
+  {
+    "stationUuid": "radio-browser-blazin-99-3fm-c1056cd6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c1056cd6-a7c1-461e-9b53-72ecfd7a250e",
+    "verifiedAt": "2026-10-15T19:19:16.157Z",
+    "lastSignalCheck": "2026-10-15T19:19:16.157Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://streams.radio.co/s5f11a7ef9/listen"
+  },
+  {
+    "stationUuid": "radio-browser-lao-national-radio-94-3-59e8d07e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "59e8d07e-6314-44da-8728-df85cbea0537",
+    "verifiedAt": "2026-10-15T19:19:16.220Z",
+    "lastSignalCheck": "2026-10-15T19:19:16.220Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://radio.lnr.org.la/fm94"
+  },
+  {
+    "stationUuid": "radio-browser-radio-vaterland-0e837c0b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0e837c0b-7b98-4e5c-b4e4-27b8b12c506d",
+    "verifiedAt": "2026-10-15T19:19:16.532Z",
+    "lastSignalCheck": "2026-10-15T19:19:16.532Z",
+    "qualityScore": 62,
+    "resolvedUrl": "https://radiostream.radiobutler.com/7e9d5eb6-9249-4c7a-9f1c-6d4b9c7a48a8"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-93dda347",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "93dda347-fb16-448c-9827-6028e0df82d2",
+    "verifiedAt": "2026-10-15T19:19:16.751Z",
+    "lastSignalCheck": "2026-10-15T19:19:16.751Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://live.zhanafm.kz:8443/vasheradio"
+  },
+  {
+    "stationUuid": "radio-browser-sooriyan-fm-sri-lanka-0e309df5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0e309df5-eebb-4fed-a5eb-61d0ac70012c",
+    "verifiedAt": "2026-10-15T19:19:17.657Z",
+    "lastSignalCheck": "2026-10-15T19:19:17.657Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://radio.lotustechnologieslk.net:8006/"
+  },
+  {
+    "stationUuid": "radio-browser-105-7-fm-9f6810fc",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9f6810fc-61ca-45db-a01c-af74d7a46a95",
+    "verifiedAt": "2026-10-15T19:19:18.063Z",
+    "lastSignalCheck": "2026-10-15T19:19:18.063Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/r6eprdta6nhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJyNmVwcmR0YTZuaHZ2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Ikc2UHltWk1MUjJxOXRLekx0ak9jLVEiLCJpYXQiOjE3OTIwOTE5NTcsImV4cCI6MTc5MjA5MjAxN30.eTELRVA0EYjxjfT2AfI3ksPX_QRMRCt_TR-Jp2nAf7E"
+  },
+  {
+    "stationUuid": "radio-browser-top-radio-9a22e57f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9a22e57f-7b7c-4e10-84db-e9b46479a8d6",
+    "verifiedAt": "2026-10-15T19:19:18.282Z",
+    "lastSignalCheck": "2026-10-15T19:19:18.282Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://topradio.live.advailo.com/topradio/mp3/icecast.audio"
+  },
+  {
+    "stationUuid": "radio-browser-zipfm-ee662a9d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ee662a9d-fa14-4d70-8d1d-b101ed6da89f",
+    "verifiedAt": "2026-10-15T19:19:18.938Z",
+    "lastSignalCheck": "2026-10-15T19:19:18.938Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://stream2.zipfm.lt/zipfm128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-offshore-radio-a798586c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a798586c-efc8-4f2b-ae3c-74729ce0f085",
+    "verifiedAt": "2026-10-15T19:19:20.563Z",
+    "lastSignalCheck": "2026-10-15T19:19:20.563Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://live.offshoreradio.net/listen/offshore_radio/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-el-radio-podgorica-0854612f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0854612f-a344-46a8-98d0-e42abb4a5900",
+    "verifiedAt": "2026-10-15T19:19:20.845Z",
+    "lastSignalCheck": "2026-10-15T19:19:20.845Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://radio.elmag.me/el.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-tropik-fm-live-from-st-barth-2fe208a9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2fe208a9-07ac-412b-9b31-80a803070e46",
+    "verifiedAt": "2026-10-15T19:19:20.876Z",
+    "lastSignalCheck": "2026-10-15T19:19:20.876Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://stream10.vestaradio.com/TROPIKFM"
+  },
+  {
+    "stationUuid": "radio-browser-radio-100komma7-80f07344",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "80f07344-504e-48dd-8775-ab60c4a82068",
+    "verifiedAt": "2026-10-15T19:19:21.267Z",
+    "lastSignalCheck": "2026-10-15T19:19:21.267Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://100komma7.stream42.radiohost.de/100komma7-100komma7_mp3-128?agend=true&upd-meta&upd-scheme=https&ref=mp3&amsparams=mp3&_art=dD0xNzkyMDkyMjU3JmQ9YjRlNzQ2NzFkMmI3ZDkwY2M3YTE"
+  },
+  {
+    "stationUuid": "radio-browser-retro-fm-moldova-91900e91",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "91900e91-4864-4ff0-b782-50817669c4ac",
+    "verifiedAt": "2026-10-15T19:19:21.579Z",
+    "lastSignalCheck": "2026-10-15T19:19:21.579Z",
+    "qualityScore": 95,
+    "resolvedUrl": "https://efir.retrofm.md:8000/retro"
+  },
+  {
+    "stationUuid": "radio-browser-yellow-radio-ca5129a8",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ca5129a8-43b7-4c2d-882f-83c412265358",
+    "verifiedAt": "2026-10-15T19:19:21.688Z",
+    "lastSignalCheck": "2026-10-15T19:19:21.688Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://yellowradio.ice.infomaniak.ch/yellowradio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-kledu-880cb524",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "880cb524-8432-48d0-adf3-be96949c0171",
+    "verifiedAt": "2026-10-15T19:19:21.985Z",
+    "lastSignalCheck": "2026-10-15T19:19:21.985Z",
+    "qualityScore": 93,
+    "resolvedUrl": "https://stream-280.surfernetwork.com/f38bxpt3v2quv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJmMzhieHB0M3YycXV2IiwiaG9zdCI6InN0cmVhbS0yODAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImRMWk9DcWNkUTVtOHFMSDg3aHRiS3ciLCJpYXQiOjE3OTIwOTE5NjEsImV4cCI6MTc5MjA5MjAyMX0.8FzCUnowXjmwGKqsFdQy31-orUXhzg3B2bIRmJb4OPU"
+  },
+  {
+    "stationUuid": "radio-browser-cherry-fm-b5218804",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b5218804-957c-4f0f-a1fd-969e8343994b",
+    "verifiedAt": "2026-10-15T19:19:22.766Z",
+    "lastSignalCheck": "2026-10-15T19:19:22.766Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://cherry.akiyaresearch.com:444/stream/89/"
+  },
+  {
+    "stationUuid": "radio-browser-jazz-fm-69e00e1b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "69e00e1b-2dd9-432d-b60a-e4a38ad41f41",
+    "verifiedAt": "2026-10-15T19:19:23.438Z",
+    "lastSignalCheck": "2026-10-15T19:19:23.438Z",
+    "qualityScore": 93,
+    "resolvedUrl": "https://radio.jazzfm.mk/listen/jazzfm/live"
+  },
+  {
+    "stationUuid": "radio-browser-family-radio-fm-b1aae7b8",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b1aae7b8-8916-4016-b57a-c2bb08704510",
+    "verifiedAt": "2026-10-15T19:19:23.501Z",
+    "lastSignalCheck": "2026-10-15T19:19:23.501Z",
+    "qualityScore": 77,
+    "resolvedUrl": "https://c2.radioboss.fm/stream/394"
+  },
+  {
+    "stationUuid": "radio-browser-maxxi-martinique-2a0ca146",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2a0ca146-8dd9-4ce7-82c0-5b9413ef7ae0",
+    "verifiedAt": "2026-10-15T19:19:23.892Z",
+    "lastSignalCheck": "2026-10-15T19:19:23.892Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://maxxi.studio/listen/maxximq/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-cin-khabar-3e78590f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3e78590f-ab9c-4e13-a512-189a17a54965",
+    "verifiedAt": "2026-10-15T19:19:25.407Z",
+    "lastSignalCheck": "2026-10-15T19:19:25.407Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://streaming.softnep.net:10996/;stream.nsv&type=mp3&volume=60"
+  },
+  {
+    "stationUuid": "radio-browser-rock-fm-105-5-70751ca9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "70751ca9-f2b9-4c32-8c0d-98c3356eb6f9",
+    "verifiedAt": "2026-10-15T19:19:25.641Z",
+    "lastSignalCheck": "2026-10-15T19:19:25.641Z",
+    "qualityScore": 93,
+    "resolvedUrl": "https://securestream.us/radio/8050/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-calypso-radio-bc95a0d2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bc95a0d2-666d-400d-9d9b-bba9f50277b3",
+    "verifiedAt": "2026-10-15T19:19:25.720Z",
+    "lastSignalCheck": "2026-10-15T19:19:25.720Z",
+    "qualityScore": 81,
+    "resolvedUrl": "https://s4.radio.co/sf3aa4c25a/listen"
+  },
+  {
+    "stationUuid": "radio-browser-radio-rythme-bleu-1cc1a872",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1cc1a872-5afa-4528-9a5a-7ec465472d4b",
+    "verifiedAt": "2026-10-15T19:19:25.845Z",
+    "lastSignalCheck": "2026-10-15T19:19:25.845Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://webradio.lagoon.nc/rrb"
+  },
+  {
+    "stationUuid": "radio-browser-dhivehi-raajjeyge-adu-4aa1b794",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4aa1b794-6d2e-4ed7-a9a7-1645064a5601",
+    "verifiedAt": "2026-10-15T19:19:26.001Z",
+    "lastSignalCheck": "2026-10-15T19:19:26.001Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://radio.psm.mv/draair"
+  },
+  {
+    "stationUuid": "radio-browser-clubmix-3702ba9c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3702ba9c-e1fa-446e-9afe-dfdd1d16b42e",
+    "verifiedAt": "2026-10-15T19:19:26.923Z",
+    "lastSignalCheck": "2026-10-15T19:19:26.923Z",
+    "qualityScore": 98,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/vztn8ux96zhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ2enRuOHV4OTZ6aHZ2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Il9DZERQV1lLVE5hWV9NelVPRDFSc2ciLCJpYXQiOjE3OTIwOTE5NjUsImV4cCI6MTc5MjA5MjAyNX0._RwJrJT3sxEfBYF8UTqOIsKIECV4uLLoj9Ggh65mrBU"
+  },
+  {
+    "stationUuid": "radio-browser-radio-one-fm-91-47efdce4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "47efdce4-809f-4cd3-8e3c-85a2eabce1ef",
+    "verifiedAt": "2026-10-15T19:19:27.095Z",
+    "lastSignalCheck": "2026-10-15T19:19:27.095Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://cc.vmakerhost.com/proxy/karachi?mp=/stream"
+  },
+  {
+    "stationUuid": "radio-browser-988-fm-6ee52ee9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6ee52ee9-95c0-4e19-95fd-d9a9c345b7b3",
+    "verifiedAt": "2026-10-15T19:19:27.298Z",
+    "lastSignalCheck": "2026-10-15T19:19:27.298Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://28103.live.streamtheworld.com/988_FMAAC.aac"
+  },
+  {
+    "stationUuid": "radio-browser-radio-ancon-f4262a98",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f4262a98-e82e-4f38-997d-e7236b8f9ed3",
+    "verifiedAt": "2026-10-15T19:19:28.095Z",
+    "lastSignalCheck": "2026-10-15T19:19:28.095Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://servidor40-3.brlogic.com:7074/live?source=website"
+  },
+  {
+    "stationUuid": "radio-browser-tokfm-0013eb82",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0013eb82-2dea-41f7-9534-936d0b2721b7",
+    "verifiedAt": "2026-10-15T19:19:28.532Z",
+    "lastSignalCheck": "2026-10-15T19:19:28.532Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://radiostream.pl/tuba10-1.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-isla-1320-am-wskn-1320-am-c0fb4c86",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c0fb4c86-1a71-411c-ada4-99f102f3b425",
+    "verifiedAt": "2026-10-15T19:19:29.220Z",
+    "lastSignalCheck": "2026-10-15T19:19:29.220Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://server7.servistreaming.com/proxy/radioisla?mp=/stream?type=.mp3&_=1"
+  },
+  {
+    "stationUuid": "radio-browser-polynesie-1ere-ea360929",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ea360929-b30d-4c00-b7c4-a95e77e48eb7",
+    "verifiedAt": "2026-10-15T19:19:30.032Z",
+    "lastSignalCheck": "2026-10-15T19:19:30.032Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://polynesie.ice.infomaniak.ch/polynesie-128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-upbeat-pw-9ac434c6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9ac434c6-1e25-47df-9d07-97a960ec2025",
+    "verifiedAt": "2026-10-15T19:19:30.360Z",
+    "lastSignalCheck": "2026-10-15T19:19:30.360Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://live.upbeat.pw/"
+  },
+  {
+    "stationUuid": "radio-browser-rock-and-pop-paraguay-98073eff",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "98073eff-a00a-42ce-b855-715770e5cd87",
+    "verifiedAt": "2026-10-15T19:19:31.079Z",
+    "lastSignalCheck": "2026-10-15T19:19:31.079Z",
+    "qualityScore": 95,
+    "resolvedUrl": "https://cp9.serverse.com/proxy/rockandpop/stream"
+  },
+  {
+    "stationUuid": "radio-browser-la-1ere-saint-pierre-et-miquelon-975-9431e482",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9431e482-e831-4c69-b132-13f174e126ea",
+    "verifiedAt": "2026-10-15T19:19:31.173Z",
+    "lastSignalCheck": "2026-10-15T19:19:31.173Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://saint-pierreetmiquelon.ice.infomaniak.ch/saint-pierreetmiquelon-128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-ajyal-palestine-d4e5cd2a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d4e5cd2a-46da-447a-b92a-ef2abf64c329",
+    "verifiedAt": "2026-10-15T19:19:32.298Z",
+    "lastSignalCheck": "2026-10-15T19:19:32.298Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://streamer.mada.ps:8208/ajyal"
+  },
+  {
+    "stationUuid": "radio-browser-tdi-bez-reklama-01ca5438",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "01ca5438-74ce-42e8-892e-a71b85b3f3af",
+    "verifiedAt": "2026-10-15T19:19:32.923Z",
+    "lastSignalCheck": "2026-10-15T19:19:32.923Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://streaming.tdiradio.com/tdiradiobezreklama.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-reunion-la-1ere-la1er-d60897d5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d60897d5-ceae-41f2-93e9-77ed010de01e",
+    "verifiedAt": "2026-10-15T19:19:33.110Z",
+    "lastSignalCheck": "2026-10-15T19:19:33.110Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://reunion.ice.infomaniak.ch/reunion-128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-atmospheric-dnb-s0urce-c4eb7648",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c4eb7648-e867-4545-bdda-71b1368db779",
+    "verifiedAt": "2026-10-15T19:19:33.313Z",
+    "lastSignalCheck": "2026-10-15T19:19:33.313Z",
+    "qualityScore": 99,
+    "resolvedUrl": "https://brokenbeats.net/stream/aac"
+  },
+  {
+    "stationUuid": "radio-browser-ghetto-kenya-cde57b4c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cde57b4c-11d1-49a0-b7e3-98f5f943653f",
+    "verifiedAt": "2026-10-15T19:19:33.485Z",
+    "lastSignalCheck": "2026-10-15T19:19:33.485Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-289.surfernetwork.com/kvudezx1h2zuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJrdnVkZXp4MWgyenV2IiwiaG9zdCI6InN0cmVhbS0yODkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Ii1mb0w3SWFmUlI2UVI2eXdMZHQyUHciLCJpYXQiOjE3OTIwOTE5NzIsImV4cCI6MTc5MjA5MjAzMn0.WF1-mBGQt9P1QC0RUWOEyVQPIkrHMO5j_a-pRat-4Ac"
+  },
+  {
+    "stationUuid": "radio-browser-sputnik-radio-sputnik-news-c4453134",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c4453134-d33d-4e72-8ec9-7cae783cbe74",
+    "verifiedAt": "2026-10-15T19:19:33.985Z",
+    "lastSignalCheck": "2026-10-15T19:19:33.985Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://icecast-rian.cdnvideo.ru/voicerus"
+  },
+  {
+    "stationUuid": "radio-browser-glorious-online-radio-11b61fa6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "11b61fa6-e806-4266-8770-3fa6db9ff0c3",
+    "verifiedAt": "2026-10-15T19:19:34.517Z",
+    "lastSignalCheck": "2026-10-15T19:19:34.517Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://stream-285.surfernetwork.com/xnamppblrnlvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ4bmFtcHBibHJubHZ2IiwiaG9zdCI6InN0cmVhbS0yODUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkdVcXJ3Q21tUVlhQTZoZE1mZEd4dVEiLCJpYXQiOjE3OTIwOTE5NzMsImV4cCI6MTc5MjA5MjAzM30.8L6_8To8ZGSydGP49Nxl2Z5Fpp03D7Cxc7faWl4ydNM"
+  },
+  {
+    "stationUuid": "radio-browser-radio-fulbe-fm-102-6-dakar-118a5501",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "118a5501-b15d-4fb3-b010-fd0e4ffda525",
+    "verifiedAt": "2026-10-15T19:19:34.642Z",
+    "lastSignalCheck": "2026-10-15T19:19:34.642Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/e0grbn8e3rquv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJlMGdyYm44ZTNycXV2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Il9KbDhsbWE2VFY2QzRnN1o4b3Nxb0EiLCJpYXQiOjE3OTIwOTE5NzMsImV4cCI6MTc5MjA5MjAzM30.1aVckd3148gO9SwTTXk85pcHhQVp983KOgqtozRfAbs"
+  },
+  {
+    "stationUuid": "radio-browser-link-fm-rsa-ec-003efaa4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "003efaa4-e791-4095-84aa-81bedd09a986",
+    "verifiedAt": "2026-10-15T19:19:34.688Z",
+    "lastSignalCheck": "2026-10-15T19:19:34.688Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://de2.streamingpulse.com/ssl/LinkFM"
+  },
+  {
+    "stationUuid": "radio-browser-gospel-radio-east-africa-85543ab5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "85543ab5-838a-4e6d-9612-eb3f898af414",
+    "verifiedAt": "2026-10-15T19:19:34.985Z",
+    "lastSignalCheck": "2026-10-15T19:19:34.985Z",
+    "qualityScore": 76,
+    "resolvedUrl": "https://c32.radioboss.fm:18451/stream?1641237600584"
+  },
+  {
+    "stationUuid": "radio-browser-agoo-96-9-fm-3d877738",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3d877738-b7e4-4c01-8ef4-476c8a0562c6",
+    "verifiedAt": "2026-10-15T19:19:35.516Z",
+    "lastSignalCheck": "2026-10-15T19:19:35.516Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://agoofm-atunwadigital.streamguys1.com/agoofm"
+  },
+  {
+    "stationUuid": "radio-browser-christian-mezmur-ethiopia-ce7d2197",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ce7d2197-eca5-4188-b8d2-c550992160e5",
+    "verifiedAt": "2026-10-15T19:19:36.032Z",
+    "lastSignalCheck": "2026-10-15T19:19:36.032Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://stream-178.surfernetwork.com/0bws6ct0ey8uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiIwYndzNmN0MGV5OHV2IiwiaG9zdCI6InN0cmVhbS0xNzguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImVYRUNuR3NRUUllUGxQNHRYZ2tkb2ciLCJpYXQiOjE3OTIwOTE5NzUsImV4cCI6MTc5MjA5MjAzNX0.xztSGM9OpJixg_Kj9zi9s_xGob63XlbhhNKxqul2Ddw"
+  },
+  {
+    "stationUuid": "radio-browser-radiowave-nam-96-7fm-ca55e1e1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ca55e1e1-fe41-4a64-a876-404a604fb729",
+    "verifiedAt": "2026-10-15T19:19:36.548Z",
+    "lastSignalCheck": "2026-10-15T19:19:36.548Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://edge.iono.fm/xice/194_medium.aac"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-0b14ae20",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0b14ae20-92b3-4db7-834f-ee6ba39ad080",
+    "verifiedAt": "2026-10-15T19:19:37.235Z",
+    "lastSignalCheck": "2026-10-15T19:19:37.235Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://qurango.net/radio/mishary_alafasi"
+  },
+  {
+    "stationUuid": "radio-browser-skyrock-abidjan-f7a86f1f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f7a86f1f-df67-4e66-b5b4-f562a0efb9fd",
+    "verifiedAt": "2026-10-15T19:19:37.923Z",
+    "lastSignalCheck": "2026-10-15T19:19:37.923Z",
+    "qualityScore": 84,
+    "resolvedUrl": "https://icecast.skyrock.net/s/abidjan_aac_64k"
+  },
+  {
+    "stationUuid": "radio-browser-jawhara-fm-8d92ff8d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8d92ff8d-7149-4431-9306-a960e67c09e7",
+    "verifiedAt": "2026-10-15T19:19:39.095Z",
+    "lastSignalCheck": "2026-10-15T19:19:39.095Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://streaming2.toutech.net/jawharafm"
+  },
+  {
+    "stationUuid": "radio-browser-top-congo-fm-351eaaf0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "351eaaf0-2d2a-446b-8288-9f850588ba47",
+    "verifiedAt": "2026-10-15T19:19:39.204Z",
+    "lastSignalCheck": "2026-10-15T19:19:39.204Z",
+    "qualityScore": 65,
+    "resolvedUrl": "https://topcongofm2.ice.infomaniak.ch/topcongofm2-64.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-d7d7d761",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d7d7d761-c2ef-4f79-850e-f9bdf69cd867",
+    "verifiedAt": "2026-10-15T19:19:39.345Z",
+    "lastSignalCheck": "2026-10-15T19:19:39.345Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://stream-285.surfernetwork.com/u5enyd4c28quv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ1NWVueWQ0YzI4cXV2IiwiaG9zdCI6InN0cmVhbS0yODUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InVtX0ZYYVB3UnNxUXUtaV9Tb1BuQ0EiLCJpYXQiOjE3OTIwOTE5NzgsImV4cCI6MTc5MjA5MjAzOH0.0gOHzilRpgwTeiXVyImqzxrNEjqCdh0xaMohZ1NAFgk"
+  },
+  {
+    "stationUuid": "radio-browser-radio-hifi-995b5039",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "995b5039-49b4-42e5-9512-f2774f184030",
+    "verifiedAt": "2026-10-15T19:19:40.001Z",
+    "lastSignalCheck": "2026-10-15T19:19:40.001Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://listen.radioking.com/radio/52108/stream/89122"
+  },
+  {
+    "stationUuid": "radio-browser-sumerfm-iraq-bc1e8eb3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bc1e8eb3-a94e-48d7-892a-e790a1599b60",
+    "verifiedAt": "2026-10-15T19:19:41.095Z",
+    "lastSignalCheck": "2026-10-15T19:19:41.095Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://l3.itworkscdn.net/itwaudio/9012/stream"
+  },
+  {
+    "stationUuid": "radio-browser-zip-fm-103-fm-394409b6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "394409b6-bb5c-43b1-ad3f-1315d31532b2",
+    "verifiedAt": "2026-10-15T19:19:41.188Z",
+    "lastSignalCheck": "2026-10-15T19:19:41.188Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://stream-286.surfernetwork.com/c0ytcn43vxquv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJjMHl0Y240M3Z4cXV2IiwiaG9zdCI6InN0cmVhbS0yODYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Ijh6MmI0NGFIVE5hSG1BVUNjb1Z2ZlEiLCJpYXQiOjE3OTIwOTE5ODAsImV4cCI6MTc5MjA5MjA0MH0.lqKb3DRSzmgNbEp5WKnyCpN4tbPbIC9kcfzztHmmCHM"
+  },
+  {
+    "stationUuid": "radio-browser-isle-of-man-free-radio-1cd0cfad",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1cd0cfad-6dcf-4491-b9ec-d695ae763926",
+    "verifiedAt": "2026-10-15T19:19:41.735Z",
+    "lastSignalCheck": "2026-10-15T19:19:41.735Z",
+    "qualityScore": 66,
+    "resolvedUrl": "https://listen.radioking.com/radio/499726/stream/556927"
+  },
+  {
+    "stationUuid": "radio-browser-soleil-radio-781ab069",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "781ab069-19e6-49dc-b676-d600051fb442",
+    "verifiedAt": "2026-10-15T19:19:42.048Z",
+    "lastSignalCheck": "2026-10-15T19:19:42.048Z",
+    "qualityScore": 58,
+    "resolvedUrl": "https://n02-us1.rcs.revma.com/sa3ccwa9yy8uv?rj-ttl=5&rj-tok=AAABoUEKp9gA6ZU-pXrd-NoDMQ&rp_source=1&___cb=396383825633501"
+  },
+  {
+    "stationUuid": "radio-browser-radio-mojdeh-iranian-farsi-persian-christian-music-and-talk-7460fe1a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7460fe1a-700e-4925-9990-72df7e00e1a3",
+    "verifiedAt": "2026-10-15T19:19:42.329Z",
+    "lastSignalCheck": "2026-10-15T19:19:42.329Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://ic2326.c1261.fastserv.com/rm128"
+  },
+  {
+    "stationUuid": "radio-browser-quran-radio-abdulrahman-alsudais-77c8094d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "77c8094d-6822-4221-be7b-1d54ab477d78",
+    "verifiedAt": "2026-10-15T19:19:43.235Z",
+    "lastSignalCheck": "2026-10-15T19:19:43.235Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://radio.mp3islam.com/listen/sudais/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-fm-radio-tumar-fm-7576f174",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7576f174-f13e-434d-8a91-9537cd8df0b7",
+    "verifiedAt": "2026-10-15T19:19:44.048Z",
+    "lastSignalCheck": "2026-10-15T19:19:44.048Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://radio.tumar.fm:8005/stream"
+  },
+  {
+    "stationUuid": "radio-browser-paradise-radio-ac3e8614",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ac3e8614-f467-4af4-83a0-fff5e4e43e8d",
+    "verifiedAt": "2026-10-15T19:19:44.063Z",
+    "lastSignalCheck": "2026-10-15T19:19:44.063Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://radiostreamcast.com/listen/paradise_radio/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-sunfm-7ca1623c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7ca1623c-636b-4633-b794-ed0a78be7bce",
+    "verifiedAt": "2026-10-15T19:19:44.641Z",
+    "lastSignalCheck": "2026-10-15T19:19:44.641Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://radio.lotustechnologieslk.net:2020/stream/sunfmgarden"
+  },
+  {
+    "stationUuid": "radio-browser-rev-up-slu-40269b96",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "40269b96-f948-42a3-ab3f-cf7071ad8bdb",
+    "verifiedAt": "2026-10-15T19:19:45.094Z",
+    "lastSignalCheck": "2026-10-15T19:19:45.094Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://caribspy.com/proxy/revupslu/stream"
+  },
+  {
+    "stationUuid": "radio-browser-rock-6e18d0d4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6e18d0d4-d3f4-436e-b7df-efb27105d92e",
+    "verifiedAt": "2026-10-15T19:19:45.345Z",
+    "lastSignalCheck": "2026-10-15T19:19:45.345Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://live.zhanafm.kz:8443/zhanarock"
+  },
+  {
+    "stationUuid": "radio-browser-lao-national-radio-103-7-6f2c8848",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6f2c8848-d39e-4e07-8a9c-046c2356c5de",
+    "verifiedAt": "2026-10-15T19:19:45.563Z",
+    "lastSignalCheck": "2026-10-15T19:19:45.563Z",
+    "qualityScore": 56,
+    "resolvedUrl": "https://radio.lnr.org.la/fm103"
+  },
+  {
+    "stationUuid": "radio-browser-starfm-08c28678",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "08c28678-83d8-4363-8c09-ca8ce8cfbbcf",
+    "verifiedAt": "2026-10-15T19:19:46.313Z",
+    "lastSignalCheck": "2026-10-15T19:19:46.313Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://live.advailo.com/audio/mp3/icecast.audio"
+  },
+  {
+    "stationUuid": "radio-browser-radiocentras-b56671bc",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b56671bc-2a27-40a2-84ac-5c474217ca8c",
+    "verifiedAt": "2026-10-15T19:19:46.673Z",
+    "lastSignalCheck": "2026-10-15T19:19:46.673Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://stream2.rc.lt/rc128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-almunir-radio-benghazi-2b1ad85e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2b1ad85e-2a5b-4c83-9a98-62e84d188cd8",
+    "verifiedAt": "2026-10-15T19:19:47.813Z",
+    "lastSignalCheck": "2026-10-15T19:19:47.813Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://live.munir.ly/proxy/almunir/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-roks-moldova-5306033e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5306033e-8ae2-4e29-82a5-70045a0994ed",
+    "verifiedAt": "2026-10-15T19:19:48.017Z",
+    "lastSignalCheck": "2026-10-15T19:19:48.017Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://stream.dixi.md:9443/Roks"
+  },
+  {
+    "stationUuid": "radio-browser-offworld-radio-1d623d36",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1d623d36-327c-4f45-b532-c83dcd4b3270",
+    "verifiedAt": "2026-10-15T19:19:48.470Z",
+    "lastSignalCheck": "2026-10-15T19:19:48.470Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://a4.asurahosting.com:7310/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-metropolis-radio-network-434f2c63",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "434f2c63-da2d-4a48-85e9-f7c927122f4d",
+    "verifiedAt": "2026-10-15T19:19:48.799Z",
+    "lastSignalCheck": "2026-10-15T19:19:48.799Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://eu4.fastcast4u.com/proxy/metradio?mp=/1"
+  },
+  {
+    "stationUuid": "radio-browser-radio-malijet-f63b80ba",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f63b80ba-b74b-4fd9-83a0-8510de2ed3b3",
+    "verifiedAt": "2026-10-15T19:19:49.017Z",
+    "lastSignalCheck": "2026-10-15T19:19:49.017Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-280.surfernetwork.com/yerp85sughwtv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ5ZXJwODVzdWdod3R2IiwiaG9zdCI6InN0cmVhbS0yODAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImJmWTlLTjVCVFdTdEk2R2Uzd0tyWUEiLCJpYXQiOjE3OTIwOTE5ODgsImV4cCI6MTc5MjA5MjA0OH0.NK7v0-TGD8ekCMDVwUylFBU6gClSNTshfh7IynONSXY"
+  },
+  {
+    "stationUuid": "radio-browser-yellow-riviera-6bb794f1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6bb794f1-cdae-401b-9094-8fd1c91e9137",
+    "verifiedAt": "2026-10-15T19:19:49.063Z",
+    "lastSignalCheck": "2026-10-15T19:19:49.063Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://yellowradio.ice.infomaniak.ch/yellow01.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-padamyar-fm-a47a4545",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a47a4545-4af2-4e27-ba03-c254519a5fd7",
+    "verifiedAt": "2026-10-15T19:19:49.141Z",
+    "lastSignalCheck": "2026-10-15T19:19:49.141Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://stream-288.surfernetwork.com/og9btsnj00tuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJvZzlidHNuajAwdHV2IiwiaG9zdCI6InN0cmVhbS0yODguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InY0SlkxcGJoUWZhY2d3ZzhFakJTOEEiLCJpYXQiOjE3OTIwOTE5ODgsImV4cCI6MTc5MjA5MjA0OH0.jzAMmKzjl5za-bqBVZj4gOjULhZrlq1jKjCtnuGDNKk"
+  },
+  {
+    "stationUuid": "radio-browser-play-radio-mne-rock-7d80f983",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7d80f983-3f2a-47f5-bec0-bc8e9f2eb216",
+    "verifiedAt": "2026-10-15T19:19:49.376Z",
+    "lastSignalCheck": "2026-10-15T19:19:49.376Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://stream.playradio.me:8443/rock.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-cherie-fm-martinique-31cf57f6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "31cf57f6-a25a-41d4-8c3a-8ed98a4d5b05",
+    "verifiedAt": "2026-10-15T19:19:50.110Z",
+    "lastSignalCheck": "2026-10-15T19:19:50.110Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://maxxi.studio/listen/cheriefmmq/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-slow-rock-90-7c3927d0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7c3927d0-f5c2-4295-82d9-3db0f54fe219",
+    "verifiedAt": "2026-10-15T19:19:50.282Z",
+    "lastSignalCheck": "2026-10-15T19:19:50.282Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/hiut6cwfoneuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJoaXV0NmN3Zm9uZXV2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Ijhscmc1TjlFUkdpTVlCaVNKdHV1aWciLCJpYXQiOjE3OTIwOTE5ODksImV4cCI6MTc5MjA5MjA0OX0.pzM9lokZyLvsSQsdvVBum3mShOZbtHNUF2gzf4AMqgo"
+  },
+  {
+    "stationUuid": "radio-browser-bay-easy-100-2-5ae47396",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5ae47396-1ba4-4b1d-92c7-bdc62d6f8879",
+    "verifiedAt": "2026-10-15T19:19:51.157Z",
+    "lastSignalCheck": "2026-10-15T19:19:51.157Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://stream.v3.network/proxy/easy/stream.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-record-fm-100-3-macau-8492f4b4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8492f4b4-8eb8-488f-b5cf-e81025882b3b",
+    "verifiedAt": "2026-10-15T19:19:51.704Z",
+    "lastSignalCheck": "2026-10-15T19:19:51.704Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://nl.digitalrm.pt:8028/stream"
+  },
+  {
+    "stationUuid": "radio-browser-dhivehi-fm-ba8ddeef",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ba8ddeef-1b86-4488-a547-df969b9423c6",
+    "verifiedAt": "2026-10-15T19:19:52.329Z",
+    "lastSignalCheck": "2026-10-15T19:19:52.329Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://radio.psm.mv/fmair"
+  },
+  {
+    "stationUuid": "radio-browser-nouvelle-caledonie-la-premiere-3deff1ed",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3deff1ed-3854-11e9-9b4e-52543be04c81",
+    "verifiedAt": "2026-10-15T19:19:53.063Z",
+    "lastSignalCheck": "2026-10-15T19:19:53.063Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://nouvelle-caledonie.ice.infomaniak.ch/nouvelle-caledonie-128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-imix-radio-fb544cc2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fb544cc2-9eba-4abe-ac1c-ab9daf8488ba",
+    "verifiedAt": "2026-10-15T19:19:53.532Z",
+    "lastSignalCheck": "2026-10-15T19:19:53.532Z",
+    "qualityScore": 93,
+    "resolvedUrl": "https://stream-175.surfernetwork.com/sbmi7cx5z8buv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJzYm1pN2N4NXo4YnV2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImlJSjNHMGRrU0NhNDFsWFQ2TFNxRlEiLCJpYXQiOjE3OTIwOTE5OTIsImV4cCI6MTc5MjA5MjA1Mn0.nDgucanNvMp4egHqagdY316YsKtxsBjCvXr1pmekNqU"
+  },
+  {
+    "stationUuid": "radio-browser-kantipur-fm-724e92cd",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "724e92cd-9d57-4fef-b7e6-adad9fcc270d",
+    "verifiedAt": "2026-10-15T19:19:53.547Z",
+    "lastSignalCheck": "2026-10-15T19:19:53.547Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://radio-broadcast.ekantipur.com/stream"
+  },
+  {
+    "stationUuid": "radio-browser-tiare-fm-7e785439",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7e785439-4534-4d27-b8d9-5dbffc94281e",
+    "verifiedAt": "2026-10-15T19:19:53.798Z",
+    "lastSignalCheck": "2026-10-15T19:19:53.798Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://live.tiarefm.pf:8443/tiarefm"
+  },
+  {
+    "stationUuid": "radio-browser-radio-linea-de-refugio-c3ccfb01",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c3ccfb01-d0e4-41e0-af53-2ce1f02a568c",
+    "verifiedAt": "2026-10-15T19:19:54.142Z",
+    "lastSignalCheck": "2026-10-15T19:19:54.142Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://radiolineaderefugio.stream.laut.fm/radiolineaderefugio?t302=2026-10-15_21-19-50&uuid=e40a785d-6181-5f6b-8135-a3e9884adffc"
+  },
+  {
+    "stationUuid": "radio-browser-omega-stereo-f570d89b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f570d89b-d8d3-4016-a1d2-42248689be8d",
+    "verifiedAt": "2026-10-15T19:19:54.157Z",
+    "lastSignalCheck": "2026-10-15T19:19:54.157Z",
+    "qualityScore": 74,
+    "resolvedUrl": "https://www.streaming507.net:8048/stream"
+  },
+  {
+    "stationUuid": "radio-browser-hum-fm-106-2-a754b1cb",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a754b1cb-4a13-47ab-9215-10473d5a13c8",
+    "verifiedAt": "2026-10-15T19:19:55.126Z",
+    "lastSignalCheck": "2026-10-15T19:19:55.126Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://server.mediacast4u.stream/8002/stream"
+  },
+  {
+    "stationUuid": "radio-browser-pura-gracia-radio-wrpg-db-a5518803",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a5518803-f2ed-4e53-a5df-d4b7a6c731ea",
+    "verifiedAt": "2026-10-15T19:19:56.017Z",
+    "lastSignalCheck": "2026-10-15T19:19:56.017Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://15113.live.streamtheworld.com/SAM05AAC459_SC"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-bcfe2aae",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bcfe2aae-33fa-494a-a571-c3bbc8715c7d",
+    "verifiedAt": "2026-10-15T19:19:56.189Z",
+    "lastSignalCheck": "2026-10-15T19:19:56.189Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://cdna.streamgates.net/RadioNas/Live-Audio/icecast.audio"
+  },
+  {
+    "stationUuid": "radio-browser-radio-plus-d6a5c066",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d6a5c066-62c8-4f88-bd72-2b9b03330f2a",
+    "verifiedAt": "2026-10-15T19:19:56.485Z",
+    "lastSignalCheck": "2026-10-15T19:19:56.485Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://pl02.cdn.eurozet.pl/plu-waw.mp3?redirected=02"
+  },
+  {
+    "stationUuid": "radio-browser-kreolkoneksyon-radio-c0dccbae",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c0dccbae-c3c0-4d19-b82c-d6803c4cc045",
+    "verifiedAt": "2026-10-15T19:19:57.595Z",
+    "lastSignalCheck": "2026-10-15T19:19:57.595Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://listen.radioking.com/radio/511600/stream/569401"
+  },
+  {
+    "stationUuid": "radio-browser-021-caffe-5ac13e6f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5ac13e6f-3d5b-4312-ab5e-3ec6c1149824",
+    "verifiedAt": "2026-10-15T19:19:58.485Z",
+    "lastSignalCheck": "2026-10-15T19:19:58.485Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://centova.dukahosting.com/proxy/021kafe/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio47-87583ab5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "87583ab5-0d53-43ac-a414-46bb39c89217",
+    "verifiedAt": "2026-10-15T19:19:58.689Z",
+    "lastSignalCheck": "2026-10-15T19:19:58.689Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://streaming.shoutcast.com/radio-47?ver=690109"
+  },
+  {
+    "stationUuid": "radio-browser-m80-radio-80s-7bc1f66f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7bc1f66f-412d-484b-82eb-b7b1c4575faa",
+    "verifiedAt": "2026-10-15T19:19:58.860Z",
+    "lastSignalCheck": "2026-10-15T19:19:58.860Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://stream-icy.bauermedia.pt/m8080.aac"
+  },
+  {
+    "stationUuid": "radio-browser-radio-impuls-romania-00d1815f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "00d1815f-8752-472b-8e1f-805431e96952",
+    "verifiedAt": "2026-10-15T19:19:58.970Z",
+    "lastSignalCheck": "2026-10-15T19:19:58.970Z",
+    "qualityScore": 97,
+    "resolvedUrl": "https://live.radio-impuls.ro/stream"
+  },
+  {
+    "stationUuid": "radio-browser-atl-fm-100-5mhz-b3317562",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b3317562-5d0c-4e49-981b-4247fb84f5be",
+    "verifiedAt": "2026-10-15T19:19:59.267Z",
+    "lastSignalCheck": "2026-10-15T19:19:59.267Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://atlfm1005.radioca.st/stream?type=http&nocache=231"
+  },
+  {
+    "stationUuid": "radio-browser-zig-fm-100-8-ziguinchor-c4e29237",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c4e29237-e5bf-4e61-9b25-dcc54785f780",
+    "verifiedAt": "2026-10-15T19:20:00.110Z",
+    "lastSignalCheck": "2026-10-15T19:20:00.110Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-280.surfernetwork.com/zfdk0c69d3quv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ6ZmRrMGM2OWQzcXV2IiwiaG9zdCI6InN0cmVhbS0yODAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlM1Wm1uVWdEVFAyQXg2eG1sUUdtdGciLCJpYXQiOjE3OTIwOTE5OTksImV4cCI6MTc5MjA5MjA1OX0.Z8uCwxie36CtRQK299YPYr1PtMdieGEWAqGQwA92KKg"
+  },
+  {
+    "stationUuid": "radio-browser-nehestrat-fm-84370cb1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "84370cb1-5024-4282-99d6-d1518554f9b2",
+    "verifiedAt": "2026-10-15T19:20:00.845Z",
+    "lastSignalCheck": "2026-10-15T19:20:00.845Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://eu8.fastcast4u.com/proxy/nehestratfm?mp=/1"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-92ec65ea",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "92ec65ea-0324-4d45-bc55-d66955af4a1f",
+    "verifiedAt": "2026-10-15T19:20:00.923Z",
+    "lastSignalCheck": "2026-10-15T19:20:00.923Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://choco.hostingradio.ru:10010/fm"
+  },
+  {
+    "stationUuid": "radio-browser-old-school-music-1ff2e73e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1ff2e73e-a58a-48cb-b3bc-996962b3a07e",
+    "verifiedAt": "2026-10-15T19:20:01.267Z",
+    "lastSignalCheck": "2026-10-15T19:20:01.267Z",
+    "qualityScore": 76,
+    "resolvedUrl": "https://ilikeitoldskool.radioca.st/stream"
+  },
+  {
+    "stationUuid": "radio-browser-theradio-fm-fc94c734",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fc94c734-f869-4f68-b894-603ece8db18f",
+    "verifiedAt": "2026-10-15T19:20:01.267Z",
+    "lastSignalCheck": "2026-10-15T19:20:01.267Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://servidor36-2.brlogic.com:7064/live"
+  },
+  {
+    "stationUuid": "radio-browser-radio-mix-congolaise-877b1a8c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "877b1a8c-e403-4b98-9060-2f255884e53c",
+    "verifiedAt": "2026-10-15T19:20:01.282Z",
+    "lastSignalCheck": "2026-10-15T19:20:01.282Z",
+    "qualityScore": 60,
+    "resolvedUrl": "https://stream-283.surfernetwork.com/qe5g83upga0uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJxZTVnODN1cGdhMHV2IiwiaG9zdCI6InN0cmVhbS0yODMuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImVHTVQ2TmcxVFNLZU9GdkdXSFE0N3ciLCJpYXQiOjE3OTIwOTIwMDAsImV4cCI6MTc5MjA5MjA2MH0.39Shl5kG1vFAn2s6h6I0lpSoYtihUTjPqJhn7SPrYXc"
+  },
+  {
+    "stationUuid": "radio-browser-ethio-oldies-974d15ea",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "974d15ea-33a8-4190-8436-1b9a184f82e3",
+    "verifiedAt": "2026-10-15T19:20:01.735Z",
+    "lastSignalCheck": "2026-10-15T19:20:01.735Z",
+    "qualityScore": 99,
+    "resolvedUrl": "https://www.ethioldies.com/listen/ethioldies/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-maria-ivory-coast-196a749d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "196a749d-d9ce-4961-ba74-d9e416103ee5",
+    "verifiedAt": "2026-10-15T19:20:01.860Z",
+    "lastSignalCheck": "2026-10-15T19:20:01.860Z",
+    "qualityScore": 76,
+    "resolvedUrl": "https://dreamsiteradiocp6.com/proxy/rmcosta?mp=/stream"
+  },
+  {
+    "stationUuid": "radio-browser-fenn-radio-d706e494",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d706e494-cd28-46ad-ac79-ca49aa0f1a9f",
+    "verifiedAt": "2026-10-15T19:20:02.689Z",
+    "lastSignalCheck": "2026-10-15T19:20:02.689Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-289.surfernetwork.com/76e9f1gsduhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiI3NmU5ZjFnc2R1aHZ2IiwiaG9zdCI6InN0cmVhbS0yODkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlBMUkNYaWtzUUhLZkFjYlltWHRodnciLCJpYXQiOjE3OTIwOTIwMDEsImV4cCI6MTc5MjA5MjA2MX0.dzIZi1TnG0LsFU7ZhihCcTPSYRqtkWo0kNm5t3Kb0jU"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-0155ec12",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0155ec12-7308-468a-88dc-fcbd440e01da",
+    "verifiedAt": "2026-10-15T19:20:02.954Z",
+    "lastSignalCheck": "2026-10-15T19:20:02.954Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://qurango.net/radio/mustafa_ismail"
+  },
+  {
+    "stationUuid": "radio-browser-radio-ondjo-yetu-074fab9a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "074fab9a-e0b7-4678-904c-7d0207df6d49",
+    "verifiedAt": "2026-10-15T19:20:03.298Z",
+    "lastSignalCheck": "2026-10-15T19:20:03.298Z",
+    "qualityScore": 49,
+    "resolvedUrl": "https://stream-178.surfernetwork.com/my2frbh3wx7vv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJteTJmcmJoM3d4N3Z2IiwiaG9zdCI6InN0cmVhbS0xNzguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlJzclRuZk5BU0tXNlhMbTdzVU5oTGciLCJpYXQiOjE3OTIwOTIwMDIsImV4cCI6MTc5MjA5MjA2Mn0.C1sREKaQVhAJa-sMrGvE_KvYTZ4xSB_ArGarb0WeRzo"
+  },
+  {
+    "stationUuid": "radio-browser-radiosimorgh-authentic-iranian-music-a1fbace9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a1fbace9-f758-443d-8bca-2dd43c64898a",
+    "verifiedAt": "2026-10-15T19:20:04.439Z",
+    "lastSignalCheck": "2026-10-15T19:20:04.439Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-288.surfernetwork.com/9svfnobkrxrvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiI5c3Zmbm9ia3J4cnZ2IiwiaG9zdCI6InN0cmVhbS0yODguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkdEWUQwYkl2UzZTb2hyaGRKT0FJRWciLCJpYXQiOjE3OTIwOTIwMDMsImV4cCI6MTc5MjA5MjA2M30.WcuXotu30WJQMTAjbE3WhOZ6mYoHSqoXkweR1pM1Zao"
+  },
+  {
+    "stationUuid": "radio-browser-radio-7-mauritius-78a48ab1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "78a48ab1-6e15-4331-8378-e1a9a97459d1",
+    "verifiedAt": "2026-10-15T19:20:04.439Z",
+    "lastSignalCheck": "2026-10-15T19:20:04.439Z",
+    "qualityScore": 84,
+    "resolvedUrl": "https://c2.radioboss.fm/stream/1056"
+  },
+  {
+    "stationUuid": "radio-browser-alseraj-radio-islam-894f73d0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "894f73d0-647d-461b-845c-95d8e14a1e32",
+    "verifiedAt": "2026-10-15T19:20:05.266Z",
+    "lastSignalCheck": "2026-10-15T19:20:05.266Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://eu4.fastcast4u.com/proxy/aabdul00?mp=/1"
+  },
+  {
+    "stationUuid": "radio-browser-kool-97-fm-5cbaee60",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5cbaee60-63ce-481b-b1f2-baa2b7c725c4",
+    "verifiedAt": "2026-10-15T19:20:05.595Z",
+    "lastSignalCheck": "2026-10-15T19:20:05.595Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://stream-289.surfernetwork.com/we0agoxeeojvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ3ZTBhZ294ZWVvanZ2IiwiaG9zdCI6InN0cmVhbS0yODkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlpHMzE2UmRxU1Z5Zm15cDJMNTBIVlEiLCJpYXQiOjE3OTIwOTIwMDQsImV4cCI6MTc5MjA5MjA2NH0.tdX3VloRIGSFzA7STPnOcfd_EJQeGJVLg6O6dJPsJrE"
+  },
+  {
+    "stationUuid": "radio-browser-hit-radio-morocco-45fbac1d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "45fbac1d-4838-4b51-b3eb-7c92fba5ef1a",
+    "verifiedAt": "2026-10-15T19:20:06.282Z",
+    "lastSignalCheck": "2026-10-15T19:20:06.282Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://hitradio-maroc.ice.infomaniak.ch/hitradio-maroc-128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-aki-asgeirsson-tonlist-music-by-aki-asgeirsson-86590d5f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "86590d5f-5e43-49a7-a774-d9f34d47e49f",
+    "verifiedAt": "2026-10-15T19:20:06.829Z",
+    "lastSignalCheck": "2026-10-15T19:20:06.829Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://kast.aki.is/radio"
+  },
+  {
+    "stationUuid": "radio-browser-voice-of-korea-russian-f4d082ad",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f4d082ad-d030-4a17-8467-7f9b99f4ce2d",
+    "verifiedAt": "2026-10-15T19:20:06.939Z",
+    "lastSignalCheck": "2026-10-15T19:20:06.939Z",
+    "qualityScore": 76,
+    "resolvedUrl": "https://listen4.myradio24.com/60315"
+  },
+  {
+    "stationUuid": "radio-browser-rfi-1021-fm-bc6fe4cc",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bc6fe4cc-24f3-4977-bba0-2bcd5c720114",
+    "verifiedAt": "2026-10-15T19:20:08.063Z",
+    "lastSignalCheck": "2026-10-15T19:20:08.063Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://usa3.fastcast4u.com/proxy/vaoctave?mp=/1"
+  },
+  {
+    "stationUuid": "radio-browser-beu-8d19ab98",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8d19ab98-ff22-440c-af05-0b1669b8a2ba",
+    "verifiedAt": "2026-10-15T19:20:08.985Z",
+    "lastSignalCheck": "2026-10-15T19:20:08.985Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://stream.beufm.kz/beufm"
+  },
+  {
+    "stationUuid": "radio-browser-vasantham-fm-aa2d0a92",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "aa2d0a92-7e8a-4b7f-ace3-fc24d207543f",
+    "verifiedAt": "2026-10-15T19:20:09.079Z",
+    "lastSignalCheck": "2026-10-15T19:20:09.079Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://cp12.serverse.com/proxy/vasanthamfm?mp=/stream"
+  },
+  {
+    "stationUuid": "radio-browser-toki-pona-radio-270cb70d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "270cb70d-5278-4ea8-b6e3-c410760157b8",
+    "verifiedAt": "2026-10-15T19:20:09.095Z",
+    "lastSignalCheck": "2026-10-15T19:20:09.095Z",
+    "qualityScore": 48,
+    "resolvedUrl": "https://kute.pona.la/stream/tpr"
+  },
+  {
+    "stationUuid": "radio-browser-quran-radio-saud-al-shuraim-10f95a01",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "10f95a01-1066-471b-89c5-f9092e73a373",
+    "verifiedAt": "2026-10-15T19:20:09.939Z",
+    "lastSignalCheck": "2026-10-15T19:20:09.939Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://radio.mp3islam.com/listen/alshuraim/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-3fm-48kbps-aac-1167f32f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1167f32f-686b-470e-b97b-88f3057eb4dc",
+    "verifiedAt": "2026-10-15T19:20:11.001Z",
+    "lastSignalCheck": "2026-10-15T19:20:11.001Z",
+    "qualityScore": 62,
+    "resolvedUrl": "https://n06-eu1.rcs.revma.com/s1q7dc4c0znwv?rj-ttl=5&rj-tok=AAABoUELBHQAJkpIeokcsjslYg"
+  },
+  {
+    "stationUuid": "radio-browser-topfm-07489f83",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "07489f83-e84e-408e-8cba-e65d8d79e83c",
+    "verifiedAt": "2026-10-15T19:20:11.173Z",
+    "lastSignalCheck": "2026-10-15T19:20:11.173Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://radio.topfm.lt/listen/topfm/topfm-320"
+  },
+  {
+    "stationUuid": "radio-browser-almunir-radio-tripoli-2c82c815",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2c82c815-59af-4eb3-80b6-43e4ad80bea2",
+    "verifiedAt": "2026-10-15T19:20:11.907Z",
+    "lastSignalCheck": "2026-10-15T19:20:11.907Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://live.munir.ly/proxy/almunirtip/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-tissa-la-voix-du-mamelon-99-7-fm-0a92f8b1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0a92f8b1-64c5-446c-8a54-10081479ec27",
+    "verifiedAt": "2026-10-15T19:20:13.016Z",
+    "lastSignalCheck": "2026-10-15T19:20:13.016Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-289.surfernetwork.com/s8ng63k4tchvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJzOG5nNjNrNHRjaHZ2IiwiaG9zdCI6InN0cmVhbS0yODkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjBjRktfcU03VGRpRXpCX3BJLXdicmciLCJpYXQiOjE3OTIwOTIwMTIsImV4cCI6MTc5MjA5MjA3Mn0.S5AJS6-so40WbeCQQbDWztQLlJCRI98iBNoBiN-h3LM"
+  },
+  {
+    "stationUuid": "radio-browser-sky-radio-102-5-skopje-macedonia-e707cfc1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e707cfc1-6d40-45ab-95dd-8b780de207b8",
+    "verifiedAt": "2026-10-15T19:20:13.407Z",
+    "lastSignalCheck": "2026-10-15T19:20:13.407Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://s1.skyradio.com.mk/;*.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-elmag-pop-rock-ex-yu-40294b7d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "40294b7d-0e2e-4f1f-b3f4-a487f57ad5f5",
+    "verifiedAt": "2026-10-15T19:20:13.563Z",
+    "lastSignalCheck": "2026-10-15T19:20:13.563Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://radio.elmag.me/poprock.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-yellow-party-26f9775d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "26f9775d-ff1c-4ea7-9613-341739edd3a5",
+    "verifiedAt": "2026-10-15T19:20:14.126Z",
+    "lastSignalCheck": "2026-10-15T19:20:14.126Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://yellowradio.ice.infomaniak.ch/yellow02.aac"
+  },
+  {
+    "stationUuid": "radio-browser-radio-zoukla-fb524c25",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fb524c25-2794-4e57-9e9d-5569bac6f906",
+    "verifiedAt": "2026-10-15T19:20:15.970Z",
+    "lastSignalCheck": "2026-10-15T19:20:15.970Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://ecmanager4.pro-fhi.net:2605/stream"
+  },
+  {
+    "stationUuid": "radio-browser-89-7-bay-d509b24b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d509b24b-d833-4617-b278-88eba4ee8287",
+    "verifiedAt": "2026-10-15T19:20:16.251Z",
+    "lastSignalCheck": "2026-10-15T19:20:16.251Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://stream.v3.network/proxy/897bay/stream.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-dj-dugem-99a26a24",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "99a26a24-9b70-4c61-9e24-a705ac1ac6b7",
+    "verifiedAt": "2026-10-15T19:20:17.063Z",
+    "lastSignalCheck": "2026-10-15T19:20:17.063Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://stream-178.surfernetwork.com/ooaqxeogpfdvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJvb2FxeGVvZ3BmZHZ2IiwiaG9zdCI6InN0cmVhbS0xNzguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkN1WXdlRmF2VHBXVnYzdW9sQU45elEiLCJpYXQiOjE3OTIwOTIwMTYsImV4cCI6MTc5MjA5MjA3Nn0.vhObe7fl1p2Voe9pEw6ZqBx851cLW1mTSduM9ZBW8Fg"
+  },
+  {
+    "stationUuid": "radio-browser-inner-mongolia-voice-of-grassland-83cd32c9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "83cd32c9-2461-468f-afe8-4be8e5a4ee23",
+    "verifiedAt": "2026-10-15T19:20:17.486Z",
+    "lastSignalCheck": "2026-10-15T19:20:17.486Z",
+    "qualityScore": 48,
+    "resolvedUrl": "https://lhttp-hw.qtfm.cn/live/20973/64k.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-audio-5638e14e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5638e14e-6971-4b21-9626-6a9404ed7b56",
+    "verifiedAt": "2026-10-15T19:20:18.610Z",
+    "lastSignalCheck": "2026-10-15T19:20:18.610Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://stream-289.surfernetwork.com/fvrx47wpg0quv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJmdnJ4NDd3cGcwcXV2IiwiaG9zdCI6InN0cmVhbS0yODkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Imw0SG1FYndfUTNpUEdCakh4UHZ3cGciLCJpYXQiOjE3OTIwOTIwMTcsImV4cCI6MTc5MjA5MjA3N30.JXqS7F0ynNlVBGqfyesBta3Ld3QPy8fadisgpRnzf3I"
+  },
+  {
+    "stationUuid": "radio-browser-nia-radio-pacifique-c5b94fa4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c5b94fa4-8b6d-4aa6-b0cc-5689098a8845",
+    "verifiedAt": "2026-10-15T19:20:19.157Z",
+    "lastSignalCheck": "2026-10-15T19:20:19.157Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://radio.nia.nc/radio/8000/pacific-hq-stream.aac"
+  },
+  {
+    "stationUuid": "radio-browser-101-7-your-love-fm-e47c0813",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e47c0813-93e0-45e7-9d82-d68bffff3032",
+    "verifiedAt": "2026-10-15T19:20:19.829Z",
+    "lastSignalCheck": "2026-10-15T19:20:19.829Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://radio.1017yourlovefm.com/listen/sanibpwersa/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-city-fm-89-islamabad-33cab88d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "33cab88d-c3d9-42f9-abaa-fd8c320fde8f",
+    "verifiedAt": "2026-10-15T19:20:19.938Z",
+    "lastSignalCheck": "2026-10-15T19:20:19.938Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://radio.cityfm89.com/stream"
+  },
+  {
+    "stationUuid": "radio-browser-tropiq-963165f8",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "963165f8-dc1c-4b6f-bdcd-cd833715b7a3",
+    "verifiedAt": "2026-10-15T19:20:20.485Z",
+    "lastSignalCheck": "2026-10-15T19:20:20.485Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://www.streaming507.net:8140/stream"
+  },
+  {
+    "stationUuid": "radio-browser-retro-fm-4e2439db",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4e2439db-4312-4331-b89e-1b000dc7bd4d",
+    "verifiedAt": "2026-10-15T19:20:21.048Z",
+    "lastSignalCheck": "2026-10-15T19:20:21.048Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://23613.live.streamtheworld.com/RETRO_FM.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-raya-fm-5a98544a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5a98544a-340b-4c5a-82b7-4641b67a2264",
+    "verifiedAt": "2026-10-15T19:20:21.829Z",
+    "lastSignalCheck": "2026-10-15T19:20:21.829Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://rstream.hadara.ps/proxy/raya/stream"
+  },
+  {
+    "stationUuid": "radio-browser-tsf-radio-noticias-cc461784",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cc461784-3150-4a34-81c5-2116fe024740",
+    "verifiedAt": "2026-10-15T19:20:21.860Z",
+    "lastSignalCheck": "2026-10-15T19:20:21.860Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://directo.tsf.pt/tsfdirecto.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-super-manele-57edf0e2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "57edf0e2-6f3b-4103-981a-2e9d1e4294a2",
+    "verifiedAt": "2026-10-15T19:20:22.142Z",
+    "lastSignalCheck": "2026-10-15T19:20:22.142Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://stream-288.surfernetwork.com/w8461rwck5zuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ3ODQ2MXJ3Y2s1enV2IiwiaG9zdCI6InN0cmVhbS0yODguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Ik8waUxRcnlaUS1lNExFT2c4S1NYQUEiLCJpYXQiOjE3OTIwOTIwMjEsImV4cCI6MTc5MjA5MjA4MX0.4JKjwApkIzToHAf-GcCxntbaBJdOPZfVmNUHZ3vqM4Q"
+  },
+  {
+    "stationUuid": "radio-browser-chilli-zet-da0174e1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "da0174e1-a1b0-447d-befb-087a6c88d6d4",
+    "verifiedAt": "2026-10-15T19:20:22.407Z",
+    "lastSignalCheck": "2026-10-15T19:20:22.407Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://ch04.cdn.eurozet.pl/chi-net.mp3?redirected=04"
+  },
+  {
+    "stationUuid": "radio-browser-sompa-93-1fm-kumasi-6c306d29",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6c306d29-e226-4377-b461-8be60052a80a",
+    "verifiedAt": "2026-10-15T19:20:23.016Z",
+    "lastSignalCheck": "2026-10-15T19:20:23.016Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://stream-176.surfernetwork.com/erjhljewkybuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJlcmpobGpld2t5YnV2IiwiaG9zdCI6InN0cmVhbS0xNzYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkcwZjV3NENyU3YyMXpjeTNxbDVpSGciLCJpYXQiOjE3OTIwOTIwMjIsImV4cCI6MTc5MjA5MjA4Mn0.4Cg-wqThsnZtWVIovwSz2FjrOneLXQV65wK_CRLV-HM"
+  },
+  {
+    "stationUuid": "radio-browser-imbanasi-bbfa219b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bbfa219b-8f10-45dd-b4d6-80f4069c4028",
+    "verifiedAt": "2026-10-15T19:20:23.376Z",
+    "lastSignalCheck": "2026-10-15T19:20:23.376Z",
+    "qualityScore": 67,
+    "resolvedUrl": "https://stream-290.surfernetwork.com/dsfhivkawjiuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJkc2ZoaXZrYXdqaXV2IiwiaG9zdCI6InN0cmVhbS0yOTAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkJ6b1VROHRvU2F5bmszWUNvS05WX2ciLCJpYXQiOjE3OTIwOTIwMjIsImV4cCI6MTc5MjA5MjA4Mn0.RcHg5ioQHJfJOSkP_Y9ZdmpFm55D8qqaE1JtlnsS4tY"
+  },
+  {
+    "stationUuid": "radio-browser-rewmi-fm-97-5-dakar-86f7ed41",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "86f7ed41-909a-4cf6-b147-e6fe3102328e",
+    "verifiedAt": "2026-10-15T19:20:23.579Z",
+    "lastSignalCheck": "2026-10-15T19:20:23.579Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-289.surfernetwork.com/nkzsqg16t8quv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJua3pzcWcxNnQ4cXV2IiwiaG9zdCI6InN0cmVhbS0yODkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Imgzbm9hZ0lQVDdLb3lPZ0VBWFlWMmciLCJpYXQiOjE3OTIwOTIwMjIsImV4cCI6MTc5MjA5MjA4Mn0.x4IhJZ5SOgUQzDnDdVggVypyXxoRSqPo0ezsgTz7d4w"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-62220177",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "62220177-9f8b-48d0-a9bc-df4c9a3927c9",
+    "verifiedAt": "2026-10-15T19:20:23.673Z",
+    "lastSignalCheck": "2026-10-15T19:20:23.673Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://evcast.mediacp.eu:2075/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-021-100-domace-4fd158f6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4fd158f6-7f93-43fd-b209-79d17826390d",
+    "verifiedAt": "2026-10-15T19:20:23.891Z",
+    "lastSignalCheck": "2026-10-15T19:20:23.891Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://centova.dukahosting.com/proxy/021domaca/stream"
+  },
+  {
+    "stationUuid": "radio-browser-yenevibe-radio-05ac2e34",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "05ac2e34-a4a2-4719-bd85-05b7a54aeacf",
+    "verifiedAt": "2026-10-15T19:20:24.720Z",
+    "lastSignalCheck": "2026-10-15T19:20:24.720Z",
+    "qualityScore": 97,
+    "resolvedUrl": "https://stream-179.surfernetwork.com/5mz3qqftsnhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiI1bXozcXFmdHNuaHZ2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkRxR2Utb1ZWUWVpcjdwV1MtWG5EcEEiLCJpYXQiOjE3OTIwOTIwMjMsImV4cCI6MTc5MjA5MjA4M30.ad8TKk-abvcy8YNde3FWO-Vf2HA6vZSroJnrPRWAo-M"
+  },
+  {
+    "stationUuid": "radio-browser-hit-fm-reunion-b0f323ea",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b0f323ea-4fce-42f3-85cb-942fd8f728df",
+    "verifiedAt": "2026-10-15T19:20:25.579Z",
+    "lastSignalCheck": "2026-10-15T19:20:25.579Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://hitfm.ice.infomaniak.ch/hitfm-192.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-africa-radio-abidjan-0d7c9963",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0d7c9963-2239-4384-8061-d2da2516bb68",
+    "verifiedAt": "2026-10-15T19:20:26.844Z",
+    "lastSignalCheck": "2026-10-15T19:20:26.844Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://africaradio.ice.infomaniak.ch/abidjan128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-8bee6f3f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8bee6f3f-5bbd-4a2a-9cb9-0b75063f35b2",
+    "verifiedAt": "2026-10-15T19:20:27.095Z",
+    "lastSignalCheck": "2026-10-15T19:20:27.095Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://qurango.net/radio/tarateel"
+  },
+  {
+    "stationUuid": "radio-browser-afrika-boom-2c820fbf",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2c820fbf-11fb-4f83-b8fc-51460cb641c5",
+    "verifiedAt": "2026-10-15T19:20:27.782Z",
+    "lastSignalCheck": "2026-10-15T19:20:27.782Z",
+    "qualityScore": 66,
+    "resolvedUrl": "https://stream.radio.co/se53fee01d/listen"
+  },
+  {
+    "stationUuid": "radio-browser-radio-mars-f437a938",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f437a938-2f30-4109-8f52-cbb599e11b03",
+    "verifiedAt": "2026-10-15T19:20:28.470Z",
+    "lastSignalCheck": "2026-10-15T19:20:28.470Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://radiomars.ice.infomaniak.ch/radiomars-128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-mosaiquefm-e4113924",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e4113924-a6ce-4a48-8781-97507dda0d67",
+    "verifiedAt": "2026-10-15T19:20:28.829Z",
+    "lastSignalCheck": "2026-10-15T19:20:28.829Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://radio.mosaiquefm.net/mosalive"
+  },
+  {
+    "stationUuid": "radio-browser-radioplus-fever-beb06313",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "beb06313-7d5c-4627-8360-f14b68e0e83d",
+    "verifiedAt": "2026-10-15T19:20:29.378Z",
+    "lastSignalCheck": "2026-10-15T19:20:29.378Z",
+    "qualityScore": 76,
+    "resolvedUrl": "https://streamer.radio.co/s3fe39a4a4/listen"
+  },
+  {
+    "stationUuid": "radio-browser-3fm-128kbps-mp3-fd3cd8c1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fd3cd8c1-d551-46da-8b09-e02060028ea8",
+    "verifiedAt": "2026-10-15T19:20:29.595Z",
+    "lastSignalCheck": "2026-10-15T19:20:29.595Z",
+    "qualityScore": 44,
+    "resolvedUrl": "https://n05-eu2.rcs.revma.com/0kv9v43t87zuv?rj-ttl=5&rj-tok=AAABoUELYqIA0ZwfmixOx7FOtQ"
+  },
+  {
+    "stationUuid": "radio-browser-al-bilad-radio-yaqoubi-a29b614a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a29b614a-6dd1-4e98-a7f7-a70eb21f82fb",
+    "verifiedAt": "2026-10-15T19:20:30.157Z",
+    "lastSignalCheck": "2026-10-15T19:20:30.157Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://streamer.radio.co/sb38bf6e66/listen"
+  },
+  {
+    "stationUuid": "radio-browser-radio-mojahed-c4f39ae5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c4f39ae5-e9f5-11e8-a471-52543be04c81",
+    "verifiedAt": "2026-10-15T19:20:30.407Z",
+    "lastSignalCheck": "2026-10-15T19:20:30.407Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://s2.radio.co/s830691c74/listen"
+  },
+  {
+    "stationUuid": "radio-browser-omega-klas-radio-god-and-sports-69fde6c5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "69fde6c5-c30e-4022-adbd-61ec95d49718",
+    "verifiedAt": "2026-10-15T19:20:30.470Z",
+    "lastSignalCheck": "2026-10-15T19:20:30.470Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/4uw093pbyvduv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiI0dXcwOTNwYnl2ZHV2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjV0MzBveEpqUkItQ2ZJMjBJQTRyVXciLCJpYXQiOjE3OTIwOTIwMjksImV4cCI6MTc5MjA5MjA4OX0.HaEGUA1pqGUHikKvOP3CYucJCMKKQITlED-r1eE6jFY"
+  },
+  {
+    "stationUuid": "radio-browser-sey-isfjor-ur-community-radio-26312cb9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "26312cb9-40de-4fa8-bb23-20a742e94d7b",
+    "verifiedAt": "2026-10-15T19:20:30.533Z",
+    "lastSignalCheck": "2026-10-15T19:20:30.533Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://seyisfjorur-community-radio.radiocult.fm/stream"
+  },
+  {
+    "stationUuid": "radio-browser-voice-of-chongro-0a83de69",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0a83de69-837b-4a24-8e59-dbe87dc75c9f",
+    "verifiedAt": "2026-10-15T19:20:31.298Z",
+    "lastSignalCheck": "2026-10-15T19:20:31.298Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://stream-175.surfernetwork.com/oldwnjuma3duv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJvbGR3bmp1bWEzZHV2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InRxOFhYb0R1U21TMkNzRkdHVkNscHciLCJpYXQiOjE3OTIwOTIwMzAsImV4cCI6MTc5MjA5MjA5MH0.WasYtk4MezmET_MAyw5rraGMs0iq5_1xkq84mC49mBs"
+  },
+  {
+    "stationUuid": "radio-browser-gee-fm-5d7fd421",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5d7fd421-ce17-4fbc-bc2d-38232881b1e9",
+    "verifiedAt": "2026-10-15T19:20:32.407Z",
+    "lastSignalCheck": "2026-10-15T19:20:32.407Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/jiylwkly3ufvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJqaXlsd2tseTN1ZnZ2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkprZExTVlIzUXVXUEJhdndidElvVnciLCJpYXQiOjE3OTIwOTIwMzEsImV4cCI6MTc5MjA5MjA5MX0.w0VB2hMpeMb5J5DiknxkwRFRwFmNDRHJ_nsts4Rg2Yg"
+  },
+  {
+    "stationUuid": "radio-browser-quran-radio-muhammad-al-minshawi-0a97035a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0a97035a-bd76-46da-acbb-894f0876da1f",
+    "verifiedAt": "2026-10-15T19:20:32.454Z",
+    "lastSignalCheck": "2026-10-15T19:20:32.454Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://radio.mp3islam.com/listen/minshawi/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-palmera-blanca-radio-daystream-465e8c27",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "465e8c27-0340-4e2b-a067-3319f55cdbff",
+    "verifiedAt": "2026-10-15T19:20:32.829Z",
+    "lastSignalCheck": "2026-10-15T19:20:32.829Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://daystream.palmerablanca.com/daystream-128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-7-34a98692",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "34a98692-9494-45c0-9ac4-f755d4145997",
+    "verifiedAt": "2026-10-15T19:20:35.329Z",
+    "lastSignalCheck": "2026-10-15T19:20:35.329Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://listen.radio7.lv:2053/Radio7"
+  },
+  {
+    "stationUuid": "radio-browser-radio-arts-tripoli-e5619870",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e5619870-9002-4b2c-9f0f-a6e6664a40dd",
+    "verifiedAt": "2026-10-15T19:20:35.813Z",
+    "lastSignalCheck": "2026-10-15T19:20:35.813Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-288.surfernetwork.com/z9wfrdpmgg0uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ6OXdmcmRwbWdnMHV2IiwiaG9zdCI6InN0cmVhbS0yODguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Ilk0TC1iLXlLUmZxcEdSdkM0ZkJYSnciLCJpYXQiOjE3OTIwOTIwMzQsImV4cCI6MTc5MjA5MjA5NH0.4BKoipJsMaaiLdSdcYx9DlSDPInGrOLZ-tWjd1HRHN4"
+  },
+  {
+    "stationUuid": "radio-browser-rtl-gold-8259a0dc",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8259a0dc-9c0e-4696-8f66-4bad021f0c55",
+    "verifiedAt": "2026-10-15T19:20:35.923Z",
+    "lastSignalCheck": "2026-10-15T19:20:35.923Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://sc.rtl.lu/rtlgold"
+  },
+  {
+    "stationUuid": "radio-browser-coldstar-online-radio-high-quality-33ecd479",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "33ecd479-837a-4e5b-bf3a-1d9d00f53e0d",
+    "verifiedAt": "2026-10-15T19:20:35.954Z",
+    "lastSignalCheck": "2026-10-15T19:20:35.954Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://ice.coldstar.online/high.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-rjl-radio-3f1e293e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3f1e293e-41f5-4c8f-bde3-457d192cea30",
+    "verifiedAt": "2026-10-15T19:20:36.048Z",
+    "lastSignalCheck": "2026-10-15T19:20:36.048Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://s3.radio.co/sc5bdee4a4/listen"
+  },
+  {
+    "stationUuid": "radio-browser-radio-woyowayanko-93-0-bamako-1d074522",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1d074522-d5a3-4c63-87fc-0e4b650db095",
+    "verifiedAt": "2026-10-15T19:20:37.267Z",
+    "lastSignalCheck": "2026-10-15T19:20:37.267Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://stream-175.surfernetwork.com/1mr8wdywz68uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiIxbXI4d2R5d3o2OHV2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InpxcTFDMDFNU1YtZFFwcUdlZFFkLWciLCJpYXQiOjE3OTIwOTIwMzYsImV4cCI6MTc5MjA5MjA5Nn0.l6WHFmbyh65-01crlIGqEF2vKDS3voD4hRudiR-Od2o"
+  },
+  {
+    "stationUuid": "radio-browser-bruskin-39f31145",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "39f31145-58b1-4a8c-8a4a-2188592a832f",
+    "verifiedAt": "2026-10-15T19:20:37.845Z",
+    "lastSignalCheck": "2026-10-15T19:20:37.845Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://player.radiobruskin.me/proxy/radiobruskin/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-fortuna-96-8-skopje-macedonia-e8de8dc8",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e8de8dc8-aba2-4d19-9f59-0f1ea7f6b75e",
+    "verifiedAt": "2026-10-15T19:20:38.126Z",
+    "lastSignalCheck": "2026-10-15T19:20:38.126Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://radiofortuna.ipradio.mk/;*.mp3%22"
+  },
+  {
+    "stationUuid": "radio-browser-megapolis-fm-moldova-272507fc",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "272507fc-f3b7-4a10-a280-7da26bafb901",
+    "verifiedAt": "2026-10-15T19:20:38.782Z",
+    "lastSignalCheck": "2026-10-15T19:20:38.782Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://megapolisfm.md:8443/886"
+  },
+  {
+    "stationUuid": "radio-browser-radio-monte-carlo-italia-469a80f5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "469a80f5-755e-11e9-af37-52543be04c81",
+    "verifiedAt": "2026-10-15T19:20:38.798Z",
+    "lastSignalCheck": "2026-10-15T19:20:38.798Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://icy.unitedradio.it/rmcweb005"
+  },
+  {
+    "stationUuid": "radio-browser-jei-fm-klang-tamil-radio-676c0b71",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "676c0b71-51b1-4949-b8a2-dfdc12b582af",
+    "verifiedAt": "2026-10-15T19:20:40.188Z",
+    "lastSignalCheck": "2026-10-15T19:20:40.188Z",
+    "qualityScore": 77,
+    "resolvedUrl": "https://usa3.fastcast4u.com/proxy/jeifm?mp=/1"
+  },
+  {
+    "stationUuid": "radio-browser-bay-89-7-26df1ec1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "26df1ec1-d11b-4703-a4d2-07519b431b66",
+    "verifiedAt": "2026-10-15T19:20:40.282Z",
+    "lastSignalCheck": "2026-10-15T19:20:40.282Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://stream.v3.network/proxy/897bay/stream.mp3?_=1"
+  },
+  {
+    "stationUuid": "radio-browser-channel-v-international-51e8b781",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "51e8b781-8061-424a-bea6-57c5ed682db4",
+    "verifiedAt": "2026-10-15T19:20:40.376Z",
+    "lastSignalCheck": "2026-10-15T19:20:40.376Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://listen.radioking.com/radio/453221/stream/508076"
+  },
+  {
+    "stationUuid": "radio-browser-mandalayfm-bb5714c1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bb5714c1-ca84-46fe-8a2d-c784738eb5fc",
+    "verifiedAt": "2026-10-15T19:20:41.017Z",
+    "lastSignalCheck": "2026-10-15T19:20:41.017Z",
+    "qualityScore": 57,
+    "resolvedUrl": "https://edge.mixlr.com/channel/nmtev"
+  },
+  {
+    "stationUuid": "radio-browser-tinau-fm-b20a3254",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b20a3254-a219-480d-b005-885d80332458",
+    "verifiedAt": "2026-10-15T19:20:41.688Z",
+    "lastSignalCheck": "2026-10-15T19:20:41.688Z",
+    "qualityScore": 84,
+    "resolvedUrl": "https://streaming.softnep.net:10854/;stream.nsv;type=mp3&volume=70"
+  },
+  {
+    "stationUuid": "radio-browser-nia-lo-fi-2b5a1e88",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2b5a1e88-5f42-406c-9894-95f33534f05b",
+    "verifiedAt": "2026-10-15T19:20:42.563Z",
+    "lastSignalCheck": "2026-10-15T19:20:42.563Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://radio.nia.nc/radio/8020/lofi-hq-stream.aac?1734100301"
+  },
+  {
+    "stationUuid": "radio-browser-radio-1-pf-11f87095",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "11f87095-84e8-48cd-8060-554f6d9ca526",
+    "verifiedAt": "2026-10-15T19:20:42.641Z",
+    "lastSignalCheck": "2026-10-15T19:20:42.641Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://live.radio1.pf:8443/radio1"
+  },
+  {
+    "stationUuid": "radio-browser-rage-music-philippines-cbd407d2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cbd407d2-df2e-4953-83de-3d11817f465e",
+    "verifiedAt": "2026-10-15T19:20:42.798Z",
+    "lastSignalCheck": "2026-10-15T19:20:42.798Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://stream-283.surfernetwork.com/yu9dryfs7x8uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ5dTlkcnlmczd4OHV2IiwiaG9zdCI6InN0cmVhbS0yODMuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InNtODFtMF9YUUVHMW91WXM2Z1VXT0EiLCJpYXQiOjE3OTIwOTIwNDEsImV4cCI6MTc5MjA5MjEwMX0.tsGd3Ve1wEFokQDt6Nb5gGoyWiXhQ-TnuOWuwbECgHo"
+  },
+  {
+    "stationUuid": "radio-browser-radio-mojito-27cc994b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "27cc994b-d521-4a69-9ec0-112d42c557c8",
+    "verifiedAt": "2026-10-15T19:20:43.220Z",
+    "lastSignalCheck": "2026-10-15T19:20:43.220Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://fmcpmediatest.ice.infomaniak.ch/fmcp-128.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-smoothjazz-com-pl-320k-mp3-53241c38",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "53241c38-4a74-4beb-9514-1033913d1ede",
+    "verifiedAt": "2026-10-15T19:20:44.173Z",
+    "lastSignalCheck": "2026-10-15T19:20:44.173Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://bcast.vigormultimedia.com:48888/sjcompl320mp3"
+  },
+  {
+    "stationUuid": "radio-browser-wapa-radio-53dd3239",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "53dd3239-5823-45cd-b36f-d3d837bcf8bd",
+    "verifiedAt": "2026-10-15T19:20:44.423Z",
+    "lastSignalCheck": "2026-10-15T19:20:44.423Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://livestreamcdn.net:2000/stream/waparadio"
+  },
+  {
+    "stationUuid": "radio-browser-amen24-5a51cff5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5a51cff5-24d5-422f-bbab-aa0a8078f88b",
+    "verifiedAt": "2026-10-15T19:20:45.189Z",
+    "lastSignalCheck": "2026-10-15T19:20:45.189Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://rstream.hadara.ps/proxy/amen24/stream"
+  },
+  {
+    "stationUuid": "radio-browser-stil-mix-manele-107-9-mhz-fm-b09e7ff4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b09e7ff4-fa15-4d81-821b-ec7751c3b9ad",
+    "verifiedAt": "2026-10-15T19:20:45.532Z",
+    "lastSignalCheck": "2026-10-15T19:20:45.532Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://stream-179.surfernetwork.com/zt84vax7ptzuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ6dDg0dmF4N3B0enV2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkwzUU5EYjJaUTlXb0xIV21YV1V5YnciLCJpYXQiOjE3OTIwOTIwNDQsImV4cCI6MTc5MjA5MjEwNH0.BEK6t51QlFl_Ilg90hhNQ9RRgzzM2ZnAzGREpFTibvo"
+  },
+  {
+    "stationUuid": "radio-browser-la-clave-103-9-34715bae",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "34715bae-8311-433a-8a19-5310e5e566fb",
+    "verifiedAt": "2026-10-15T19:20:46.001Z",
+    "lastSignalCheck": "2026-10-15T19:20:46.001Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://radio.host.com.py:7181/"
+  },
+  {
+    "stationUuid": "radio-browser-radio-oxygene-reunion-213dadb5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "213dadb5-ebb4-4e5c-bf7d-0cdc2ce247c3",
+    "verifiedAt": "2026-10-15T19:20:46.079Z",
+    "lastSignalCheck": "2026-10-15T19:20:46.079Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://ecmanager2.pro-fhi.net:1535/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-bd9f56b0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bd9f56b0-1bb3-4f93-b681-a93ba7035f66",
+    "verifiedAt": "2026-10-15T19:20:47.438Z",
+    "lastSignalCheck": "2026-10-15T19:20:47.438Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://icecast-mirtv.cdnvideo.ru/radio_mir_256"
+  },
+  {
+    "stationUuid": "radio-browser-radio-futog-9b016d3e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9b016d3e-73f7-4dcc-882d-6717d9b2112f",
+    "verifiedAt": "2026-10-15T19:20:47.642Z",
+    "lastSignalCheck": "2026-10-15T19:20:47.642Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://radio.dukahosting.com:7001/"
+  },
+  {
+    "stationUuid": "radio-browser-m80-radio-ballads-a08d74ca",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a08d74ca-2172-447a-941a-b5c5c20afdd6",
+    "verifiedAt": "2026-10-15T19:20:47.720Z",
+    "lastSignalCheck": "2026-10-15T19:20:47.720Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://stream-icy.bauermedia.pt/m80ballads.aac"
+  },
+  {
+    "stationUuid": "radio-browser-rts-matam-89-1-ccacc8a2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ccacc8a2-42b6-4c37-8aff-949c05ea12c8",
+    "verifiedAt": "2026-10-15T19:20:49.220Z",
+    "lastSignalCheck": "2026-10-15T19:20:49.220Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-283.surfernetwork.com/kxud8vhqt1duv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJreHVkOHZocXQxZHV2IiwiaG9zdCI6InN0cmVhbS0yODMuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InJkblhoaGI2UVJ1UVlvdGJOai0zUmciLCJpYXQiOjE3OTIwOTIwNDgsImV4cCI6MTc5MjA5MjEwOH0.M3I8n_AZHnB94aWB-Pwbblf_-Sgax1S93r-vZ6Nw9jg"
+  },
+  {
+    "stationUuid": "radio-browser-megazone-bollywood-058d5c5b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "058d5c5b-8d3b-4e21-b0a7-aebabdd0d817",
+    "verifiedAt": "2026-10-15T19:20:49.782Z",
+    "lastSignalCheck": "2026-10-15T19:20:49.782Z",
+    "qualityScore": 85,
+    "resolvedUrl": "https://vm65162.streamerr.co/listen/megazone_bollywood_/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-98-4-capital-fm-4ec5158e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4ec5158e-5204-4fad-a329-da356b4b0a05",
+    "verifiedAt": "2026-10-15T19:20:49.829Z",
+    "lastSignalCheck": "2026-10-15T19:20:49.829Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://atunwadigital.streamguys1.com/capitalfm"
+  },
+  {
+    "stationUuid": "radio-browser-capital-fm-uganda-02024dbd",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "02024dbd-1dbb-4977-a689-a2eb3447a973",
+    "verifiedAt": "2026-10-15T19:20:50.032Z",
+    "lastSignalCheck": "2026-10-15T19:20:50.032Z",
+    "qualityScore": 74,
+    "resolvedUrl": "https://capitalfm.cloudrad.io/stream"
+  },
+  {
+    "stationUuid": "radio-browser-amharic-live-sport-0af2ed70",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0af2ed70-732c-4475-b206-6a937bb895ed",
+    "verifiedAt": "2026-10-15T19:20:50.954Z",
+    "lastSignalCheck": "2026-10-15T19:20:50.954Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://stream-280.surfernetwork.com/bqtruhn4q98uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJicXRydWhuNHE5OHV2IiwiaG9zdCI6InN0cmVhbS0yODAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjdrMXZieFdzUUVLcXFxLTVQV09RS0EiLCJpYXQiOjE3OTIwOTIwNTAsImV4cCI6MTc5MjA5MjExMH0.7JFGkpNZOP3mZjEACnGx2GYJ9aqdIwy0wzyD1yVDuPg"
+  },
+  {
+    "stationUuid": "radio-browser-east-africa-radio-fm-6127891e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6127891e-b89d-4424-9e3f-7723b875465e",
+    "verifiedAt": "2026-10-15T19:20:50.969Z",
+    "lastSignalCheck": "2026-10-15T19:20:50.969Z",
+    "qualityScore": 61,
+    "resolvedUrl": "https://eatv.radioca.st/stream"
+  },
+  {
+    "stationUuid": "radio-browser-fresh-fm-4bd56283",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4bd56283-27d1-4940-a307-bf63fb9e7e41",
+    "verifiedAt": "2026-10-15T19:20:51.485Z",
+    "lastSignalCheck": "2026-10-15T19:20:51.485Z",
+    "qualityScore": 64,
+    "resolvedUrl": "https://edge.iono.fm/xice/192_medium.aac"
+  },
+  {
+    "stationUuid": "radio-browser-radio-pulsar-katiola-f806ae92",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f806ae92-e1f3-4d4c-ac4e-31024b62b078",
+    "verifiedAt": "2026-10-15T19:20:51.985Z",
+    "lastSignalCheck": "2026-10-15T19:20:51.985Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://stream10.vestaradio.com/RADIO-PULSAR-KATIOLA"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-5e1c31e7",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5e1c31e7-7541-439a-9081-6f78508bb637",
+    "verifiedAt": "2026-10-15T19:20:52.517Z",
+    "lastSignalCheck": "2026-10-15T19:20:52.517Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://qurango.net/radio/yasser_aldosari"
+  },
+  {
+    "stationUuid": "radio-browser-jil-fm-ed186ea7",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ed186ea7-ac3e-47f5-bf33-99fbb15ffc86",
+    "verifiedAt": "2026-10-15T19:20:53.782Z",
+    "lastSignalCheck": "2026-10-15T19:20:53.782Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://webradio1.tda.dz:8001/Jeunesse_64K.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-monastir-bd4c6426",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bd4c6426-6d27-42a9-a1d1-d0084cba5138",
+    "verifiedAt": "2026-10-15T19:20:53.860Z",
+    "lastSignalCheck": "2026-10-15T19:20:53.860Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://radio.radiotunisienne.tn/monastir"
+  },
+  {
+    "stationUuid": "radio-browser-al-rasheed-fm-0cb24613",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0cb24613-f3ba-41d6-9410-b3aaaa49c3f9",
+    "verifiedAt": "2026-10-15T19:20:53.891Z",
+    "lastSignalCheck": "2026-10-15T19:20:53.891Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://streaming.shoutcast.com/alrasheed-fm?1719771692024"
+  },
+  {
+    "stationUuid": "radio-browser-skyrock-casablanca-66c753bc",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "66c753bc-f48c-4ad9-bdea-b272c7125fa8",
+    "verifiedAt": "2026-10-15T19:20:54.080Z",
+    "lastSignalCheck": "2026-10-15T19:20:54.080Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://icecast.skyrock.net/s/casa_aac_64k"
+  },
+  {
+    "stationUuid": "radio-browser-stylz-fm-2a2eeadb",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2a2eeadb-3126-4048-b8f1-383c7f98c956",
+    "verifiedAt": "2026-10-15T19:20:55.032Z",
+    "lastSignalCheck": "2026-10-15T19:20:55.032Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://stream-288.surfernetwork.com/0d1hpcmqqy5tv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiIwZDFocGNtcXF5NXR2IiwiaG9zdCI6InN0cmVhbS0yODguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImRtdEh2cjFoUzhhTVJzeUxuZTNRWGciLCJpYXQiOjE3OTIwOTIwNTMsImV4cCI6MTc5MjA5MjExM30.SjHLOzzXVIaqbJavOeb2H4uR8x6GGhCUqEEKj-UUQlU"
+  },
+  {
+    "stationUuid": "radio-browser-radio-zza-zan-zendegi-azadi-1b1e2389",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1b1e2389-c406-4a61-bcb0-09ae798259ad",
+    "verifiedAt": "2026-10-15T19:20:55.813Z",
+    "lastSignalCheck": "2026-10-15T19:20:55.813Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://listen.radioking.com/radio/526993/stream/585379"
+  },
+  {
+    "stationUuid": "radio-browser-island-fm-the-rhythm-of-cayman-be8f2bad",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "be8f2bad-ecf7-420f-af22-7fba6aa57662",
+    "verifiedAt": "2026-10-15T19:20:56.282Z",
+    "lastSignalCheck": "2026-10-15T19:20:56.282Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://iriefm-hurleysmedia.radioca.st/stream?_=912521"
+  },
+  {
+    "stationUuid": "radio-browser-retro-4e570d5e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4e570d5e-8501-4b55-9030-085e7ee904dc",
+    "verifiedAt": "2026-10-15T19:20:56.798Z",
+    "lastSignalCheck": "2026-10-15T19:20:56.798Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://ice-11.spilarinn.is/retromobile"
+  },
+  {
+    "stationUuid": "radio-browser-tavo-balsas-lt-cc71aeb0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cc71aeb0-fe7e-458c-aa5e-c58ff9158b7a",
+    "verifiedAt": "2026-10-15T19:20:57.720Z",
+    "lastSignalCheck": "2026-10-15T19:20:57.720Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://c18.radioboss.fm:8529/stream"
+  },
+  {
+    "stationUuid": "radio-browser-quran-radio-yasser-aldosari-f25fc24b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f25fc24b-c5b9-4800-8d51-3e26bb89a99d",
+    "verifiedAt": "2026-10-15T19:20:57.814Z",
+    "lastSignalCheck": "2026-10-15T19:20:57.814Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://radio.mp3islam.com/listen/yaser/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-mix-46793fb4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "46793fb4-4daf-47c6-b64e-f59510f2ec14",
+    "verifiedAt": "2026-10-15T19:20:57.907Z",
+    "lastSignalCheck": "2026-10-15T19:20:57.907Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://live.zhanafm.kz:8443/zhanamix"
+  },
+  {
+    "stationUuid": "radio-browser-kyrgyzstan-obondoru-01d60203",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "01d60203-d360-4695-9496-97ee1300aead",
+    "verifiedAt": "2026-10-15T19:20:58.126Z",
+    "lastSignalCheck": "2026-10-15T19:20:58.126Z",
+    "qualityScore": 62,
+    "resolvedUrl": "https://cdn.radioplayer.kg:8443/obondoru64"
+  },
+  {
+    "stationUuid": "radio-browser-chilli-moje-ff9d91cd",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ff9d91cd-6163-42d8-8937-ab310f8f4454",
+    "verifiedAt": "2026-10-15T19:20:59.548Z",
+    "lastSignalCheck": "2026-10-15T19:20:59.548Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://media-ssl.musicradio.com/ChillMP3"
+  },
+  {
+    "stationUuid": "radio-browser-muz-fm-moldova-40a45617",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "40a45617-74c2-49ee-aef6-b329978da43e",
+    "verifiedAt": "2026-10-15T19:21:00.642Z",
+    "lastSignalCheck": "2026-10-15T19:21:00.642Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://live.muzfm.md/muzfm"
+  },
+  {
+    "stationUuid": "radio-browser-chillax-fm-23cc41c2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "23cc41c2-3667-474f-a247-2da5092d786b",
+    "verifiedAt": "2026-10-15T19:21:00.642Z",
+    "lastSignalCheck": "2026-10-15T19:21:00.642Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://streams.chillaxfm.lv/chillaxfm"
+  },
+  {
+    "stationUuid": "radio-browser-radio-kledu-101-2-a0d534ad",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a0d534ad-4446-4a5e-bf03-b5b16ad49223",
+    "verifiedAt": "2026-10-15T19:21:00.720Z",
+    "lastSignalCheck": "2026-10-15T19:21:00.720Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://stream-280.surfernetwork.com/yerp85sughwtv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ5ZXJwODVzdWdod3R2IiwiaG9zdCI6InN0cmVhbS0yODAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlZTRU9yMDZyU0JhcmJPaGVkMV9od2ciLCJpYXQiOjE3OTIwOTIwNTksImV4cCI6MTc5MjA5MjExOX0.EWa6cqUP4plQRxcnMq_meBdFKIEdYBJAepOp7FF1XYk"
+  },
+  {
+    "stationUuid": "radio-browser-free-radio-luxembourg-frl-971f6221",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "971f6221-4fee-11e9-a4d7-52543be04c81",
+    "verifiedAt": "2026-10-15T19:21:00.767Z",
+    "lastSignalCheck": "2026-10-15T19:21:00.767Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://listen.radioking.com/radio/66160/stream/137599"
+  },
+  {
+    "stationUuid": "radio-browser-54house-fm-club-138dca72",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "138dca72-29a0-400b-ab96-749b1cafee13",
+    "verifiedAt": "2026-10-15T19:21:00.985Z",
+    "lastSignalCheck": "2026-10-15T19:21:00.985Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://54house.fm:9013/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-bubamara-105-2-skopje-macedonia-09e63439",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "09e63439-9a84-4017-a456-14ee4f390f61",
+    "verifiedAt": "2026-10-15T19:21:01.016Z",
+    "lastSignalCheck": "2026-10-15T19:21:01.016Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://stream.bubamara.com.mk/live"
+  },
+  {
+    "stationUuid": "radio-browser-nia-pacifique-cfb12052",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cfb12052-0fb9-4620-befe-d54349f49637",
+    "verifiedAt": "2026-10-15T19:21:03.266Z",
+    "lastSignalCheck": "2026-10-15T19:21:03.266Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://radio.nia.nc/radio/8000/pacific-hq-stream.aac?1734100041"
+  },
+  {
+    "stationUuid": "radio-browser-campus-103-7-b93e26d9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b93e26d9-306c-4522-b420-cc4d537fc196",
+    "verifiedAt": "2026-10-15T19:21:03.673Z",
+    "lastSignalCheck": "2026-10-15T19:21:03.673Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://campusfm.radioca.st/campusfm_live"
+  },
+  {
+    "stationUuid": "radio-browser-dheenuge-adu-c3f86d22",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c3f86d22-54ef-45ad-8fdc-9689d360b678",
+    "verifiedAt": "2026-10-15T19:21:03.876Z",
+    "lastSignalCheck": "2026-10-15T19:21:03.876Z",
+    "qualityScore": 65,
+    "resolvedUrl": "https://radio.psm.mv/dheenugeaduair"
+  },
+  {
+    "stationUuid": "radio-browser-nrj-martinique-2840715c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2840715c-383c-4414-b2f6-6ae83f5082f5",
+    "verifiedAt": "2026-10-15T19:21:04.111Z",
+    "lastSignalCheck": "2026-10-15T19:21:04.111Z",
+    "qualityScore": 67,
+    "resolvedUrl": "https://streaming.nrjaudio.fm/ouquwgyoeo8p"
+  },
+  {
+    "stationUuid": "radio-browser-radio-conexion-romantica-3f0404e4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3f0404e4-0873-41c4-aa4e-fbf58ebe4c40",
+    "verifiedAt": "2026-10-15T19:21:04.517Z",
+    "lastSignalCheck": "2026-10-15T19:21:04.517Z",
+    "qualityScore": 85,
+    "resolvedUrl": "https://stream-280.surfernetwork.com/uauw712byzzuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ1YXV3NzEyYnl6enV2IiwiaG9zdCI6InN0cmVhbS0yODAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlhEaEd6d0o4U3AyYkdHNENfQnZrTWciLCJpYXQiOjE3OTIwOTIwNjMsImV4cCI6MTc5MjA5MjEyM30.__nlacRpOeZxldIiz2g0orMPWz-JrBCNTK4d-NS08UE"
+  },
+  {
+    "stationUuid": "radio-browser-butwal-fm-f7d8a07a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f7d8a07a-21dc-40cf-82fe-ac8483e364c3",
+    "verifiedAt": "2026-10-15T19:21:04.541Z",
+    "lastSignalCheck": "2026-10-15T19:21:04.541Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://streaming.softnep.net:10994/;stream.nsv"
+  },
+  {
+    "stationUuid": "radio-browser-101-1-smooth-fm-4adaac34",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4adaac34-b0dd-4a6f-9423-9da3cc554678",
+    "verifiedAt": "2026-10-15T19:21:05.657Z",
+    "lastSignalCheck": "2026-10-15T19:21:05.657Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://stream-icy.bauermedia.pt/smooth.aac"
+  },
+  {
+    "stationUuid": "radio-browser-wiac-740-am-2e1e1698",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2e1e1698-f552-4ce3-b7aa-28d9270aa668",
+    "verifiedAt": "2026-10-15T19:21:05.688Z",
+    "lastSignalCheck": "2026-10-15T19:21:05.688Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://sp.unoredcdn.net:8044/stream"
+  },
+  {
+    "stationUuid": "radio-browser-101-1-yes-fm-manila-d617ca3d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d617ca3d-4458-4c94-9a5f-65106263ec51",
+    "verifiedAt": "2026-10-15T19:21:05.719Z",
+    "lastSignalCheck": "2026-10-15T19:21:05.719Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://azura.yesfm.com.ph/listen/yes_fm_manila/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-republika-f837704e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f837704e-40df-4302-b546-c8401348e51c",
+    "verifiedAt": "2026-10-15T19:21:06.251Z",
+    "lastSignalCheck": "2026-10-15T19:21:06.251Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://ssl-1.radiotvrepublika.pl:12698/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-arasuncion-a1015afb",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a1015afb-7399-47b7-8787-0a0dd5ce2c23",
+    "verifiedAt": "2026-10-15T19:21:06.548Z",
+    "lastSignalCheck": "2026-10-15T19:21:06.548Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://stream.radiaura.net/station-2ab200ee-b166-415a-b8df-7b20c6a37ff9"
+  },
+  {
+    "stationUuid": "radio-browser-mera-fm-107-4-82d0c589",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "82d0c589-9c97-4ca1-896a-1653e351ec93",
+    "verifiedAt": "2026-10-15T19:21:06.595Z",
+    "lastSignalCheck": "2026-10-15T19:21:06.595Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://samaakhi107-itelservices.radioca.st/stream"
+  },
+  {
+    "stationUuid": "radio-browser-estereo-azul-100-9-fm-7560d23e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7560d23e-8605-4032-a0df-a8fe37242a7b",
+    "verifiedAt": "2026-10-15T19:21:06.673Z",
+    "lastSignalCheck": "2026-10-15T19:21:06.673Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://18533.live.streamtheworld.com/ESTEREOAZULAAC.aac"
+  },
+  {
+    "stationUuid": "radio-browser-radio-alhara-cb9d0283",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cb9d0283-160c-40a6-8322-f59f90bc3975",
+    "verifiedAt": "2026-10-15T19:21:07.188Z",
+    "lastSignalCheck": "2026-10-15T19:21:07.188Z",
+    "qualityScore": 72,
+    "resolvedUrl": "https://stream.radioalhara.net/ra"
+  },
+  {
+    "stationUuid": "radio-browser-valoare-radio-manele-vechi-bbfa7a05",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "bbfa7a05-bc27-411b-9e37-375184fec3be",
+    "verifiedAt": "2026-10-15T19:21:08.313Z",
+    "lastSignalCheck": "2026-10-15T19:21:08.313Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://ssl.omegahost.ro/8000/stream"
+  },
+  {
+    "stationUuid": "radio-browser-passion-tropical-60ae9d8f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "60ae9d8f-546f-4ab3-ab4d-e8907cfeb0ea",
+    "verifiedAt": "2026-10-15T19:21:08.563Z",
+    "lastSignalCheck": "2026-10-15T19:21:08.563Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://listen.radioking.com/radio/7495/stream/16988"
+  },
+  {
+    "stationUuid": "radio-browser-radio-021-rock-8e486586",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8e486586-7c30-4071-a000-112bec4e3387",
+    "verifiedAt": "2026-10-15T19:21:08.938Z",
+    "lastSignalCheck": "2026-10-15T19:21:08.938Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://centova.dukahosting.com/proxy/rock/stream"
+  },
+  {
+    "stationUuid": "radio-browser-057-radio-5381ad60",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5381ad60-c7ec-42a6-ad41-e458fcb08c11",
+    "verifiedAt": "2026-10-15T19:21:09.454Z",
+    "lastSignalCheck": "2026-10-15T19:21:09.454Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://audio.alter-media.hr/9052/stream"
+  },
+  {
+    "stationUuid": "radio-browser-106-1-next-radio-56d2d8d9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "56d2d8d9-292b-470e-adfc-eea69932917b",
+    "verifiedAt": "2026-10-15T19:21:09.860Z",
+    "lastSignalCheck": "2026-10-15T19:21:09.860Z",
+    "qualityScore": 74,
+    "resolvedUrl": "https://stream-286.surfernetwork.com/lbca7zintcnuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJsYmNhN3ppbnRjbnV2IiwiaG9zdCI6InN0cmVhbS0yODYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InljN2taREJYUmtXdUlYM3ZROWxaRHciLCJpYXQiOjE3OTIwOTIwNjgsImV4cCI6MTc5MjA5MjEyOH0.14wq27N0fEJLCfkDXjTPlk3mIpa9dYk9nnlZAW3ESwU"
+  },
+  {
+    "stationUuid": "radio-browser-m80-radio-60s-1ac20829",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1ac20829-1ca7-4abe-bd7f-b8dcd835b29b",
+    "verifiedAt": "2026-10-15T19:21:10.688Z",
+    "lastSignalCheck": "2026-10-15T19:21:10.688Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://stream-icy.bauermedia.pt/m8060.aac"
+  },
+  {
+    "stationUuid": "radio-browser-bfm-ru-470448e5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "470448e5-8166-4054-bd96-ce8f764d4eb3",
+    "verifiedAt": "2026-10-15T19:21:10.829Z",
+    "lastSignalCheck": "2026-10-15T19:21:10.829Z",
+    "qualityScore": 98,
+    "resolvedUrl": "https://bfm.hostingradio.ru:9075/fm"
+  },
+  {
+    "stationUuid": "radio-browser-rts-kaolack-103-6ed8be70",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6ed8be70-eef2-41d0-a56d-e6405f8476e2",
+    "verifiedAt": "2026-10-15T19:21:10.907Z",
+    "lastSignalCheck": "2026-10-15T19:21:10.907Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-284.surfernetwork.com/2fkd4h0ts1duv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiIyZmtkNGgwdHMxZHV2IiwiaG9zdCI6InN0cmVhbS0yODQuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkdTVHpucWZrUndTMnQ2WnIwbFFncWciLCJpYXQiOjE3OTIwOTIwNjksImV4cCI6MTc5MjA5MjEyOX0.mCw7tX4YiHRS46Bghb8yWGgyzAWJmCBpp2McJLjH3Bw"
+  },
+  {
+    "stationUuid": "radio-browser-radioagonshu-e693045f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e693045f-01e6-48d4-9b44-4dc7435eede5",
+    "verifiedAt": "2026-10-15T19:21:11.720Z",
+    "lastSignalCheck": "2026-10-15T19:21:11.720Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://stream10.vestaradio.com/RadioAgonshu"
+  },
+  {
+    "stationUuid": "radio-browser-capital-radio-7ed9b9a3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7ed9b9a3-8420-4999-a62a-54d9cf41d4fe",
+    "verifiedAt": "2026-10-15T19:21:11.907Z",
+    "lastSignalCheck": "2026-10-15T19:21:11.907Z",
+    "qualityScore": 60,
+    "resolvedUrl": "https://capitalradio.radioca.st/stream"
+  },
+  {
+    "stationUuid": "radio-browser-nova-103-5-000530f4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "000530f4-a8ef-41c1-8a64-62e1add7aa44",
+    "verifiedAt": "2026-10-15T19:21:12.329Z",
+    "lastSignalCheck": "2026-10-15T19:21:12.329Z",
+    "qualityScore": 64,
+    "resolvedUrl": "https://edge.iono.fm/xice/185_medium.aac"
+  },
+  {
+    "stationUuid": "radio-browser-ahadu-radio-dbbee4e3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "dbbee4e3-a0ee-4405-9d70-2a558233dcc4",
+    "verifiedAt": "2026-10-15T19:21:12.391Z",
+    "lastSignalCheck": "2026-10-15T19:21:12.391Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://stream-280.surfernetwork.com/txxpndf1wwzuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ0eHhwbmRmMXd3enV2IiwiaG9zdCI6InN0cmVhbS0yODAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImVDVUZETGc3UkRLOUJndDdLTEIwaUEiLCJpYXQiOjE3OTIwOTIwNzEsImV4cCI6MTc5MjA5MjEzMX0.B2aTEBT4WGR1VEOCS-RtGpC-_VRHBHN8v_ZPiUfPLDw"
+  },
+  {
+    "stationUuid": "radio-browser-salaammedia-fbf0bb38",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fbf0bb38-272f-438a-b8f3-d325b2232df8",
+    "verifiedAt": "2026-10-15T19:21:13.345Z",
+    "lastSignalCheck": "2026-10-15T19:21:13.345Z",
+    "qualityScore": 85,
+    "resolvedUrl": "https://iceant.antfarm.co.za/Salaam"
+  },
+  {
+    "stationUuid": "radio-browser-90s-fm-f2f74c1a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f2f74c1a-40e1-4587-b72e-91f67d6fd3b8",
+    "verifiedAt": "2026-10-15T19:21:14.298Z",
+    "lastSignalCheck": "2026-10-15T19:21:14.298Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://eu1.fastcast4u.com/proxy/prontofm?mp=/1"
+  },
+  {
+    "stationUuid": "radio-browser-el-bahdja-05fb8b90",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "05fb8b90-3826-4719-b309-0ea5112a4921",
+    "verifiedAt": "2026-10-15T19:21:14.454Z",
+    "lastSignalCheck": "2026-10-15T19:21:14.454Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://webradio3.tda.dz:8001/ElBahdja_64K.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-kurdistan-24-abf148ba",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "abf148ba-cb50-4d30-a0da-ee68620019aa",
+    "verifiedAt": "2026-10-15T19:21:15.063Z",
+    "lastSignalCheck": "2026-10-15T19:21:15.063Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://audio-edge-3mayu.fra.h.radiomast.io/04b1ce4c-24f2-4172-b756-065832ef78bf"
+  },
+  {
+    "stationUuid": "radio-browser-radio-yar-plus2-216ac46a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "216ac46a-1e79-4683-8d5d-832e65876b4a",
+    "verifiedAt": "2026-10-15T19:21:15.595Z",
+    "lastSignalCheck": "2026-10-15T19:21:15.595Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-287.surfernetwork.com/yxemzpoaocavv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ5eGVtenBvYW9jYXZ2IiwiaG9zdCI6InN0cmVhbS0yODcuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImxZelFjb3V2VG5hTC1PSjAyRzFRX2ciLCJpYXQiOjE3OTIwOTIwNzQsImV4cCI6MTc5MjA5MjEzNH0.4n8RCy4cdtpC-b2aHe5NMbTYqTaSKxUVlHXbIztOMc8"
+  },
+  {
+    "stationUuid": "radio-browser-mosaique-fm-tarab-064734c4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "064734c4-5ca8-4b17-b1ad-587e1c2896d6",
+    "verifiedAt": "2026-10-15T19:21:15.736Z",
+    "lastSignalCheck": "2026-10-15T19:21:15.736Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://radio.mosaiquefm.net/mosatarab"
+  },
+  {
+    "stationUuid": "radio-browser-tbc-radio-88-5-fm-da5f63c5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "da5f63c5-f7be-43e4-98a9-b089bfbd550b",
+    "verifiedAt": "2026-10-15T19:21:16.329Z",
+    "lastSignalCheck": "2026-10-15T19:21:16.329Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://stream-285.surfernetwork.com/004dvn2qqy5tv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiIwMDRkdm4ycXF5NXR2IiwiaG9zdCI6InN0cmVhbS0yODUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkVwOC1WWnBLU055M202OEtMTlZZVkEiLCJpYXQiOjE3OTIwOTIwNzUsImV4cCI6MTc5MjA5MjEzNX0.y_FJ2MB7Mi6QIEnKqk2WSiBRBtZFLYYi1dsjiS5bQ-Y"
+  },
+  {
+    "stationUuid": "radio-browser-fred-film-radio-26-islenska-fc157689",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fc157689-436b-4da8-a3d5-18d72bbda568",
+    "verifiedAt": "2026-10-15T19:21:16.534Z",
+    "lastSignalCheck": "2026-10-15T19:21:16.534Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://s10.webradio-hosting.com/proxy/fredradiois/stream"
+  },
+  {
+    "stationUuid": "radio-browser-bollywood-radio-4fde7228",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4fde7228-f97d-4dc5-be88-39875cf99074",
+    "verifiedAt": "2026-10-15T19:21:17.173Z",
+    "lastSignalCheck": "2026-10-15T19:21:17.173Z",
+    "qualityScore": 47,
+    "resolvedUrl": "https://stream-178.surfernetwork.com/t961q1d0vp6vv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ0OTYxcTFkMHZwNnZ2IiwiaG9zdCI6InN0cmVhbS0xNzguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IllXQ0hSaGdEUXAtU0o5QUIyOWF0UUEiLCJpYXQiOjE3OTIwOTIwNzMsImV4cCI6MTc5MjA5MjEzM30.b6SiLFTwRIFmclXryIZrEsLTwDXR06oOHs8z4MpqkGo"
+  },
+  {
+    "stationUuid": "radio-browser-quran-radio-ali-alhuthaifi-dd1a2ef3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "dd1a2ef3-0136-4ed7-8215-3a7b3564d044",
+    "verifiedAt": "2026-10-15T19:21:18.204Z",
+    "lastSignalCheck": "2026-10-15T19:21:18.204Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://radio.mp3islam.com/listen/alhuthaifi/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-z99-cayman-islands-3fa13f69",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3fa13f69-659b-464e-973c-4ec48d0da9fd",
+    "verifiedAt": "2026-10-15T19:21:18.251Z",
+    "lastSignalCheck": "2026-10-15T19:21:18.251Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://z99-hurleysmedia.radioca.st/stream"
+  },
+  {
+    "stationUuid": "radio-browser-slbc-tamil-national-service-6a7c8a21",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6a7c8a21-cb7d-41d2-8c32-99c355e2ac20",
+    "verifiedAt": "2026-10-15T19:21:18.392Z",
+    "lastSignalCheck": "2026-10-15T19:21:18.392Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-286.surfernetwork.com/xekhrn4zetzuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ4ZWtocm40emV0enV2IiwiaG9zdCI6InN0cmVhbS0yODYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlRUMW9QWmlhUV91YkIzX29hYVR1QUEiLCJpYXQiOjE3OTIwOTIwNzcsImV4cCI6MTc5MjA5MjEzN30.wWf64xBHZgZw9uBMHdZ-UqQ9MlOw4UHspl-zFMus6dY"
+  },
+  {
+    "stationUuid": "radio-browser-reliable-radio-89-9-8e935806",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8e935806-8feb-4fd6-9dd6-0d7aea38a26d",
+    "verifiedAt": "2026-10-15T19:21:19.063Z",
+    "lastSignalCheck": "2026-10-15T19:21:19.063Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://s2.radio.co/s5fb28a34d/listen"
+  },
+  {
+    "stationUuid": "radio-browser-fm-suiunchu-fm-f73925ef",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f73925ef-f89f-4959-a924-0b0f37e74e12",
+    "verifiedAt": "2026-10-15T19:21:19.407Z",
+    "lastSignalCheck": "2026-10-15T19:21:19.407Z",
+    "qualityScore": 51,
+    "resolvedUrl": "https://cdn.radioplayer.kg:8443/suiunchu64"
+  },
+  {
+    "stationUuid": "radio-browser-pioner-fm-2866af84",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2866af84-c9ad-4c68-bb72-ea7b1f22d2e0",
+    "verifiedAt": "2026-10-15T19:21:20.563Z",
+    "lastSignalCheck": "2026-10-15T19:21:20.563Z",
+    "qualityScore": 84,
+    "resolvedUrl": "https://live.zhanafm.kz:8443/pionerfm"
+  },
+  {
+    "stationUuid": "radio-browser-hit-fm-dance-2e932e59",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2e932e59-c33f-4064-9e8d-924537b383ae",
+    "verifiedAt": "2026-10-15T19:21:21.501Z",
+    "lastSignalCheck": "2026-10-15T19:21:21.501Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://radio4.dixi.md/listen/hit_fm_dance_hits/hitfmdancehits128.aac"
+  },
+  {
+    "stationUuid": "radio-browser-radio-berane-22cc8c4c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "22cc8c4c-5921-46ae-886e-8f32d26da28b",
+    "verifiedAt": "2026-10-15T19:21:21.516Z",
+    "lastSignalCheck": "2026-10-15T19:21:21.516Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://stream.iradio.pro/proxy/radioberane?mp=/stream;"
+  },
+  {
+    "stationUuid": "radio-browser-truckers-rave-f807f4e0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f807f4e0-303b-4631-a263-e7840d529522",
+    "verifiedAt": "2026-10-15T19:21:21.720Z",
+    "lastSignalCheck": "2026-10-15T19:21:21.720Z",
+    "qualityScore": 85,
+    "resolvedUrl": "https://listen2.myradio24.com/eugenijus"
+  },
+  {
+    "stationUuid": "radio-browser-radio-bougouni-kunkan-102-9-9a708a2d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9a708a2d-1410-4a25-981f-58c7ddfc1e71",
+    "verifiedAt": "2026-10-15T19:21:22.095Z",
+    "lastSignalCheck": "2026-10-15T19:21:22.095Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-177.surfernetwork.com/x3gb8t9nzk0uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ4M2diOHQ5bnprMHV2IiwiaG9zdCI6InN0cmVhbS0xNzcuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImVpaWZiWnVIUzQydHA5Z05MMUZwOFEiLCJpYXQiOjE3OTIwOTIwODEsImV4cCI6MTc5MjA5MjE0MX0.q6WewEb-YPvDBmmHXTRJv34-5Nrx9AosOOhsyUjNDYM"
+  },
+  {
+    "stationUuid": "radio-browser-braintrip-radio-05c826f8",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "05c826f8-95e7-41f0-893e-c1c4f48fcd05",
+    "verifiedAt": "2026-10-15T19:21:22.735Z",
+    "lastSignalCheck": "2026-10-15T19:21:22.735Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://braintrip-radio.stream.laut.fm/braintrip-radio?t302=2026-10-15_21-21-19&uuid=c358a376-1759-bcce-cf17-1b88fcaf496c"
+  },
+  {
+    "stationUuid": "radio-browser-sky-radio-hits-skopje-macedonia-a2d9154b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a2d9154b-3d89-4cdc-81de-1a8b8802e2e8",
+    "verifiedAt": "2026-10-15T19:21:23.032Z",
+    "lastSignalCheck": "2026-10-15T19:21:23.032Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://s1.skyradio.com.mk/hits.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-magic-38f192a9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "38f192a9-5cf9-419b-be7d-4d36c7409cc5",
+    "verifiedAt": "2026-10-15T19:21:23.173Z",
+    "lastSignalCheck": "2026-10-15T19:21:23.173Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://s46.myradiostream.com:6076/stream"
+  },
+  {
+    "stationUuid": "radio-browser-la-nueva-radio-nicaragua-ee918038",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ee918038-7624-461b-8b2a-29aadf2bc872",
+    "verifiedAt": "2026-10-15T19:21:24.219Z",
+    "lastSignalCheck": "2026-10-15T19:21:24.219Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/axr92qawesmtv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJheHI5MnFhd2VzbXR2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlB3QmxtZkJUUWh5Tlg0c0wzWW82SXciLCJpYXQiOjE3OTIwOTIwODMsImV4cCI6MTc5MjA5MjE0M30.iWYKJw-QigtGyhBluCwhId94vehpI3GwKPxwmHkG4rI"
+  },
+  {
+    "stationUuid": "radio-browser-kalika-fm-95-2-fm-9620e2a3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9620e2a3-0601-11e8-ae97-52543be04c81",
+    "verifiedAt": "2026-10-15T19:21:24.454Z",
+    "lastSignalCheck": "2026-10-15T19:21:24.454Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://streaming.softnep.net:10828/stream"
+  },
+  {
+    "stationUuid": "radio-browser-loxii-radio-df56296d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "df56296d-8a9e-4dff-932f-1c0877b35308",
+    "verifiedAt": "2026-10-15T19:21:24.957Z",
+    "lastSignalCheck": "2026-10-15T19:21:24.957Z",
+    "qualityScore": 65,
+    "resolvedUrl": "https://loxiiradio.duckdns.org/listen/loxii-radio/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-nia-radio-lo-fi-ab9697c4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ab9697c4-f1cf-48bc-b4d8-4d15ad5618fa",
+    "verifiedAt": "2026-10-15T19:21:25.313Z",
+    "lastSignalCheck": "2026-10-15T19:21:25.313Z",
+    "qualityScore": 67,
+    "resolvedUrl": "https://radio.nia.nc/radio/8020/lofi-hq-stream.aac"
+  },
+  {
+    "stationUuid": "radio-browser-scream-radio-cb4d6207",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cb4d6207-c66f-4d8f-ae93-778eea40ad36",
+    "verifiedAt": "2026-10-15T19:21:25.407Z",
+    "lastSignalCheck": "2026-10-15T19:21:25.407Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://stream-285.surfernetwork.com/us9zu5w8zxhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ1czl6dTV3OHp4aHZ2IiwiaG9zdCI6InN0cmVhbS0yODUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InpmV2VOb2lXU0xldklsUUE0RENuZnciLCJpYXQiOjE3OTIwOTIwODQsImV4cCI6MTc5MjA5MjE0NH0.Wjjc5oriQQ4oC-QGle7HMM-Fe1ciX-dHcppY-zs09lw"
+  },
+  {
+    "stationUuid": "radio-browser-beat-life-panama-cb57164d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cb57164d-ddb9-496a-8dcb-0ebd54c66b85",
+    "verifiedAt": "2026-10-15T19:21:25.626Z",
+    "lastSignalCheck": "2026-10-15T19:21:25.626Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://cast4.asurahosting.com/proxy/ondabra2/stream"
+  },
+  {
+    "stationUuid": "radio-browser-golden-classic-radio-py-80a7d5b0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "80a7d5b0-9ec3-45bc-b613-3886db784621",
+    "verifiedAt": "2026-10-15T19:21:26.813Z",
+    "lastSignalCheck": "2026-10-15T19:21:26.813Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://stream-178.surfernetwork.com/9wxcnjd0dievv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiI5d3hjbmpkMGRpZXZ2IiwiaG9zdCI6InN0cmVhbS0xNzguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjBwSzFFYURMUXN1d1AwRE91TWctd1EiLCJpYXQiOjE3OTIwOTIwODUsImV4cCI6MTc5MjA5MjE0NX0.VO-7NOGMeOIhS7lHRxoFEQZyPZ1SULmLA-CNGp4aM9E"
+  },
+  {
+    "stationUuid": "radio-browser-m80-radio-macau-107-1-fm-b591479f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b591479f-e323-4fae-89be-23a3925c654a",
+    "verifiedAt": "2026-10-15T19:21:26.986Z",
+    "lastSignalCheck": "2026-10-15T19:21:26.986Z",
+    "qualityScore": 69,
+    "resolvedUrl": "https://stream-icy.bauermedia.pt/m80.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-pakistan-islamabad-755d2c71",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "755d2c71-1bdd-45b0-a526-02f0e4754af5",
+    "verifiedAt": "2026-10-15T19:21:27.345Z",
+    "lastSignalCheck": "2026-10-15T19:21:27.345Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://whmsonic.radio.gov.pk:7003/stream"
+  },
+  {
+    "stationUuid": "radio-browser-isla-rock-71afbc31",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "71afbc31-af1d-4603-a001-ce559e063d2f",
+    "verifiedAt": "2026-10-15T19:21:28.204Z",
+    "lastSignalCheck": "2026-10-15T19:21:28.204Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://listen.radioking.com/radio/418162/stream/471250?n=1"
+  },
+  {
+    "stationUuid": "radio-browser-radio-merveille-ocean-indien-4ba829cf",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4ba829cf-0778-4843-8401-dcb8de5be67d",
+    "verifiedAt": "2026-10-15T19:21:28.969Z",
+    "lastSignalCheck": "2026-10-15T19:21:28.969Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://listen.radioking.com/radio/694373/stream/759203"
+  },
+  {
+    "stationUuid": "radio-browser-kenya1-fm-cd4aa31f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cd4aa31f-3e13-4b85-a1f2-ee97a7c99f89",
+    "verifiedAt": "2026-10-15T19:21:29.110Z",
+    "lastSignalCheck": "2026-10-15T19:21:29.110Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://stream-175.surfernetwork.com/cmgkmed5u18uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJjbWdrbWVkNXUxOHV2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjV4T1BrcXZrVGlhaWpQZlVXbXhtSnciLCJpYXQiOjE3OTIwOTIwODgsImV4cCI6MTc5MjA5MjE0OH0.aiwWd1r3e4jt3lRFj4P4auMDEek1PR5D6PcZrCXfOIs"
+  },
+  {
+    "stationUuid": "radio-browser-nas-radio-107-80-zabalj-8eef1cf0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8eef1cf0-e916-4429-b7cb-a465af4a2d9b",
+    "verifiedAt": "2026-10-15T19:21:29.469Z",
+    "lastSignalCheck": "2026-10-15T19:21:29.469Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://radio.dukahosting.com:7043/;"
+  },
+  {
+    "stationUuid": "radio-browser-romania-antena-satelor-701e5bbd",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "701e5bbd-5384-468a-a564-179de50e5544",
+    "verifiedAt": "2026-10-15T19:21:29.689Z",
+    "lastSignalCheck": "2026-10-15T19:21:29.689Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://stream4.srr.ro:8443/antena-satelor"
+  },
+  {
+    "stationUuid": "radio-browser-radio-vilakku-9b15a70a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9b15a70a-8fa3-4797-a73a-575fa120e176",
+    "verifiedAt": "2026-10-15T19:21:30.282Z",
+    "lastSignalCheck": "2026-10-15T19:21:30.282Z",
+    "qualityScore": 85,
+    "resolvedUrl": "https://vm65162.streamerr.co/listen/radio_vilakku/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-afia-fm-93-0-dakar-d7092aaa",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d7092aaa-1a47-49d6-97f9-8e9523b4cb2c",
+    "verifiedAt": "2026-10-15T19:21:30.548Z",
+    "lastSignalCheck": "2026-10-15T19:21:30.548Z",
+    "qualityScore": 77,
+    "resolvedUrl": "https://stream-179.surfernetwork.com/skjrn6kzzxptv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJza2pybjZrenp4cHR2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImlXQTdJal9mUUt1TG82Zm1rcEVId0EiLCJpYXQiOjE3OTIwOTIwODksImV4cCI6MTc5MjA5MjE0OX0.yjbtLzNTcs6YoIu9qyNtEztpIl6WTnbQTlfbR_jLBwQ"
+  },
+  {
+    "stationUuid": "radio-browser-radio-kwizera-fee4e578",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fee4e578-3c44-4bd1-bc7b-cd5385c2f1d0",
+    "verifiedAt": "2026-10-15T19:21:31.126Z",
+    "lastSignalCheck": "2026-10-15T19:21:31.126Z",
+    "qualityScore": 52,
+    "resolvedUrl": "https://uk4-vn.mixstream.net/:8052/;listen.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-omulunga-radio-ff300f11",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ff300f11-31f8-4b26-963b-13cffd77d7f0",
+    "verifiedAt": "2026-10-15T19:21:31.141Z",
+    "lastSignalCheck": "2026-10-15T19:21:31.141Z",
+    "qualityScore": 56,
+    "resolvedUrl": "https://edge.iono.fm/xice/193_high.aac"
+  },
+  {
+    "stationUuid": "radio-browser-arab-mix-fm-8dad4ff4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8dad4ff4-2ae8-4fba-b379-c964f6ae9f4a",
+    "verifiedAt": "2026-10-15T19:21:31.735Z",
+    "lastSignalCheck": "2026-10-15T19:21:31.735Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-283.surfernetwork.com/na3vpvn10qruv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJuYTN2cHZuMTBxcnV2IiwiaG9zdCI6InN0cmVhbS0yODMuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjVHbWZIT1V5U0pxclhrT1BNMXRtX2ciLCJpYXQiOjE3OTIwOTIwOTAsImV4cCI6MTc5MjA5MjE1MH0.FmxceDlRLChIaavtUXcHhLPzmi9mHSw3g3KNkJouSdk"
+  },
+  {
+    "stationUuid": "radio-browser-yabiladi-chaabi-maroc-9d874da9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9d874da9-550c-4176-a595-8ee83e0c72bc",
+    "verifiedAt": "2026-10-15T19:21:31.782Z",
+    "lastSignalCheck": "2026-10-15T19:21:31.782Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://radio.yabiladi.com:8102/;stream.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-shanasheel-79e3bcb9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "79e3bcb9-a030-4832-870e-0933f3bde362",
+    "verifiedAt": "2026-10-15T19:21:32.314Z",
+    "lastSignalCheck": "2026-10-15T19:21:32.314Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/a33ka0d94p8uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJhMzNrYTBkOTRwOHV2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImhGZ01YRFNyU1MtcFowTkZ3RFdvR3ciLCJpYXQiOjE3OTIwOTIwOTEsImV4cCI6MTc5MjA5MjE1MX0.UTnemZJYyG6Ra2ungzDxkyTRfHzKSIB-TyBf9IYFUr0"
+  },
+  {
+    "stationUuid": "radio-browser-coran-f07420b2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f07420b2-244c-45fd-aa5a-321f4dbf8df6",
+    "verifiedAt": "2026-10-15T19:21:32.860Z",
+    "lastSignalCheck": "2026-10-15T19:21:32.860Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://webradio1.tda.dz:8001/Coran_64K.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radiosimorgh-ec389853",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ec389853-09d2-499a-8be2-f58dfe8f118c",
+    "verifiedAt": "2026-10-15T19:21:32.969Z",
+    "lastSignalCheck": "2026-10-15T19:21:32.969Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-289.surfernetwork.com/jl8n7thgcdftv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJqbDhuN3RoZ2NkZnR2IiwiaG9zdCI6InN0cmVhbS0yODkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjQ5UnNINzhXVGgyVVdMakVfM0YwV3ciLCJpYXQiOjE3OTIwOTIwOTEsImV4cCI6MTc5MjA5MjE1MX0.STrty0-nYtbgHBTyIeSevi3EQZ-xhgQmlimYGUFbN2E"
+  },
+  {
+    "stationUuid": "radio-browser-tamizen-9cae78d5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9cae78d5-3341-4e29-ab1d-9aa9915b8cc4",
+    "verifiedAt": "2026-10-15T19:21:33.204Z",
+    "lastSignalCheck": "2026-10-15T19:21:33.204Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://c34.radioboss.fm:18023/stream"
+  },
+  {
+    "stationUuid": "radio-browser-opemsuo-fm-179f36f9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "179f36f9-14bc-438e-997f-5d1559107104",
+    "verifiedAt": "2026-10-15T19:21:34.376Z",
+    "lastSignalCheck": "2026-10-15T19:21:34.376Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://opemsuofm-atunwadigital.streamguys1.com/opemsuofm"
+  },
+  {
+    "stationUuid": "radio-browser-k-100-8d472d16",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8d472d16-8ce9-49ed-9b60-df7cd7041566",
+    "verifiedAt": "2026-10-15T19:21:34.767Z",
+    "lastSignalCheck": "2026-10-15T19:21:34.767Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://ice-11.spilarinn.is/kaninnmobile"
+  },
+  {
+    "stationUuid": "radio-browser-hiru-fm-756c4ac1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "756c4ac1-c020-4139-86c2-57cc4dd12643",
+    "verifiedAt": "2026-10-15T19:21:35.845Z",
+    "lastSignalCheck": "2026-10-15T19:21:35.845Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://radio.lotustechnologieslk.net:2020/stream/hirufmgarden/stream/1/"
+  },
+  {
+    "stationUuid": "radio-browser-taktas-fm-690f0f04",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "690f0f04-2f41-4c5c-b3d8-0b5fb0a923b0",
+    "verifiedAt": "2026-10-15T19:21:36.454Z",
+    "lastSignalCheck": "2026-10-15T19:21:36.454Z",
+    "qualityScore": 85,
+    "resolvedUrl": "https://c20.radioboss.fm:8752/stream"
+  },
+  {
+    "stationUuid": "radio-browser-lounge-065763eb",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "065763eb-324c-4565-8c7e-ee1f0652d607",
+    "verifiedAt": "2026-10-15T19:21:36.876Z",
+    "lastSignalCheck": "2026-10-15T19:21:36.876Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://live.zhanafm.kz:8443/zhanalounge"
+  },
+  {
+    "stationUuid": "radio-browser-radio-43f5812f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "43f5812f-3431-4e82-b58f-ddd17d83a9b8",
+    "verifiedAt": "2026-10-15T19:21:37.235Z",
+    "lastSignalCheck": "2026-10-15T19:21:37.235Z",
+    "qualityScore": 45,
+    "resolvedUrl": "https://liveradio.utrk.kg/1radio"
+  },
+  {
+    "stationUuid": "radio-browser-big-fish-95-5fm-293e8cc2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "293e8cc2-69b5-4dd4-9af1-a5e0a929292f",
+    "verifiedAt": "2026-10-15T19:21:37.392Z",
+    "lastSignalCheck": "2026-10-15T19:21:37.392Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://ice41.securenetsystems.net/BIGFISH"
+  },
+  {
+    "stationUuid": "radio-browser-kiss-fm-moldova-8b6000a2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8b6000a2-0eeb-4eb2-8511-a168de0e9ce9",
+    "verifiedAt": "2026-10-15T19:21:38.595Z",
+    "lastSignalCheck": "2026-10-15T19:21:38.595Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://live.kissfm.md/kissfm.chisinau"
+  },
+  {
+    "stationUuid": "radio-browser-radio-krs-podgorica-84270636",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "84270636-7745-4648-87e7-2bd2a8ecebd2",
+    "verifiedAt": "2026-10-15T19:21:38.626Z",
+    "lastSignalCheck": "2026-10-15T19:21:38.626Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://stream.radiokrs.me:8443/lq.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-noura-fm-94-5-bamako-0b284362",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0b284362-d3e3-419c-a83d-01d5f5035f29",
+    "verifiedAt": "2026-10-15T19:21:38.673Z",
+    "lastSignalCheck": "2026-10-15T19:21:38.673Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-175.surfernetwork.com/60x209af8e9uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiI2MHgyMDlhZjhlOXV2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImtSYUdkNFByVGQ2Z1ZhSHlBQTlCcUEiLCJpYXQiOjE3OTIwOTIwOTcsImV4cCI6MTc5MjA5MjE1N30.Qqe4XxMErQZe5g1hdWVY0sWnU7A23hnRR1KcbnTO0N4"
+  },
+  {
+    "stationUuid": "radio-browser-xo-fm-cf490244",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cf490244-175c-47d1-aa80-07f27b8b97c7",
+    "verifiedAt": "2026-10-15T19:21:38.674Z",
+    "lastSignalCheck": "2026-10-15T19:21:38.674Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://live.xo.fm/xofm256"
+  },
+  {
+    "stationUuid": "radio-browser-rci-dancehall-169b5210",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "169b5210-0a16-497a-a579-61aa6f504cbd",
+    "verifiedAt": "2026-10-15T19:21:39.438Z",
+    "lastSignalCheck": "2026-10-15T19:21:39.438Z",
+    "qualityScore": 44,
+    "resolvedUrl": "https://n02-us2.rcs.revma.com/5stt0yrtpwzuv?rj-ttl=5&rj-tok=AAABoUEMdLIAYR5KlT-vppz-Nw"
+  },
+  {
+    "stationUuid": "radio-browser-radio-vandalica-nicaragua-349e1ca6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "349e1ca6-d008-4f84-8952-8d50561d82f3",
+    "verifiedAt": "2026-10-15T19:21:39.813Z",
+    "lastSignalCheck": "2026-10-15T19:21:39.813Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://stream-281.surfernetwork.com/caq3fwn1fnruv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJjYXEzZnduMWZucnV2IiwiaG9zdCI6InN0cmVhbS0yODEuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkZEdFlPeEFUUTNTbTJkbTljSUhGLWciLCJpYXQiOjE3OTIwOTIwOTgsImV4cCI6MTc5MjA5MjE1OH0.Ftzwx2ziOt5FXxv-7A8f7jFO6FkR29dXPpQV8XcgCNM"
+  },
+  {
+    "stationUuid": "radio-browser-ltr-fm-radio-music-0b544393",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0b544393-c77d-49a1-aade-3b6e8044c059",
+    "verifiedAt": "2026-10-15T19:21:39.876Z",
+    "lastSignalCheck": "2026-10-15T19:21:39.876Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://stream-177.surfernetwork.com/p1ddt1trwchvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJwMWRkdDF0cndjaHZ2IiwiaG9zdCI6InN0cmVhbS0xNzcuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IkRNQ1F1R2JkUkJHdmUyWlBxTHZlNUEiLCJpYXQiOjE3OTIwOTIwOTgsImV4cCI6MTc5MjA5MjE1OH0.HWepx1pQVK4_iCA3uAr4eJYDyYeEiHkVGZc52vnHwhU"
+  },
+  {
+    "stationUuid": "radio-browser-star-radio-plus-skopje-macedonia-e2d37a2e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e2d37a2e-41d5-4800-b1cd-0dc76eb57b00",
+    "verifiedAt": "2026-10-15T19:21:40.173Z",
+    "lastSignalCheck": "2026-10-15T19:21:40.173Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://eu10.fastcast4u.com/starplus"
+  },
+  {
+    "stationUuid": "radio-browser-vibe-radio-d9a20ab2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d9a20ab2-1f10-4555-a657-4739a3c4273f",
+    "verifiedAt": "2026-10-15T19:21:40.782Z",
+    "lastSignalCheck": "2026-10-15T19:21:40.782Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://stream-289.surfernetwork.com/zf0ac4raqy8uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ6ZjBhYzRyYXF5OHV2IiwiaG9zdCI6InN0cmVhbS0yODkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlgyYndJaThRVGhxU1ROWTE3RmJ4QVEiLCJpYXQiOjE3OTIwOTIwOTksImV4cCI6MTc5MjA5MjE1OX0.wxKwSekXH4zvejpd3QBKEVmQLMy07c4jROkv3-Fh6uw"
+  },
+  {
+    "stationUuid": "radio-browser-antena-8-100-1-fm-2372baf4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2372baf4-797e-4ba6-b124-dad255b8967b",
+    "verifiedAt": "2026-10-15T19:21:41.267Z",
+    "lastSignalCheck": "2026-10-15T19:21:41.267Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://18533.live.streamtheworld.com/ANT8AAC.aac"
+  },
+  {
+    "stationUuid": "radio-browser-hiti-fm-c06d6586",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c06d6586-9fa8-49cf-9731-7c582430a588",
+    "verifiedAt": "2026-10-15T19:21:41.282Z",
+    "lastSignalCheck": "2026-10-15T19:21:41.282Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://n0d.radiojar.com/u0yz7p0mb.mp3?rj-ttl=5&rj-tok=AAABoUEMeuMAi0nATfX75vIMOA"
+  },
+  {
+    "stationUuid": "radio-browser-radio-z-ote-przeboje-bia-ystok-465760fe",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "465760fe-5aa9-4117-8145-b3f128f1f034",
+    "verifiedAt": "2026-10-15T19:21:42.408Z",
+    "lastSignalCheck": "2026-10-15T19:21:42.408Z",
+    "qualityScore": 97,
+    "resolvedUrl": "https://radiostream.pl/tuba8900-1.mp3?cache=1647512038"
+  },
+  {
+    "stationUuid": "radio-browser-hot-102-d11f4ae1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d11f4ae1-8302-4883-b4b3-f02d308e3dda",
+    "verifiedAt": "2026-10-15T19:21:42.454Z",
+    "lastSignalCheck": "2026-10-15T19:21:42.454Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://server7.servistreaming.com/proxy/hot?mp=%2Fstream%3Ftype%3D.mp3&_=1"
+  },
+  {
+    "stationUuid": "radio-browser-sensuelle-radio-reunion-b8a78bf0",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b8a78bf0-e219-4670-b5d5-a3bb5d88490e",
+    "verifiedAt": "2026-10-15T19:21:42.673Z",
+    "lastSignalCheck": "2026-10-15T19:21:42.673Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://radio10.pro-fhi.net/radio/9169/stream"
+  },
+  {
+    "stationUuid": "radio-browser-fm-101-islamabad-e366ead6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e366ead6-6019-4a01-824d-6f4bea17f9a0",
+    "verifiedAt": "2026-10-15T19:21:42.767Z",
+    "lastSignalCheck": "2026-10-15T19:21:42.767Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://whmsonic.radio.gov.pk:7008/stream"
+  },
+  {
+    "stationUuid": "radio-browser-clasic-radio-opera-bucuresti-5d682126",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5d682126-0312-4215-b137-d1d333854362",
+    "verifiedAt": "2026-10-15T19:21:43.767Z",
+    "lastSignalCheck": "2026-10-15T19:21:43.767Z",
+    "qualityScore": 91,
+    "resolvedUrl": "https://live.radioclasic.com/listen/radio_clasic_opera/live.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-george-jones-79a59c52",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "79a59c52-ac8d-48fa-9d76-25d7c9050d37",
+    "verifiedAt": "2026-10-15T19:21:44.251Z",
+    "lastSignalCheck": "2026-10-15T19:21:44.251Z",
+    "qualityScore": 70,
+    "resolvedUrl": "https://streaming.exclusive.radio/er/georgejones/icecast.audio"
+  },
+  {
+    "stationUuid": "radio-browser-kyebi-radio-5b375b62",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5b375b62-bfc3-4d0f-bacd-444db0c540fd",
+    "verifiedAt": "2026-10-15T19:21:44.290Z",
+    "lastSignalCheck": "2026-10-15T19:21:44.290Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://stream-179.surfernetwork.com/ep91zyvc9zquv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJlcDkxenl2Yzl6cXV2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImhKZEtreDN5UmdlcnUwNktXdHN3MFEiLCJpYXQiOjE3OTIwOTIxMDMsImV4cCI6MTc5MjA5MjE2M30.w_-fO31bIrGDpBFsDtrjU9zlQX5EDeRMl2WQCY_FCts"
+  },
+  {
+    "stationUuid": "radio-browser-camp-radio-1ae97ee7",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "1ae97ee7-9cff-4f46-b27f-0c299d8e64d7",
+    "verifiedAt": "2026-10-15T19:21:44.829Z",
+    "lastSignalCheck": "2026-10-15T19:21:44.829Z",
+    "qualityScore": 45,
+    "resolvedUrl": "https://listen.camp:9000/campradio.ogg"
+  },
+  {
+    "stationUuid": "radio-browser-domus-radio-10934a70",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "10934a70-ddfa-4f08-94db-70910aea1ab2",
+    "verifiedAt": "2026-10-15T19:21:45.252Z",
+    "lastSignalCheck": "2026-10-15T19:21:45.252Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://libretime.domusradio.com/icecast/main"
+  },
+  {
+    "stationUuid": "radio-browser-galaxy-fm-100-2-fm-zzinna-056d990a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "056d990a-7b48-4e95-b91e-ce59ca2701e8",
+    "verifiedAt": "2026-10-15T19:21:45.360Z",
+    "lastSignalCheck": "2026-10-15T19:21:45.360Z",
+    "qualityScore": 74,
+    "resolvedUrl": "https://stream-285.surfernetwork.com/ahtmyttw5mftv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJhaHRteXR0dzVtZnR2IiwiaG9zdCI6InN0cmVhbS0yODUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Im5xQVF5X2E4VGYtanJxWXdGNV9RS0EiLCJpYXQiOjE3OTIwOTIxMDQsImV4cCI6MTc5MjA5MjE2NH0.sODleJbBVvKP-dyzGZ2yv2i9JFDMSXZDRhjMbsIGkMo"
+  },
+  {
+    "stationUuid": "radio-browser-waar-fi-fm-104-9-sebikhotane-393c6783",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "393c6783-676a-42aa-ad9f-019850e3f601",
+    "verifiedAt": "2026-10-15T19:21:45.454Z",
+    "lastSignalCheck": "2026-10-15T19:21:45.454Z",
+    "qualityScore": 76,
+    "resolvedUrl": "https://stream-179.surfernetwork.com/rmg4rfewweruv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJybWc0cmZld3dlcnV2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImNqaVVHZlVUVDM2eXlxRHR1QW9mYUEiLCJpYXQiOjE3OTIwOTIxMDQsImV4cCI6MTc5MjA5MjE2NH0.RY2Y7inOLiNM69M4d8_S2G-SB87IgdxjfVVHV0ro6OI"
+  },
+  {
+    "stationUuid": "radio-browser-mirchi-fm-cbad45e6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cbad45e6-1de5-439a-8f5f-828100e79026",
+    "verifiedAt": "2026-10-15T19:21:45.829Z",
+    "lastSignalCheck": "2026-10-15T19:21:45.829Z",
+    "qualityScore": 84,
+    "resolvedUrl": "https://vm65162.streamerr.co/listen/mirchi/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-sheger-fm-102-1-566306b4",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "566306b4-6f54-4ab6-a238-adcef2b645fd",
+    "verifiedAt": "2026-10-15T19:21:46.001Z",
+    "lastSignalCheck": "2026-10-15T19:21:46.001Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-285.surfernetwork.com/y91n1vtbaw5tv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ5OTFuMXZ0YmF3NXR2IiwiaG9zdCI6InN0cmVhbS0yODUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlZ5WHRPclJjUV9LWHl2UFVlZFVyNWciLCJpYXQiOjE3OTIwOTIxMDUsImV4cCI6MTc5MjA5MjE2NX0.vQ2HZ7n2ajJLco2BHJ4FBqCT7fyu6qP_H1I5u-mEdYU"
+  },
+  {
+    "stationUuid": "radio-browser-radio-station-39094c88",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "39094c88-fc5d-4628-b5e7-5884b58ba8a5",
+    "verifiedAt": "2026-10-15T19:21:46.298Z",
+    "lastSignalCheck": "2026-10-15T19:21:46.298Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://icecast-zvezda.mediacdn.ru/radio/zvezda/zvezda_128"
+  },
+  {
+    "stationUuid": "radio-browser-radio-atbir-b02d5054",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b02d5054-6f8e-474e-84e3-960ae08dae8e",
+    "verifiedAt": "2026-10-15T19:21:46.438Z",
+    "lastSignalCheck": "2026-10-15T19:21:46.438Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-280.surfernetwork.com/bqdbb6hd0neuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJicWRiYjZoZDBuZXV2IiwiaG9zdCI6InN0cmVhbS0yODAuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjhDMXZkZVV5UTJPUXhuU2xNUHNzcGciLCJpYXQiOjE3OTIwOTIxMDUsImV4cCI6MTc5MjA5MjE2NX0.Vj0hhKv_mxHuwdr8gyTcbt1G_cI2D0sBVmCNxhcZ59c"
+  },
+  {
+    "stationUuid": "radio-browser-nogoum-fm-047fcfb5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "047fcfb5-9e59-478e-9e6a-a006cc401868",
+    "verifiedAt": "2026-10-15T19:21:47.032Z",
+    "lastSignalCheck": "2026-10-15T19:21:47.032Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream-283.surfernetwork.com/qb1zvsykm98uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJxYjF6dnN5a205OHV2IiwiaG9zdCI6InN0cmVhbS0yODMuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjZrZFlqWDd4UUk2T3FtQmpaeERLN3ciLCJpYXQiOjE3OTIwOTIxMDYsImV4cCI6MTc5MjA5MjE2Nn0.b6iPae8KjqA_Njqo_2D6rT1QzrKdhyozfJGlY46_4EY"
+  },
+  {
+    "stationUuid": "radio-browser-algerie-internationale-06d8af5e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "06d8af5e-3f5a-4473-8f71-8343140a938f",
+    "verifiedAt": "2026-10-15T19:21:47.313Z",
+    "lastSignalCheck": "2026-10-15T19:21:47.313Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://webradio3.tda.dz:8001/Internationale_64K.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-go-a23469c1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a23469c1-a0f4-42f7-80d3-ca69f6ddaa01",
+    "verifiedAt": "2026-10-15T19:21:47.438Z",
+    "lastSignalCheck": "2026-10-15T19:21:47.438Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://stream-287.surfernetwork.com/v5kxmagseg0uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ2NWt4bWFnc2VnMHV2IiwiaG9zdCI6InN0cmVhbS0yODcuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImZtS2Rnc09SUzcySnl1eENBU1c2MWciLCJpYXQiOjE3OTIwOTIxMDYsImV4cCI6MTc5MjA5MjE2Nn0.kyfOJH6yf_PdXBJXOMad56DRSxlqryKDSGrYcvZoOLo"
+  },
+  {
+    "stationUuid": "radio-browser-baddajam-dd17ec1d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "dd17ec1d-3e82-45d3-bb98-a914cf237d64",
+    "verifiedAt": "2026-10-15T19:21:48.845Z",
+    "lastSignalCheck": "2026-10-15T19:21:48.845Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://dc2.serverse.com/stream/baddajam"
+  },
+  {
+    "stationUuid": "radio-browser-quran-radio-kuwait-4ce99c8e",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4ce99c8e-47bd-4d4d-896b-e9d5310384d3",
+    "verifiedAt": "2026-10-15T19:21:49.251Z",
+    "lastSignalCheck": "2026-10-15T19:21:49.251Z",
+    "qualityScore": 80,
+    "resolvedUrl": "https://radio.mp3islam.com/listen/quran_radio/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-mosaique-fm-gold-2ca459a9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "2ca459a9-367a-4184-a14b-9a0f67f7ad5c",
+    "verifiedAt": "2026-10-15T19:21:49.360Z",
+    "lastSignalCheck": "2026-10-15T19:21:49.360Z",
+    "qualityScore": 78,
+    "resolvedUrl": "https://radio.mosaiquefm.net/mosagold"
+  },
+  {
+    "stationUuid": "radio-browser-relax-fm-lietuva-311716b6",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "311716b6-a375-4342-81da-3ae2c6fca8ad",
+    "verifiedAt": "2026-10-15T19:21:50.079Z",
+    "lastSignalCheck": "2026-10-15T19:21:50.079Z",
+    "qualityScore": 82,
+    "resolvedUrl": "https://stream1.relaxfm.lt/relaxfm128.mp3"
   }
 ]
