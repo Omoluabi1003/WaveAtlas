@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { candidateNameKey, countryOrder, expansionAdmission, roundRobinCandidates } from '../lib/agents/catalog-expansion';
+import { stableStreamEndpoint, temporaryStreamUrl, endpointIdentity, stationAliasKeys, directoryGeographyConflict, completedExpansionIsReusable, candidateNameKey, countryOrder, expansionAdmission, roundRobinCandidates } from '../lib/agents/catalog-expansion';
 const valid={country:'NG',target:350,added:0,countryAdded:0,endpoint:'https://radio.example/live',sourceUuid:'abcdef01-1234-5678-9012-123456789012',hasHomepage:true,browserDecoded:true};
 assert.equal(expansionAdmission(valid),undefined);
 assert.equal(expansionAdmission({...valid,browserDecoded:false}),'browser_decoder_unverified');
@@ -19,3 +19,32 @@ assert.equal(ordered[0],'NG');assert.equal(ordered[1],'GH');assert(ordered.index
 assert.deepEqual(roundRobinCandidates([[{name:'a'},{name:'b'}],[{name:'c'}],[{name:'d'}]]).map(s=>s.name),['a','c','d','b']);
 assert.deepEqual(roundRobinCandidates([]),[]);
 console.log('Catalog expansion: Nigeria priority, country fairness, hard target, HTTPS/source/decoder admission and Unicode deduplication passed');
+
+const checkedAt=new Date().toISOString();
+const evidence=Array.from({length:350},(_,i)=>({stationId:`station-${i}`,resolvedUrl:`https://radio.example/${i}`,checkedAt,bytesSampled:64,browserDecoder:{ok:true,seconds:0.25}}));
+const stations=evidence.map(row=>({station_uuid:row.stationId,url:row.resolvedUrl}));
+const completed={targetMet:true,target:350,added:350,evidence};
+assert.equal(completedExpansionIsReusable(completed,stations),true);
+assert.equal(completedExpansionIsReusable(completed,stations.slice(1)),false);
+assert.equal(completedExpansionIsReusable({...completed,evidence:[...evidence.slice(1),evidence[1]]},stations),false);
+assert.equal(completedExpansionIsReusable(completed,stations,Date.now()+49*3600000),false);
+assert.equal(completedExpansionIsReusable({...completed,evidence:evidence.map(row=>({...row,browserDecoder:{ok:false,seconds:0}}))},stations),false);
+console.log('Completed acquisition reuse: canonical membership, unique IDs/endpoints, fresh evidence and successful decoding required');
+
+assert.equal(stableStreamEndpoint('https://stream.zeno.fm/abc','https://stream-175.surfernetwork.com/abc?zt=short-lived'),'https://stream.zeno.fm/abc');
+assert.equal(stableStreamEndpoint('https://radio.example/live?token=expires','https://radio.example/live?token=expires'),undefined);
+assert.equal(temporaryStreamUrl('https://radio.example/live?mp=/1'),false);
+assert.equal(endpointIdentity('https://stream-175.surfernetwork.com/abc?zt=one'),endpointIdentity('https://stream.zeno.fm/abc'));
+assert.equal(endpointIdentity('https://stream-175.surfernetwork.com/abc?zt=one'),endpointIdentity('https://stream-285.surfernetwork.com/abc?zt=two'));
+assert.equal(endpointIdentity('https://radio.example/live?1721893143541='),endpointIdentity('https://radio.example/live'));
+assert.equal(endpointIdentity('https://go.webgateready.com/metrofm/radio.mp3'),endpointIdentity('https://go.webgateready.com/metrofm'));
+assert.notEqual(endpointIdentity('https://radio.example/live?channel=one'),endpointIdentity('https://radio.example/live?channel=two'));
+const fresh=stationAliasKeys('NG','Fresh FM 105.9 Ibadan').record;
+assert(stationAliasKeys('NG','Fresh 105.9 FM').match.some(key=>fresh.includes(key)));
+assert(!stationAliasKeys('NG','Fresh 107.9 FM').match.some(key=>fresh.includes(key)));
+assert(stationAliasKeys('NG','Nigeria Info').match.some(key=>stationAliasKeys('NG','Nigeria Info FM 99.3 Lagos').record.includes(key)));
+assert.equal(directoryGeographyConflict('NG','Green Radio Uganda'),true);
+assert.equal(directoryGeographyConflict('AQ','Fictional Antarctic Playlist'),true);
+assert.equal(directoryGeographyConflict('NG','Legitimate Radio','https://radio.example.ug'),true);
+assert.equal(directoryGeographyConflict('NG','Legitimate Radio','https://radio.example.com'),false);
+console.log('Stable endpoints: expiring redirects never canonical, provider/cache deduplication, broadcast identity aliases and geography conflicts passed');
