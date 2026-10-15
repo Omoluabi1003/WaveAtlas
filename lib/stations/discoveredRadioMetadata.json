@@ -3148,5 +3148,14 @@
     "lastSignalCheck": "2026-10-15T19:28:33.312Z",
     "qualityScore": 78,
     "resolvedUrl": "https://listen.senemultimedia.net:8112/stream"
+  },
+  {
+    "stationUuid": "ng-kapital-fm-abuja",
+    "discoverySource": "https://kapitalfm.gov.ng/",
+    "sourceStationUuid": "kapital-fm-abuja-public-reference",
+    "verifiedAt": "2026-10-15T21:52:13.740Z",
+    "lastSignalCheck": "2026-10-15T21:52:13.740Z",
+    "qualityScore": 75,
+    "resolvedUrl": "https://cast4.asurahosting.com/proxy/radioni1/stream"
   }
 ]

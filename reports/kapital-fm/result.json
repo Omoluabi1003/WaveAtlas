@@ -1,7 +1,7 @@
 {
-  "verifierRevision": "5fec0d97b2cfa32d3670d0cfa999d41d2487150812aa6e826323318d1b71bd61",
-  "checkedAt": "2026-10-15T21:48:08.804Z",
-  "status": "not_verified",
+  "verifierRevision": "5cc217f01f263a7dc93dcd2fbab229e2f866840c28f13bd4ff265d520ea80445",
+  "checkedAt": "2026-10-15T21:52:05.500Z",
+  "status": "added",
   "directory": [],
   "pages": [
     {
@@ -54,22 +54,22 @@
       "url": "https://onlineradiobox.com/ng/kapitalfm/",
       "status": 200,
       "title": "Kapital FM Listen Live - 92.9 MHz FM, Abuja, Nigeria | Online Radio Box",
-      "bytes": 71300,
+      "bytes": 71375,
       "playerHints": [
         "ion 92.9 MHz FM for free – great choice for Abuja, Nigeria. Listen live Kapital FM radio with Onlineradiobox.com\" />",
         "l FM Nigeria, Kapital FM Abuja, Kapital FM 92.9, Kapital FM listen live\" />",
         "\t<title>Kapital FM Listen Live - 92.9 MHz FM, Abuja, Nigeria | Online Radio Box</title>",
         "<audio id=\"top_player\" crossorigin=\"true\" style=\"width:1px;height:1px;overflow:hidden;position:absolute;\"></audio>",
-        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/1b/1115_thumb.v3.webp, https://cdn.puzzlegarage.com/img/puzzle/1b/1115_thumb_r.v3.webp 2x\" type=\"image/webp\">",
-        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/18/1400_thumb.v1.webp, https://cdn.puzzlegarage.com/img/puzzle/18/1400_thumb_r.v1.webp 2x\" type=\"image/webp\">",
-        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/14/3828_thumb.v3.webp, https://cdn.puzzlegarage.com/img/puzzle/14/3828_thumb_r.v3.webp 2x\" type=\"image/webp\">",
-        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/10/1264_thumb.v2.webp, https://cdn.puzzlegarage.com/img/puzzle/10/1264_thumb_r.v2.webp 2x\" type=\"image/webp\">",
+        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/10/23248_thumb.v1.webp, https://cdn.puzzlegarage.com/img/puzzle/10/23248_thumb_r.v1.webp 2x\" type=\"image/webp\">",
+        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/1f/22879_thumb.v1.webp, https://cdn.puzzlegarage.com/img/puzzle/1f/22879_thumb_r.v1.webp 2x\" type=\"image/webp\">",
+        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/8/20072_thumb.v1.webp, https://cdn.puzzlegarage.com/img/puzzle/8/20072_thumb_r.v1.webp 2x\" type=\"image/webp\">",
+        "\t\t\t\t<source srcset=\"https://cdn.puzzlegarage.com/img/puzzle/17/12855_thumb.v3.webp, https://cdn.puzzlegarage.com/img/puzzle/17/12855_thumb_r.v3.webp 2x\" type=\"image/webp\">",
         "                    <source srcset=\"//cdn.onlineradiobox.com/img/bubbleshooter_preview.webp\" type=\"image/webp\">",
         "                    <source srcset=\"//cdn.onlineradiobox.com/img/colormerge_preview.webp\" type=\"image/webp\">",
+        "                    <source srcset=\"//cdn.onlineradiobox.com/img/ballsort_preview.webp\" type=\"image/webp\">",
+        "                    <source srcset=\"//cdn.onlineradiobox.com/img/slidingcats_preview.webp\" type=\"image/webp\">",
         "                    <source srcset=\"//cdn.onlineradiobox.com/img/numberquest_preview.webp\" type=\"image/webp\">",
-        "                    <source srcset=\"//cdn.onlineradiobox.com/img/crossmath_preview.webp\" type=\"image/webp\">",
         "                    <source srcset=\"//cdn.onlineradiobox.com/img/hexasort_preview.webp\" type=\"image/webp\">",
-        "                    <source srcset=\"//cdn.onlineradiobox.com/img/blockblast_preview.webp\" type=\"image/webp\">",
         "  <button  class=\"b-play station_play\" aria-label=\"Listen live\" title=\"Listen to radio\" stream=\"https://cast4.asurahosting.com/proxy/radioni1/stream/;/&#39;\" streamType=\"mp3\" radioId=\"ng.kapitalfm\" radioImg=\"//cdn.onlinera",
         "ons__pill\"><button  class=\"b-play station_play\" aria-label=\"Listen live\" title=\"Listen to radio\" stream=\"https://cast4.asurahosting.com/proxy/radioni1/stream/;/&#39;\" streamType=\"mp3\" radioId=\"ng.kapitalfm\" radioImg=\"//cdn.onlinera",
         "diobox.com/img/l/4/6814.v16.png\" radioName=\"Kapital FM\">Listen live</button>",
@@ -80,24 +80,29 @@
       "url": "https://onlineradiobox.com/",
       "status": 200,
       "title": "Free online radio stations – listen for free at OnlineRadioBox.com",
-      "bytes": 50077,
+      "bytes": 50042,
       "playerHints": []
     }
   ],
   "attempts": [
     {
-      "url": "https://youtu.be/8yqrjGx3k84?si=ul64xHxUCY_5B5-j&#038;_=1",
+      "url": "https://cast4.asurahosting.com/proxy/radioni1/stream",
       "source": "https://kapitalfm.gov.ng/",
-      "reason": "no-audio-evidence",
+      "reason": "audio-mpeg",
       "status": 200,
-      "bytesSampled": 4096
-    },
-    {
-      "url": "https://youtu.be/GRxE0jCAIaA?si=fBX7OgG7jKk7TRpE&#038;_=2",
-      "source": "https://kapitalfm.gov.ng/",
-      "reason": "no-audio-evidence",
-      "status": 200,
-      "bytesSampled": 4096
+      "bytesSampled": 4096,
+      "decoder": {
+        "ok": true,
+        "reason": "chromium_sample_decoded",
+        "seconds": 0.222127
+      }
     }
-  ]
+  ],
+  "stationId": "ng-kapital-fm-abuja",
+  "endpoint": "https://cast4.asurahosting.com/proxy/radioni1/stream",
+  "browserDecoder": {
+    "ok": true,
+    "reason": "chromium_sample_decoded",
+    "seconds": 0.222127
+  }
 }
