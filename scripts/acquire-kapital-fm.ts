@@ -56,8 +56,10 @@ async function main(){
     try{const link=new URL(tag[1].replace(/&amp;/g,'&'),page.url);if(link.protocol==='https:'&&link.origin===new URL(page.url).origin&&!/\.(?:css|js|map|png|jpg)(?:[?#]|$)/i.test(link.href)&&!/\/wp-content\/|\/wp-includes\//i.test(link.pathname)&&/listen|live|player|stream/i.test(link.pathname)&&pages.length<9)pages.push(link.href);}catch{/* Ignore malformed links. */}
    }
    const html=page.text.replace(/\\\//g,'/').replace(/&amp;/g,'&');
-   for(const match of html.matchAll(/(?:<(?:audio|source)\b[^>]*?\bsrc|data-(?:stream|radio-url|audio-url))=["']([^"']+)["']/gi)){
-    try{const media=new URL(match[1],page.url);if(media.protocol==='https:'&&!temporaryStreamUrl(media.href))sources.push({url:media.href,homepage:[...homepages][0],source:page.url});}catch{/* Ignore malformed media references. */}
+   for(const match of html.matchAll(/(?:<(?:audio|source)\b[^>]*?\bsrc|data-(?:stream|radio-url|audio-url|qtmplayer-file(?:_mobile)?))=["']([^"']+)["']/gi)){
+    try{const published=match[1].replace(/&#0?39;|&apos;/gi,"'").replace(/&quot;/gi,'"').trim();
+     const normalized=published.replace(/["']+$/g,'').replace(/\/?;\/?$/,'');
+     const media=new URL(normalized,page.url);if(media.protocol==='https:'&&!temporaryStreamUrl(media.href))sources.push({url:media.href,homepage:[...homepages][0],source:page.url});}catch{/* Ignore malformed media references. */}
    }
    for(const match of html.matchAll(/https?:\/\/[^\s"'<>\\]+/g)){
     const candidate=match[0];let parsed:URL;try{parsed=new URL(candidate);}catch{continue;}
@@ -68,6 +70,7 @@ async function main(){
    }
   }catch{report.pages.push({url,status:'network_inconclusive'});}
  }
+ if(!existing)sources.push({url:'https://radionghq.radioca.st/stream',homepage:'https://kapitalfm.gov.ng/',source:'https://github.com/junguler/m3u-radio-music-playlists/blob/5990bd446465a64bb5dc089f71bc1bb9532f157b/world-radio_map/ng-abuja.m3u'});
  if(!existing&&sources.length){
   const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE||'/usr/bin/google-chrome',args:['--no-sandbox']});
   try{
@@ -82,9 +85,9 @@ async function main(){
     const duplicate=before.find(station=>endpointIdentity(station.url_resolved||station.url)===endpointIdentity(endpoint));
     if(duplicate){report.status='endpoint_conflict';report.stationId=duplicate.station_uuid;break;}
     const now=new Date().toISOString(),id='ng-kapital-fm-abuja';
-    const station:Station={id,station_uuid:id,name:'Kapital FM Abuja',url:endpoint,url_resolved:endpoint,homepage:source.homepage,favicon:'',country:'Nigeria',country_code:'NG',state:'Federal Capital Territory',city:'Abuja',language:'Unknown',tags:['radio'],codec:probe.reason.slice(6).toUpperCase(),bitrate:0,votes:0,click_count:0,health_score:75,is_active:true,last_check_ok:true,last_checked_at:now,failure_count:0,response_time_ms:probe.responseTimeMs,curation_source:source.source,curation_tier:'radio_browser',source_confidence:0.7,validation_status:'verified',verification_status:'verified',validation_reason:'Kapital FM Abuja targeted lookup; live public HTTPS audio and Chromium sample decoding verified. No precise transmitter coordinates or frequency inferred.'};
+    const station:Station={id,station_uuid:id,name:'Kapital 92.9 FM Abuja',url:endpoint,url_resolved:endpoint,homepage:source.homepage,favicon:'',country:'Nigeria',country_code:'NG',state:'Federal Capital Territory',city:'Abuja',language:'Unknown',tags:['radio'],codec:probe.reason.slice(6).toUpperCase(),bitrate:0,votes:0,click_count:0,health_score:75,is_active:true,last_check_ok:true,last_checked_at:now,failure_count:0,response_time_ms:probe.responseTimeMs,curation_source:source.source,curation_tier:source.source==='radio-browser'?'radio_browser':source.source.startsWith('https://kapitalfm.gov.ng/')?'curated_atlas':'community_signal',source_confidence:0.7,validation_status:'verified',verification_status:'verified',validation_reason:'Kapital FM Abuja targeted lookup; live public HTTPS audio and Chromium sample decoding verified. No precise transmitter coordinates or frequency inferred.'};
     const metadata:DiscoveryMetadata[]=JSON.parse(await readFile('lib/stations/discoveredRadioMetadata.json','utf8'));
-    metadata.push({stationUuid:id,discoverySource:source.source,sourceStationUuid:source.sourceUuid||'official-kapital-fm-abuja',verifiedAt:now,lastSignalCheck:now,qualityScore:75,resolvedUrl:endpoint});
+    metadata.push({stationUuid:id,discoverySource:source.source,sourceStationUuid:source.sourceUuid||'kapital-fm-abuja-public-reference',verifiedAt:now,lastSignalCheck:now,qualityScore:75,resolvedUrl:endpoint});
     await writeFile('lib/stations/discoveredRadioStations.ts',`import type { Station } from '../stations';\n\n// Generated verified acquisitions; preserve canonical station identities.\nexport const discoveredRadioStations: Station[] = ${JSON.stringify([...discoveredRadioStations,station],null,2)};\n`);
     await writeFile('lib/stations/discoveredRadioMetadata.json',JSON.stringify(metadata,null,2)+'\n');
     const health:HealthSnapshot=JSON.parse(await readFile('lib/stations/stationHealthSnapshot.json','utf8'));
