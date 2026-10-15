@@ -1,0 +1,64 @@
+name: Verified catalog expansion
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths: ['scripts/expand-station-catalog.ts', 'lib/agents/catalog-expansion.ts', 'lib/agents/browser-audio-proof.ts', 'tests/catalog-expansion.regression.ts', '.github/workflows/catalog-expansion.yml']
+permissions:
+  contents: read
+concurrency:
+  group: verified-catalog-expansion
+  cancel-in-progress: false
+jobs:
+  acquire:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/expand-350-stations'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node --import tsx tests/catalog-expansion.regression.ts
+      - run: node --import tsx tests/catalog-decoder.browser.ts
+        env:
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE: /usr/bin/google-chrome
+      - name: Acquire additional stations with Nigeria first
+        run: node --import tsx scripts/expand-station-catalog.ts
+        env:
+          CATALOG_EXPANSION_TARGET: '350'
+          CATALOG_EXPANSION_MAX_PROBES: '3000'
+          CATALOG_EXPANSION_DRY_RUN: 'false'
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE: /usr/bin/google-chrome
+      - name: Validate the expanded inventory before publication
+        run: |
+          node --import tsx tests/radio-discovery.regression.ts
+          node --import tsx tests/stream-probe.regression.ts
+          node --import tsx tests/republic-congo-stations.regression.ts
+          node --import tsx tests/catalog-expansion.regression.ts
+          npm run typecheck
+          npm run lint
+          npm run build
+      - name: Publish only verified catalog records to this review branch
+        env:
+          ACQUISITION_BRANCH: codex/expand-350-stations
+          EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- lib/stations/discoveredRadioStations.ts lib/stations/discoveredRadioMetadata.json reports/catalog-expansion/result.json reports/catalog-expansion/result.md
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: append measured audio-verified station acquisitions'
+            git push origin "HEAD:refs/heads/$ACQUISITION_BRANCH" --force-with-lease="refs/heads/$ACQUISITION_BRANCH:$EXPECTED_COMMIT"
+          fi
+      - name: Record measured results and enforce the requested minimum
+        if: always()
+        run: |
+          if test -f reports/catalog-expansion/result.md; then cat reports/catalog-expansion/result.md >> "$GITHUB_STEP_SUMMARY"; fi
+          node -e "const r=require('./reports/catalog-expansion/result.json');console.log(JSON.stringify({...r,evidence:undefined}));if(!r.targetMet)process.exit(1)"

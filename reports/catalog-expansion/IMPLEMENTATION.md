@@ -1,0 +1,17 @@
+# Nigeria-first verified catalog expansion
+
+Requested target: at least 350 additional stations, preserving existing canonical IDs and inventory.
+
+The acquisition script considers Nigerian candidates first (up to three 250-result directory pages), then up to 100 countries using country-balanced round-robin probing. It caps additions from other individual countries at 20 and Nigeria at 120. These are ceilings, not invented quotas. Actual country/state/language results are recorded after verification; missing cities, frequencies and languages are not fabricated.
+
+Each new record requires a source UUID, broadcaster homepage, HTTPS endpoint, live audio bytes from the existing pinned-DNS probe, and successful Chromium decoding of an independently sampled bounded clip. The decoder never fetches untrusted URLs; samples arrive through the same public-address-pinned transport. This proves sampled availability/decoding at a recorded time, not uninterrupted playback, every browser/region, or authoritative geography. Geography remains directory-sourced and subject to existing GeoTruth. New HLS acquisitions await full browser transport verification.
+
+Deduplication includes source identity, canonical identity, original/resolved URLs and country/name keys with international Unicode preserved. Existing records and station identities are retained. No existing station is repaired by guessing another endpoint. No station copies for UI features are introduced.
+
+The acquisition workflow runs only for the same-repository review branch codex/expand-350-stations. Its bounded job may publish only generated inventory, provenance and result reports back to that branch after tests, lint, TypeScript and a production build pass. It never merges or deploys the catalog. A branch lease rejects concurrent edits. No secrets or service credentials are needed. Its final check fails if the requested minimum was not reached; partial verified results remain auditable.
+
+New files: scripts/expand-station-catalog.ts; lib/agents/catalog-expansion.ts; lib/agents/browser-audio-proof.ts; tests/catalog-expansion.regression.ts; tests/catalog-decoder.browser.ts; .github/workflows/catalog-expansion.yml. Generated changes: lib/stations/discoveredRadioStations.ts; lib/stations/discoveredRadioMetadata.json; reports/catalog-expansion/result.json and .md.
+
+Existing canonical inventory, discovery conversion, health probe, metadata provenance, GeoTruth and browser dependencies are reused. New acquisition/browser modules run only in CI and add no browser runtime dependencies to the listening path. No mandatory account, paid service, database migration, Supabase step or Vercel setting is introduced. Target configuration is bounded to 350–1000 additions and at most 5000 probes.
+
+Local validation: expansion admission/fairness/Unicode tests, existing stream/discovery/operations tests, TypeScript and lint pass (one pre-existing AtlasAssistant warning). The local sandbox blocks Chromium launch and broadcaster network access; browser fixture and live acquisition therefore run on GitHub's runner before publication. Measured result.json is the source of truth for additions and target completion, not this requested target.
