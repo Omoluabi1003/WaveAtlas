@@ -12,6 +12,7 @@ import {
 } from "d3-geo";
 import { useAppearance } from "@/hooks/useSolarAppearance";
 import { drawGlobeBoundaries, loadStateBoundaries } from "@/lib/globe-boundaries";
+import { earthVector, subsolarPoint } from "@/lib/earth-lighting";
 import { RealisticEarth } from "@/lib/realistic-earth";
 import countryBoundaries from "@/lib/data/natural-earth-countries.json";
 import { isoCountryCentroids } from "@/lib/geotruth-resolver";
@@ -161,9 +162,10 @@ type SpaceStar = {
   y: number;
   radius: number;
   alpha: number;
-  hue: number;
   phase: number;
   twinkle: number;
+  depth: number;
+  color: string;
 };
 type GlobeQualityTier = "mobile" | "balanced" | "cinematic";
 type CloudQualityMode = "full" | "reduced" | "disabled";
@@ -263,9 +265,10 @@ const CLOUD_MAX_DRIFT_DELTA_MS = 34;
 const CLOUD_DRIFT_NORMALIZE_DEGREES = 360;
 
 const SPACE_STAR_SEED = 92821;
-const SPACE_STAR_COUNT_DESKTOP = 90;
-const SPACE_STAR_COUNT_MOBILE = 35;
-const SPACE_STAR_COUNT_LOW_POWER = 20;
+const SPACE_STAR_COUNT_DESKTOP = 180;
+const SPACE_STAR_COUNT_BALANCED = 110;
+const SPACE_STAR_COUNT_MOBILE = 48;
+const SPACE_STAR_COUNT_LOW_POWER = 28;
 const SPACE_STARS = buildSpaceStars(SPACE_STAR_COUNT_DESKTOP, SPACE_STAR_SEED);
 let landCache: LandShape[] | null = null;
 
@@ -277,16 +280,93 @@ function seededUnit(seed: number) {
 function buildSpaceStars(count: number, seed: number): SpaceStar[] {
   return Array.from({ length: count }, (_, index) => {
     const starSeed = seed + index * 17;
+    const depth = index % 3;
+    const bright = seededUnit(starSeed + 8) > 0.975;
+    const temperature = seededUnit(starSeed + 5);
+    const x = seededUnit(starSeed + 1);
+    // A minority follow the dust band; the rest leave generous empty sky.
+    const y = seededUnit(starSeed + 9) < 0.26
+      ? 0.74 - x * 0.52 + (seededUnit(starSeed + 2) - 0.5) * 0.19
+      : seededUnit(starSeed + 2);
     return {
-      x: seededUnit(starSeed + 1),
-      y: seededUnit(starSeed + 2),
-      radius: 0.45 + seededUnit(starSeed + 3) * 1.05,
-      alpha: 0.12 + seededUnit(starSeed + 4) * 0.28,
-      hue: seededUnit(starSeed + 5),
+      depth,
+      color: temperature > 0.78 ? "#c5dcf5" : temperature < 0.18 ? "#f3dfc9" : "#e6ebf2",
+      x,
+      y,
+      radius: bright ? 1.15 : 0.25 + seededUnit(starSeed + 3) * 0.55 + depth * 0.08,
+      alpha: bright ? 0.58 : 0.035 + seededUnit(starSeed + 4) ** 3 * 0.22,
       phase: seededUnit(starSeed + 6) * TAU,
       twinkle: 0.015 + seededUnit(starSeed + 7) * 0.045,
     };
   });
+}
+
+// One small, reusable texture per tier, built after the first globe frame.
+// No external assets, full-size blur passes, or procedural work in the star loop.
+function buildStellarDust(quality: GlobeQualityTier): HTMLCanvasElement | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = quality === "mobile" ? 192 : 384;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const count = quality === "mobile" ? 32 : quality === "balanced" ? 80 : 120;
+  const size = canvas.width;
+  for (let i = 0; i < count; i += 1) {
+    const seed = 6713 + i * 29;
+    const x = seededUnit(seed) * size;
+    const y = size * (0.74 - x / size * 0.52 + (seededUnit(seed + 1) - 0.5) * 0.19);
+    const radius = size * (0.025 + seededUnit(seed + 2) * 0.10);
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, `rgba(151,168,190,${0.012 + seededUnit(seed + 3) * 0.025})`);
+    glow.addColorStop(1, "rgba(101,121,149,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  }
+  // An irregular dark rift breaks up the stellar haze.
+  ctx.globalCompositeOperation = "destination-out";
+  for (let i = 0; i < 24; i += 1) {
+    const x = i / 23 * size;
+    ctx.fillStyle = "rgba(0,0,0,0.32)";
+    ctx.beginPath();
+    ctx.ellipse(x, size * 0.73 - x * 0.52, size * 0.065, size * (0.008 + seededUnit(i + 4) * 0.018), -0.48, 0, TAU);
+    ctx.fill();
+  }
+  return canvas;
+}
+
+// Outside-only scattering leaves geographic content and all hit targets intact.
+// Screen-space sunlight comes from the same solar model as RealisticEarth.
+function drawOrbitalAtmosphere(
+  ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number,
+  sunX: number, sunY: number, quality: GlobeQualityTier, night: boolean,
+) {
+  const steps = quality === "mobile" ? 32 : quality === "balanced" ? 64 : 96;
+  const thickness = radius * (quality === "mobile" ? 0.024 : 0.032);
+  ctx.save();
+  for (let i = 0; i < steps; i += 1) {
+    const start = i / steps * TAU;
+    const angle = start + Math.PI / steps;
+    const incidence = Math.cos(angle) * sunX + Math.sin(angle) * sunY;
+    const daylight = Math.max(0, Math.min(1, incidence * 2 + 0.32)) * (night ? 0.25 : 1);
+    const scatter = ctx.createRadialGradient(cx, cy, radius, cx, cy, radius + thickness);
+    scatter.addColorStop(0, `rgba(109,205,249,${0.025 + daylight * 0.40})`);
+    scatter.addColorStop(0.16, `rgba(53,137,235,${0.018 + daylight * 0.20})`);
+    scatter.addColorStop(0.42, `rgba(35,99,198,${0.009 + daylight * 0.06})`);
+    scatter.addColorStop(1, "rgba(10,32,70,0)");
+    ctx.fillStyle = scatter;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + thickness, start, start + TAU / steps);
+    ctx.arc(cx, cy, radius, start + TAU / steps, start, true);
+    ctx.closePath();
+    ctx.fill();
+    if (quality !== "mobile") {
+      ctx.strokeStyle = `rgba(80,184,154,${(1 - daylight) * 0.035})`;
+      ctx.lineWidth = radius * 0.0015;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 1.009, start, start + TAU / steps);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 function drawSpaceBackdrop(
@@ -302,6 +382,10 @@ function drawSpaceBackdrop(
     lowPower: boolean;
     reducedMotion: boolean;
     basemap: GlobeBasemapKey;
+    quality: GlobeQualityTier;
+    rotX: number;
+    rotY: number;
+    dust: HTMLCanvasElement | null;
   },
 ) {
   const {
@@ -314,15 +398,26 @@ function drawSpaceBackdrop(
     mobile,
     lowPower,
     reducedMotion,
-    basemap,
+    basemap, quality, rotX, rotY, dust,
   } = options;
   const starCount = lowPower
     ? SPACE_STAR_COUNT_LOW_POWER
     : mobile
       ? SPACE_STAR_COUNT_MOBILE
-      : SPACE_STAR_COUNT_DESKTOP;
+      : quality === "cinematic" ? SPACE_STAR_COUNT_DESKTOP : SPACE_STAR_COUNT_BALANCED;
   ctx.save();
 
+  // Opaque deep-space base covers the complete viewport, including tall phones.
+  ctx.fillStyle = "#02050b";
+  ctx.fillRect(0, 0, width, height);
+  if (dust) {
+    ctx.globalAlpha = mobile || lowPower ? 0.42 : 0.72;
+    ctx.drawImage(dust, 0, 0, width, height);
+    ctx.globalAlpha = 1;
+  }
+  const parallax = reducedMotion ? 0 : lowPower ? 0.35 : mobile ? 0.7 : 2.5;
+  const offsetX = Math.sin(rotY) * parallax;
+  const offsetY = Math.sin(rotX) * parallax;
   const ambience = ctx.createRadialGradient(
     cx - radius * 0.32,
     cy - radius * 0.38,
@@ -334,7 +429,7 @@ function drawSpaceBackdrop(
   ambience.addColorStop(
     0,
     basemap === "photorealistic"
-      ? "rgba(96,165,250,0.16)"
+      ? "rgba(62,105,161,0.045)"
       : basemap === "night"
         ? "rgba(59,130,246,0.10)"
         : basemap === "signal"
@@ -348,25 +443,24 @@ function drawSpaceBackdrop(
 
   for (let index = 0; index < starCount; index += 1) {
     const star = SPACE_STARS[index];
-    const x = star.x * width;
-    const y = star.y * height;
+    const depth = star.depth === 0 ? 0.04 : star.depth === 1 ? 0.35 : 1;
+    const x = star.x * width + offsetX * depth;
+    const y = star.y * height + offsetY * depth;
     const distanceFromGlobe = Math.hypot(x - cx, y - cy);
     if (distanceFromGlobe < radius * 1.04) continue;
     const twinkle = reducedMotion
       ? 0
       : Math.sin(now * 0.00042 + star.phase) * star.twinkle;
-    const alpha =
-      Math.max(0.04, star.alpha + twinkle) *
-      (distanceFromGlobe < radius * 1.22 ? 0.58 : 1);
-    const cool = star.hue > 0.78;
-    ctx.fillStyle = cool
-      ? `rgba(191,219,254,${alpha})`
-      : `rgba(255,255,255,${alpha})`;
+    const edgeFade = Math.min(1, Math.min(x, width - x, y, height - y) / 70);
+    const limbFade = Math.min(1, Math.max(0, (distanceFromGlobe / radius - 1.04) / 0.18));
+    ctx.globalAlpha = Math.max(0, star.alpha + twinkle) * Math.max(0, edgeFade) * limbFade;
+    ctx.fillStyle = star.color;
     ctx.beginPath();
     ctx.arc(x, y, star.radius * (mobile || lowPower ? 0.82 : 1), 0, TAU);
     ctx.fill();
   }
 
+  ctx.globalAlpha = 1;
   if (!lowPower) {
     ctx.lineCap = "round";
     for (const [index, scale] of [1.18, 1.34].entries()) {
@@ -374,7 +468,7 @@ function drawSpaceBackdrop(
       ctx.translate(cx, cy);
       ctx.rotate(index === 0 ? -0.22 : 0.18);
       ctx.strokeStyle =
-        index === 0 ? "rgba(125,211,252,0.075)" : "rgba(0,214,143,0.055)";
+        index === 0 ? "rgba(125,211,252,0.018)" : "rgba(140,170,194,0.012)";
       ctx.lineWidth = mobile ? 0.45 : 0.7;
       ctx.beginPath();
       ctx.ellipse(
@@ -617,6 +711,8 @@ function drawPhotorealisticSurface(
     r: number;
     now: number;
     quality: GlobeQualityTier;
+    sunX: number;
+    sunY: number;
     landShapes: LandShape[];
     mobile: boolean;
     lowPower: boolean;
@@ -630,6 +726,8 @@ function drawPhotorealisticSurface(
     r,
     now,
     quality,
+    sunX,
+    sunY,
     landShapes,
     mobile,
     lowPower,
@@ -693,15 +791,15 @@ function drawPhotorealisticSurface(
   ctx.restore();
 
   const terminator = ctx.createLinearGradient(
-    cx - r * 0.85,
-    cy - r * 0.85,
-    cx + r * 0.7,
-    cy + r * 0.58,
+    cx + r * sunX,
+    cy + r * sunY,
+    cx - r * sunX,
+    cy - r * sunY,
   );
   terminator.addColorStop(0, "rgba(255,255,255,0.26)");
   terminator.addColorStop(0.38, "rgba(255,255,255,0.02)");
   terminator.addColorStop(0.62, "rgba(2,6,23,0.32)");
-  terminator.addColorStop(1, "rgba(0,0,0,0.78)");
+  terminator.addColorStop(1, "rgba(0,0,0,0.48)");
   ctx.fillStyle = terminator;
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
@@ -1843,6 +1941,10 @@ export default function BlueMarbleGlobe({
             );
         }, MOBILE_FALLBACK_MS)
       : 0;
+    let stellarDust: HTMLCanvasElement | null = null;
+    let dustTier: GlobeQualityTier | null = null;
+    let solarMinute = -1;
+    let solarVector = earthVector(0, 0);
     const realisticEarth = RealisticEarth.create(mobile || profile.lowPower);
     const cloudLayer = cloudLayerRef.current;
     const initializeCloudLayer = () => {
@@ -2311,6 +2413,20 @@ export default function BlueMarbleGlobe({
       const targetScreenX = cx;
       const targetScreenY = cy;
 
+      const globeQuality = resolveGlobeQualityTier(mobile || profile.mobile || iosWebKit, profile.lowPower);
+      if (painted && dustTier !== globeQuality) {
+        stellarDust = buildStellarDust(globeQuality);
+        dustTier = globeQuality;
+      }
+      const minute = Math.floor(Date.now() / 60000);
+      if (minute !== solarMinute) {
+        const solar = subsolarPoint(Date.now());
+        solarVector = earthVector(solar.lat, solar.lng);
+        solarMinute = minute;
+      }
+      const sunX = solarVector[0] * Math.cos(s.rotY) - solarVector[2] * Math.sin(s.rotY);
+      const sunY = -(solarVector[1] * Math.cos(s.rotX) -
+        (solarVector[0] * Math.sin(s.rotY) + solarVector[2] * Math.cos(s.rotY)) * Math.sin(s.rotX));
       drawSpaceBackdrop(ctx, {
         width: w,
         height: h,
@@ -2318,13 +2434,13 @@ export default function BlueMarbleGlobe({
         cy,
         radius: r,
         now,
-        mobile,
+        mobile: globeQuality === "mobile",
         lowPower: profile.lowPower,
         reducedMotion: s.disabledMotion,
         basemap: runtime.basemap,
+        quality: globeQuality, rotX: s.rotX, rotY: s.rotY, dust: stellarDust,
       });
       const photorealisticPreview = runtime.basemap === "photorealistic";
-      const globeQuality = resolveGlobeQualityTier(mobile, profile.lowPower);
       const bg = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.55);
       bg.addColorStop(
         0,
@@ -2332,7 +2448,7 @@ export default function BlueMarbleGlobe({
           ? "rgba(125,92,255,0.16)"
           : runtime.basemap === "signal"
             ? "rgba(0,214,143,0.12)"
-            : "rgba(0,214,143,0.18)",
+            : "rgba(67,104,158,0.035)",
       );
       bg.addColorStop(0.64, "rgba(3,12,27,0.10)");
       bg.addColorStop(1, "rgba(3,8,20,0)");
@@ -2391,7 +2507,7 @@ export default function BlueMarbleGlobe({
           ctx.drawImage(texturedEarth, cx - r, cy - r, r * 2, r * 2);
         } else {
           drawPhotorealisticSurface(ctx, {
-            projection, cx, cy, r, now, quality: globeQuality,
+            projection, cx, cy, r, now, quality: globeQuality, sunX, sunY,
             landShapes: runtime.landShapes, mobile,
             lowPower: profile.lowPower, reducedMotion: s.disabledMotion,
           });
@@ -2509,27 +2625,9 @@ export default function BlueMarbleGlobe({
         }
       }
       ctx.restore();
-      if (photorealisticPreview && !texturedEarth) {
-        ctx.save();
-        ctx.strokeStyle = "rgba(125,211,252,0.28)";
-        ctx.lineWidth = mobile ? 5 : 8;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r + (mobile ? 3 : 5), 0, TAU);
-        ctx.stroke();
-        const halo = ctx.createRadialGradient(
-          cx,
-          cy,
-          r * 0.92,
-          cx,
-          cy,
-          r * 1.28,
-        );
-        halo.addColorStop(0, "rgba(96,165,250,0.22)");
-        halo.addColorStop(1, "rgba(96,165,250,0)");
-        ctx.fillStyle = halo;
-        ctx.fillRect(cx - r * 1.35, cy - r * 1.35, r * 2.7, r * 2.7);
-        ctx.restore();
-      }
+      drawOrbitalAtmosphere(ctx, cx, cy, r, sunX, sunY, globeQuality, runtime.basemap === "night");
+      // Future orbital objects belong here: behind station overlays, using the
+      // shared camera/projection and verified ephemerides, never invented positions.
       ctx.save();
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, TAU);
@@ -2900,11 +2998,6 @@ export default function BlueMarbleGlobe({
         ctx.stroke();
         ctx.restore();
       }
-      ctx.strokeStyle = "rgba(0,214,143,0.55)";
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r + 1, 0, TAU);
-      ctx.stroke();
       painted = true;
       if (!globeInteractive) {
         globeInteractive = true;
