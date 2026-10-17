@@ -1,0 +1,462 @@
+{
+  "generatedAt": "2026-10-17T12:26:36.180Z",
+  "architecture": "ruflo-inspired-deterministic",
+  "providerCalls": 0,
+  "dryRun": false,
+  "workers": [
+    "stream-health"
+  ],
+  "failed": false,
+  "recentRuns": [
+    {
+      "at": "2026-10-09T21:05:24.361Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-09T21:19:45.825Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-10T05:56:27.069Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-10T05:56:35.368Z",
+      "worker": "station-discovery",
+      "success": false
+    },
+    {
+      "at": "2026-10-10T06:09:05.180Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-10T06:25:04.465Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-10T14:29:54.477Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-10T14:29:55.225Z",
+      "worker": "station-discovery",
+      "success": false
+    },
+    {
+      "at": "2026-10-10T14:34:44.760Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-10T14:46:34.771Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-10T20:05:45.535Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-10T20:05:46.168Z",
+      "worker": "station-discovery",
+      "success": false
+    },
+    {
+      "at": "2026-10-10T20:12:58.779Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-10T20:20:04.416Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T05:51:00.118Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T05:51:45.714Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T06:07:31.320Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T06:30:25.014Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T14:56:25.631Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T14:57:55.320Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T14:59:46.739Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T15:06:14.274Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T20:19:56.634Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T20:19:57.215Z",
+      "worker": "station-discovery",
+      "success": false
+    },
+    {
+      "at": "2026-10-11T20:27:35.821Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-11T20:36:32.045Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-12T06:02:26.482Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-12T06:03:28.103Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-12T06:16:11.486Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-12T06:34:55.528Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-12T17:58:20.399Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-12T17:59:32.137Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-12T18:05:53.409Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-12T18:14:04.864Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T06:49:43.362Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T06:50:30.252Z",
+      "worker": "station-discovery",
+      "success": false
+    },
+    {
+      "at": "2026-10-13T06:57:22.518Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T07:08:16.994Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T16:02:16.129Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T16:03:32.264Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T16:12:39.921Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T16:28:25.839Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T21:18:03.627Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T21:19:11.533Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T21:24:00.464Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-13T21:34:29.308Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T04:57:40.616Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T04:58:52.597Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T05:09:48.730Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T05:26:55.161Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T13:45:56.838Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T13:47:04.774Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T13:55:03.191Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T14:04:29.981Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T20:13:28.979Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T20:14:44.097Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T20:16:38.844Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-14T20:21:03.768Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T04:44:08.358Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T04:45:34.155Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T04:57:46.447Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T05:17:04.706Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T13:28:17.484Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T13:29:24.643Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T13:35:25.158Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T13:42:56.218Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T19:54:49.000Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T19:55:20.949Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T19:58:28.389Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-15T20:03:35.610Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T04:35:53.825Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T04:36:36.229Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T04:47:27.999Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T05:05:34.820Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T13:17:32.537Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T13:18:36.572Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T13:24:26.423Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T13:33:31.072Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T19:34:52.939Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T19:36:19.485Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T19:37:36.703Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-16T19:43:41.584Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-17T04:31:31.583Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-17T04:33:13.058Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-17T04:46:49.658Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-17T05:01:38.932Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-17T12:13:33.853Z",
+      "worker": "stream-health",
+      "success": true
+    },
+    {
+      "at": "2026-10-17T12:14:41.193Z",
+      "worker": "station-discovery",
+      "success": true
+    },
+    {
+      "at": "2026-10-17T12:18:26.984Z",
+      "worker": "operations",
+      "success": true
+    },
+    {
+      "at": "2026-10-17T12:26:36.179Z",
+      "worker": "stream-health",
+      "success": true
+    }
+  ]
+}
