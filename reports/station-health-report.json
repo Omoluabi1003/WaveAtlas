@@ -1,13 +1,1688 @@
 {
-  "generatedAt": "2026-10-15T12:46:43.030Z",
-  "catalogSize": 61,
-  "checked": 0,
-  "healthy": 0,
-  "degraded": 0,
-  "unknown": 61,
-  "scope": "full-catalog",
-  "network": "runner-restricted",
+  "generatedAt": "2026-10-24T19:02:37.632Z",
+  "catalogSize": 412,
+  "checked": 120,
+  "healthy": 110,
+  "degraded": 3,
+  "unknown": 7,
+  "scope": "rotating-batch",
+  "network": "live-probes",
   "preserved": true,
-  "results": [],
-  "notice": "Retest from an appropriately configured runner. A network failure does not establish that the station is offline."
+  "results": [
+    {
+      "stationId": "ariyo-ai-5fm-johannesburg",
+      "name": "5FM - Johannesburg",
+      "url": "http://antbiome-jhb-01.radio.co.za:80/5FM",
+      "status": "unknown",
+      "reason": "network-or-invalid-url",
+      "assessment": {
+        "category": "network_inconclusive",
+        "retryable": true,
+        "action": "Retest from an appropriately configured runner. A network failure does not establish that the station is offline."
+      },
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "ariyo-ai-metro-fm-johannesburg",
+      "name": "Metro FM - Johannesburg",
+      "url": "http://antbiome-jhb-01.radio.co.za:80/MetroFM",
+      "status": "unknown",
+      "reason": "network-or-invalid-url",
+      "assessment": {
+        "category": "network_inconclusive",
+        "retryable": true,
+        "action": "Retest from an appropriately configured runner. A network failure does not establish that the station is offline."
+      },
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "ariyo-ai-cbc-radio-one-toronto",
+      "name": "CBC Radio One - Toronto",
+      "url": "http://cbc_r1_tor.akacast.akamaistream.net/7/364/451661/v1/rc.akacast.akamaistream.net/cbc_r1_tor",
+      "status": "unknown",
+      "reason": "network-or-invalid-url",
+      "assessment": {
+        "category": "network_inconclusive",
+        "retryable": true,
+        "action": "Retest from an appropriately configured runner. A network failure does not establish that the station is offline."
+      },
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "ariyo-ai-cool-fm-abuja",
+      "name": "Cool FM - Abuja",
+      "url": "http://coolfm.abuja.stream.cdnstream1.com/coolfm_abuja",
+      "status": "unknown",
+      "reason": "network-or-invalid-url",
+      "assessment": {
+        "category": "network_inconclusive",
+        "retryable": true,
+        "action": "Retest from an appropriately configured runner. A network failure does not establish that the station is offline."
+      },
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "ariyo-ai-bbc-radio-1-london",
+      "name": "BBC Radio 1 - London",
+      "url": "http://as-hls-uk-live.akamaized.net/pool_904/live/uk/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio=320000.m3u8",
+      "status": "degraded",
+      "reason": "http-410",
+      "assessment": {
+        "category": "endpoint_unavailable",
+        "retryable": true,
+        "action": "Find the broadcaster’s current official stream and verify it without changing station identity."
+      },
+      "resolvedUrl": "http://as-hls-uk-live.akamaized.net/pool_904/live/uk/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio=320000.m3u8",
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "radio-browser-madras-fd44260b",
+      "name": "Madras",
+      "url": "https://2stream.net/mfmradio-128",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://2stream.net/mfmradio-128",
+      "bytesSampled": 1364
+    },
+    {
+      "stationId": "radio-browser-afrofusion-gospel-radio-0bed2842",
+      "name": "Afrofusion Gospel Radio",
+      "url": "https://a10.asurahosting.com:7120/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a10.asurahosting.com:7120/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-obong-university-radio-79da1764",
+      "name": "Obong University Radio",
+      "url": "https://a10.asurahosting.com:7150/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a10.asurahosting.com:7150/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-kan-gimel-e8c19fc3",
+      "name": "KAN Gimel כאן גימל",
+      "url": "https://27873.live.streamtheworld.com/KAN_GIMMEL.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://27873.live.streamtheworld.com/KAN_GIMMEL.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-exa-fm-pop-music-in-spanish-and-english-7cb5c206",
+      "name": "EXA FM: Pop Music in Spanish and English",
+      "url": "https://29306.live.streamtheworld.com/XHPSFMAAC.aac",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://29306.live.streamtheworld.com/XHPSFMAAC.aac",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-power-global-media-5b0c2770",
+      "name": "Power Global Media",
+      "url": "https://a10.asurahosting.com:7270/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a10.asurahosting.com:7270/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-topradio-topbam-5ede37ba",
+      "name": "Topradio TopBam",
+      "url": "https://29083.live.streamtheworld.com/TOPBAM.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://29083.live.streamtheworld.com/TOPBAM.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-radio-kuia-bue-41eace33",
+      "name": "Radio Kuia Bue",
+      "url": "https://a11.asurahosting.com:7400/radio.aac",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a11.asurahosting.com:7400/radio.aac",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-softlife-afrofusion-radio-e31778fd",
+      "name": "Softlife Afrofusion Radio",
+      "url": "https://a10.asurahosting.com:7540/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a10.asurahosting.com:7540/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-gomoseley-radio-c887d2ed",
+      "name": "GoMoseley Radio",
+      "url": "https://a2.asurahosting.com:8010/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a2.asurahosting.com:8010/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-mob-urban-radio-17831b77",
+      "name": "Mob Urban Radio",
+      "url": "https://a13.asurahosting.com/listen/mob_urban_radio/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a13.asurahosting.com/listen/mob_urban_radio/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-klubradio-95-3-9e077bed",
+      "name": "Klubrádió 95,3",
+      "url": "https://a7.asurahosting.com:8160/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a7.asurahosting.com:8160/radio.mp3",
+      "bytesSampled": 1254
+    },
+    {
+      "stationId": "radio-browser-memories-96-5fm-uyo-74902e8f",
+      "name": "MEMORIES 96.5FM UYO",
+      "url": "https://a5.asurahosting.com:6670/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a5.asurahosting.com:6670/radio.mp3",
+      "bytesSampled": 1254
+    },
+    {
+      "stationId": "radio-browser-maniaticaradio-bf3e1f5b",
+      "name": "MANIATICARADIO",
+      "url": "https://a7.asurahosting.com/listen/maniaticaradio/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a7.asurahosting.com/listen/maniaticaradio/radio.mp3",
+      "bytesSampled": 3329
+    },
+    {
+      "stationId": "radio-browser-radyo-tipiti-8cddbb0c",
+      "name": "Radyo Tipiti",
+      "url": "https://a8.asurahosting.com:7530/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a8.asurahosting.com:7530/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-mmuock-community-radio-377d391b",
+      "name": "Mmuock Community Radio",
+      "url": "https://a7.asurahosting.com/listen/mmuock_community_radio_/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a7.asurahosting.com/listen/mmuock_community_radio_/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-rcv-radio-cabo-verde-jovem-d0cdbba0",
+      "name": "RCV+ Radio Cabo Verde Jovem",
+      "url": "https://a8.my-control-panel.com:8670/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a8.my-control-panel.com:8670/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-baku-jazz-radio-d14fcc68",
+      "name": "Baku Jazz Radio",
+      "url": "https://a9.asurahosting.com/listen/bakujazzredio/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a9.asurahosting.com/listen/bakujazzredio/radio.mp3",
+      "bytesSampled": 3504
+    },
+    {
+      "stationId": "radio-browser-groove100-fm-bb34c088",
+      "name": "Groove100 FM",
+      "url": "https://a9.asurahosting.com/listen/groove100_fm/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a9.asurahosting.com/listen/groove100_fm/radio.mp3",
+      "bytesSampled": 3550
+    },
+    {
+      "stationId": "radio-browser-light-radio-togo-93-9fm-645dcd9f",
+      "name": "Light Radio Togo 93.9fm",
+      "url": "https://a9.asurahosting.com/listen/light_radio_93.9fm/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://a9.asurahosting.com/listen/light_radio_93.9fm/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "ariyo-ai-agidigbo-887-fm-ibadan",
+      "name": "Agidigbo 88.7 FM Ibadan",
+      "url": "https://agidigbostream.com.ng/radio/8000/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://agidigbostream.com.ng/radio/8000/radio.mp3",
+      "bytesSampled": 18
+    },
+    {
+      "stationId": "radio-browser-dream-center-internet-radio-f75104b7",
+      "name": "Dream Center Internet Radio",
+      "url": "https://admin.dciradio.org/radio/8010/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://admin.dciradio.org/radio/8010/radio.mp3",
+      "bytesSampled": 3527
+    },
+    {
+      "stationId": "ariyo-ai-cool-fm-96-9-lagos",
+      "name": "Cool FM 96.9 Lagos",
+      "url": "https://ais.streamonkey.net/coolfm_lagos-mp3",
+      "status": "unknown",
+      "reason": "network-or-invalid-url",
+      "assessment": {
+        "category": "network_inconclusive",
+        "retryable": true,
+        "action": "Retest from an appropriately configured runner. A network failure does not establish that the station is offline."
+      },
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "radio-browser-radio-globo-88-5-mhz-53a6edc1",
+      "name": "RADIO GLOBO 88.5 MHZ",
+      "url": "https://api.condoristream.com/stream/radioglobo",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://api.condoristream.com/stream/radioglobo",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-tropical-spice-radio-4cc8aaeb",
+      "name": "TROPICAL SPICE RADIO",
+      "url": "https://auds1.intacs.com/tropicalspiceradio",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://auds1.intacs.com/tropicalspiceradio",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-fm-89-1-ntn-radio-5efcadc5",
+      "name": "FM 89.1 NTN Radio",
+      "url": "https://auds1.intacs.com/ntnradio",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://auds1.intacs.com/ntnradio",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-bravo-kids-e6a69e26",
+      "name": "bravo! kids",
+      "url": "https://audio.social3.hr/listen/bravo_kids/stream?3367",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://audio.social3.hr/listen/bravo_kids/stream?3367",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-best-pro-electronic-d074385f",
+      "name": "Best Pro Electronic",
+      "url": "https://az1.sednastream.com/radio/8150/Live?1582297952",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://az1.sednastream.com/radio/8150/Live?1582297952",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-thomas-lawrence-e991f374",
+      "name": "Thomas Lawrence",
+      "url": "https://azuracast-nuremberg.myautodj.com/listen/station_660_1777579648/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://azuracast-nuremberg.myautodj.com/listen/station_660_1777579648/radio.mp3",
+      "bytesSampled": 3463
+    },
+    {
+      "stationId": "radio-browser-radio-tunisia-med-a9dbed9f",
+      "name": "Radio Tunisia Med",
+      "url": "https://azuracast.conceptradio.fr:8000/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://azuracast.conceptradio.fr:8000/radio.mp3",
+      "bytesSampled": 1254
+    },
+    {
+      "stationId": "radio-browser-fabulosa-96-7-42aaf446",
+      "name": "Fabulosa 96.7",
+      "url": "https://bostonstreaminge.net/8006/stream",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://bostonstreaminge.net/8006/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-agoo-96-9-fm-3d877738",
+      "name": "Agoo 96.9 FM",
+      "url": "https://agoofm-atunwadigital.streamguys1.com/agoofm",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://agoofm-atunwadigital.streamguys1.com/agoofm",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-fieramix-c29e907a",
+      "name": "FieraMix",
+      "url": "https://c11.radioboss.fm:18269/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://c11.radioboss.fm:18269/stream",
+      "bytesSampled": 1254
+    },
+    {
+      "stationId": "radio-browser-joe-529b71b3",
+      "name": "JOE",
+      "url": "https://audio-streaming.joe.be/joe.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://audio-streaming.joe.be/joe.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-masfm-105-1-41b48ea3",
+      "name": "MasFM 105.1",
+      "url": "https://c13.radioboss.fm:8647/live?type=.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://c13.radioboss.fm:8647/live?type=.mp3",
+      "bytesSampled": 1253
+    },
+    {
+      "stationId": "radio-browser-rx-radio-b488abb8",
+      "name": "RX Radio",
+      "url": "https://c14.radioboss.fm:18223/stream?1615807421100=",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://c14.radioboss.fm:18223/stream?1615807421100=",
+      "bytesSampled": 1254
+    },
+    {
+      "stationId": "radio-browser-canal90-fm-3246de9b",
+      "name": "Canal90 FM",
+      "url": "https://c25.radioboss.fm:8187/live",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://c25.radioboss.fm:8187/live",
+      "bytesSampled": 1152
+    },
+    {
+      "stationId": "radio-browser-ejazz-xtra-ef16e5e0",
+      "name": "EJAZZ Xtra",
+      "url": "https://c32.radioboss.fm:18320/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://c32.radioboss.fm:18320/stream",
+      "bytesSampled": 1254
+    },
+    {
+      "stationId": "radio-browser-tamizen-9cae78d5",
+      "name": "Tamizen",
+      "url": "https://c34.radioboss.fm:18023/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://c34.radioboss.fm:18023/stream",
+      "bytesSampled": 1152
+    },
+    {
+      "stationId": "radio-browser-powermix-fm-7b4fcdc7",
+      "name": "Powermix FM",
+      "url": "https://cast.iplayradio.net/listen/powermixfm/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast.iplayradio.net/listen/powermixfm/stream",
+      "bytesSampled": 3416
+    },
+    {
+      "stationId": "radio-browser-radio-tvornica-960125a3",
+      "name": "Radio Tvornica",
+      "url": "https://c8.hostingcentar.com/streams/radiotvornica/?type=http&nocache=50001",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://c8.hostingcentar.com/streams/radiotvornica/?type=http&nocache=50001",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-solid-fm-93-1-b04fd5c7",
+      "name": "Solid FM 93.1",
+      "url": "https://caribspy.com/proxy/solidfm/stream/;?type=http&amp;nocache=107036",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://caribspy.com/proxy/solidfm/stream/;?type=http&amp;nocache=107036",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-radio-keskisuomalainen-bfe4ba5c",
+      "name": "Radio Keskisuomalainen",
+      "url": "https://cast.radiokeskisuomalainen.fi/radiokeskisuomalainen",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast.radiokeskisuomalainen.fi/radiokeskisuomalainen",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-radiocity-ug-6e6a2c2c",
+      "name": "RADIOCITY.UG",
+      "url": "https://cast1.asurahosting.com/proxy/richar16/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast1.asurahosting.com/proxy/richar16/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-diamond-101-1-fm-452583ed",
+      "name": "Diamond 101.1 FM",
+      "url": "https://cast1.asurahosting.com/proxy/brightb1/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast1.asurahosting.com/proxy/brightb1/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-mambokadzi-dreamradio-85d63c4c",
+      "name": "Mambokadzi DreamRadio",
+      "url": "https://cast3.asurahosting.com/proxy/dreamradio/stream.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast3.asurahosting.com/proxy/dreamradio/stream.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-afriradio-b0e6dd00",
+      "name": "AfriRádio",
+      "url": "https://cast4.asurahosting.com/proxy/afriradi/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast4.asurahosting.com/proxy/afriradi/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-life-radio-cote-d-ivoire-739f485a",
+      "name": "Life radio Côte d’Ivoire",
+      "url": "https://cast4.asurahosting.com/proxy/life/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast4.asurahosting.com/proxy/life/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-102-5-fm-voice-of-guyana-782cffa5",
+      "name": "102.5 FM Voice of Guyana",
+      "url": "https://cast4.asurahosting.com/proxy/ncn1025/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast4.asurahosting.com/proxy/ncn1025/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "ng-kapital-fm-abuja",
+      "name": "Kapital 92.9 FM Abuja",
+      "url": "https://cast4.asurahosting.com/proxy/radioni1/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast4.asurahosting.com/proxy/radioni1/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-marrakechplus-6df8b651",
+      "name": "Marrakechplus",
+      "url": "https://cast5.my-control-panel.com/proxy/marrakec/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast5.my-control-panel.com/proxy/marrakec/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-dominica-catholic-radio-59bd1446",
+      "name": "Dominica Catholic Radio",
+      "url": "https://cdn.comeseetv.com:8010/dominicacatholicradio?1740579480509",
+      "status": "unknown",
+      "reason": "http-401",
+      "assessment": {
+        "category": "access_restricted",
+        "retryable": true,
+        "action": "Check broadcaster restrictions, location, credentials or throttling; do not bypass access controls."
+      },
+      "resolvedUrl": "https://cdn.comeseetv.com:8010/dominicacatholicradio?1740579480509",
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "radio-browser-voice-of-life-radio-89aa7d92",
+      "name": "Voice Of Life Radio",
+      "url": "https://cdn.comeseetv.com:8000/vol",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cdn.comeseetv.com:8000/vol",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "ariyo-ai-amuludun-991-ibadan",
+      "name": "Amuludun FM 99.1 Moniya Ibadan",
+      "url": "https://centova57.instainternet.com/proxy/amuludun?mp=/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://centova57.instainternet.com/proxy/amuludun?mp=/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "ariyo-ai-gold-955-ilesa",
+      "name": "Gold FM 95.5 Ilesa",
+      "url": "https://centova57.instainternet.com/proxy/gold?mp=/stream",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://centova57.instainternet.com/proxy/gold?mp=/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "ariyo-ai-premier-935-fm-ibadan",
+      "name": "Premier FM 93.5 Ibadan",
+      "url": "https://centova57.instainternet.com/proxy/premier?mp=/stream",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://centova57.instainternet.com/proxy/premier?mp=/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-radio-sehara-8e1890ff",
+      "name": "Radio Sehara",
+      "url": "https://cast.name.ba:8000/;",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cast.name.ba:8000/;",
+      "bytesSampled": 2366
+    },
+    {
+      "stationId": "cg-radio-mucodec",
+      "name": "Radio MUCODEC",
+      "url": "https://cdnradio.streamakaci.com/radiomucodec.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cdnradio.streamakaci.com/radiomucodec.mp3",
+      "bytesSampled": 3762
+    },
+    {
+      "stationId": "radio-browser-radio-gigante-bolivia-81d58170",
+      "name": "Radio Gigante Bolivia",
+      "url": "https://cloudstream2032.conectarhosting.com:7311/;",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cloudstream2032.conectarhosting.com:7311/;",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "ariyo-ai-city-fm-105-1-lagos",
+      "name": "City FM 105.1 Lagos",
+      "url": "https://city1051.radio12345.com/stream",
+      "status": "degraded",
+      "reason": "http-404",
+      "assessment": {
+        "category": "endpoint_unavailable",
+        "retryable": true,
+        "action": "Find the broadcaster’s current official stream and verify it without changing station identity."
+      },
+      "resolvedUrl": "https://city1051.radio12345.com/stream",
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "radio-browser-harvest-family-radio-guam-434df0ef",
+      "name": "Harvest Family Radio Guam",
+      "url": "https://das-edge13-live365-dal02.cdnstream.com/a11295",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://das-edge13-live365-dal02.cdnstream.com/a11295",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-central-radio-98-5-210971ef",
+      "name": "CENTRAL RADIO 98.5",
+      "url": "https://centralstream.zbc.co.zw:8000/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://centralstream.zbc.co.zw:8000/radio.mp3",
+      "bytesSampled": 797
+    },
+    {
+      "stationId": "radio-browser-radio-popullore-57191e9d",
+      "name": "Radio Popullore",
+      "url": "https://cp1.sednastream.com/proxy/shqipfolk/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cp1.sednastream.com/proxy/shqipfolk/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-radio-shqip-tirana-92-0-mhz-c2a284d3",
+      "name": "Radio Shqip Tirana 92.0 MHz",
+      "url": "https://cp1.sednastream.com/proxy/radioshqip?mp=/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cp1.sednastream.com/proxy/radioshqip?mp=/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-citi-fm-da2b0cdc",
+      "name": "citi fm",
+      "url": "https://citi973fm.radioca.st/index.html:80/;stream.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://citi973fm.radioca.st/index.html:80/;stream.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-nrg-uganda-106-5-16a7954b",
+      "name": "NRG Uganda 106.5",
+      "url": "https://dc4.serverse.com/proxy/nrgugstream/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://dc4.serverse.com/proxy/nrgugstream/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-moon-phase-radio-ambient-7b9af690",
+      "name": "Moon Phase Radio: Ambient",
+      "url": "https://cp12.serverse.com/proxy/moonphase/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://cp12.serverse.com/proxy/moonphase/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-107-9-pearl-fm-bf8d199f",
+      "name": "107.9 Pearl Fm",
+      "url": "https://dc4.serverse.com/proxy/pearlfm/stream/1/",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://dc4.serverse.com/proxy/pearlfm/stream/1/",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-link-fm-rsa-ec-003efaa4",
+      "name": "Link FM (RSA EC)",
+      "url": "https://de2.streamingpulse.com/ssl/LinkFM",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://de2.streamingpulse.com/ssl/LinkFM",
+      "bytesSampled": 628
+    },
+    {
+      "stationId": "radio-browser-radio-maria-democratic-rep-congo-5daaeb19",
+      "name": "Radio Maria Democratic Rep. Congo",
+      "url": "https://dreamsiteradiocp2.com/proxy/rmrepdemcongo?mp=/stream",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://dreamsiteradiocp2.com/proxy/rmrepdemcongo?mp=/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-i-am-catholic-zambia-online-radio-e281df6f",
+      "name": "I Am Catholic Zambia online Radio",
+      "url": "https://ec4.yesstreaming.net:2015/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ec4.yesstreaming.net:2015/stream",
+      "bytesSampled": 1254
+    },
+    {
+      "stationId": "radio-browser-capitalk-100-4fm-harare-3deb2ce9",
+      "name": "Capitalk 100.4FM Harare",
+      "url": "https://edge.iono.fm/xice/162_medium.aac",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://edge.iono.fm/xice/162_medium.aac",
+      "bytesSampled": 3651
+    },
+    {
+      "stationId": "radio-browser-star-fm-89-7-977de2cd",
+      "name": "Star FM 89.7",
+      "url": "https://edge.iono.fm/xice/159_medium.aac",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://edge.iono.fm/xice/159_medium.aac",
+      "bytesSampled": 3651
+    },
+    {
+      "stationId": "radio-browser-eagle-7-sports-radio-103-7-fm-cc6525f6",
+      "name": "EAGLE 7 SPORTS RADIO 103.7 FM",
+      "url": "https://eagle7fm-atunwadigital.streamguys1.com/eagle7fm",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://eagle7fm-atunwadigital.streamguys1.com/eagle7fm",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-lm-radio-mozambique-d25614ef",
+      "name": "LM Radio Mozambique",
+      "url": "https://edge.iono.fm/xice/392_medium.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://edge.iono.fm/xice/392_medium.mp3",
+      "bytesSampled": 3650
+    },
+    {
+      "stationId": "radio-browser-kosmos-94-1-274dff6e",
+      "name": "Kosmos 94.1",
+      "url": "https://edge.iono.fm/xice/88_high.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://edge.iono.fm/xice/88_high.mp3",
+      "bytesSampled": 3651
+    },
+    {
+      "stationId": "radio-browser-urban-radio-enugu-0c72b256",
+      "name": "URBAN RADIO ENUGU",
+      "url": "https://edge.mixlr.com/channel/cfldr",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://edge.mixlr.com/channel/cfldr",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-rock-fm-208c966b",
+      "name": "Rock FM",
+      "url": "https://edge02.cdn.bitflip.ee:8888/rck?_i=5f5ab186",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://edge02.cdn.bitflip.ee:8888/rck?_i=5f5ab186",
+      "bytesSampled": 960
+    },
+    {
+      "stationId": "radio-browser-retro-fm-estonia-3586ad23",
+      "name": "Retro FM Estonia",
+      "url": "https://edge02.cdn.bitflip.ee:8888/RETRO?_i=258f436b",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://edge02.cdn.bitflip.ee:8888/RETRO?_i=258f436b",
+      "bytesSampled": 960
+    },
+    {
+      "stationId": "radio-browser-zfm-38dba53f",
+      "name": "ZFM",
+      "url": "https://ec2s.crolive.com.hr:7015/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ec2s.crolive.com.hr:7015/stream",
+      "bytesSampled": 1254
+    },
+    {
+      "stationId": "radio-browser-radio-direct-107-1fm-6ab69153",
+      "name": "Radio Direct 107.1FM",
+      "url": "https://edge1.direct107.com/;?type=http&nocache=28",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://edge1.direct107.com/;?type=http&nocache=28",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-folkyton-radio-761a166b",
+      "name": "FolkyTon Radio",
+      "url": "https://ec2s.crolive.com.hr:6035/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ec2s.crolive.com.hr:6035/stream",
+      "bytesSampled": 1254
+    },
+    {
+      "stationId": "radio-browser-sky-plus-dnb-05d3034c",
+      "name": "Sky Plus DnB",
+      "url": "https://edge03.cdn.bitflip.ee:8888/NRJdnb",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://edge03.cdn.bitflip.ee:8888/NRJdnb",
+      "bytesSampled": 836
+    },
+    {
+      "stationId": "radio-browser-esdes-radio-b5fe26d1",
+      "name": "ESDES Radio",
+      "url": "https://esdesradio.netpro.tv/listen/esdes_radio/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://esdesradio.netpro.tv/listen/esdes_radio/radio.mp3",
+      "bytesSampled": 341
+    },
+    {
+      "stationId": "radio-browser-radio-folklorica-uyuni-0ade8f6a",
+      "name": "Radio Folklorica Uyuni",
+      "url": "https://emiteradio.com/proxy/uyuni?mp=/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://emiteradio.com/proxy/uyuni?mp=/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-radio-cumbia-90s-8042b312",
+      "name": "Radio Cumbia 90s",
+      "url": "https://emiteradio.com/proxy/cumbia90s?mp=/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://emiteradio.com/proxy/cumbia90s?mp=/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-radio-marshall-3b82cb4a",
+      "name": "Radio Marshall",
+      "url": "https://eu.stream4cast.com/proxy/marshallfm/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://eu.stream4cast.com/proxy/marshallfm/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-mfm-music-radio-93c5dc77",
+      "name": "MFM Music Radio",
+      "url": "https://eu.stream4cast.com/proxy/mfmradio/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://eu.stream4cast.com/proxy/mfmradio/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-red-uyuni-radio-recuerdos-1ce84a75",
+      "name": "Red Uyuni: Radio Recuerdos",
+      "url": "https://emiteradio.com/proxy/uyuni2?mp=/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://emiteradio.com/proxy/uyuni2?mp=/stream",
+      "bytesSampled": 2800
+    },
+    {
+      "stationId": "radio-browser-xfm-radio-e7153550",
+      "name": "XFM Radio",
+      "url": "https://eu.stream4cast.com/proxy/xfmradio/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://eu.stream4cast.com/proxy/xfmradio/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-alpha-fm-33ce75de",
+      "name": "Alpha FM",
+      "url": "https://f100.fabricahost.com.br/alphafm1021?f=1792092506N01M50GK1XRJRQ298DHG2MHRHD7&tid=01M50GK1XRQM1N7PYS6YFC8VZ1",
+      "status": "unknown",
+      "reason": "http-401",
+      "assessment": {
+        "category": "access_restricted",
+        "retryable": true,
+        "action": "Check broadcaster restrictions, location, credentials or throttling; do not bypass access controls."
+      },
+      "resolvedUrl": "https://f100.fabricahost.com.br/alphafm1021?f=1792092506N01M50GK1XRJRQ298DHG2MHRHD7&tid=01M50GK1XRQM1N7PYS6YFC8VZ1",
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "radio-browser-radio-aksa-9c1346b1",
+      "name": "Radio Aksa",
+      "url": "https://fire.doscast.com:8064/stream",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://fire.doscast.com:8064/stream",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-usaku-fm-90-5-5ed4335b",
+      "name": "Usaku FM 90.5",
+      "url": "https://eu8.fastcast4u.com/proxy/usakufm?mp=/1",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://eu8.fastcast4u.com/proxy/usakufm?mp=/1",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-metro-fm-lagos-dc3c6b97",
+      "name": "METRO FM LAGOS",
+      "url": "https://go.webgateready.com/metrofm/radio.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://go.webgateready.com/metrofm/radio.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-1radio-international-088c9ccb",
+      "name": "1Radio International",
+      "url": "https://fm.imediaport.com/1radio",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://fm.imediaport.com/1radio",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-esan-binoculars-bbc214d6",
+      "name": "Esan binoculars",
+      "url": "https://fm.imediaport.com/ebradio",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://fm.imediaport.com/ebradio",
+      "bytesSampled": 1400
+    },
+    {
+      "stationId": "radio-browser-1radio-oguta-community-22f4b96f",
+      "name": "1Radio Oguta Community",
+      "url": "https://fm.imediaport.com/1radio.oguta",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://fm.imediaport.com/1radio.oguta",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-radio-express-fm-6787cf45",
+      "name": "Radio Express FM",
+      "url": "https://expressfm.ice.infomaniak.ch/expressfm-64.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://expressfm.ice.infomaniak.ch/expressfm-64.mp3",
+      "bytesSampled": 1400
+    },
+    {
+      "stationId": "radio-browser-pidgin-radio-ac768f53",
+      "name": "Pidgin Radio",
+      "url": "https://free.rcast.net/66702",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://free.rcast.net/66702",
+      "bytesSampled": 307
+    },
+    {
+      "stationId": "radio-browser-guadeloupe-1ere-ba41c7a6",
+      "name": "Guadeloupe 1ère",
+      "url": "https://guadeloupe.ice.infomaniak.ch/guadeloupe-128.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://guadeloupe.ice.infomaniak.ch/guadeloupe-128.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-retro-radio-98b22cd2",
+      "name": "Retro Rádió",
+      "url": "https://icast.connectmedia.hu/5001/live.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://icast.connectmedia.hu/5001/live.mp3",
+      "bytesSampled": 3599
+    },
+    {
+      "stationId": "radio-browser-radio-1-f503d591",
+      "name": "Rádió 1",
+      "url": "https://icast.connectmedia.hu/5201/live.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://icast.connectmedia.hu/5201/live.mp3",
+      "bytesSampled": 3604
+    },
+    {
+      "stationId": "radio-browser-evropa-2-actve-7cf86499",
+      "name": "Evropa 2 Actve",
+      "url": "https://ice.actve.net/fm-evropa2-128",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ice.actve.net/fm-evropa2-128",
+      "bytesSampled": 1400
+    },
+    {
+      "stationId": "radio-browser-guyane-1ere-2bd4cf82",
+      "name": "Guyane 1ère",
+      "url": "https://guyane.ice.infomaniak.ch/guyane-128.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://guyane.ice.infomaniak.ch/guyane-128.mp3",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-rock-fm-103-9-0924da3a",
+      "name": "ROCK FM: 103.9",
+      "url": "https://icast.connectmedia.hu/5301/live.mp3/",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://icast.connectmedia.hu/5301/live.mp3/",
+      "bytesSampled": 3595
+    },
+    {
+      "stationId": "radio-browser-hitradio-zlin-7f727b20",
+      "name": "Hitradio Zlín",
+      "url": "https://ice.radia.cz/radiozlin128.mp3",
+      "status": "healthy",
+      "reason": "audio-mpeg",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ice.radia.cz/radiozlin128.mp3",
+      "bytesSampled": 1400
+    },
+    {
+      "stationId": "radio-browser-104-3-boss-fm-02ae07e9",
+      "name": "104.3 Boss FM",
+      "url": "https://ice10.securenetsystems.net/KIJI",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ice10.securenetsystems.net/KIJI",
+      "bytesSampled": 1626
+    },
+    {
+      "stationId": "radio-browser-kusg-6a759ad8",
+      "name": "KUSG",
+      "url": "https://ice10.securenetsystems.net/KUSG",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ice10.securenetsystems.net/KUSG",
+      "bytesSampled": 1719
+    },
+    {
+      "stationId": "ariyo-ai-brila-fm-88-9-lagos",
+      "name": "Brila FM 88.9 Lagos",
+      "url": "https://ice3.securenetsystems.net/BRILAFM",
+      "status": "degraded",
+      "reason": "http-404",
+      "assessment": {
+        "category": "endpoint_unavailable",
+        "retryable": true,
+        "action": "Find the broadcaster’s current official stream and verify it without changing station identity."
+      },
+      "resolvedUrl": "https://ice3.securenetsystems.net/BRILAFM",
+      "bytesSampled": 0
+    },
+    {
+      "stationId": "radio-browser-hott-95-3fm-a71b4957",
+      "name": "HOTT 95.3FM",
+      "url": "https://ice64.securenetsystems.net/HOTT953",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ice64.securenetsystems.net/HOTT953",
+      "bytesSampled": 1417
+    },
+    {
+      "stationId": "radio-browser-zbs-zodiak-fm-01f3b100",
+      "name": "ZBS Zodiak FM",
+      "url": "https://ice31.securenetsystems.net/0079",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ice31.securenetsystems.net/0079",
+      "bytesSampled": 1649
+    },
+    {
+      "stationId": "radio-browser-life-97-5-fm-3727f977",
+      "name": "LIFE 97.5 FM",
+      "url": "https://ice64.securenetsystems.net/LIFE975",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ice64.securenetsystems.net/LIFE975",
+      "bytesSampled": 820
+    },
+    {
+      "stationId": "radio-browser-ylex-8f7ecd3e",
+      "name": "YleX",
+      "url": "https://icecast.live.yle.fi/radio/YleX/icecast.audio",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://icecast.live.yle.fi/radio/YleX/icecast.audio",
+      "bytesSampled": 4096
+    },
+    {
+      "stationId": "radio-browser-vob-92-9-fm-9bb54bbb",
+      "name": "VOB 92.9 FM",
+      "url": "https://ice66.securenetsystems.net/VOB929",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ice66.securenetsystems.net/VOB929",
+      "bytesSampled": 1315
+    },
+    {
+      "stationId": "radio-browser-the-beat-104-1-fm-ebd20fbd",
+      "name": "The BEAT 104.1 FM",
+      "url": "https://ice66.securenetsystems.net/THEBEAT1041",
+      "status": "healthy",
+      "reason": "audio-aac",
+      "assessment": {
+        "category": "verified_audio",
+        "retryable": false,
+        "action": "Prioritize this endpoint; verify browser playback before publishing new stations."
+      },
+      "resolvedUrl": "https://ice66.securenetsystems.net/THEBEAT1041",
+      "bytesSampled": 1099
+    }
+  ]
 }
