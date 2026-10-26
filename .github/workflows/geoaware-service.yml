@@ -1,0 +1,43 @@
+name: GeoAware HTTP service
+on:
+  pull_request:
+    paths:
+      - 'app/api/geoaware/**'
+      - 'lib/geoaware-service.ts'
+      - 'lib/geoaware-core.ts'
+      - 'lib/geotruth-resolver.ts'
+      - 'tests/geoaware-service.regression.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/geoaware-service.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app/api/geoaware/**'
+      - 'lib/geoaware-service.ts'
+      - 'lib/geoaware-core.ts'
+      - 'lib/geotruth-resolver.ts'
+      - 'tests/geoaware-service.regression.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/geoaware-service.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:geoaware-service
+      - run: npm run test:oic
+      - run: npm run test:atlas-geotruth
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
