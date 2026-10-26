@@ -102,3 +102,12 @@ curl "http://localhost:3000/api/agents/station-steward?dry_run=true&validate_lim
 - Retired stations are hidden or deprioritized with flags, not deleted.
 - Every validation and run is logged for admin inspection.
 - External teleports are bounded and rate-limited by small teleport plans and validation limits.
+
+## GeoAware HTTP service boundary
+
+`POST /api/geoaware/execute` exposes the existing GeoAware place resolver through
+an authenticated read-only JSON boundary. Configure `GEOAWARE_SERVICE_TOKEN` in
+secure deployment settings and run `npm run test:geoaware-service` for its tests.
+It preserves reference provenance and ambiguity; external claim verification is
+explicitly unsupported, so OIC remains degraded for those requests. See
+[the service contract and limitations](docs/geoaware-http-service.md).
