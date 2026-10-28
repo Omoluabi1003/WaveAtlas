@@ -1,196 +1,205 @@
 html[data-waveatlas-visual="v2"] {
-  --atlas-ink: #02060d;
-  --atlas-deep: #06111b;
-  --atlas-panel: rgba(7, 17, 29, 0.72);
-  --atlas-panel-strong: rgba(5, 13, 23, 0.88);
-  --atlas-line: rgba(255, 255, 255, 0.10);
-  --atlas-line-strong: rgba(86, 245, 187, 0.24);
-  --atlas-radio: #56f5bb;
-  --atlas-cyan: #62d9ff;
-  --atlas-gold: #e8bd6a;
-  --atlas-text: #f8f7f2;
-  --atlas-muted: rgba(236, 241, 245, 0.66);
-  background: var(--atlas-ink);
+  --atlas-ink:#02060d;
+  --atlas-deep:#06111b;
+  --atlas-panel:rgba(7,17,29,.78);
+  --atlas-panel-strong:rgba(4,12,22,.94);
+  --atlas-line:rgba(255,255,255,.12);
+  --atlas-line-strong:rgba(86,245,187,.30);
+  --atlas-radio:#56f5bb;
+  --atlas-cyan:#62d9ff;
+  --atlas-gold:#e8bd6a;
+  --atlas-text:#f8f7f2;
+  --atlas-muted:rgba(236,241,245,.66);
+  background:var(--atlas-ink);
 }
 
 html[data-waveatlas-visual="v2"] body {
   background:
-    radial-gradient(circle at 48% -12%, rgba(98, 217, 255, 0.12), transparent 36%),
-    radial-gradient(circle at 8% 80%, rgba(86, 245, 187, 0.10), transparent 32%),
-    linear-gradient(145deg, #01040a 0%, #06111b 46%, #041016 100%);
-  color: var(--atlas-text);
+    radial-gradient(circle at 50% -8%,rgba(98,217,255,.18),transparent 32%),
+    radial-gradient(circle at 6% 78%,rgba(86,245,187,.13),transparent 30%),
+    linear-gradient(145deg,#01040a 0%,#06111b 46%,#041016 100%);
+  color:var(--atlas-text);
+  isolation:isolate;
 }
 
 .atlas-visual-system {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  overflow: hidden;
-  pointer-events: none;
-  background: radial-gradient(circle at 50% 46%, rgba(12, 31, 44, 0.26), transparent 54%);
+  position:fixed;
+  inset:0;
+  z-index:0;
+  overflow:hidden;
+  pointer-events:none;
+  background:radial-gradient(circle at 50% 46%,rgba(12,31,44,.34),transparent 56%);
 }
+.atlas-visual-system__canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.88;mix-blend-mode:screen}
+.atlas-visual-system__mesh{position:absolute;inset:-12%;opacity:.25;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);background-size:54px 54px;mask-image:radial-gradient(circle at 50% 44%,black 12%,transparent 72%);transform:perspective(900px) rotateX(58deg) translateY(22%);transform-origin:center}
+.atlas-visual-system__aurora{position:absolute;width:52vw;height:52vw;min-width:420px;min-height:420px;border-radius:999px;filter:blur(72px);opacity:.21;mix-blend-mode:screen;animation:atlas-aurora-drift 18s ease-in-out infinite alternate}
+.atlas-visual-system__aurora--one{left:-18vw;top:10vh;background:radial-gradient(circle,rgba(86,245,187,.92),rgba(0,118,89,.18) 46%,transparent 72%)}
+.atlas-visual-system__aurora--two{right:-20vw;top:-8vh;background:radial-gradient(circle,rgba(98,217,255,.82),rgba(232,189,106,.20) 42%,transparent 72%);animation-delay:-7s}
+.atlas-visual-system__scan{position:absolute;inset:0;opacity:.13;background:linear-gradient(180deg,transparent 0%,rgba(98,217,255,.34) 48%,transparent 52%);transform:translateY(-100%);animation:atlas-scan 12s linear infinite}
+.atlas-visual-system__grain{position:absolute;inset:0;opacity:.065;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");mix-blend-mode:soft-light}
 
-.atlas-visual-system__mesh {
-  position: absolute;
-  inset: -12%;
-  opacity: 0.22;
-  background-image:
-    linear-gradient(rgba(255,255,255,.032) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: radial-gradient(circle at 50% 44%, black 12%, transparent 70%);
-  transform: perspective(900px) rotateX(58deg) translateY(22%);
-  transform-origin: center;
-}
-
-.atlas-visual-system__aurora {
-  position: absolute;
-  width: 52vw;
-  height: 52vw;
-  min-width: 420px;
-  min-height: 420px;
-  border-radius: 999px;
-  filter: blur(72px);
-  opacity: 0.18;
-  mix-blend-mode: screen;
-  animation: atlas-aurora-drift 18s ease-in-out infinite alternate;
-}
-
-.atlas-visual-system__aurora--one {
-  left: -18vw;
-  top: 10vh;
-  background: radial-gradient(circle, rgba(86,245,187,.86), rgba(0,118,89,.18) 46%, transparent 72%);
-}
-
-.atlas-visual-system__aurora--two {
-  right: -20vw;
-  top: -8vh;
-  background: radial-gradient(circle, rgba(98,217,255,.72), rgba(232,189,106,.18) 42%, transparent 72%);
-  animation-delay: -7s;
-}
-
-.atlas-visual-system__scan {
-  position: absolute;
-  inset: 0;
-  opacity: 0.1;
-  background: linear-gradient(180deg, transparent 0%, rgba(98,217,255,.28) 48%, transparent 52%);
-  transform: translateY(-100%);
-  animation: atlas-scan 12s linear infinite;
-}
-
-.atlas-visual-system__grain {
-  position: absolute;
-  inset: 0;
-  opacity: 0.07;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
-  mix-blend-mode: soft-light;
-}
-
-html[data-waveatlas-playback="playing"] .atlas-visual-system__aurora { opacity: 0.26; animation-duration: 10s; }
-html[data-waveatlas-playback="buffering"] .atlas-visual-system__scan { opacity: 0.20; animation-duration: 3.5s; }
+body>#__next,body>[data-nextjs-root],#root,#__next,main{position:relative;z-index:1}
+html[data-waveatlas-playback="playing"] .atlas-visual-system__aurora{opacity:.31;animation-duration:10s}
+html[data-waveatlas-playback="buffering"] .atlas-visual-system__scan{opacity:.24;animation-duration:3.5s}
 
 html[data-waveatlas-visual="v2"] .glass,
 html[data-waveatlas-visual="v2"] [class*="backdrop-blur"],
-html[data-waveatlas-visual="v2"] [class*="bg-slate-950/"] {
-  border-color: var(--atlas-line) !important;
-  background-image: linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.015)) !important;
-  background-color: var(--atlas-panel) !important;
-  box-shadow: 0 22px 70px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.05);
-  backdrop-filter: blur(24px) saturate(1.22);
+html[data-waveatlas-visual="v2"] [class*="bg-slate-950/"]{
+  border-color:var(--atlas-line)!important;
+  background-image:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.018))!important;
+  background-color:var(--atlas-panel)!important;
+  box-shadow:0 24px 72px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.055);
+  backdrop-filter:blur(24px) saturate(1.24)
 }
 
-html[data-waveatlas-visual="v2"] button,
-html[data-waveatlas-visual="v2"] a {
-  -webkit-tap-highlight-color: transparent;
+html[data-waveatlas-visual="v2"] button,html[data-waveatlas-visual="v2"] a{-webkit-tap-highlight-color:transparent}
+html[data-waveatlas-visual="v2"] button:not(.maplibregl-ctrl button){transition:transform .18s ease,border-color .18s ease,background-color .18s ease,box-shadow .18s ease,color .18s ease}
+@media(hover:hover){html[data-waveatlas-visual="v2"] button:not(:disabled):hover{transform:translateY(-1px)}}
+html[data-waveatlas-visual="v2"] button:focus-visible,html[data-waveatlas-visual="v2"] a:focus-visible{outline:2px solid rgba(98,217,255,.86)!important;outline-offset:3px}
+html[data-waveatlas-visual="v2"] .font-display{letter-spacing:-.045em}
+
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-header{
+  background:linear-gradient(180deg,rgba(1,5,12,.96) 0%,rgba(2,10,18,.82) 52%,transparent 100%)!important;
+  padding-bottom:2.7rem!important;
+}
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-header:after{
+  content:"WORLD SIGNAL INTERFACE";
+  position:absolute;
+  left:1.25rem;
+  top:calc(env(safe-area-inset-top) + 4.25rem);
+  font:700 8px/1 var(--font-mono),monospace;
+  letter-spacing:.26em;
+  color:rgba(98,217,255,.62);
+  text-shadow:0 0 16px rgba(98,217,255,.34);
+  pointer-events:none;
+}
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-header b{
+  border-radius:16px!important;
+  padding:.72rem 1rem!important;
+  border:1px solid rgba(98,217,255,.25)!important;
+  background:linear-gradient(135deg,rgba(9,24,38,.94),rgba(5,14,25,.86))!important;
+  box-shadow:inset 3px 0 0 rgba(86,245,187,.88),0 18px 42px rgba(0,0,0,.34),0 0 24px rgba(98,217,255,.08)!important;
+}
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-header button{
+  border-radius:16px!important;
+}
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-header>div+div button:first-child{
+  border-color:rgba(98,217,255,.24)!important;
+  background:linear-gradient(90deg,rgba(7,18,31,.92),rgba(5,19,27,.82))!important;
+  box-shadow:inset 0 -2px 0 rgba(98,217,255,.24),0 15px 36px rgba(0,0,0,.28)!important;
 }
 
-html[data-waveatlas-visual="v2"] button:not(.maplibregl-ctrl button) {
-  transition: transform .18s ease, border-color .18s ease, background-color .18s ease, box-shadow .18s ease, color .18s ease;
+html[data-waveatlas-visual="v2"] .waveatlas-globe-shell{
+  position:relative;
+  filter:saturate(1.08) contrast(1.03);
+}
+html[data-waveatlas-visual="v2"] .waveatlas-globe-shell:before{
+  content:"";
+  position:absolute;
+  inset:9% 5% 8%;
+  z-index:2;
+  pointer-events:none;
+  border-radius:48% 52% 50% 50%;
+  border:1px solid rgba(98,217,255,.16);
+  box-shadow:0 0 0 1px rgba(86,245,187,.06),0 0 46px rgba(98,217,255,.12),inset 0 0 54px rgba(86,245,187,.045);
+  mask-image:linear-gradient(90deg,transparent 0%,#000 18%,#000 82%,transparent 100%);
+}
+html[data-waveatlas-visual="v2"] .waveatlas-globe-shell:after{
+  content:"LIVE WORLD RADIO";
+  position:absolute;
+  right:8%;
+  top:12%;
+  z-index:3;
+  pointer-events:none;
+  padding:.34rem .48rem;
+  border:1px solid rgba(86,245,187,.16);
+  border-radius:8px;
+  background:rgba(2,9,16,.56);
+  font:700 7px/1 var(--font-mono),monospace;
+  letter-spacing:.18em;
+  color:rgba(151,255,224,.62);
+  backdrop-filter:blur(12px);
 }
 
-@media (hover:hover) {
-  html[data-waveatlas-visual="v2"] button:not(:disabled):hover {
-    transform: translateY(-1px);
-  }
+html[data-waveatlas-visual="v2"] [data-waveatlas-player]{
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(98,217,255,.20)!important;
+  border-radius:26px!important;
+  background:radial-gradient(circle at 12% 0%,rgba(86,245,187,.18),transparent 36%),linear-gradient(145deg,rgba(4,16,27,.96),rgba(3,10,18,.90))!important;
+  box-shadow:0 28px 90px rgba(0,0,0,.52),0 0 0 1px rgba(86,245,187,.06) inset,0 0 34px rgba(98,217,255,.08)!important;
+  backdrop-filter:blur(30px) saturate(1.28);
+}
+html[data-waveatlas-visual="v2"] [data-waveatlas-player]:before{
+  content:"LIVE SIGNAL";
+  position:absolute;
+  top:7px;
+  right:12px;
+  z-index:2;
+  font:700 7px/1 var(--font-mono),monospace;
+  letter-spacing:.20em;
+  color:rgba(86,245,187,.68);
+  text-shadow:0 0 12px rgba(86,245,187,.42);
+}
+html[data-waveatlas-visual="v2"] [data-waveatlas-player]:after{
+  content:"";
+  position:absolute;
+  left:12px;
+  right:12px;
+  bottom:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,rgba(86,245,187,.7),rgba(98,217,255,.72),transparent);
+  opacity:.72;
 }
 
-html[data-waveatlas-visual="v2"] button:focus-visible,
-html[data-waveatlas-visual="v2"] a:focus-visible {
-  outline: 2px solid rgba(98,217,255,.86) !important;
-  outline-offset: 3px;
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock{left:1.15rem!important;right:1.15rem!important}
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock>div{
+  position:relative;
+  overflow:hidden;
+  border-radius:22px!important;
+  border:1px solid rgba(98,217,255,.18)!important;
+  background:linear-gradient(145deg,rgba(5,14,24,.98),rgba(3,11,19,.94))!important;
+  box-shadow:0 20px 56px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.05),0 0 30px rgba(86,245,187,.05)!important;
+  padding:5px!important;
+}
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock>div:before{
+  content:"";
+  position:absolute;
+  left:12%;right:12%;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(98,217,255,.76),rgba(86,245,187,.65),transparent);
+  opacity:.8;
+}
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock button{
+  min-height:3.35rem!important;
+  border-radius:16px!important;
+}
+html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock button[aria-label*="Teleport"]{
+  background:linear-gradient(145deg,rgba(31,117,92,.34),rgba(7,31,32,.54))!important;
+  box-shadow:inset 0 0 0 1px rgba(86,245,187,.16),0 0 24px rgba(86,245,187,.08);
 }
 
-html[data-waveatlas-visual="v2"] .font-display {
-  letter-spacing: -0.045em;
+html[data-waveatlas-visual="v2"] .maplibregl-map,html[data-waveatlas-visual="v2"] .maplibregl-canvas{background:#02070d!important}
+html[data-waveatlas-visual="v2"] .map-atmosphere-overlay{background:radial-gradient(circle at 50% 46%,rgba(98,217,255,.13),transparent 30%),radial-gradient(circle at 36% 58%,rgba(86,245,187,.11),transparent 28%),linear-gradient(180deg,rgba(1,5,11,.12),transparent 30%,rgba(1,5,11,.50))!important;mix-blend-mode:screen}
+
+html[data-waveatlas-visual="v2"] .station-pulse-marker{filter:drop-shadow(0 16px 28px rgba(0,0,0,.48)) drop-shadow(0 0 44px rgba(86,245,187,.32)) drop-shadow(0 0 46px rgba(98,217,255,.20))}
+html[data-waveatlas-visual="v2"] .station-pulse-marker .station-beacon-core{background:radial-gradient(circle at 35% 28%,#fff 0 8%,#92ffe0 20%,#33e2b0 42%,#0b8c70 72%,#05483b 100%);box-shadow:0 0 0 .32rem rgba(86,245,187,.18),0 0 22px rgba(255,255,255,.28),0 0 42px rgba(86,245,187,.68),0 0 76px rgba(98,217,255,.22)}
+html[data-waveatlas-visual="v2"] .station-pulse-marker .station-pulse-ring{border-color:rgba(146,255,224,.82);background:radial-gradient(circle,rgba(255,255,255,.10),rgba(86,245,187,.08) 44%,rgba(98,217,255,.04) 66%,transparent 76%);box-shadow:0 0 0 1px rgba(146,255,224,.12),0 0 48px rgba(86,245,187,.26),inset 0 0 22px rgba(255,255,255,.06)}
+
+html[data-waveatlas-visual="v2"] .empty-atlas{background:radial-gradient(circle at 50% 28%,rgba(98,217,255,.13),transparent 26%),radial-gradient(circle at 50% 70%,rgba(86,245,187,.10),transparent 32%),linear-gradient(145deg,#01050b,#06111b 52%,#04120f)!important}
+html[data-waveatlas-visual="v2"] .atlas-drawer-scroll::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(98,217,255,.50),rgba(86,245,187,.38))}
+
+@keyframes atlas-aurora-drift{from{transform:translate3d(-2%,-1%,0) scale(1)}to{transform:translate3d(6%,5%,0) scale(1.12)}}
+@keyframes atlas-scan{from{transform:translateY(-110%)}to{transform:translateY(110%)}}
+
+@media(max-width:767px){
+  .atlas-visual-system__mesh{opacity:.16;background-size:38px 38px}
+  .atlas-visual-system__aurora{filter:blur(58px);opacity:.20}
+  .atlas-visual-system__grain{opacity:.045}
+  .atlas-visual-system__canvas{opacity:.92}
+  html[data-waveatlas-visual="v2"] [data-waveatlas-player]{border-radius:26px!important;transform:translateZ(0)}
 }
 
-html[data-waveatlas-visual="v2"] [data-waveatlas-player] {
-  border: 1px solid rgba(255,255,255,.12) !important;
-  background:
-    radial-gradient(circle at 18% 0%, rgba(86,245,187,.10), transparent 38%),
-    linear-gradient(145deg, rgba(6,16,27,.92), rgba(4,11,19,.82)) !important;
-  box-shadow: 0 24px 80px rgba(0,0,0,.46), 0 0 0 1px rgba(86,245,187,.035) inset !important;
-  backdrop-filter: blur(28px) saturate(1.24);
-}
-
-html[data-waveatlas-visual="v2"] .maplibregl-map,
-html[data-waveatlas-visual="v2"] .maplibregl-canvas {
-  background: #02070d !important;
-}
-
-html[data-waveatlas-visual="v2"] .map-atmosphere-overlay {
-  background:
-    radial-gradient(circle at 50% 46%, rgba(98,217,255,.10), transparent 30%),
-    radial-gradient(circle at 36% 58%, rgba(86,245,187,.09), transparent 28%),
-    linear-gradient(180deg, rgba(1,5,11,.16), transparent 30%, rgba(1,5,11,.48)) !important;
-  mix-blend-mode: screen;
-}
-
-html[data-waveatlas-visual="v2"] .station-pulse-marker {
-  filter: drop-shadow(0 16px 28px rgba(0,0,0,.48)) drop-shadow(0 0 42px rgba(86,245,187,.24)) drop-shadow(0 0 44px rgba(98,217,255,.16));
-}
-
-html[data-waveatlas-visual="v2"] .station-pulse-marker .station-beacon-core {
-  background: radial-gradient(circle at 35% 28%, #fff 0 8%, #92ffe0 20%, #33e2b0 42%, #0b8c70 72%, #05483b 100%);
-  box-shadow: 0 0 0 .32rem rgba(86,245,187,.16), 0 0 22px rgba(255,255,255,.28), 0 0 40px rgba(86,245,187,.62), 0 0 70px rgba(98,217,255,.20);
-}
-
-html[data-waveatlas-visual="v2"] .station-pulse-marker .station-pulse-ring {
-  border-color: rgba(146,255,224,.78);
-  background: radial-gradient(circle, rgba(255,255,255,.10), rgba(86,245,187,.08) 44%, rgba(98,217,255,.04) 66%, transparent 76%);
-  box-shadow: 0 0 0 1px rgba(146,255,224,.12), 0 0 44px rgba(86,245,187,.22), inset 0 0 22px rgba(255,255,255,.06);
-}
-
-html[data-waveatlas-visual="v2"] .empty-atlas {
-  background:
-    radial-gradient(circle at 50% 28%, rgba(98,217,255,.10), transparent 26%),
-    radial-gradient(circle at 50% 70%, rgba(86,245,187,.08), transparent 32%),
-    linear-gradient(145deg,#01050b,#06111b 52%,#04120f) !important;
-}
-
-html[data-waveatlas-visual="v2"] .atlas-drawer-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(98,217,255,.50), rgba(86,245,187,.38));
-}
-
-@keyframes atlas-aurora-drift {
-  from { transform: translate3d(-2%, -1%, 0) scale(1); }
-  to { transform: translate3d(6%, 5%, 0) scale(1.12); }
-}
-
-@keyframes atlas-scan {
-  from { transform: translateY(-110%); }
-  to { transform: translateY(110%); }
-}
-
-@media (max-width: 767px) {
-  .atlas-visual-system__mesh { opacity: .12; background-size: 38px 38px; }
-  .atlas-visual-system__aurora { filter: blur(58px); opacity: .14; }
-  .atlas-visual-system__grain { opacity: .045; }
-  html[data-waveatlas-visual="v2"] [data-waveatlas-player] { border-radius: 24px !important; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .atlas-visual-system__aurora,
-  .atlas-visual-system__scan { animation: none !important; }
-  html[data-waveatlas-visual="v2"] button { transition: none !important; }
+@media(prefers-reduced-motion:reduce){
+  .atlas-visual-system__aurora,.atlas-visual-system__scan{animation:none!important}
+  html[data-waveatlas-visual="v2"] button{transition:none!important}
 }
