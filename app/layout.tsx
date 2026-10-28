@@ -1,6 +1,7 @@
 import { ButtonFeedback } from "@/components/ButtonFeedback";
 import { ReciprocalAtlasBridge } from "@/components/ReciprocalAtlasBridge";
 import { AtlasContextCoordinator } from "@/components/AtlasContextCoordinator";
+import { AtlasContextDock } from "@/components/AtlasContextDock";
 import type { Metadata, Viewport } from "next";
 import {
   BRAND,
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <ReciprocalAtlasBridge />
         <AtlasContextCoordinator />
+        <AtlasContextDock />
         <ButtonFeedback /><ServiceWorkerDiagnostics /><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
     </html>
   );
