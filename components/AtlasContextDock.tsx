@@ -42,12 +42,17 @@ async function fetchContext(station: Station, signal: AbortSignal) {
   return response.ok ? await response.json() as WorldContext : null;
 }
 
+function briefIsOpen() {
+  return Boolean(document.querySelector('[role="dialog"][aria-modal="true"][aria-label="WaveAtlas Daily"]'));
+}
+
 export function AtlasContextDock() {
   const [station, setStation] = useState<Station | null>(null);
   const [context, setContext] = useState<WorldContext | null>(null);
   const [coordinated, setCoordinated] = useState<CoordinatedContext | null>(null);
   const [open, setOpen] = useState(false);
   const [loadingWeather, setLoadingWeather] = useState(false);
+  const [surfaceBlocked, setSurfaceBlocked] = useState(false);
 
   useEffect(() => {
     const onStation = (event: Event) => {
@@ -72,14 +77,29 @@ export function AtlasContextDock() {
     };
   }, []);
 
+  useEffect(() => {
+    const syncSurfaceState = () => {
+      const blocked = briefIsOpen();
+      setSurfaceBlocked(blocked);
+      if (blocked) setOpen(false);
+    };
+    syncSurfaceState();
+    const observer = new MutationObserver(syncSurfaceState);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   const place = coordinated?.placeLabel || context?.radioDNA.placeLabel || stationPlace(station) || station?.name;
   const weather = coordinated?.weatherSummary || climateSummary(context);
   const voicePrompt = coordinated?.voicePrompt || (place ? `Ask Atlas about ${place}.` : 'Ask Atlas about this station.');
   const weatherLabel = useMemo(() => coordinated?.weatherTitle || "Uncle Paul's Weather Forecast", [coordinated?.weatherTitle]);
 
-  if (!station) return null;
+  if (!station || surfaceBlocked) return null;
 
-  const openBrief = () => window.dispatchEvent(new Event('waveatlas:open-mobile-brief'));
+  const openBrief = () => {
+    setOpen(false);
+    window.dispatchEvent(new Event('waveatlas:open-mobile-brief'));
+  };
   const openVoice = () => window.dispatchEvent(new Event('waveatlas:open-atlas-voice'));
   const showWeather = async () => {
     setOpen(true);
@@ -120,25 +140,15 @@ export function AtlasContextDock() {
   return (
     <>
       <div className="sm:hidden">
-        <button
-          type="button"
-          onClick={() => setOpen(value => !value)}
-          aria-expanded={open}
-          aria-label={`Atlas Context for ${place || station.name}`}
-          className="pointer-events-auto fixed bottom-[calc(env(safe-area-inset-bottom)+8.35rem)] right-4 z-[91] flex items-center gap-2 rounded-full border border-white/12 bg-slate-950/82 px-3 py-2 text-white shadow-[0_10px_24px_rgba(0,0,0,.34)] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
-        >
+        <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label={`Atlas Context for ${place || station.name}`} className="pointer-events-auto fixed bottom-[calc(env(safe-area-inset-bottom)+8.35rem)] right-4 z-[91] flex items-center gap-2 rounded-full border border-white/12 bg-slate-950/82 px-3 py-2 text-white shadow-[0_10px_24px_rgba(0,0,0,.34)] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">
           <Sparkles className="size-3.5 text-emerald-200" />
           <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/78">Context</span>
         </button>
-
         {open ? (
           <aside className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+11.5rem)] z-[92]" aria-label="Atlas Context">
             <div className="pointer-events-auto rounded-[1.1rem] border border-white/12 bg-slate-950/88 p-3.5 text-white shadow-[0_18px_44px_rgba(0,0,0,.42)] backdrop-blur-2xl">
               <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="block text-[8px] font-semibold uppercase tracking-[0.2em] text-emerald-200/75">Atlas Context</span>
-                  <span className="mt-0.5 block truncate text-[12px] font-semibold text-white/94">{place || station.name}</span>
-                </div>
+                <div className="min-w-0"><span className="block text-[8px] font-semibold uppercase tracking-[0.2em] text-emerald-200/75">Atlas Context</span><span className="mt-0.5 block truncate text-[12px] font-semibold text-white/94">{place || station.name}</span></div>
                 <button type="button" onClick={() => setOpen(false)} aria-label="Close Atlas Context" className="rounded-full p-1 text-white/42 hover:text-white/75"><X className="size-4" /></button>
               </div>
               {actions}
@@ -152,10 +162,7 @@ export function AtlasContextDock() {
       <aside className="pointer-events-none fixed right-[max(.75rem,env(safe-area-inset-right))] top-[max(4.5rem,calc(env(safe-area-inset-top)+4.5rem))] z-[92] hidden w-[min(92vw,22rem)] sm:block" aria-label="Atlas Context">
         <div className="pointer-events-auto ml-auto overflow-hidden rounded-[1.15rem] border border-white/15 bg-slate-950/78 text-white shadow-[0_14px_38px_rgba(0,0,0,.34)] backdrop-blur-xl">
           <button type="button" onClick={() => setOpen(value => !value)} className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70" aria-expanded={open}>
-            <span className="flex min-w-0 items-center gap-2.5">
-              <Sparkles className="size-4 shrink-0 text-emerald-200" />
-              <span className="min-w-0"><span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-200/80">Atlas Context</span><span className="block truncate text-[12px] font-semibold text-white/95">{place || station.name}</span></span>
-            </span>
+            <span className="flex min-w-0 items-center gap-2.5"><Sparkles className="size-4 shrink-0 text-emerald-200" /><span className="min-w-0"><span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-200/80">Atlas Context</span><span className="block truncate text-[12px] font-semibold text-white/95">{place || station.name}</span></span></span>
             <span className="text-[10px] font-semibold uppercase tracking-[.14em] text-white/55">{open ? 'Hide' : 'Open'}</span>
           </button>
           {open ? <div className="border-t border-white/10 px-3.5 pb-3 pt-3">{actions}{weatherPanel}<p className="mt-2.5 text-[10px] leading-4 text-white/50">{voicePrompt}</p></div> : null}
