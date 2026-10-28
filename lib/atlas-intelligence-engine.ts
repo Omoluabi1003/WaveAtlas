@@ -1,5 +1,6 @@
 import { scheduledHealthBoost } from './agents/station-health-policy';
 import { reciprocalStationAdjustment, type ReciprocalAtlasSignal } from './atlas-reciprocal-intelligence';
+import { readReciprocalAtlasSession } from './atlas-reciprocal-session';
 import type { Station } from './stations';
 
 export type StationReliabilityTier = 'Platinum' | 'Gold' | 'Silver' | 'Bronze' | 'Quarantine';
@@ -103,6 +104,7 @@ function weatherAdjustment(station: Station, weather?: AtlasWeatherSignal) {
 }
 
 export function decideStation(station: Station, context: AtlasDecisionContext): AtlasStationDecision {
+  const reciprocal = context.reciprocal ?? readReciprocalAtlasSession();
   const normalizedContext = {
     kind: context.kind,
     geographicRelevance: clamp(context.geographicRelevance ?? context.distanceRelevance ?? 50),
@@ -114,16 +116,16 @@ export function decideStation(station: Station, context: AtlasDecisionContext): 
     anonymousEngagement: clamp(context.anonymousEngagement ?? Math.min(100, station.votes / 150 + station.click_count / 1000)),
   };
   const trust = calculateStationReliabilityIndex(station, normalizedContext);
-  const reciprocalAdjustment = reciprocalStationAdjustment(station, context.reciprocal);
+  const reciprocalAdjustment = reciprocalStationAdjustment(station, reciprocal);
   const score = clamp(normalizedContext.geographicRelevance * 0.25 + trust.score * 0.36 + normalizedContext.validationFreshness * 0.1 + normalizedContext.metadataConfidence * 0.09 + normalizedContext.editorialConfidence * 0.08 + normalizedContext.anonymousEngagement * 0.07 + normalizedContext.geoConfidence * 0.05 + weatherAdjustment(station, context.weather) + reciprocalAdjustment);
-  const reciprocalReasons = context.reciprocal ? [`reciprocal:${context.reciprocal.mode}`, ...context.reciprocal.reasons.map((reason) => `reciprocal:${reason}`)] : [];
+  const reciprocalReasons = [`reciprocal:${reciprocal.mode}`, ...reciprocal.reasons.map((reason) => `reciprocal:${reason}`)];
   return {
     station,
     score,
     tier: trust.tier,
     trustScore: trust.score,
     reasons: [`trust:${trust.tier}`, `sri:${trust.score}`, `geo:${Math.round(normalizedContext.geographicRelevance)}`, ...reciprocalReasons],
-    context: { ...normalizedContext, weather: context.weather, reciprocal: context.reciprocal },
+    context: { ...normalizedContext, weather: context.weather, reciprocal },
   };
 }
 
