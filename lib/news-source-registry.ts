@@ -41,9 +41,10 @@ export const newsSourceRegistry: NewsSourceRegistryEntry[] = [
     country: "Nigeria",
     language: "English",
     feeds: [
-      { name: "Premium Times Nigeria", url: "https://www.premiumtimesng.com/feed", scope: "country", trusted: true },
-      { name: "Vanguard Nigeria", url: "https://www.vanguardngr.com/feed/", scope: "country", trusted: true },
-      { name: "Punch Nigeria", url: "https://punchng.com/feed/", scope: "country", trusted: true },
+      { name: "The Guardian Nigeria", url: "https://guardian.ng/feed/", scope: "country", trusted: true, domestic: true },
+      { name: "Premium Times Nigeria", url: "https://www.premiumtimesng.com/feed", scope: "country", trusted: true, domestic: true },
+      { name: "Vanguard Nigeria", url: "https://www.vanguardngr.com/feed/", scope: "country", trusted: true, domestic: true },
+      { name: "Punch Nigeria", url: "https://punchng.com/feed/", scope: "country", trusted: true, domestic: true },
     ],
   },
   { country_code: "AU", country: "Australia", language: "English", feeds: [{ name: "ABC Australia", url: "https://www.abc.net.au/news/feed/51120/rss.xml", scope: "country", trusted: true }] },
