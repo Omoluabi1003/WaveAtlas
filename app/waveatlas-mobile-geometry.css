@@ -1,4 +1,9 @@
 @media (max-width: 767px) {
+  html[data-waveatlas-visual="v2"] {
+    --waveatlas-mobile-dock-height: 64px;
+    --waveatlas-cockpit-gap: 12px;
+  }
+
   html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock {
     left: max(0.75rem, env(safe-area-inset-left)) !important;
     right: max(0.75rem, env(safe-area-inset-right)) !important;
@@ -27,7 +32,7 @@
     right: max(0.75rem, env(safe-area-inset-right)) !important;
     width: auto !important;
     max-width: calc(100vw - max(0.75rem, env(safe-area-inset-left)) - max(0.75rem, env(safe-area-inset-right))) !important;
-    bottom: calc(env(safe-area-inset-bottom) + 5.65rem) !important;
+    bottom: calc(env(safe-area-inset-bottom) + 8px + var(--waveatlas-mobile-dock-height) + var(--waveatlas-cockpit-gap)) !important;
     z-index: 64 !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
@@ -41,6 +46,29 @@
   html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed button,
   html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed svg {
     flex-shrink: 0;
+  }
+
+  html[data-waveatlas-visual="v2"] .waveatlas-mobile-header b {
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0.3rem 0.45rem 0.38rem !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 1.25rem !important;
+    letter-spacing: -0.045em !important;
+    text-shadow: 0 0 18px rgba(98,217,255,.12);
+    position: relative;
+  }
+
+  html[data-waveatlas-visual="v2"] .waveatlas-mobile-header b::after {
+    content: "";
+    position: absolute;
+    left: 0.45rem;
+    right: 0.45rem;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(86,245,187,.88), rgba(98,217,255,.42), transparent 88%);
+    box-shadow: 0 0 10px rgba(86,245,187,.28);
   }
 
   html[data-waveatlas-visual="v2"] .waveatlas-globe-shell {
