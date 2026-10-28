@@ -1,6 +1,7 @@
 "use client";
 
 import { CloudSun, Mic, Newspaper, Sparkles, X } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Station } from '@/lib/stations';
@@ -47,6 +48,33 @@ function briefIsOpen() {
   return Boolean(document.querySelector('[role="dialog"][aria-modal="true"][aria-label="WaveAtlas Daily"]'));
 }
 
+function LivingContextIcon({ active, reducedMotion }: { active: boolean; reducedMotion: boolean }) {
+  const orbitDuration = active ? 3.8 : 6.8;
+  return (
+    <span className="relative grid size-6 place-items-center" aria-hidden="true">
+      <motion.span
+        className={`absolute inset-[1px] rounded-full border ${active ? 'border-radio/55' : 'border-emerald-200/24'}`}
+        animate={reducedMotion ? undefined : { rotate: 360 }}
+        transition={reducedMotion ? undefined : { duration: orbitDuration, repeat: Infinity, ease: 'linear' }}
+      >
+        <span className={`absolute -right-[2px] top-1/2 size-1.5 -translate-y-1/2 rounded-full ${active ? 'bg-radio' : 'bg-emerald-200/80'} shadow-[0_0_8px_rgba(110,231,183,.85)]`} />
+      </motion.span>
+      <motion.span
+        className={`absolute inset-[5px] rounded-full ${active ? 'bg-radio/24' : 'bg-emerald-300/10'}`}
+        animate={reducedMotion ? undefined : { scale: [0.88, 1.2, 0.88], opacity: active ? [0.25, 0.62, 0.25] : [0.12, 0.35, 0.12] }}
+        transition={reducedMotion ? undefined : { duration: active ? 1.8 : 2.8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.span
+        className="relative z-[1] grid place-items-center"
+        animate={reducedMotion ? undefined : active ? { scale: [1, 1.12, 1], rotate: [0, 4, 0, -4, 0] } : { y: [0, -0.7, 0.4, 0], opacity: [0.82, 1, 0.88, 0.82] }}
+        transition={reducedMotion ? undefined : { duration: active ? 1.9 : 3.4, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <Sparkles className="size-4" />
+      </motion.span>
+    </span>
+  );
+}
+
 export function AtlasContextDock() {
   const [station, setStation] = useState<Station | null>(null);
   const [context, setContext] = useState<WorldContext | null>(null);
@@ -55,6 +83,7 @@ export function AtlasContextDock() {
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [surfaceBlocked, setSurfaceBlocked] = useState(false);
   const [mobileDockTarget, setMobileDockTarget] = useState<HTMLElement | null>(null);
+  const reducedMotion = Boolean(useReducedMotion());
 
   useEffect(() => {
     const onStation = (event: Event) => {
@@ -168,17 +197,18 @@ export function AtlasContextDock() {
   ) : null;
 
   const mobileTrigger = mobileDockTarget ? createPortal(
-    <button
+    <motion.button
       type="button"
       onClick={() => setOpen(value => !value)}
       aria-expanded={open}
       aria-label={`Atlas Context for ${place || station.name}`}
       title="Atlas Context"
-      className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:hidden ${open ? 'bg-radio text-midnight' : 'text-ivory/70 hover:bg-white/10'}`}
+      whileTap={reducedMotion ? undefined : { scale: 0.94 }}
+      className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center overflow-visible rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:hidden ${open ? 'bg-radio text-midnight shadow-[0_0_22px_rgba(0,214,143,.2)]' : 'text-ivory/70 hover:bg-white/10'}`}
     >
-      <Sparkles className="size-4" />
+      <LivingContextIcon active={open} reducedMotion={reducedMotion} />
       <span className="sr-only">Atlas Context</span>
-    </button>,
+    </motion.button>,
     mobileDockTarget,
   ) : null;
 
@@ -204,7 +234,7 @@ export function AtlasContextDock() {
       <aside className="pointer-events-none fixed right-[max(.75rem,env(safe-area-inset-right))] top-[max(4.5rem,calc(env(safe-area-inset-top)+4.5rem))] z-[92] hidden w-[min(92vw,22rem)] sm:block" aria-label="Atlas Context">
         <div className="pointer-events-auto ml-auto overflow-hidden rounded-[1.15rem] border border-white/15 bg-slate-950/78 text-white shadow-[0_14px_38px_rgba(0,0,0,.34)] backdrop-blur-xl">
           <button type="button" onClick={() => setOpen(value => !value)} className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70" aria-expanded={open}>
-            <span className="flex min-w-0 items-center gap-2.5"><Sparkles className="size-4 shrink-0 text-emerald-200" /><span className="min-w-0"><span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-200/80">Atlas Context</span><span className="block truncate text-[12px] font-semibold text-white/95">{place || station.name}</span></span></span>
+            <span className="flex min-w-0 items-center gap-2.5"><LivingContextIcon active={open} reducedMotion={reducedMotion} /><span className="min-w-0"><span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-200/80">Atlas Context</span><span className="block truncate text-[12px] font-semibold text-white/95">{place || station.name}</span></span></span>
             <span className="text-[10px] font-semibold uppercase tracking-[.14em] text-white/55">{open ? 'Hide' : 'Open'}</span>
           </button>
           {open ? <div className="border-t border-white/10 px-3.5 pb-3 pt-3">{actions}{weatherPanel}<p className="mt-2.5 text-[10px] leading-4 text-white/50">{voicePrompt}</p></div> : null}
