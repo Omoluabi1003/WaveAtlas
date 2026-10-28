@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBriefHeadlines, type BriefCategory } from "@/lib/news-agent";
 import { resolveBriefCountry } from "@/lib/brief-geography";
+import { getInstitutionalReferences } from "@/lib/news-source-registry";
 
 export const revalidate = 900;
 
@@ -15,7 +16,8 @@ export async function GET(request: Request) {
   const allowedCategories = new Set<BriefCategory>(["front-page", "local-pulse", "culture", "sports", "radio-signal"]);
   const category: BriefCategory = allowedCategories.has(requestedCategory as BriefCategory) ? requestedCategory as BriefCategory : "front-page";
   const headlines = await getBriefHeadlines({ city, country, country_code, language, category, station_name });
+  const institutionalReferences = getInstitutionalReferences(headlines.map((headline) => `${headline.title} ${headline.summary || ""}`));
   const resolvedCountry = resolveBriefCountry({ country, country_code });
   const cacheSeconds = headlines.length ? 900 : 60;
-  return NextResponse.json({ headlines, city, country: resolvedCountry?.name || country, country_code: resolvedCountry?.code || country_code, category }, { headers: { "Cache-Control": `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds}` } });
+  return NextResponse.json({ headlines, institutionalReferences, city, country: resolvedCountry?.name || country, country_code: resolvedCountry?.code || country_code, category }, { headers: { "Cache-Control": `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds}` } });
 }
