@@ -1,4 +1,5 @@
 import type Hls from 'hls.js';
+import { bindAtlasAudioSpectrum, releaseAtlasAudioSpectrum } from '@/lib/atlas-audio-spectrum';
 
 type StreamConnection = { url: string; generation: number; hls?: Hls; ready?: Promise<void>; reject?: (error: Error) => void };
 const connections = new WeakMap<HTMLMediaElement, StreamConnection>();
@@ -9,6 +10,7 @@ export function releaseRadioStream(media: HTMLMediaElement) {
   connections.delete(media);
   connection?.reject?.(new Error('Stream selection changed'));
   connection?.hls?.destroy();
+  releaseAtlasAudioSpectrum(media);
 }
 
 /** Safari uses native HLS. Other browsers load the free HLS engine on demand. */
@@ -16,6 +18,7 @@ export async function attachRadioStream(media: HTMLMediaElement, url: string, on
   const existing = connections.get(media);
   if (existing?.url === url && !media.error) { await existing.ready; return; }
   releaseRadioStream(media);
+  bindAtlasAudioSpectrum(media);
   const connection: StreamConnection = { url, generation: Date.now() };
   connections.set(media, connection);
   if (!isHlsStream(url) || media.canPlayType('application/vnd.apple.mpegurl')) {
