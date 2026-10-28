@@ -3,6 +3,27 @@ import { readFileSync } from 'node:fs';
 import { getBriefHeadlines } from '../lib/news-agent';
 import { resolveBriefCountry } from '../lib/brief-geography';
 import { sectionSearchSource } from '../lib/brief-section-routing';
+import { getInstitutionalReferences, getNewsSources } from '../lib/news-source-registry';
+
+// Source-trust contract: regional/domestic publishers outrank global corroboration
+// through existing scope scoring, while institutional references never become headlines.
+const uaeSources = getNewsSources({ city: 'Dubai', countryCode: 'AE' });
+const gulfNews = uaeSources.countrySources.flatMap((entry) => entry.feeds).find((feed) => feed.name === 'Gulf News');
+assert(gulfNews, 'Gulf News must be registered for UAE editions');
+assert.equal(gulfNews.scope, 'country');
+assert.equal(gulfNews.domestic, true);
+assert.equal(gulfNews.role, 'regional-editorial');
+assert.equal(gulfNews.url, 'https://gulfnews.com/stories.rss');
+const globalFeeds = uaeSources.globalSources.flatMap((entry) => entry.feeds);
+const nbcWorld = globalFeeds.find((feed) => feed.name === 'NBC News World');
+assert(nbcWorld, 'NBC News World must be available as global corroboration');
+assert.equal(nbcWorld.scope, 'global');
+assert.equal(nbcWorld.role, 'global-corroboration');
+const rightsReferences = getInstitutionalReferences(['Authorities detained protesters amid human rights concerns and displacement.']);
+assert.equal(rightsReferences.length, 1, 'OHCHR context should surface for rights-related Briefs');
+assert.equal(rightsReferences[0].publisher, 'United Nations Human Rights (OHCHR)');
+assert.equal(rightsReferences[0].role, 'primary-authority');
+assert.deepEqual(getInstitutionalReferences(['Local football club wins regional final.']), [], 'Institutional context must not appear on unrelated stories');
 
 // Exercise every registered country/territory, including those without domestic
 // feeds, with all publishers/GDELT unavailable and only search RSS responding.
@@ -62,7 +83,7 @@ async function main() {
     } finally { Date.now = originalNow; }
     assert.deepEqual(await getBriefHeadlines({ country_code: 'NR', category: 'front-page', station_name: 'Total provider outage' }), []);
     assert.deepEqual(await getBriefHeadlines({ country: 'Unresolved place', station_name: 'Invalid destination' }), []);
-    console.log(`Brief country coverage: all ${codes.length} registered countries/territories have Front Page search fallback; sparse 7/30/90-day recovery, publisher attribution, dates, geography isolation and total outage behavior passed`);
+    console.log(`Brief country coverage: source trust roles plus all ${codes.length} registered countries/territories passed`);
   } finally { global.fetch = originalFetch; }
 }
 main().catch((error) => { console.error(error); process.exit(1); });
