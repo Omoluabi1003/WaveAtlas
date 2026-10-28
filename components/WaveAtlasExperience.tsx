@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import WaveAtlasApp from '@/components/WaveAtlasApp';
 import { AtlasAssistant } from '@/components/AtlasAssistant';
 import { AtlasVoiceDiscoveryProvider } from '@/components/AtlasVoiceDiscovery';
+import { AtlasAdaptiveState } from '@/components/AtlasAdaptiveState';
 import { readAtlasLocation } from '@/lib/atlas-location';
 import type { AtlasActionResult, AtlasAssistantAction } from '@/lib/atlas-assistant';
 import { atlasStationSearchParams } from '@/lib/atlas-music-search';
 import { stationMatchesMusicGenres, type AtlasMusicSearch } from '@/lib/atlas-music-intent';
 import { rankStationsWithAIE } from '@/lib/atlas-intelligence-engine';
+import type { ReciprocalAtlasSignal } from '@/lib/atlas-reciprocal-intelligence';
 import { stationPath } from '@/lib/station-deep-link';
 import type { Station, StationInventoryStats } from '@/lib/stations';
 
@@ -84,7 +86,7 @@ function waitForPlayback(target: Station, timeoutMs = 3200): Promise<'playing' |
   });
 }
 
-async function playBestAtlasMatch(query: string, current: Station | null, playbackStatus: string, excludeCurrent = false, music?: AtlasMusicSearch, signal?: AbortSignal): Promise<AtlasActionResult> {
+async function playBestAtlasMatch(query: string, current: Station | null, playbackStatus: string, excludeCurrent = false, music?: AtlasMusicSearch, signal?: AbortSignal, reciprocal?: ReciprocalAtlasSignal): Promise<AtlasActionResult> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 6000);
   try {
@@ -95,7 +97,7 @@ async function playBestAtlasMatch(query: string, current: Station | null, playba
     let candidates = (data.stations || []).filter((candidate) => Boolean(candidate.station_uuid || candidate.id) && (!music || stationMatchesMusicGenres(candidate.tags, music)));
     if (excludeCurrent && current) candidates = candidates.filter((candidate) => stationIdentity(candidate) !== stationIdentity(current));
     if (!candidates.length) return { ok: false, status: 'not_found', message: `I couldn't find a playable station matching ${query}.` };
-    const ranked = rankStationsWithAIE(candidates, (candidate) => ({ kind: 'discovery', geographicRelevance: queryRelevance(candidate, query) }));
+    const ranked = rankStationsWithAIE(candidates, (candidate) => ({ kind: 'discovery', geographicRelevance: queryRelevance(candidate, query), reciprocal }));
     const choices = ranked.slice(0, 3).map((entry) => entry.station);
     const first = choices[0];
     if (!first) return { ok: false, status: 'not_found', message: `I couldn't find a playable station matching ${query}.` };
@@ -114,10 +116,7 @@ async function playBestAtlasMatch(query: string, current: Station | null, playba
       const place = stationPlace(match);
       if (outcome === 'playing') return { ok: true, status: 'playing', station: match, message: `Playing ${match.name}${place ? `, ${place}` : ''}.`, terminal: true };
       if (outcome === 'connecting') return { ok: true, status: 'connecting', station: match, message: `Found ${match.name}${place ? `, ${place}` : ''}. Connecting.`, terminal: true };
-      if (outcome === 'failed') {
-        // A confirmed failure advances quietly to the next AIE-ranked candidate.
-        continue;
-      }
+      if (outcome === 'failed') continue;
     }
     return { ok: false, status: 'failed', message: `I found stations for ${query}, but their streams did not respond. Want me to try something nearby?` };
   } catch {
@@ -135,6 +134,7 @@ function sendPlaybackCommand(command: 'play' | 'pause' | 'volume', value?: numbe
 export default function WaveAtlasExperience(props: Props) {
   const [station, setStation] = useState<Station | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState('idle');
+  const [reciprocalSignal, setReciprocalSignal] = useState<ReciprocalAtlasSignal | undefined>();
 
   useEffect(() => {
     const stationHandler = (event: Event) => {
@@ -146,15 +146,24 @@ export default function WaveAtlasExperience(props: Props) {
       if (detail?.status) setPlaybackStatus(detail.status);
       if (detail?.current?.name) setStation(detail.current);
     };
+    const reciprocalHandler = (event: Event) => {
+      const detail = (event as CustomEvent<ReciprocalAtlasSignal>).detail;
+      if (detail) setReciprocalSignal(detail);
+    };
     window.addEventListener('waveatlas:station-context', stationHandler);
     window.addEventListener('waveatlas:playback-context', playbackHandler);
-    const request = () => window.dispatchEvent(new Event('waveatlas:request-station-context'));
+    window.addEventListener('waveatlas:reciprocal-context', reciprocalHandler);
+    const request = () => {
+      window.dispatchEvent(new Event('waveatlas:request-station-context'));
+      window.dispatchEvent(new Event('waveatlas:request-reciprocal-context'));
+    };
     request();
     const retry = window.setTimeout(request, 350);
     return () => {
       window.clearTimeout(retry);
       window.removeEventListener('waveatlas:station-context', stationHandler);
       window.removeEventListener('waveatlas:playback-context', playbackHandler);
+      window.removeEventListener('waveatlas:reciprocal-context', reciprocalHandler);
     };
   }, []);
 
@@ -186,12 +195,12 @@ export default function WaveAtlasExperience(props: Props) {
         return { ok: true, status: 'completed', message: `I found ${matches[0].name}${matches.length > 1 ? ' and other matches' : ''}. The results are open. Say play followed by the station name to listen.`, terminal: true };
       } catch { return failed('Search is open, but the directory took too long to respond. Please try again.'); }
     }
-    if (action.type === 'play') return action.query ? playBestAtlasMatch(action.query, station, playbackStatus, action.excludeCurrent, action.music, signal) : sendPlaybackCommand('play');
+    if (action.type === 'play') return action.query ? playBestAtlasMatch(action.query, station, playbackStatus, action.excludeCurrent, action.music, signal, reciprocalSignal) : sendPlaybackCommand('play');
     if (action.type === 'pause') return sendPlaybackCommand('pause');
     if (action.type === 'resume') return sendPlaybackCommand('play');
     if (action.type === 'volume') return sendPlaybackCommand('volume', action.value);
     if (action.type === 'teleport') {
-      if (action.query) return playBestAtlasMatch(action.query, station, playbackStatus, false, undefined, signal);
+      if (action.query) return playBestAtlasMatch(action.query, station, playbackStatus, false, undefined, signal, reciprocalSignal);
       const button = visibleButtonMatching(/teleport/i);
       if (!button) return failed('I could not find the teleport control.');
       button.click(); return completed();
@@ -220,5 +229,11 @@ export default function WaveAtlasExperience(props: Props) {
     return failed();
   };
 
-  return <AtlasVoiceDiscoveryProvider><WaveAtlasApp {...props}/><AtlasAssistant station={station} playbackStatus={playbackStatus} onSearch={search} onAction={executeAction}/></AtlasVoiceDiscoveryProvider>;
+  return (
+    <AtlasVoiceDiscoveryProvider>
+      <WaveAtlasApp {...props}/>
+      <AtlasAdaptiveState />
+      <AtlasAssistant station={station} playbackStatus={playbackStatus} onSearch={search} onAction={executeAction}/>
+    </AtlasVoiceDiscoveryProvider>
+  );
 }
