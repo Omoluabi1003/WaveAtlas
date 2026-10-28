@@ -1,5 +1,6 @@
 import { ButtonFeedback } from "@/components/ButtonFeedback";
 import { ReciprocalAtlasBridge } from "@/components/ReciprocalAtlasBridge";
+import { AtlasContextCoordinator } from "@/components/AtlasContextCoordinator";
 import type { Metadata, Viewport } from "next";
 import {
   BRAND,
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Having trouble opening the atlas? <a href="/listen" style={{ color: "#00D68F", textDecoration: "underline", display: "inline-block", padding: "8px 12px" }}>Open the lightweight player</a>
         </div>
         <ReciprocalAtlasBridge />
+        <AtlasContextCoordinator />
         <ButtonFeedback /><ServiceWorkerDiagnostics /><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
     </html>
   );
