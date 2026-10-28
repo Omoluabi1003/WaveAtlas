@@ -1,4 +1,5 @@
 import { ButtonFeedback } from "@/components/ButtonFeedback";
+import { ReciprocalAtlasBridge } from "@/components/ReciprocalAtlasBridge";
 import type { Metadata, Viewport } from "next";
 import {
   BRAND,
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div id="waveatlas-compatibility-help" style={{ position: "fixed", left: 12, right: 12, bottom: 12, zIndex: 120, padding: 16, borderRadius: 16, background: "#08111D", color: "#F7F5EF", border: "1px solid #D4A64A", fontFamily: "Arial, sans-serif" }}>
           Having trouble opening the atlas? <a href="/listen" style={{ color: "#00D68F", textDecoration: "underline", display: "inline-block", padding: "8px 12px" }}>Open the lightweight player</a>
         </div>
+        <ReciprocalAtlasBridge />
         <ButtonFeedback /><ServiceWorkerDiagnostics /><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
     </html>
   );

@@ -1,4 +1,6 @@
 import { scheduledHealthBoost } from './agents/station-health-policy';
+import { reciprocalStationAdjustment, type ReciprocalAtlasSignal } from './atlas-reciprocal-intelligence';
+import { readReciprocalAtlasSession } from './atlas-reciprocal-session';
 import type { Station } from './stations';
 
 export type StationReliabilityTier = 'Platinum' | 'Gold' | 'Silver' | 'Bronze' | 'Quarantine';
@@ -21,6 +23,7 @@ export type AtlasDecisionContext = {
   editorialConfidence?: number;
   anonymousEngagement?: number;
   weather?: AtlasWeatherSignal;
+  reciprocal?: ReciprocalAtlasSignal;
 };
 
 export type AtlasStationDecision = {
@@ -29,7 +32,10 @@ export type AtlasStationDecision = {
   tier: StationReliabilityTier;
   trustScore: number;
   reasons: string[];
-  context: Required<Omit<AtlasDecisionContext, 'weather'>> & { weather?: AtlasWeatherSignal };
+  context: Required<Omit<AtlasDecisionContext, 'weather' | 'reciprocal'>> & {
+    weather?: AtlasWeatherSignal;
+    reciprocal?: ReciprocalAtlasSignal;
+  };
 };
 
 export const AIE_ARCHITECTURAL_RULES = Object.freeze([
@@ -41,6 +47,7 @@ export const AIE_ARCHITECTURAL_RULES = Object.freeze([
   'Every emergency recommendation must pass through AIE.',
   'Every metadata update must pass through AIE.',
   'Every discovery process must pass through AIE.',
+  'Reciprocal context may shape AIE decisions but may never bypass explicit listener intent.',
 ]);
 
 export const AIE_ENGINES = Object.freeze([
@@ -52,6 +59,7 @@ export const AIE_ENGINES = Object.freeze([
   'Audio Intelligence Engine',
   'Journey Intelligence Engine',
   'Editorial Intelligence Engine',
+  'Reciprocal Atlas Intelligence',
   "Uncle Paul's Weather Forecast",
   'Atlas Trust Layer',
 ]);
@@ -96,6 +104,7 @@ function weatherAdjustment(station: Station, weather?: AtlasWeatherSignal) {
 }
 
 export function decideStation(station: Station, context: AtlasDecisionContext): AtlasStationDecision {
+  const reciprocal = context.reciprocal ?? readReciprocalAtlasSession();
   const normalizedContext = {
     kind: context.kind,
     geographicRelevance: clamp(context.geographicRelevance ?? context.distanceRelevance ?? 50),
@@ -107,8 +116,17 @@ export function decideStation(station: Station, context: AtlasDecisionContext): 
     anonymousEngagement: clamp(context.anonymousEngagement ?? Math.min(100, station.votes / 150 + station.click_count / 1000)),
   };
   const trust = calculateStationReliabilityIndex(station, normalizedContext);
-  const score = clamp(normalizedContext.geographicRelevance * 0.25 + trust.score * 0.36 + normalizedContext.validationFreshness * 0.1 + normalizedContext.metadataConfidence * 0.09 + normalizedContext.editorialConfidence * 0.08 + normalizedContext.anonymousEngagement * 0.07 + normalizedContext.geoConfidence * 0.05 + weatherAdjustment(station, context.weather));
-  return { station, score, tier: trust.tier, trustScore: trust.score, reasons: [`trust:${trust.tier}`, `sri:${trust.score}`, `geo:${Math.round(normalizedContext.geographicRelevance)}`], context: { ...normalizedContext, weather: context.weather } };
+  const reciprocalAdjustment = reciprocalStationAdjustment(station, reciprocal);
+  const score = clamp(normalizedContext.geographicRelevance * 0.25 + trust.score * 0.36 + normalizedContext.validationFreshness * 0.1 + normalizedContext.metadataConfidence * 0.09 + normalizedContext.editorialConfidence * 0.08 + normalizedContext.anonymousEngagement * 0.07 + normalizedContext.geoConfidence * 0.05 + weatherAdjustment(station, context.weather) + reciprocalAdjustment);
+  const reciprocalReasons = [`reciprocal:${reciprocal.mode}`, ...reciprocal.reasons.map((reason) => `reciprocal:${reason}`)];
+  return {
+    station,
+    score,
+    tier: trust.tier,
+    trustScore: trust.score,
+    reasons: [`trust:${trust.tier}`, `sri:${trust.score}`, `geo:${Math.round(normalizedContext.geographicRelevance)}`, ...reciprocalReasons],
+    context: { ...normalizedContext, weather: context.weather, reciprocal },
+  };
 }
 
 export function rankStationsWithAIE(stations: Station[], contextForStation: (station: Station) => AtlasDecisionContext) {
