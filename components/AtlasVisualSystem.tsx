@@ -31,6 +31,41 @@ export function AtlasVisualSystem() {
   }, []);
 
   useEffect(() => {
+    const root = document.documentElement;
+    let dock: HTMLElement | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let mutationObserver: MutationObserver | null = null;
+
+    const syncDockHeight = () => {
+      const next = document.querySelector<HTMLElement>(".waveatlas-mobile-dock > div");
+      if (!next) return;
+      if (dock !== next) {
+        resizeObserver?.disconnect();
+        dock = next;
+        resizeObserver = new ResizeObserver(() => {
+          root.style.setProperty("--waveatlas-mobile-dock-height", `${Math.ceil(next.getBoundingClientRect().height)}px`);
+        });
+        resizeObserver.observe(next);
+      }
+      root.style.setProperty("--waveatlas-mobile-dock-height", `${Math.ceil(next.getBoundingClientRect().height)}px`);
+    };
+
+    syncDockHeight();
+    mutationObserver = new MutationObserver(syncDockHeight);
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", syncDockHeight, { passive: true });
+    window.visualViewport?.addEventListener("resize", syncDockHeight, { passive: true });
+
+    return () => {
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+      window.removeEventListener("resize", syncDockHeight);
+      window.visualViewport?.removeEventListener("resize", syncDockHeight);
+      root.style.removeProperty("--waveatlas-mobile-dock-height");
+    };
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: true });
