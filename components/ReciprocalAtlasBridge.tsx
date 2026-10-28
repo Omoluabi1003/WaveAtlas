@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { updateReciprocalAtlasSession } from '@/lib/atlas-reciprocal-session';
-import type { ReciprocalAtlasInput } from '@/lib/atlas-reciprocal-intelligence';
+import type { ReciprocalAtlasInput, ReciprocalAtlasSignal } from '@/lib/atlas-reciprocal-intelligence';
 
 const FAILURE_PATTERN = /failed|offline|error|unavailable/i;
 
@@ -16,9 +16,10 @@ export function ReciprocalAtlasBridge() {
     let consecutiveFailures = 0;
     let weatherSeverity: ReciprocalAtlasInput['weatherSeverity'] = 'none';
     let emergencyActive = false;
+    let currentSignal: ReciprocalAtlasSignal | null = null;
 
     const publish = () => {
-      const signal = updateReciprocalAtlasSession({
+      currentSignal = updateReciprocalAtlasSession({
         playbackStatus,
         localHour: new Date().getHours(),
         interactionCount,
@@ -26,7 +27,7 @@ export function ReciprocalAtlasBridge() {
         weatherSeverity,
         emergencyActive,
       });
-      window.dispatchEvent(new CustomEvent('waveatlas:reciprocal-context', { detail: signal }));
+      window.dispatchEvent(new CustomEvent('waveatlas:reciprocal-context', { detail: currentSignal }));
     };
 
     const onPlayback = (event: Event) => {
@@ -51,8 +52,14 @@ export function ReciprocalAtlasBridge() {
       publish();
     };
 
+    const onRequest = () => {
+      if (currentSignal) window.dispatchEvent(new CustomEvent('waveatlas:reciprocal-context', { detail: currentSignal }));
+      else publish();
+    };
+
     window.addEventListener('waveatlas:playback-context', onPlayback);
     window.addEventListener('waveatlas:weather-context', onWeather);
+    window.addEventListener('waveatlas:request-reciprocal-context', onRequest);
     window.addEventListener('pointerdown', onInteraction, { passive: true });
     window.addEventListener('keydown', onInteraction);
     publish();
@@ -60,6 +67,7 @@ export function ReciprocalAtlasBridge() {
     return () => {
       window.removeEventListener('waveatlas:playback-context', onPlayback);
       window.removeEventListener('waveatlas:weather-context', onWeather);
+      window.removeEventListener('waveatlas:request-reciprocal-context', onRequest);
       window.removeEventListener('pointerdown', onInteraction);
       window.removeEventListener('keydown', onInteraction);
     };
