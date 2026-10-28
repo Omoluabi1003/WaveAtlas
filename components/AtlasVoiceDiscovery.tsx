@@ -24,6 +24,8 @@ const capabilities = {
   Control: ['Pause.', 'Resume.', 'Volume down.', 'Show the globe.'],
 };
 
+type VoiceContext = { voicePrompt?: string };
+
 export function AtlasVoiceDiscoveryProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AtlasDiscoveryStatus>('preparing');
   return <Discovery.Provider value={{ status, setStatus }}>{children}</Discovery.Provider>;
@@ -35,11 +37,22 @@ export function AtlasVoiceSurface({ stationName }: { stationName?: string }) {
   const used = useSyncExternalStore(subscribeUsage, usageSnapshot, () => false);
   const [example, setExample] = useState(0);
   const [preview, setPreview] = useState(false);
+  const [contextPrompt, setContextPrompt] = useState<string | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const sheet = useRef<HTMLElement>(null);
   useEffect(() => {
     const timer = window.setInterval(() => { if (!document.hidden) setExample(value => (value + 1) % examples.length); }, 18000);
     return () => window.clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    const onContext = (event: Event) => {
+      const detail = (event as CustomEvent<VoiceContext>).detail;
+      if (!detail?.voicePrompt) return;
+      setContextPrompt(detail.voicePrompt);
+      window.setTimeout(() => setContextPrompt(null), 12000);
+    };
+    window.addEventListener('waveatlas:atlas-voice-context', onContext);
+    return () => window.removeEventListener('waveatlas:atlas-voice-context', onContext);
   }, []);
   useEffect(() => {
     if (!preview) return;
@@ -59,18 +72,20 @@ export function AtlasVoiceSurface({ stationName }: { stationName?: string }) {
   const talk = () => { setPreview(false); window.dispatchEvent(new Event('waveatlas:open-atlas-voice')); };
   const label = { preparing: 'ATLAS VOICE · PREPARING', ready: 'ATLAS VOICE · READY', unavailable: 'ATLAS · TEXT AVAILABLE', listening: 'LISTENING', understanding: 'UNDERSTANDING', speaking: 'ATLAS SPEAKING' }[status];
   const active = ['listening', 'understanding', 'speaking'].includes(status);
+  const rotatingPrompt = stationName ? [`Ask Atlas about ${stationName}`, 'Ask Atlas to find something similar', "Ask Atlas what's nearby", 'Ask Atlas to take you somewhere else'][example] : `Try: “${examples[example]}”`;
   return <section className="atlas-voice-surface" aria-label="Atlas voice guide" data-geometry-region="atlas" data-atlas-active={active}>
     <button type="button" className="atlas-launcher-button atlas-talk-button" onClick={event => { event.stopPropagation(); talk(); }} aria-label="Talk to Atlas" title="Talk to Atlas"><span className="atlas-voice-orb" aria-hidden="true"><span /></span></button>
     <div className="atlas-launcher-popover">
       <strong>Talk to Atlas</strong>
       <p className="atlas-voice-readiness" role="status">{label}</p>
+      {contextPrompt ? <p className="atlas-voice-example">{contextPrompt}</p> : null}
       <button ref={trigger} type="button" className="atlas-capabilities-button" onClick={event => { event.stopPropagation(); setPreview(true); }} aria-label="See what Atlas can do">Atlas help</button>
     </div>
     {preview && createPortal(<div className="atlas-capabilities-layer" onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) setPreview(false); }}>
       <section ref={sheet} className="atlas-capabilities-sheet" role="dialog" aria-modal="true" aria-label="What Atlas can do">
         <header><h2>See what Atlas can do</h2><button type="button" onClick={() => setPreview(false)} aria-label="Close Atlas capabilities"><X size={20} /></button></header>
         {!used && <div className="atlas-voice-invitation"><h3>Meet Atlas</h3><p>Your voice guide to the world&apos;s live radio.</p><p>Try saying: &ldquo;Atlas, take me somewhere.&rdquo;</p></div>}
-        <p className="atlas-voice-example">{stationName ? [`Ask Atlas about ${stationName}`, 'Ask Atlas to find something similar', "Ask Atlas what's nearby", 'Ask Atlas to take you somewhere else'][example] : `Try: “${examples[example]}”`}</p>
+        <p className="atlas-voice-example">{contextPrompt || rotatingPrompt}</p>
         {status === 'unavailable' && <p className="atlas-voice-recovery">Use text, or allow microphone access in your browser and try again.</p>}
         <div className="atlas-capabilities-scroll">{Object.entries(capabilities).map(([category, commands]) => <section key={category}><h3>{category}</h3><ul>{commands.map(command => <li key={command}>{command}</li>)}</ul></section>)}</div>
         <button type="button" className="atlas-talk-button" onClick={event => { event.stopPropagation(); talk(); }}><Mic size={18} />Talk to Atlas</button>
