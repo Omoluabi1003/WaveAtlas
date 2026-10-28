@@ -3,6 +3,8 @@ import { ReciprocalAtlasBridge } from "@/components/ReciprocalAtlasBridge";
 import { AtlasContextCoordinator } from "@/components/AtlasContextCoordinator";
 import { AtlasContextDock } from "@/components/AtlasContextDock";
 import { AtlasVisualSystem } from "@/components/AtlasVisualSystem";
+import { AtlasCinematicRuntimeState } from "@/components/AtlasCinematicRuntimeState";
+import { AtlasCinematicHUD } from "@/components/AtlasCinematicHUD";
 import type { Metadata, Viewport } from "next";
 import {
   BRAND,
@@ -66,6 +68,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Having trouble opening the atlas? <a href="/listen" style={{ color: "#00D68F", textDecoration: "underline", display: "inline-block", padding: "8px 12px" }}>Open the lightweight player</a>
         </div>
         <AtlasVisualSystem />
+        <AtlasCinematicRuntimeState />
+        <AtlasCinematicHUD />
         <ReciprocalAtlasBridge />
         <AtlasContextCoordinator />
         <AtlasContextDock />
