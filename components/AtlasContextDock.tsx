@@ -2,6 +2,7 @@
 
 import { CloudSun, Mic, Newspaper, Sparkles, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Station } from '@/lib/stations';
 import type { WorldContext } from '@/lib/world-engine/types';
 
@@ -53,6 +54,7 @@ export function AtlasContextDock() {
   const [open, setOpen] = useState(false);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [surfaceBlocked, setSurfaceBlocked] = useState(false);
+  const [mobileDockTarget, setMobileDockTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     const onStation = (event: Event) => {
@@ -88,6 +90,34 @@ export function AtlasContextDock() {
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (surfaceBlocked) {
+      setMobileDockTarget(null);
+      return;
+    }
+    let target: HTMLElement | null = null;
+    let previousGridTemplate = '';
+    const syncDock = () => {
+      const next = document.querySelector<HTMLElement>('.waveatlas-mobile-dock > div');
+      if (!next) return;
+      if (target !== next) {
+        if (target) target.style.gridTemplateColumns = previousGridTemplate;
+        target = next;
+        previousGridTemplate = next.style.gridTemplateColumns;
+        setMobileDockTarget(next);
+      }
+      next.style.gridTemplateColumns = 'repeat(4,minmax(0,1fr))';
+    };
+    syncDock();
+    const observer = new MutationObserver(syncDock);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+    return () => {
+      observer.disconnect();
+      if (target) target.style.gridTemplateColumns = previousGridTemplate;
+      setMobileDockTarget(null);
+    };
+  }, [surfaceBlocked]);
 
   const place = coordinated?.placeLabel || context?.radioDNA.placeLabel || stationPlace(station) || station?.name;
   const weather = coordinated?.weatherSummary || climateSummary(context);
@@ -137,13 +167,25 @@ export function AtlasContextDock() {
     </div>
   ) : null;
 
+  const mobileTrigger = mobileDockTarget ? createPortal(
+    <button
+      type="button"
+      onClick={() => setOpen(value => !value)}
+      aria-expanded={open}
+      aria-label={`Atlas Context for ${place || station.name}`}
+      title="Atlas Context"
+      className={`pointer-events-auto relative z-[1] grid min-h-12 w-full place-items-center rounded-[1.05rem] px-1 py-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:hidden ${open ? 'bg-radio text-midnight' : 'text-ivory/70 hover:bg-white/10'}`}
+    >
+      <Sparkles className="size-4" />
+      <span className="sr-only">Atlas Context</span>
+    </button>,
+    mobileDockTarget,
+  ) : null;
+
   return (
     <>
+      {mobileTrigger}
       <div className="sm:hidden">
-        <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label={`Atlas Context for ${place || station.name}`} className="pointer-events-auto fixed bottom-[calc(env(safe-area-inset-bottom)+8.35rem)] right-4 z-[91] flex items-center gap-2 rounded-full border border-white/12 bg-slate-950/82 px-3 py-2 text-white shadow-[0_10px_24px_rgba(0,0,0,.34)] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">
-          <Sparkles className="size-3.5 text-emerald-200" />
-          <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/78">Context</span>
-        </button>
         {open ? (
           <aside className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+11.5rem)] z-[92]" aria-label="Atlas Context">
             <div className="pointer-events-auto rounded-[1.1rem] border border-white/12 bg-slate-950/88 p-3.5 text-white shadow-[0_18px_44px_rgba(0,0,0,.42)] backdrop-blur-2xl">
