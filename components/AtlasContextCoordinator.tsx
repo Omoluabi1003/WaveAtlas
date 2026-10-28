@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { AtlasCue } from '@/lib/atlas-cue-orchestrator';
 import type { Station } from '@/lib/stations';
 import type { WorldContext } from '@/lib/world-engine/types';
@@ -32,7 +32,19 @@ function weatherSummary(context?: WorldContext | null) {
   return parts.length ? parts.join(' · ') : undefined;
 }
 
-export function AtlasContextCoordinator({ station }: { station?: Station | null }) {
+export function AtlasContextCoordinator() {
+  const [station, setStation] = useState<Station | null>(null);
+
+  useEffect(() => {
+    const onStation = (event: Event) => {
+      const next = (event as CustomEvent<Station | null>).detail;
+      if (next?.name) setStation(next);
+    };
+    window.addEventListener('waveatlas:station-context', onStation);
+    window.dispatchEvent(new Event('waveatlas:request-station-context'));
+    return () => window.removeEventListener('waveatlas:station-context', onStation);
+  }, []);
+
   useEffect(() => {
     const onCue = async (event: Event) => {
       const cue = (event as CustomEvent<AtlasCue>).detail;
@@ -51,7 +63,6 @@ export function AtlasContextCoordinator({ station }: { station?: Station | null 
         if (station.language) params.set('language', station.language);
         if (typeof station.latitude === 'number') params.set('lat', String(station.latitude));
         if (typeof station.longitude === 'number') params.set('lng', String(station.longitude));
-
         try {
           const response = await fetch(`/api/world-context?${params.toString()}`, { signal: AbortSignal.timeout(5000) });
           context = response.ok ? await response.json() as WorldContext : null;
@@ -76,12 +87,8 @@ export function AtlasContextCoordinator({ station }: { station?: Station | null 
       };
 
       window.dispatchEvent(new CustomEvent('waveatlas:coordinated-context', { detail: coordinated }));
-      if (coordinated.weatherSummary) {
-        window.dispatchEvent(new CustomEvent('waveatlas:weather-forecast', { detail: coordinated }));
-      }
-      if (coordinated.voicePrompt) {
-        window.dispatchEvent(new CustomEvent('waveatlas:atlas-voice-context', { detail: coordinated }));
-      }
+      if (coordinated.weatherSummary) window.dispatchEvent(new CustomEvent('waveatlas:weather-forecast', { detail: coordinated }));
+      if (coordinated.voicePrompt) window.dispatchEvent(new CustomEvent('waveatlas:atlas-voice-context', { detail: coordinated }));
     };
 
     window.addEventListener('waveatlas:adaptive-cue', onCue);
