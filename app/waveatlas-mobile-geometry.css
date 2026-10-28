@@ -1,0 +1,49 @@
+@media (max-width: 767px) {
+  html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock {
+    left: max(0.75rem, env(safe-area-inset-left)) !important;
+    right: max(0.75rem, env(safe-area-inset-right)) !important;
+    width: auto !important;
+    max-width: calc(100vw - max(0.75rem, env(safe-area-inset-left)) - max(0.75rem, env(safe-area-inset-right))) !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock > div > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed {
+    left: max(0.75rem, env(safe-area-inset-left)) !important;
+    right: max(0.75rem, env(safe-area-inset-right)) !important;
+    width: auto !important;
+    max-width: calc(100vw - max(0.75rem, env(safe-area-inset-left)) - max(0.75rem, env(safe-area-inset-right))) !important;
+    bottom: calc(env(safe-area-inset-bottom) + 5.65rem) !important;
+    z-index: 64 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed > div {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed button,
+  html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed svg {
+    flex-shrink: 0;
+  }
+
+  html[data-waveatlas-visual="v2"] .waveatlas-globe-shell {
+    padding-bottom: 0.5rem;
+  }
+}
