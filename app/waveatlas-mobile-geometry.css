@@ -1,10 +1,10 @@
 @media (max-width: 767px) {
-  html[data-waveatlas-visual="v2"] {
+  html[data-waveatlas-visual] {
     --waveatlas-mobile-dock-height: 64px;
     --waveatlas-cockpit-gap: 12px;
   }
 
-  html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock {
+  html[data-waveatlas-visual] .waveatlas-mobile-dock {
     left: max(0.75rem, env(safe-area-inset-left)) !important;
     right: max(0.75rem, env(safe-area-inset-right)) !important;
     width: auto !important;
@@ -13,7 +13,7 @@
     overflow: visible !important;
   }
 
-  html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock > div {
+  html[data-waveatlas-visual] .waveatlas-mobile-dock > div {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
@@ -22,33 +22,33 @@
     overflow: hidden !important;
   }
 
-  html[data-waveatlas-visual="v2"] .waveatlas-mobile-dock > div > * {
+  html[data-waveatlas-visual] .waveatlas-mobile-dock > div > * {
     min-width: 0 !important;
     max-width: 100% !important;
   }
 
-  html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed {
+  html[data-waveatlas-visual] [data-waveatlas-player].fixed {
     left: max(0.75rem, env(safe-area-inset-left)) !important;
     right: max(0.75rem, env(safe-area-inset-right)) !important;
     width: auto !important;
     max-width: calc(100vw - max(0.75rem, env(safe-area-inset-left)) - max(0.75rem, env(safe-area-inset-right))) !important;
     bottom: calc(env(safe-area-inset-bottom) + 8px + var(--waveatlas-mobile-dock-height) + var(--waveatlas-cockpit-gap)) !important;
-    z-index: 64 !important;
+    z-index: 70 !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
   }
 
-  html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed > div {
+  html[data-waveatlas-visual] [data-waveatlas-player].fixed > div {
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed button,
-  html[data-waveatlas-visual="v2"] [data-waveatlas-player].fixed svg {
+  html[data-waveatlas-visual] [data-waveatlas-player].fixed button,
+  html[data-waveatlas-visual] [data-waveatlas-player].fixed svg {
     flex-shrink: 0;
   }
 
-  html[data-waveatlas-visual="v2"] .waveatlas-mobile-header b {
+  html[data-waveatlas-visual] .waveatlas-mobile-header b {
     border: 0 !important;
     border-radius: 0 !important;
     padding: 0.3rem 0.45rem 0.38rem !important;
@@ -60,7 +60,7 @@
     position: relative;
   }
 
-  html[data-waveatlas-visual="v2"] .waveatlas-mobile-header b::after {
+  html[data-waveatlas-visual] .waveatlas-mobile-header b::after {
     content: "";
     position: absolute;
     left: 0.45rem;
@@ -71,7 +71,7 @@
     box-shadow: 0 0 10px rgba(86,245,187,.28);
   }
 
-  html[data-waveatlas-visual="v2"] .waveatlas-globe-shell {
+  html[data-waveatlas-visual] .waveatlas-globe-shell {
     padding-bottom: 0.5rem;
   }
 }
