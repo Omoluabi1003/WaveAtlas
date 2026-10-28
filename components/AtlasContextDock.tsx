@@ -56,6 +56,7 @@ export function AtlasContextDock() {
         setStation(next);
         setContext(null);
         setCoordinated(null);
+        setOpen(false);
       }
     };
     const onContext = (event: Event) => {
@@ -74,7 +75,6 @@ export function AtlasContextDock() {
   const place = coordinated?.placeLabel || context?.radioDNA.placeLabel || stationPlace(station) || station?.name;
   const weather = coordinated?.weatherSummary || climateSummary(context);
   const voicePrompt = coordinated?.voicePrompt || (place ? `Ask Atlas about ${place}.` : 'Ask Atlas about this station.');
-
   const weatherLabel = useMemo(() => coordinated?.weatherTitle || "Uncle Paul's Weather Forecast", [coordinated?.weatherTitle]);
 
   if (!station) return null;
@@ -98,35 +98,40 @@ export function AtlasContextDock() {
   };
 
   return (
-    <aside className="pointer-events-none fixed right-[max(.75rem,env(safe-area-inset-right))] top-[max(4.5rem,calc(env(safe-area-inset-top)+4.5rem))] z-[92] w-[min(92vw,22rem)]" aria-label="Atlas Context">
-      <div className="pointer-events-auto ml-auto overflow-hidden rounded-[1.15rem] border border-white/15 bg-slate-950/78 text-white shadow-[0_14px_38px_rgba(0,0,0,.34)] backdrop-blur-xl">
-        <button type="button" onClick={() => setOpen(value => !value)} className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70" aria-expanded={open}>
-          <span className="flex min-w-0 items-center gap-2.5">
-            <Sparkles className="size-4 shrink-0 text-emerald-200" />
-            <span className="min-w-0"><span className="block text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-200/80">Atlas Context</span><span className="block truncate text-[12px] font-semibold text-white/95">{place || station.name}</span></span>
+    <aside className="pointer-events-none fixed right-[max(.65rem,env(safe-area-inset-right))] top-[max(4.35rem,calc(env(safe-area-inset-top)+4.35rem))] z-[92] w-[min(86vw,18.5rem)] sm:w-[min(92vw,22rem)]" aria-label="Atlas Context">
+      <div className="pointer-events-auto ml-auto overflow-hidden rounded-[1rem] border border-white/12 bg-slate-950/76 text-white shadow-[0_12px_30px_rgba(0,0,0,.3)] backdrop-blur-xl">
+        <button type="button" onClick={() => setOpen(value => !value)} className="flex w-full items-center justify-between gap-2.5 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 sm:px-3.5 sm:py-2.5" aria-expanded={open}>
+          <span className="flex min-w-0 items-center gap-2">
+            <Sparkles className="size-3.5 shrink-0 text-emerald-200 sm:size-4" />
+            <span className="min-w-0">
+              <span className="block text-[8px] font-semibold uppercase tracking-[0.18em] text-emerald-200/75 sm:text-[9px]">Atlas Context</span>
+              <span className="block truncate text-[11px] font-semibold text-white/92 sm:text-[12px]">{place || station.name}</span>
+            </span>
           </span>
-          <span className="text-[10px] font-semibold uppercase tracking-[.14em] text-white/55">{open ? 'Hide' : 'Open'}</span>
+          <span className="text-[9px] font-semibold uppercase tracking-[.12em] text-white/48 sm:text-[10px]">{open ? 'Hide' : 'Open'}</span>
         </button>
 
         {open ? (
-          <div className="border-t border-white/10 px-3.5 pb-3 pt-3">
-            <div className="grid grid-cols-3 gap-2">
-              <button type="button" onClick={openBrief} className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2.5 text-center text-[10px] font-semibold text-white/82 transition hover:bg-white/[0.07]"><Newspaper className="mx-auto mb-1 size-4 text-gold" />Daily Brief</button>
-              <button type="button" onClick={showWeather} className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2.5 text-center text-[10px] font-semibold text-white/82 transition hover:bg-white/[0.07]"><CloudSun className="mx-auto mb-1 size-4 text-sky-200" />Weather</button>
-              <button type="button" onClick={openVoice} className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2.5 text-center text-[10px] font-semibold text-white/82 transition hover:bg-white/[0.07]"><Mic className="mx-auto mb-1 size-4 text-emerald-200" />Atlas Voice</button>
+          <div className="border-t border-white/8 px-3 pb-2.5 pt-2.5 sm:px-3.5 sm:pb-3 sm:pt-3">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button type="button" onClick={openBrief} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[9px] font-semibold text-white/80 transition hover:bg-white/[0.07] sm:px-3 sm:py-2 sm:text-[10px]"><Newspaper className="size-3.5 text-gold" />Brief</button>
+              <button type="button" onClick={showWeather} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[9px] font-semibold text-white/80 transition hover:bg-white/[0.07] sm:px-3 sm:py-2 sm:text-[10px]"><CloudSun className="size-3.5 text-sky-200" />Weather</button>
+              <button type="button" onClick={openVoice} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[9px] font-semibold text-white/80 transition hover:bg-white/[0.07] sm:px-3 sm:py-2 sm:text-[10px]"><Mic className="size-3.5 text-emerald-200" />Voice</button>
             </div>
 
-            <div className="mt-3 rounded-xl border border-white/8 bg-black/15 px-3 py-2.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[9px] font-semibold uppercase tracking-[.16em] text-sky-200/80">{weatherLabel}</p>
-                  <p className="mt-1 text-[11px] leading-4 text-white/68">{loadingWeather ? 'Loading verified destination weather…' : weather || 'Tap Weather to load destination conditions.'}</p>
+            {(loadingWeather || weather) ? (
+              <div className="mt-2 rounded-lg border border-sky-300/12 bg-sky-300/[0.045] px-2.5 py-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[8px] font-semibold uppercase tracking-[.15em] text-sky-200/75 sm:text-[9px]">{weatherLabel}</p>
+                    <p className="mt-0.5 text-[10px] leading-4 text-white/66 sm:text-[11px]">{loadingWeather ? 'Loading verified destination weather…' : weather}</p>
+                  </div>
+                  <button type="button" onClick={() => { setContext(null); setCoordinated(null); }} aria-label="Clear weather context" className="shrink-0 rounded-full p-1 text-white/35 hover:text-white/70"><X className="size-3" /></button>
                 </div>
-                {weather || loadingWeather ? <button type="button" onClick={() => { setContext(null); setCoordinated(null); }} aria-label="Clear weather context" className="shrink-0 rounded-full p-1 text-white/40 hover:text-white/70"><X className="size-3.5" /></button> : null}
               </div>
-            </div>
+            ) : null}
 
-            <p className="mt-2.5 text-[10px] leading-4 text-white/50">{voicePrompt}</p>
+            <p className="mt-2 truncate text-[9px] leading-4 text-white/42 sm:text-[10px]">{voicePrompt}</p>
           </div>
         ) : null}
       </div>
