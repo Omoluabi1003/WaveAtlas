@@ -1,8 +1,8 @@
 @media (max-width: 767px) {
   html[data-waveatlas-visual] {
     --waveatlas-mobile-dock-height: 64px;
-    --waveatlas-mobile-dock-footprint: 108px;
-    --waveatlas-cockpit-gap: 12px;
+    --waveatlas-mobile-dock-full-height: 108px;
+    --waveatlas-cockpit-gap: 14px;
   }
 
   html[data-waveatlas-visual] .waveatlas-mobile-dock {
@@ -34,7 +34,7 @@
     right: max(0.75rem, env(safe-area-inset-right)) !important;
     width: auto !important;
     max-width: calc(100vw - max(0.75rem, env(safe-area-inset-left)) - max(0.75rem, env(safe-area-inset-right))) !important;
-    bottom: calc(var(--waveatlas-mobile-dock-footprint) + var(--waveatlas-cockpit-gap)) !important;
+    bottom: calc(var(--waveatlas-mobile-dock-full-height) + var(--waveatlas-cockpit-gap)) !important;
     z-index: 72 !important;
     box-sizing: border-box !important;
     overflow: hidden !important;

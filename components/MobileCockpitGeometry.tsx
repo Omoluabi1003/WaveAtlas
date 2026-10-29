@@ -20,10 +20,11 @@ export function MobileCockpitGeometry() {
         resizeObserver.observe(next);
       }
 
-      const rect = next.getBoundingClientRect();
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      const footprint = Math.max(0, Math.ceil(viewportHeight - rect.top));
-      root.style.setProperty("--waveatlas-mobile-dock-footprint", `${footprint}px`);
+      // One coordinate system only: measure the dock itself, including its
+      // top padding and iPhone safe-area/bottom padding. The player then sits
+      // exactly this many pixels above the viewport bottom, plus the gap.
+      const fullDockHeight = Math.max(0, Math.ceil(next.getBoundingClientRect().height));
+      root.style.setProperty("--waveatlas-mobile-dock-full-height", `${fullDockHeight}px`);
     };
 
     measure();
@@ -31,15 +32,13 @@ export function MobileCockpitGeometry() {
     mutationObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style"] });
     window.addEventListener("resize", measure, { passive: true });
     window.visualViewport?.addEventListener("resize", measure, { passive: true });
-    window.visualViewport?.addEventListener("scroll", measure, { passive: true });
 
     return () => {
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
-      window.visualViewport?.removeEventListener("scroll", measure);
-      root.style.removeProperty("--waveatlas-mobile-dock-footprint");
+      root.style.removeProperty("--waveatlas-mobile-dock-full-height");
     };
   }, []);
 
