@@ -26,6 +26,7 @@ import "./fonts.css";
 import "./waveatlas-v2.css";
 import "./waveatlas-mobile-geometry.css";
 import "./cinematic-mobile-bounds.css";
+import "./journey-density.css";
 
 export const viewport: Viewport = {
   width: "device-width",
