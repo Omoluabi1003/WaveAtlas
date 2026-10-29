@@ -1,6 +1,7 @@
 "use client";
 
-import { CloudSun, Mic, Newspaper, Sparkles, X } from 'lucide-react';
+import { CloudSun, Mic, Newspaper, X } from 'lucide-react';
+import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -51,7 +52,7 @@ function briefIsOpen() {
 function LivingContextIcon({ active, reducedMotion }: { active: boolean; reducedMotion: boolean }) {
   const orbitDuration = active ? 3.8 : 6.8;
   return (
-    <span className="relative grid size-6 place-items-center" aria-hidden="true">
+    <span className="relative grid size-7 place-items-center" aria-hidden="true">
       <motion.span
         className={`absolute inset-[1px] rounded-full border ${active ? 'border-radio/55' : 'border-emerald-200/24'}`}
         animate={reducedMotion ? undefined : { rotate: 360 }}
@@ -60,16 +61,16 @@ function LivingContextIcon({ active, reducedMotion }: { active: boolean; reduced
         <span className={`absolute -right-[2px] top-1/2 size-1.5 -translate-y-1/2 rounded-full ${active ? 'bg-radio' : 'bg-emerald-200/80'} shadow-[0_0_8px_rgba(110,231,183,.85)]`} />
       </motion.span>
       <motion.span
-        className={`absolute inset-[5px] rounded-full ${active ? 'bg-radio/24' : 'bg-emerald-300/10'}`}
-        animate={reducedMotion ? undefined : { scale: [0.88, 1.2, 0.88], opacity: active ? [0.25, 0.62, 0.25] : [0.12, 0.35, 0.12] }}
+        className={`absolute inset-[5px] rounded-full ${active ? 'bg-radio/16' : 'bg-emerald-300/8'}`}
+        animate={reducedMotion ? undefined : { scale: [0.9, 1.12, 0.9], opacity: active ? [0.18, 0.48, 0.18] : [0.08, 0.24, 0.08] }}
         transition={reducedMotion ? undefined : { duration: active ? 1.8 : 2.8, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.span
-        className="relative z-[1] grid place-items-center"
-        animate={reducedMotion ? undefined : active ? { scale: [1, 1.12, 1], rotate: [0, 4, 0, -4, 0] } : { y: [0, -0.7, 0.4, 0], opacity: [0.82, 1, 0.88, 0.82] }}
-        transition={reducedMotion ? undefined : { duration: active ? 1.9 : 3.4, repeat: Infinity, ease: 'easeInOut' }}
+        className="relative z-[1] grid size-5 place-items-center overflow-hidden rounded-[0.3rem] shadow-[0_0_9px_rgba(68,156,255,.24),0_0_10px_rgba(255,31,142,.22)]"
+        animate={reducedMotion ? undefined : active ? { scale: [1, 1.08, 1] } : { y: [0, -0.45, 0], opacity: [0.9, 1, 0.9] }}
+        transition={reducedMotion ? undefined : { duration: active ? 1.9 : 3.2, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <Sparkles className="size-4" />
+        <Image src="/atlas-context-star.png" alt="" width={20} height={20} priority className="size-5 object-cover" />
       </motion.span>
     </span>
   );
