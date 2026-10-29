@@ -41,6 +41,22 @@ export default function AtlasJourneyLaunchState() {
     setVisible(true);
   }, []);
 
+  useEffect(() => {
+    if (!visible) return;
+    let frame = 0;
+    let attempts = 0;
+    const frameRoute = () => {
+      const routeView = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent?.trim() === 'Route view');
+      if (routeView) {
+        routeView.click();
+        return;
+      }
+      if (attempts++ < 12) frame = window.requestAnimationFrame(frameRoute);
+    };
+    frame = window.requestAnimationFrame(frameRoute);
+    return () => window.cancelAnimationFrame(frame);
+  }, [visible]);
+
   const modes = useMemo(() => route ? journeyLaunchModes(route).filter((mode) => mode.enabled) : [], [route]);
   const distanceKm = useMemo(() => route ? journeyLaunchDistanceKm(route) : 0, [route]);
 
