@@ -1,0 +1,29 @@
+/* Atlas Journey mobile density guardrails.
+ * Keep route planning/action affordances visible while preventing secondary
+ * suggestions and implementation details from turning the sidebar into a long page.
+ */
+
+/* Featured journeys: show a short taste, not the full catalog. */
+section:has(#journey-title) aside > p:first-of-type + div > button:nth-child(n + 4) {
+  display: none;
+}
+
+/* The stack/source disclosure is engineering detail, not journey UX. */
+section:has(#journey-title) aside > p:last-child {
+  display: none;
+}
+
+/* Tighten the lower sidebar once the long catalog is collapsed. */
+section:has(#journey-title) aside > p:first-of-type {
+  margin-top: 1rem;
+}
+
+section:has(#journey-title) aside > p:first-of-type + div {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 767px) {
+  section:has(#journey-title) aside {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+}
