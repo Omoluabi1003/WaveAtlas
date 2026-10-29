@@ -17,6 +17,7 @@ export const JOURNEY_PRESETS: JourneyRoute[] = [
   { from: { label: 'Accra, Ghana', lat: 5.6037, lng: -0.187, countryCode: 'GH' }, to: { label: 'Dakar, Senegal', lat: 14.7167, lng: -17.4677, countryCode: 'SN' } },
   { from: { label: 'Cairo, Egypt', lat: 30.0444, lng: 31.2357, countryCode: 'EG' }, to: { label: 'Dubai, United Arab Emirates', lat: 25.2048, lng: 55.2708, countryCode: 'AE' } },
   { from: { label: 'London, United Kingdom', lat: 51.5072, lng: -0.1276, countryCode: 'GB' }, to: { label: 'Paris, France', lat: 48.8566, lng: 2.3522, countryCode: 'FR' } },
+  { from: { label: 'London, United Kingdom', lat: 51.5072, lng: -0.1276, countryCode: 'GB' }, to: { label: 'Tokyo, Japan', lat: 35.6762, lng: 139.6503, countryCode: 'JP' } },
   { from: { label: 'Berlin, Germany', lat: 52.52, lng: 13.405, countryCode: 'DE' }, to: { label: 'Rome, Italy', lat: 41.9028, lng: 12.4964, countryCode: 'IT' } },
   { from: { label: 'Madrid, Spain', lat: 40.4168, lng: -3.7038, countryCode: 'ES' }, to: { label: 'Lisbon, Portugal', lat: 38.7223, lng: -9.1393, countryCode: 'PT' } },
   { from: { label: 'Istanbul, Türkiye', lat: 41.0082, lng: 28.9784, countryCode: 'TR' }, to: { label: 'Athens, Greece', lat: 37.9838, lng: 23.7275, countryCode: 'GR' } },
