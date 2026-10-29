@@ -22,6 +22,24 @@ export async function GET(req: NextRequest) {
   const recent = parseRecentParam(p.get('recent'));
   const teleportMode = globalTeleport && anchor;
 
+  // `global=true` without an anchor used to be the silent fallback for Explore Nearby
+  // when browser location was unavailable. That made an inventory/global candidate look
+  // like a nearby station (for example, a Florida listener could land in Ibadan).
+  // Nearby discovery must fail closed instead of fabricating proximity. Intentional
+  // worldwide teleport remains available because it supplies an anchor station.
+  if (globalTeleport && !anchor) {
+    return NextResponse.json(
+      {
+        error: 'Precise location is required for Explore Nearby.',
+        code: 'LOCATION_REQUIRED',
+        status: 'location_required',
+        candidates: [],
+        bestCandidate: null,
+      },
+      { status: 422 },
+    );
+  }
+
   if (!globalTeleport && !countryCodeParam && (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180)) {
     return NextResponse.json({ error: 'lat/lng, countryCode, or global=true is required' }, { status: 400 });
   }
@@ -71,7 +89,6 @@ export async function GET(req: NextRequest) {
     ...(debug ? { debug } : {}),
   });
 }
-
 
 const CONTINENT_BY_COUNTRY: Record<string, string> = { NG:'Africa', GH:'Africa', ZA:'Africa', KE:'Africa', EG:'Africa', MA:'Africa', SN:'Africa', TZ:'Africa', UG:'Africa', CM:'Africa', CD:'Africa', CG:'Africa', AO:'Africa', DZ:'Africa', BJ:'Africa', TG:'Africa', CI:'Africa', BW:'Africa', ZW:'Africa', NA:'Africa', MZ:'Africa', SL:'Africa', LR:'Africa', GA:'Africa', CV:'Africa', GB:'Europe', FR:'Europe', DE:'Europe', NL:'Europe', ES:'Europe', IT:'Europe', SE:'Europe', NO:'Europe', IE:'Europe', CH:'Europe', BE:'Europe', PT:'Europe', DK:'Europe', FI:'Europe', PL:'Europe', GR:'Europe', RU:'Europe', UA:'Europe', JP:'Asia', IN:'Asia', SG:'Asia', KR:'Asia', ID:'Asia', PH:'Asia', AE:'Asia', CN:'Asia', TH:'Asia', MY:'Asia', SA:'Asia', QA:'Asia', IL:'Asia', TR:'Asia', VN:'Asia', PK:'Asia', AU:'Oceania', NZ:'Oceania', FJ:'Oceania', PG:'Oceania', US:'North America', CA:'North America', MX:'North America', CU:'North America', JM:'North America', DO:'North America', BR:'South America', AR:'South America', CL:'South America', CO:'South America', PE:'South America', UY:'South America' };
 
