@@ -7,6 +7,7 @@ import { atlasTravelDurationLabel } from '@/lib/atlas-travel-presentation';
 import { journeySoundPhase, journeySoundPhaseLabel, journeySoundPhaseQueue } from '@/lib/journey-sound-phases';
 import { setJourneyProgressFromTimeline } from '@/lib/journey-progress-bridge';
 import type { Station } from '@/lib/stations';
+import AtlasJourneyArrival from '@/components/AtlasJourneyArrival';
 
 const PROFILE_LABELS: Record<AtlasTravelProfile, string> = { flight: 'Flight', drive: 'Drive', bicycle: 'Bicycle', walk: 'Walk' };
 const PROFILE_ICONS = { flight: Plane, drive: Car, bicycle: Bike, walk: Footprints } as const;
@@ -20,6 +21,10 @@ function isTravelProfile(value: string | null): value is AtlasTravelProfile {
 function remainingDuration(seconds: number | undefined, progress: number) {
   if (!seconds || !Number.isFinite(seconds)) return null;
   return atlasTravelDurationLabel(Math.max(0, seconds * (1 - progress)));
+}
+
+function closeJourney() {
+  document.querySelector<HTMLButtonElement>('[role="dialog"][aria-labelledby="journey-title"] button[aria-label="Close Atlas Journey"]')?.click();
 }
 
 export default function AtlasCorridorTravelPanel({ profile, session, status, stations, progress, running, onProfileChange, onListen, onTakeover }: {
@@ -80,6 +85,8 @@ export default function AtlasCorridorTravelPanel({ profile, session, status, sta
     onListen(candidate, queueStations);
   }, [corridorAuto, running, queueStations, onListen]);
 
+  const arrivalStation = progress >= 1 ? queueStations[0] || currentStation : undefined;
+
   return <section className="mt-5 rounded-2xl border border-[#00D68F]/20 bg-[#00D68F]/[.035] p-4" aria-labelledby="atlas-corridor-title">
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2"><Route className="size-4 shrink-0 text-[#00D68F]" /><div className="min-w-0"><h3 id="atlas-corridor-title" className="text-sm font-semibold">Live Journey</h3><p className="truncate text-[10px] text-white/45">{journeySoundPhaseLabel(soundPhase)}{currentPlace ? ` · ${currentPlace}` : ''}</p></div></div>
@@ -89,7 +96,7 @@ export default function AtlasCorridorTravelPanel({ profile, session, status, sta
     <div className="mt-3 grid grid-cols-3 gap-2">
       <div className="rounded-xl bg-white/[.035] p-3"><p className="text-[9px] uppercase tracking-[.12em] text-white/35">Mode</p><p className="mt-1 truncate text-xs font-semibold">{PROFILE_LABELS[profile]}</p></div>
       <div className="rounded-xl bg-white/[.035] p-3"><p className="text-[9px] uppercase tracking-[.12em] text-white/35">Remaining</p><p className="mt-1 truncate text-xs font-semibold">{remainingKm !== null ? `${Math.round(remainingKm).toLocaleString()} km` : 'Route'}</p></div>
-      <div className="rounded-xl bg-white/[.035] p-3"><p className="text-[9px] uppercase tracking-[.12em] text-white/35">ETA</p><p className="mt-1 truncate text-xs font-semibold">{eta || (running ? 'In progress' : 'Ready')}</p></div>
+      <div className="rounded-xl bg-white/[.035] p-3"><p className="text-[9px] uppercase tracking-[.12em] text-white/35">ETA</p><p className="mt-1 truncate text-xs font-semibold">{eta || (running ? 'In progress' : progress >= 1 ? 'Arrived' : 'Ready')}</p></div>
     </div>
 
     <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{TRAVEL_PROFILES.map((item) => { const Icon = PROFILE_ICONS[item]; return <button type="button" key={item} aria-pressed={profile === item} onClick={() => { onProfileChange(item); setCorridorAuto(false); lastTune.current = { id: '', at: 0 }; }} className={`${button} min-w-[92px] ${profile === item ? '!border-[#00D68F] !bg-[#00D68F]/10 !text-[#00D68F]' : 'text-white/65'}`}><Icon className="size-3.5" />{PROFILE_LABELS[item]}</button>; })}</div>
@@ -114,5 +121,27 @@ export default function AtlasCorridorTravelPanel({ profile, session, status, sta
     </div> : null}
 
     {state && queue.length ? <div className="mt-3"><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><Radio className="size-3.5 text-[#D4A64A]" /><p className="text-[9px] font-bold uppercase tracking-[.14em] text-[#D4A64A]">{journeySoundPhaseLabel(soundPhase)}</p></div><label className="flex items-center gap-1.5 text-[9px] text-white/45"><input type="checkbox" checked={corridorAuto} disabled={!session || !queueStations.length} onChange={(event) => { const enabled = event.target.checked; setCorridorAuto(enabled); lastTune.current = { id: '', at: 0 }; if (enabled) onTakeover(); }} />Auto</label></div><div className="mt-2 flex gap-2 overflow-x-auto pb-1">{queue.slice(0, 4).map((station, index) => <button type="button" onClick={() => { const candidate = stationById.get(station.id); if (!candidate) return; setCorridorAuto(false); onTakeover(); onListen(candidate, queueStations.length ? queueStations : [candidate]); }} key={station.id} className={`min-w-[132px] rounded-xl border p-3 text-left transition hover:border-[#D4A64A]/40 ${index === 0 ? 'border-[#00D68F]/35 bg-[#00D68F]/[.05]' : 'border-white/10 bg-white/[.025]'}`}><p className="truncate text-xs font-semibold">{station.name}</p><p className="mt-1 text-[9px] text-white/40">{index === 0 ? (soundPhase === 'departure' ? 'Origin signal' : soundPhase === 'arrival' ? 'Arrival signal' : 'Current signal') : `${Math.round(station.distanceKm)} km off route`}</p></button>)}</div></div> : null}
+
+    {progress >= 1 && session ? <AtlasJourneyArrival
+      destination={session.route.to}
+      station={arrivalStation}
+      queue={queueStations}
+      onListen={(station, candidates) => { setCorridorAuto(false); onTakeover(); onListen(station, candidates); }}
+      onBrief={(station) => {
+        setCorridorAuto(false);
+        onTakeover();
+        onListen(station, queueStations.length ? queueStations : [station]);
+        closeJourney();
+        window.setTimeout(() => window.dispatchEvent(new Event('waveatlas:open-mobile-brief')), 0);
+      }}
+      onExplore={(station, candidates) => {
+        if (station) {
+          setCorridorAuto(false);
+          onTakeover();
+          onListen(station, candidates?.length ? candidates : [station]);
+        }
+        closeJourney();
+      }}
+    /> : null}
   </section>;
 }
