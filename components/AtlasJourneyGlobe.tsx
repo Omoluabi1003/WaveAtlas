@@ -7,12 +7,53 @@ import { drawJourneyAircraft } from '@/lib/journey-aircraft';
 import { RealisticEarth } from '@/lib/realistic-earth';
 import countries from '@/lib/data/natural-earth-countries.json';
 import { journeyPosition, journeyTrack, type JourneyRoute } from '@/lib/atlas-journey';
+import type { AtlasTravelModeSession, AtlasTravelProfile } from '@/lib/atlas-travel-mode';
+import { atlasTravelPresentation } from '@/lib/atlas-travel-presentation';
 
 export type JourneyCamera = 'overview' | 'overhead' | 'trailing';
-export default function AtlasJourneyGlobe({ route, progress, camera, running, rate, departureAt, flightSeconds }: { route: JourneyRoute; progress: number; camera: JourneyCamera; running: boolean; rate: number; departureAt: number; flightSeconds: number }) {
+
+type RenderPoint = { lat: number; lng: number };
+
+function routePoint(route: JourneyRoute, session: AtlasTravelModeSession | null, profile: AtlasTravelProfile, progress: number): RenderPoint {
+  if (profile === 'flight' || !session?.points.length) return journeyPosition(route, progress);
+  const index = Math.min(session.points.length - 1, Math.max(0, Math.round(progress * (session.points.length - 1))));
+  const point = session.points[index];
+  return { lat: point.lat, lng: point.lon };
+}
+
+function routeCoordinates(route: JourneyRoute, session: AtlasTravelModeSession | null, profile: AtlasTravelProfile, progress = 1) {
+  if (profile === 'flight' || !session?.points.length) return journeyTrack(route, progress);
+  const end = Math.max(1, Math.round(progress * (session.points.length - 1)) + 1);
+  return session.points.slice(0, end).map((point) => [point.lon, point.lat] as [number, number]);
+}
+
+function drawGroundMarker(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number, profile: Exclude<AtlasTravelProfile, 'flight'>) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(heading);
+  ctx.shadowColor = 'rgba(0,214,143,.75)';
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = '#F7F5EF';
+  ctx.fillStyle = '#00D68F';
+  ctx.lineWidth = 1.5;
+  if (profile === 'drive') {
+    ctx.beginPath(); ctx.roundRect(-6, -10, 12, 20, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#08111D'; ctx.fillRect(-4, -6, 8, 5); ctx.fillRect(-4, 2, 8, 4);
+  } else if (profile === 'bicycle') {
+    ctx.beginPath(); ctx.arc(-6, 4, 4.5, 0, Math.PI * 2); ctx.arc(6, 4, 4.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-6, 4); ctx.lineTo(0, -3); ctx.lineTo(6, 4); ctx.lineTo(-1, 4); ctx.lineTo(-6, 4); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -7, 2.5, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.globalAlpha = .35; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+export default function AtlasJourneyGlobe({ route, progress, camera, running, rate, departureAt, flightSeconds, profile = 'flight', session = null }: { route: JourneyRoute; progress: number; camera: JourneyCamera; running: boolean; rate: number; departureAt: number; flightSeconds: number; profile?: AtlasTravelProfile; session?: AtlasTravelModeSession | null }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const latest = useRef({ route, progress, camera, running, rate, departureAt, flightSeconds, updated: 0 });
-  useEffect(() => { latest.current = { route, progress, camera, running, rate, departureAt, flightSeconds, updated: performance.now() }; }, [route, progress, camera, running, rate, departureAt, flightSeconds]);
+  const latest = useRef({ route, progress, camera, running, rate, departureAt, flightSeconds, profile, session, updated: 0 });
+  useEffect(() => { latest.current = { route, progress, camera, running, rate, departureAt, flightSeconds, profile, session, updated: performance.now() }; }, [route, progress, camera, running, rate, departureAt, flightSeconds, profile, session]);
   useEffect(() => {
     const element = canvas.current;
     if (!element) return;
@@ -34,16 +75,19 @@ export default function AtlasJourneyGlobe({ route, progress, camera, running, ra
       frame = requestAnimationFrame(render);
       if (document.hidden || !width || time - lastDraw < (reduced.matches ? 250 : 50)) return;
       lastDraw = time;
-      const { route, camera, running, rate, updated, departureAt, flightSeconds } = latest.current;
+      const { route, camera, running, rate, updated, departureAt, flightSeconds, profile, session } = latest.current;
       const progress = Math.min(1, latest.current.progress + (running && !document.hidden ? Math.min(300, time - updated) * rate / 1000 : 0));
-      const signature = [route.from.lat, route.from.lng, route.to.lat, route.to.lng, camera, progress.toFixed(6), width, height, departureAt, flightSeconds].join('|');
+      const signature = [route.from.lat, route.from.lng, route.to.lat, route.to.lng, camera, profile, session?.source || '', progress.toFixed(6), width, height, departureAt, flightSeconds].join('|');
       if (signature === drawn && time - lastTextureDraw < 1000) return;
       lastTextureDraw = time;
       drawn = signature;
-      const position = journeyPosition(route, progress), ahead = journeyPosition(route, Math.min(1, progress + 0.015)), midpoint = journeyPosition(route, 0.5);
+      const position = routePoint(route, session, profile, progress);
+      const ahead = routePoint(route, session, profile, Math.min(1, progress + 0.015));
+      const midpoint = routePoint(route, session, profile, 0.5);
       const center = camera === 'overview' ? midpoint : position;
-      const radius = Math.min(width * 0.43, height * 0.43) * (camera === 'overhead' ? 1.5 : camera === 'trailing' ? 1.15 : 1);
-      const rotation: [number, number, number] = [-center.lng + (camera === 'trailing' ? 12 : 0), -center.lat + (camera === 'trailing' ? -14 : 0), 0];
+      const ground = profile !== 'flight';
+      const radius = Math.min(width * 0.43, height * 0.43) * (camera === 'overhead' ? (ground ? 2.1 : 1.5) : camera === 'trailing' ? (ground ? 1.7 : 1.15) : 1);
+      const rotation: [number, number, number] = [-center.lng + (camera === 'trailing' ? (ground ? 4 : 12) : 0), -center.lat + (camera === 'trailing' ? (ground ? -5 : -14) : 0), 0];
       const projection = geoOrthographic().translate([width / 2, height / 2]).scale(radius).rotate(rotation).clipAngle(90);
       const path = geoPath(projection, ctx);
       ctx.clearRect(0, 0, width, height);
@@ -59,12 +103,17 @@ export default function AtlasJourneyGlobe({ route, progress, camera, running, ra
       const simulatedAt = departureAt + progress * flightSeconds * 1000;
       const surface = earth?.render({ rotX: -rotation[1] * Math.PI / 180, rotY: -rotation[0] * Math.PI / 180 }, radius * 2 * Math.min(window.devicePixelRatio || 1, 2), simulatedAt, time, reduced.matches) || fallbackEarth.render({ rotX: -rotation[1] * Math.PI / 180, rotY: -rotation[0] * Math.PI / 180 }, simulatedAt);
       element.dataset.earthRenderer = surface ? 'satellite-texture' : 'loading-geography';
+      element.dataset.travelMode = profile;
+      element.dataset.routeSource = session?.source || 'great-circle';
       if (surface) ctx.drawImage(surface, width / 2 - radius, height / 2 - radius, radius * 2, radius * 2);
       else { ctx.beginPath(); path(countries as GeoPermissibleObjects); ctx.fillStyle = '#326854'; ctx.fill(); }
       ctx.beginPath(); path(countries as GeoPermissibleObjects); ctx.strokeStyle = 'rgba(217,201,151,.18)'; ctx.lineWidth = 0.45; ctx.stroke();
       if (camera === 'overview') { ctx.beginPath(); path(graticule); ctx.strokeStyle = 'rgba(133,186,214,.09)'; ctx.lineWidth = 0.5; ctx.stroke(); }
-      for (const [end, color, dash] of [[1, 'rgba(212,166,74,.55)', [4, 5]], [progress, '#00D68F', []]] as const) {
-        ctx.beginPath(); path({ type: 'LineString', coordinates: journeyTrack(route, end) }); ctx.strokeStyle = color; ctx.lineWidth = end === 1 ? 1.5 : 2.8; ctx.setLineDash([...dash]); ctx.stroke();
+      const fullCoordinates = routeCoordinates(route, session, profile, 1);
+      const completedCoordinates = routeCoordinates(route, session, profile, progress);
+      for (const [coordinates, color, dash, lineWidth] of [[fullCoordinates, 'rgba(212,166,74,.55)', [4, 5], ground ? 2 : 1.5], [completedCoordinates, '#00D68F', [], ground ? 3.4 : 2.8]] as const) {
+        if (coordinates.length < 2) continue;
+        ctx.beginPath(); path({ type: 'LineString', coordinates }); ctx.strokeStyle = color; ctx.lineWidth = lineWidth; ctx.setLineDash([...dash]); ctx.stroke();
       }
       ctx.setLineDash([]);
       const visible = (lng: number, lat: number) => geoDistance([lng, lat], [-rotation[0], -rotation[1]]) < Math.PI / 2;
@@ -74,16 +123,19 @@ export default function AtlasJourneyGlobe({ route, progress, camera, running, ra
         ctx.beginPath(); ctx.arc(screen[0], screen[1], 4, 0, Math.PI * 2); ctx.fillStyle = '#D4A64A'; ctx.fill();
         ctx.font = 'bold 10px system-ui'; ctx.fillText(label, screen[0] + 8, screen[1] - 7);
       }
-      const plane = projection([position.lng, position.lat]), next = projection([ahead.lng, ahead.lat]);
-      if (plane && visible(position.lng, position.lat)) {
-        const previous = projection([journeyPosition(route, Math.max(0, progress - .015)).lng, journeyPosition(route, Math.max(0, progress - .015)).lat]);
-        const heading = progress < 1 && next ? Math.atan2(next[1] - plane[1], next[0] - plane[0]) + Math.PI / 2 : previous ? Math.atan2(plane[1] - previous[1], plane[0] - previous[0]) + Math.PI / 2 : 0;
-        drawJourneyAircraft(ctx, plane[0], plane[1], heading, camera, progress);
+      const marker = projection([position.lng, position.lat]), next = projection([ahead.lng, ahead.lat]);
+      if (marker && visible(position.lng, position.lat)) {
+        const previousPoint = routePoint(route, session, profile, Math.max(0, progress - .015));
+        const previous = projection([previousPoint.lng, previousPoint.lat]);
+        const heading = progress < 1 && next ? Math.atan2(next[1] - marker[1], next[0] - marker[0]) + Math.PI / 2 : previous ? Math.atan2(marker[1] - previous[1], marker[0] - previous[0]) + Math.PI / 2 : 0;
+        if (profile === 'flight') drawJourneyAircraft(ctx, marker[0], marker[1], heading, camera, progress);
+        else drawGroundMarker(ctx, marker[0], marker[1], heading, profile);
       }
       ctx.restore();
     };
     frame = requestAnimationFrame(render);
     return () => { cancelAnimationFrame(frame); observer.disconnect(); earth?.dispose(); fallbackEarth.dispose(); };
   }, []);
-  return <canvas ref={canvas} className="block h-[320px] w-full sm:h-[480px]" role="img" aria-label={`Simulated flight from ${route.from.label} to ${route.to.label}, ${Math.round(progress * 100)} percent complete`} />;
+  const presentation = atlasTravelPresentation(profile);
+  return <canvas ref={canvas} className="block h-[320px] w-full sm:h-[480px]" role="img" aria-label={`${presentation.simulatedLabel} from ${route.from.label} to ${route.to.label}, ${Math.round(progress * 100)} percent complete`} />;
 }
