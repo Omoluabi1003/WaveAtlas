@@ -196,7 +196,7 @@ export default function AtlasJourneyWorldEntry() {
   };
 
   const closeJourney = () => {
-    const close = document.querySelector<HTMLButtonElement>('button[aria-label="Close Atlas Journey"]');
+    const close = document.querySelector<HTMLButtonElement>('[role="dialog"][aria-labelledby="journey-title"] button[aria-label="Close Atlas Journey"]');
     close?.click();
   };
 
