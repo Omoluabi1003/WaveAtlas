@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bike, Car, Footprints, Plane, Radio, Route } from 'lucide-react';
-import { atlasTravelProgress, corridorStationQueue, type AtlasTravelModeSession, type AtlasTravelProfile } from '@/lib/atlas-travel-mode';
+import { atlasTravelProgress, type AtlasTravelModeSession, type AtlasTravelProfile } from '@/lib/atlas-travel-mode';
 import { atlasTravelDurationLabel } from '@/lib/atlas-travel-presentation';
+import { journeySoundPhase, journeySoundPhaseLabel, journeySoundPhaseQueue } from '@/lib/journey-sound-phases';
 import { setJourneyProgressFromTimeline } from '@/lib/journey-progress-bridge';
 import type { Station } from '@/lib/stations';
 
@@ -35,7 +36,8 @@ export default function AtlasCorridorTravelPanel({ profile, session, status, sta
   const [corridorAuto, setCorridorAuto] = useState(false);
   const lastTune = useRef({ id: '', at: 0 });
   const state = useMemo(() => session ? atlasTravelProgress(session, progress) : null, [session, progress]);
-  const queue = useMemo(() => session ? corridorStationQueue(session, progress, 5) : [], [session, progress]);
+  const soundPhase = journeySoundPhase(progress);
+  const queue = useMemo(() => session ? journeySoundPhaseQueue(session, progress, 5) : [], [session, progress]);
   const stationById = useMemo(() => new Map(stations.map((station) => [station.station_uuid || station.id, station])), [stations]);
   const queueStations = useMemo(() => queue.map((item) => stationById.get(item.id)).filter((station): station is Station => Boolean(station)), [queue, stationById]);
   const currentStation = state?.currentStationId ? stationById.get(state.currentStationId) : undefined;
@@ -80,7 +82,7 @@ export default function AtlasCorridorTravelPanel({ profile, session, status, sta
 
   return <section className="mt-5 rounded-2xl border border-[#00D68F]/20 bg-[#00D68F]/[.035] p-4" aria-labelledby="atlas-corridor-title">
     <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2"><Route className="size-4 shrink-0 text-[#00D68F]" /><div className="min-w-0"><h3 id="atlas-corridor-title" className="text-sm font-semibold">Live Journey</h3>{currentPlace ? <p className="truncate text-[10px] text-white/45">{currentPlace}</p> : null}</div></div>
+      <div className="flex min-w-0 items-center gap-2"><Route className="size-4 shrink-0 text-[#00D68F]" /><div className="min-w-0"><h3 id="atlas-corridor-title" className="text-sm font-semibold">Live Journey</h3><p className="truncate text-[10px] text-white/45">{journeySoundPhaseLabel(soundPhase)}{currentPlace ? ` · ${currentPlace}` : ''}</p></div></div>
       <span className="shrink-0 rounded-full border border-[#00D68F]/25 bg-[#00D68F]/10 px-3 py-1 text-[10px] font-bold tabular-nums text-[#00D68F]">{Math.round(progress * 100)}%</span>
     </div>
 
@@ -111,6 +113,6 @@ export default function AtlasCorridorTravelPanel({ profile, session, status, sta
       </div>
     </div> : null}
 
-    {state && queue.length ? <div className="mt-3"><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><Radio className="size-3.5 text-[#D4A64A]" /><p className="text-[9px] font-bold uppercase tracking-[.14em] text-[#D4A64A]">Signals ahead</p></div><label className="flex items-center gap-1.5 text-[9px] text-white/45"><input type="checkbox" checked={corridorAuto} disabled={!session || !queueStations.length} onChange={(event) => { const enabled = event.target.checked; setCorridorAuto(enabled); lastTune.current = { id: '', at: 0 }; if (enabled) onTakeover(); }} />Auto</label></div><div className="mt-2 flex gap-2 overflow-x-auto pb-1">{queue.slice(0, 4).map((station, index) => <button type="button" onClick={() => { const candidate = stationById.get(station.id); if (!candidate) return; setCorridorAuto(false); onTakeover(); onListen(candidate, queueStations.length ? queueStations : [candidate]); }} key={station.id} className={`min-w-[132px] rounded-xl border p-3 text-left transition hover:border-[#D4A64A]/40 ${index === 0 ? 'border-[#00D68F]/35 bg-[#00D68F]/[.05]' : 'border-white/10 bg-white/[.025]'}`}><p className="truncate text-xs font-semibold">{station.name}</p><p className="mt-1 text-[9px] text-white/40">{index === 0 ? 'Current signal' : `${Math.round(station.distanceKm)} km off route`}</p></button>)}</div></div> : null}
+    {state && queue.length ? <div className="mt-3"><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><Radio className="size-3.5 text-[#D4A64A]" /><p className="text-[9px] font-bold uppercase tracking-[.14em] text-[#D4A64A]">{journeySoundPhaseLabel(soundPhase)}</p></div><label className="flex items-center gap-1.5 text-[9px] text-white/45"><input type="checkbox" checked={corridorAuto} disabled={!session || !queueStations.length} onChange={(event) => { const enabled = event.target.checked; setCorridorAuto(enabled); lastTune.current = { id: '', at: 0 }; if (enabled) onTakeover(); }} />Auto</label></div><div className="mt-2 flex gap-2 overflow-x-auto pb-1">{queue.slice(0, 4).map((station, index) => <button type="button" onClick={() => { const candidate = stationById.get(station.id); if (!candidate) return; setCorridorAuto(false); onTakeover(); onListen(candidate, queueStations.length ? queueStations : [candidate]); }} key={station.id} className={`min-w-[132px] rounded-xl border p-3 text-left transition hover:border-[#D4A64A]/40 ${index === 0 ? 'border-[#00D68F]/35 bg-[#00D68F]/[.05]' : 'border-white/10 bg-white/[.025]'}`}><p className="truncate text-xs font-semibold">{station.name}</p><p className="mt-1 text-[9px] text-white/40">{index === 0 ? (soundPhase === 'departure' ? 'Origin signal' : soundPhase === 'arrival' ? 'Arrival signal' : 'Current signal') : `${Math.round(station.distanceKm)} km off route`}</p></button>)}</div></div> : null}
   </section>;
 }
