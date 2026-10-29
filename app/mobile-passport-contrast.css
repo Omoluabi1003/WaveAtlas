@@ -1,0 +1,43 @@
+@media (max-width: 767px) {
+  /* Daily Passport is authored with dark editorial ink, so guarantee the
+     parchment surface remains opaque enough inside the dark glass sheet. */
+  .mobile-station-sheet section[class*="text-[#2f2618]"] {
+    background: linear-gradient(145deg, rgba(249, 242, 222, 0.98), rgba(232, 207, 151, 0.94) 52%, rgba(220, 230, 214, 0.96)) !important;
+    color: #18140d !important;
+    border-color: rgba(255, 255, 255, 0.58) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .mobile-station-sheet section[class*="text-[#2f2618]"] h3,
+  .mobile-station-sheet section[class*="text-[#2f2618]"] p:not([class*="text-[#8a6b22]"]):not([class*="text-[#594b35]"]):not([class*="text-[#7a5d18]"]):not([class*="text-[#4d3d29]"]):not([class*="text-[#7a6844]"]):not([class*="text-[#241a10]"]) {
+    color: #18140d !important;
+  }
+
+  .mobile-station-sheet section[class*="text-[#2f2618]"] [class*="text-[#594b35]"],
+  .mobile-station-sheet section[class*="text-[#2f2618]"] [class*="text-[#4d3d29]"] {
+    color: #3b3022 !important;
+  }
+
+  .mobile-station-sheet section[class*="text-[#2f2618]"] [class*="text-[#8a6b22]"],
+  .mobile-station-sheet section[class*="text-[#2f2618]"] [class*="text-[#7a5d18]"] {
+    color: #6a4c0b !important;
+  }
+
+  .mobile-station-sheet section[class*="text-[#2f2618]"] [class*="text-[#7a6844]"] {
+    color: #55472f !important;
+  }
+
+  .mobile-station-sheet section[class*="text-[#2f2618]"] [class*="text-[#241a10]"] {
+    color: #18140d !important;
+  }
+
+  .mobile-station-sheet section[class*="text-[#2f2618]"] div[class*="bg-white/45"] {
+    background: rgba(255, 255, 255, 0.72) !important;
+    border-color: rgba(77, 61, 41, 0.18) !important;
+  }
+
+  .mobile-station-sheet section[class*="text-[#2f2618]"] div[class*="rgba(255,255,255,0.72)"] {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(246, 224, 177, 0.86) 48%, rgba(213, 238, 225, 0.88)) !important;
+  }
+}
