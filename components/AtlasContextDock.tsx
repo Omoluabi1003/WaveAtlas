@@ -5,7 +5,6 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Station } from '@/lib/stations';
-import type { WorldContext } from '@/lib/world-engine/types';
 
 type CoordinatedContext = {
   placeLabel?: string;
@@ -14,34 +13,55 @@ type CoordinatedContext = {
   voicePrompt?: string;
 };
 
+type WeatherResponse = {
+  ok: boolean;
+  weather?: {
+    observedAt?: string;
+    timezone?: string;
+    condition?: string;
+    temperatureC?: number;
+    apparentTemperatureC?: number;
+    humidityPercent?: number;
+    precipitationMm?: number;
+    windSpeedKmh?: number;
+    highC?: number;
+    lowC?: number;
+    precipitationProbabilityPercent?: number;
+  };
+  source?: { name?: string; attribution?: string; url?: string };
+  error?: string;
+};
+
 function stationPlace(station?: Station | null) {
   return [station?.city || station?.state, station?.country].filter(Boolean).join(', ');
 }
 
-function climateSummary(context?: WorldContext | null) {
-  const climate = context?.climate;
-  if (!climate) return undefined;
-  const parts = [
-    typeof climate.temperatureC === 'number' ? `${Math.round(climate.temperatureC)}°C` : null,
-    typeof climate.humidityPercent === 'number' ? `${Math.round(climate.humidityPercent)}% humidity` : null,
-    typeof climate.windSpeedMetersPerSecond === 'number' ? `${Math.round(climate.windSpeedMetersPerSecond)} m/s wind` : null,
-    typeof climate.rainfallMillimeters === 'number' ? `${climate.rainfallMillimeters} mm rain` : null,
-  ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : undefined;
+function weatherSummary(payload?: WeatherResponse | null) {
+  const weather = payload?.weather;
+  if (!weather) return '';
+  const headline = [
+    weather.condition,
+    typeof weather.temperatureC === 'number' ? `${Math.round(weather.temperatureC)}°C` : null,
+    typeof weather.apparentTemperatureC === 'number' ? `feels ${Math.round(weather.apparentTemperatureC)}°C` : null,
+  ].filter(Boolean).join(' · ');
+  const detail = [
+    typeof weather.highC === 'number' && typeof weather.lowC === 'number' ? `High ${Math.round(weather.highC)}° / Low ${Math.round(weather.lowC)}°` : null,
+    typeof weather.humidityPercent === 'number' ? `${Math.round(weather.humidityPercent)}% humidity` : null,
+    typeof weather.windSpeedKmh === 'number' ? `${Math.round(weather.windSpeedKmh)} km/h wind` : null,
+    typeof weather.precipitationProbabilityPercent === 'number' ? `${Math.round(weather.precipitationProbabilityPercent)}% precipitation` : null,
+  ].filter(Boolean).join(' · ');
+  return [headline, detail].filter(Boolean).join('\n');
 }
 
-async function fetchContext(station: Station, signal: AbortSignal) {
-  const params = new URLSearchParams();
-  params.set('stationName', station.name);
-  if (station.city) params.set('city', station.city);
-  if (station.state) params.set('state', station.state);
-  if (station.country) params.set('country', station.country);
-  if (station.country_code) params.set('countryCode', station.country_code);
-  if (station.language) params.set('language', station.language);
-  if (typeof station.latitude === 'number') params.set('lat', String(station.latitude));
-  if (typeof station.longitude === 'number') params.set('lng', String(station.longitude));
-  const response = await fetch(`/api/world-context?${params.toString()}`, { signal });
-  return response.ok ? await response.json() as WorldContext : null;
+async function fetchWeather(station: Station, signal: AbortSignal): Promise<WeatherResponse> {
+  if (typeof station.latitude !== 'number' || typeof station.longitude !== 'number') {
+    return { ok: false, error: 'Verified destination coordinates are unavailable.' };
+  }
+  const params = new URLSearchParams({ lat: String(station.latitude), lng: String(station.longitude) });
+  const response = await fetch(`/api/weather?${params.toString()}`, { signal });
+  const payload = await response.json() as WeatherResponse;
+  if (!response.ok || !payload.ok) return { ...payload, ok: false };
+  return payload;
 }
 
 function briefIsOpen() {
@@ -61,10 +81,11 @@ function LivingContextIcon({ active }: { active: boolean }) {
 
 export function AtlasContextDock() {
   const [station, setStation] = useState<Station | null>(null);
-  const [context, setContext] = useState<WorldContext | null>(null);
   const [coordinated, setCoordinated] = useState<CoordinatedContext | null>(null);
   const [open, setOpen] = useState(false);
   const [loadingWeather, setLoadingWeather] = useState(false);
+  const [weatherAttempted, setWeatherAttempted] = useState(false);
+  const [weatherResult, setWeatherResult] = useState<WeatherResponse | null>(null);
   const [surfaceBlocked, setSurfaceBlocked] = useState(false);
   const [mobileDockTarget, setMobileDockTarget] = useState<HTMLElement | null>(null);
   const reducedMotion = Boolean(useReducedMotion());
@@ -74,8 +95,10 @@ export function AtlasContextDock() {
       const next = (event as CustomEvent<Station | null>).detail;
       if (next?.name) {
         setStation(next);
-        setContext(null);
         setCoordinated(null);
+        setWeatherResult(null);
+        setWeatherAttempted(false);
+        setLoadingWeather(false);
         setOpen(false);
       }
     };
@@ -134,10 +157,11 @@ export function AtlasContextDock() {
     };
   }, [surfaceBlocked]);
 
-  const place = coordinated?.placeLabel || context?.radioDNA.placeLabel || stationPlace(station) || station?.name;
-  const weather = coordinated?.weatherSummary || climateSummary(context);
+  const place = coordinated?.placeLabel || stationPlace(station) || station?.name;
   const voicePrompt = coordinated?.voicePrompt || (place ? `Ask Atlas about ${place}.` : 'Ask Atlas about this station.');
   const weatherLabel = useMemo(() => coordinated?.weatherTitle || "Uncle Paul's Weather Forecast", [coordinated?.weatherTitle]);
+  const forecast = weatherSummary(weatherResult);
+  const weatherSource = weatherResult?.source?.attribution || weatherResult?.source?.name || 'Open-Meteo Best Match forecast';
 
   if (!station || surfaceBlocked) return null;
 
@@ -148,14 +172,16 @@ export function AtlasContextDock() {
   const openVoice = () => window.dispatchEvent(new Event('waveatlas:open-atlas-voice'));
   const showWeather = async () => {
     setOpen(true);
-    if (weather || context || loadingWeather) return;
+    if (loadingWeather) return;
+    setWeatherAttempted(true);
     setLoadingWeather(true);
+    setWeatherResult(null);
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 5000);
+    const timeout = window.setTimeout(() => controller.abort(), 6500);
     try {
-      setContext(await fetchContext(station, controller.signal));
+      setWeatherResult(await fetchWeather(station, controller.signal));
     } catch {
-      setContext(null);
+      setWeatherResult({ ok: false, error: 'Verified destination weather is temporarily unavailable.', source: { attribution: 'Open-Meteo Best Match forecast' } });
     } finally {
       window.clearTimeout(timeout);
       setLoadingWeather(false);
@@ -170,14 +196,15 @@ export function AtlasContextDock() {
     </div>
   );
 
-  const weatherPanel = (loadingWeather || weather) ? (
+  const weatherPanel = (weatherAttempted || loadingWeather) ? (
     <div className="mt-2.5 rounded-xl border border-sky-300/12 bg-sky-300/[0.045] px-3 py-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[9px] font-semibold uppercase tracking-[.15em] text-sky-200/75">{weatherLabel}</p>
-          <p className="mt-1 text-[11px] leading-4 text-white/68">{loadingWeather ? 'Loading verified destination weather…' : weather}</p>
+          <p className="mt-1 whitespace-pre-line text-[11px] leading-4 text-white/68">{loadingWeather ? 'Loading verified destination weather…' : forecast || weatherResult?.error || 'Verified destination weather is unavailable.'}</p>
+          {!loadingWeather ? <p className="mt-1.5 text-[9px] leading-4 text-white/38">Source: {weatherSource}</p> : null}
         </div>
-        <button type="button" onClick={() => { setContext(null); setCoordinated(null); }} aria-label="Clear weather context" className="shrink-0 rounded-full p-1 text-white/35 hover:text-white/70"><X className="size-3.5" /></button>
+        <button type="button" onClick={() => { setWeatherAttempted(false); setWeatherResult(null); }} aria-label="Clear weather context" className="shrink-0 rounded-full p-1 text-white/35 hover:text-white/70"><X className="size-3.5" /></button>
       </div>
     </div>
   ) : null;
