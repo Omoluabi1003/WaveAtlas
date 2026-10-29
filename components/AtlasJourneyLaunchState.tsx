@@ -32,7 +32,7 @@ export default function AtlasJourneyLaunchState() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('journeyLaunch') !== '1') return;
+    if (params.has('journeyMode')) return;
     const decoded = decodeJourney(params.get('journey'));
     if (!decoded) return;
     const recommended = recommendedJourneyLaunchProfile(decoded);
