@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   atlasLocationDistanceMeters,
+  atlasLocationMayPrompt,
   isPreciseAtlasLocation,
   plausibleLocationTransition,
   PRECISE_LOCATION_MAX_ACCURACY_METERS,
@@ -54,4 +55,16 @@ test('genuine long-distance travel is allowed after sufficient elapsed time', ()
 test('normal local movement remains valid', () => {
   const aucklandNearby = { ...newZealand, lat: -36.8509, lng: 174.7645, timestamp: now + 30_000 };
   assert.equal(plausibleLocationTransition(newZealand, aucklandNearby, now + 30_000), true);
+});
+
+test('a real user gesture may open geolocation even when the caller did not set allowPrompt', () => {
+  assert.equal(atlasLocationMayPrompt(false, true), true);
+});
+
+test('passive page work cannot open the geolocation prompt', () => {
+  assert.equal(atlasLocationMayPrompt(false, false), false);
+});
+
+test('explicit location requests remain allowed outside transient user activation', () => {
+  assert.equal(atlasLocationMayPrompt(true, false), true);
 });
