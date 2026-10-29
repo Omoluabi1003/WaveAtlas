@@ -3,7 +3,8 @@ import { geoDistance } from 'd3-geo';
 import { JOURNEY_PRESETS, JOURNEY_COUNTRIES, decodeJourney, journeyClock, journeyFlightSeconds, journeyFlightLabel, journeyRouteCountries, journeyDistance, journeyPosition, journeyRegion, nearbyJourneyStations, validJourneyRoute } from '../lib/atlas-journey';
 import type { Station } from '../lib/stations';
 
-const route = JOURNEY_PRESETS[0];
+const route = JOURNEY_PRESETS.find((candidate) => candidate.from.countryCode === 'NG' && candidate.to.countryCode === 'AE');
+assert(route, 'Lagos to Dubai preset must remain available');
 assert(validJourneyRoute(route));
 assert(journeyDistance(route) > 5800 && journeyDistance(route) < 6000, 'Lagos to Dubai plausible distance');
 for (const progress of [0, 0.25, 0.5, 0.75, 1]) {
@@ -38,7 +39,9 @@ assert(available[0].distanceKm < 1);
 console.log('Atlas Journey: route distances, constant progress, dateline, country/ocean geography, shared-route validation, worldwide destination choices, countdown and nearby station eligibility passed');
 
 assert(journeyFlightSeconds(route) > 7 * 3600 && journeyFlightSeconds(route) < 8 * 3600, 'Lagos to Dubai estimate is hours, not four preview minutes');
-assert(journeyFlightSeconds(JOURNEY_PRESETS[1]) > journeyFlightSeconds(route), 'Longer route has longer ETA');
+const longerRoute = JOURNEY_PRESETS.find((candidate) => journeyDistance(candidate) > journeyDistance(route));
+assert(longerRoute, 'At least one featured route must be longer than Lagos to Dubai');
+assert(journeyFlightSeconds(longerRoute) > journeyFlightSeconds(route), 'Longer route has longer ETA');
 assert(journeyFlightSeconds(route, 700) > journeyFlightSeconds(route, 900), 'Cruise speed changes flight estimate');
 assert(Number.isFinite(journeyFlightSeconds(route, NaN)), 'Invalid speed has safe default');
 assert.equal(journeyFlightLabel(7 * 3600 + 25 * 60), '7h 25m');
