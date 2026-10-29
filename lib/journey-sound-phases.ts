@@ -1,5 +1,5 @@
 import type { AtlasTravelModeSession } from './atlas-travel-mode';
-import type { CorridorStation } from './atlas-corridor-intelligence';
+import type { CorridorStationHit } from './atlas-corridor-intelligence';
 
 export type JourneySoundPhase = 'departure' | 'corridor' | 'arrival';
 
@@ -16,13 +16,7 @@ export function journeySoundPhaseLabel(phase: JourneySoundPhase) {
   return 'Corridor sound';
 }
 
-export function journeySoundPhaseHint(phase: JourneySoundPhase) {
-  if (phase === 'departure') return 'Origin-area signals lead the listening queue.';
-  if (phase === 'arrival') return 'Destination-area signals move to the front.';
-  return 'Radio follows the geography moving beneath the route.';
-}
-
-function uniqueById(stations: CorridorStation[]) {
+function uniqueById(stations: CorridorStationHit[]) {
   const seen = new Set<string>();
   return stations.filter((station) => {
     if (seen.has(station.id)) return false;
@@ -38,7 +32,7 @@ export function journeySoundPhaseQueue(session: AtlasTravelModeSession, rawProgr
   const routeIndex = Math.round(progress * finalIndex);
   const ordered = session.corridor.stations;
 
-  let candidates: CorridorStation[];
+  let candidates: CorridorStationHit[];
   if (phase === 'departure') {
     const departureBand = Math.max(3, Math.round(finalIndex * 0.18));
     candidates = ordered
