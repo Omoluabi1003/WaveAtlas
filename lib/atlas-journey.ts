@@ -7,11 +7,30 @@ import type { JourneyPlace, JourneyRoute } from './atlas-journey-contract';
 export { decodeJourney, validJourneyPlace, validJourneyRoute } from './atlas-journey-contract';
 export type { JourneyPlace, JourneyRoute } from './atlas-journey-contract';
 export const JOURNEY_SAVED_KEY = 'waveatlas_journeys_v1';
+
+// Featured routes are intentionally distributed across regions so Atlas Journey
+// presents the world as a browsable listening geography rather than a three-route demo.
 export const JOURNEY_PRESETS: JourneyRoute[] = [
-  { from: { label: 'Lagos, Nigeria', lat: 6.5244, lng: 3.3792, countryCode: 'NG' }, to: { label: 'Dubai, United Arab Emirates', lat: 25.2048, lng: 55.2708, countryCode: 'AE' } },
-  { from: { label: 'London, United Kingdom', lat: 51.5072, lng: -0.1276, countryCode: 'GB' }, to: { label: 'Tokyo, Japan', lat: 35.6762, lng: 139.6503, countryCode: 'JP' } },
-  { from: { label: 'New York, United States', lat: 40.7128, lng: -74.006, countryCode: 'US' }, to: { label: 'São Paulo, Brazil', lat: -23.5505, lng: -46.6333, countryCode: 'BR' } },
+  { from: { label: 'Lagos, Nigeria', lat: 6.5244, lng: 3.3792, countryCode: 'NG' }, to: { label: 'Nairobi, Kenya', lat: -1.2921, lng: 36.8219, countryCode: 'KE' } },
+  { from: { label: 'Lagos, Nigeria', lat: 6.5244, lng: 3.3792, countryCode: 'NG' }, to: { label: 'Cape Town, South Africa', lat: -33.9249, lng: 18.4241, countryCode: 'ZA' } },
+  { from: { label: 'Accra, Ghana', lat: 5.6037, lng: -0.187, countryCode: 'GH' }, to: { label: 'Dakar, Senegal', lat: 14.7167, lng: -17.4677, countryCode: 'SN' } },
+  { from: { label: 'Cairo, Egypt', lat: 30.0444, lng: 31.2357, countryCode: 'EG' }, to: { label: 'Dubai, United Arab Emirates', lat: 25.2048, lng: 55.2708, countryCode: 'AE' } },
+  { from: { label: 'London, United Kingdom', lat: 51.5072, lng: -0.1276, countryCode: 'GB' }, to: { label: 'Paris, France', lat: 48.8566, lng: 2.3522, countryCode: 'FR' } },
+  { from: { label: 'Berlin, Germany', lat: 52.52, lng: 13.405, countryCode: 'DE' }, to: { label: 'Rome, Italy', lat: 41.9028, lng: 12.4964, countryCode: 'IT' } },
+  { from: { label: 'Madrid, Spain', lat: 40.4168, lng: -3.7038, countryCode: 'ES' }, to: { label: 'Lisbon, Portugal', lat: 38.7223, lng: -9.1393, countryCode: 'PT' } },
+  { from: { label: 'Istanbul, Türkiye', lat: 41.0082, lng: 28.9784, countryCode: 'TR' }, to: { label: 'Athens, Greece', lat: 37.9838, lng: 23.7275, countryCode: 'GR' } },
+  { from: { label: 'Tokyo, Japan', lat: 35.6762, lng: 139.6503, countryCode: 'JP' }, to: { label: 'Seoul, South Korea', lat: 37.5665, lng: 126.978, countryCode: 'KR' } },
+  { from: { label: 'Bangkok, Thailand', lat: 13.7563, lng: 100.5018, countryCode: 'TH' }, to: { label: 'Singapore', lat: 1.3521, lng: 103.8198, countryCode: 'SG' } },
+  { from: { label: 'Delhi, India', lat: 28.6139, lng: 77.209, countryCode: 'IN' }, to: { label: 'Kathmandu, Nepal', lat: 27.7172, lng: 85.324, countryCode: 'NP' } },
+  { from: { label: 'Jakarta, Indonesia', lat: -6.2088, lng: 106.8456, countryCode: 'ID' }, to: { label: 'Manila, Philippines', lat: 14.5995, lng: 120.9842, countryCode: 'PH' } },
+  { from: { label: 'New York, United States', lat: 40.7128, lng: -74.006, countryCode: 'US' }, to: { label: 'Toronto, Canada', lat: 43.6532, lng: -79.3832, countryCode: 'CA' } },
+  { from: { label: 'Jacksonville, United States', lat: 30.3322, lng: -81.6557, countryCode: 'US' }, to: { label: 'Miami, United States', lat: 25.7617, lng: -80.1918, countryCode: 'US' } },
+  { from: { label: 'Mexico City, Mexico', lat: 19.4326, lng: -99.1332, countryCode: 'MX' }, to: { label: 'Guatemala City, Guatemala', lat: 14.6349, lng: -90.5069, countryCode: 'GT' } },
+  { from: { label: 'Bogotá, Colombia', lat: 4.711, lng: -74.0721, countryCode: 'CO' }, to: { label: 'Lima, Peru', lat: -12.0464, lng: -77.0428, countryCode: 'PE' } },
+  { from: { label: 'São Paulo, Brazil', lat: -23.5505, lng: -46.6333, countryCode: 'BR' }, to: { label: 'Buenos Aires, Argentina', lat: -34.6037, lng: -58.3816, countryCode: 'AR' } },
+  { from: { label: 'Sydney, Australia', lat: -33.8688, lng: 151.2093, countryCode: 'AU' }, to: { label: 'Auckland, New Zealand', lat: -36.8509, lng: 174.7645, countryCode: 'NZ' } },
 ];
+
 export const JOURNEY_COUNTRIES: JourneyPlace[] = countries.features.filter((f) => /^[A-Z]{2}$/.test(f.properties.ISO_A2)).map((f) => {
   const [lng, lat] = geoCentroid(f as GeoPermissibleObjects);
   return { label: f.properties.NAME_EN || f.properties.NAME, lat, lng, countryCode: f.properties.ISO_A2, approximate: true };
