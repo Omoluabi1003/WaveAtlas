@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { eligibleTravelStations } from '../lib/atlas-travel-mode';
+import { selectHealthBatch, stationDiscoveryEligible, stationSignalTier, type HealthSnapshot } from '../lib/agents/station-health-policy';
+import type { Station } from '../lib/stations';
+
+const now = Date.now();
+const base: Station = { id:'signal-fixture', station_uuid:'signal-fixture', name:'Signal Fixture', url:'https://example.com/live.mp3', url_resolved:'', homepage:'', favicon:'', country:'United States', country_code:'US', state:'Florida', city:'Jacksonville', language:'English', tags:['test'], codec:'MP3', bitrate:128, latitude:30.3322, longitude:-81.6557, votes:1, click_count:1, health_score:80, is_active:true, last_check_ok:true, last_checked_at:new Date(now).toISOString(), failure_count:0, response_time_ms:100 };
+const key = base.url;
+const evidence: HealthSnapshot = { generatedAt:new Date(now).toISOString(), cursor:0, records:{ [key]: { stationId:base.station_uuid, url:key, checkedAt:new Date(now).toISOString(), status:'healthy', reason:'audio-mpeg', consecutiveFailures:0, bytesSampled:4096, responseTimeMs:100 } } };
+assert.equal(stationSignalTier(base, now, evidence), 'live');
+assert.equal(stationDiscoveryEligible(base, now, evidence), true);
+evidence.records[key].status = 'degraded'; evidence.records[key].consecutiveFailures = 1;
+assert.equal(stationSignalTier(base, now, evidence), 'watch');
+assert.equal(stationDiscoveryEligible(base, now, evidence), true);
+evidence.records[key].consecutiveFailures = 2;
+assert.equal(stationSignalTier(base, now, evidence), 'recovering');
+assert.equal(stationDiscoveryEligible(base, now, evidence), false);
+const recovering = { ...base, last_check_ok:false, failure_count:3 };
+assert.equal(stationSignalTier(recovering, now, { generatedAt:null, cursor:0, records:{} }), 'recovering');
+assert.equal(eligibleTravelStations([recovering]).length, 0);
+const batch = selectHealthBatch([recovering], 0, 1);
+assert.equal(batch.stations.length, 1);
+assert.equal(batch.stations[0].station_uuid, recovering.station_uuid);
+console.log('Station signal tiers: live/watch/recovering quarantine without catalog deletion passed');
