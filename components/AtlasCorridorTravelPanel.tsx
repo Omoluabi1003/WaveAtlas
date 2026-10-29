@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bike, Car, Footprints, Plane, Radio, Route } from 'lucide-react';
 import { atlasTravelProgress, corridorStationQueue, type AtlasTravelModeSession, type AtlasTravelProfile } from '@/lib/atlas-travel-mode';
 import { atlasTravelDurationLabel } from '@/lib/atlas-travel-presentation';
@@ -28,14 +28,14 @@ export default function AtlasCorridorTravelPanel({ profile, session, status, sta
   const stationById = useMemo(() => new Map(stations.map((station) => [station.station_uuid || station.id, station])), [stations]);
   const queueStations = useMemo(() => queue.map((item) => stationById.get(item.id)).filter((station): station is Station => Boolean(station)), [queue, stationById]);
 
-  if (corridorAuto && running && queueStations.length) {
+  useEffect(() => {
+    if (!corridorAuto || !running || !queueStations.length) return;
     const candidate = queueStations[0];
     const id = candidate.station_uuid || candidate.id;
-    if (id && id !== lastTune.current.id && Date.now() - lastTune.current.at >= 12000) {
-      lastTune.current = { id, at: Date.now() };
-      queueMicrotask(() => onListen(candidate, queueStations));
-    }
-  }
+    if (!id || id === lastTune.current.id || Date.now() - lastTune.current.at < 12000) return;
+    lastTune.current = { id, at: Date.now() };
+    onListen(candidate, queueStations);
+  }, [corridorAuto, running, queueStations, onListen]);
 
   const sourceLabel = session?.source === 'valhalla' ? 'Road-aware route' : session?.source === 'great-circle-fallback' ? 'Geographic fallback' : 'Geographic route';
   const distanceLabel = session?.distanceKm ? `${Math.round(session.distanceKm).toLocaleString()} km` : null;
