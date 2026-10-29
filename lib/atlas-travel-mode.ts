@@ -1,5 +1,6 @@
 import { buildAtlasCorridor, type AtlasCorridor, type CorridorPoint, type CorridorStation } from './atlas-corridor-intelligence';
 import { journeyFromStation, journeyTrack, type JourneyRoute } from './atlas-journey';
+import { stationDiscoveryEligible } from './agents/station-health-policy';
 import type { Station } from './stations';
 import { fetchValhallaRoute, type RouteMode } from './valhalla-routing';
 
@@ -59,7 +60,7 @@ export function eligibleTravelStations(stations: Station[]) {
   const seen = new Set<string>();
   return stations.flatMap((station) => {
     const id = station.station_uuid || station.id;
-    if (!id || seen.has(id) || !station.is_active || station.failure_count > 2 || station.health_score < 35 || !/^https?:\/\//i.test(station.url) || station.sourceType === 'geoaudio') return [];
+    if (!id || seen.has(id) || !stationDiscoveryEligible(station) || !/^https?:\/\//i.test(station.url) || station.sourceType === 'geoaudio') return [];
     const corridorStation = stationToCorridorStation(station);
     if (!corridorStation) return [];
     seen.add(id);
