@@ -6,6 +6,7 @@ import { AtlasVisualSystem } from "@/components/AtlasVisualSystem";
 import { AtlasCinematicRuntimeState } from "@/components/AtlasCinematicRuntimeState";
 import { AtlasCinematicHUD } from "@/components/AtlasCinematicHUD";
 import { MobileCockpitGeometry } from "@/components/MobileCockpitGeometry";
+import { NearbyLocationTruthGate } from "@/components/NearbyLocationTruthGate";
 import type { Metadata, Viewport } from "next";
 import {
   BRAND,
@@ -76,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ReciprocalAtlasBridge />
         <AtlasContextCoordinator />
         <AtlasContextDock />
+        <NearbyLocationTruthGate />
         <ButtonFeedback /><ServiceWorkerDiagnostics /><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
     </html>
   );
