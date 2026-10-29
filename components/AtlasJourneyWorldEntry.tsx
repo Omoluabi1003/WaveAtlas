@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, ChevronDown, Globe2, MapPin, Plane, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, MapPin, X } from 'lucide-react';
 import type { JourneyPlace, JourneyRoute } from '@/lib/atlas-journey';
 
 type AirportCountry = { code: string; name: string; continent: string };
@@ -222,12 +222,6 @@ export default function AtlasJourneyWorldEntry() {
           <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#D4A64A]/20 bg-[#D4A64A]/[.05] p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#D4A64A]">Your route</p><p className="mt-1 break-words text-sm font-semibold">{departure?.label || 'Departure airport'} <ArrowRight className="mx-1 inline size-4 text-[#D4A64A]" /> {destination?.label || 'Destination airport'}</p>{status ? <p className="mt-1 text-[11px] text-white/50" role="status">{status}</p> : null}</div>
             <button type="button" disabled={!departure || !destination} onClick={continueJourney} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#D4A64A] px-6 text-sm font-bold text-[#08111D] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35">Continue <ArrowRight className="size-4" /></button>
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4"><Globe2 className="size-5 text-[#D4A64A]" /><p className="mt-3 text-sm font-semibold">Global hierarchy</p><p className="mt-1 text-xs leading-5 text-white/50">Continents and countries are loaded first, keeping the mobile interface compact.</p></div>
-            <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4"><Plane className="size-5 text-[#D4A64A]" /><p className="mt-3 text-sm font-semibold">Airports on demand</p><p className="mt-1 text-xs leading-5 text-white/50">Only scheduled-service airports for the selected country are loaded into the picker.</p></div>
-            <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#D4A64A]">Free + local-first</p><p className="mt-3 text-sm font-semibold">No paid travel API.</p><p className="mt-1 text-xs leading-5 text-white/50">WaveAtlas caches public airport geography server-side and sends only the selected country to the phone.</p></div>
           </div>
 
           {catalogStatus.includes('unavailable') ? <button type="button" className="mt-5 min-h-11 rounded-full border border-white/15 px-4 text-xs font-semibold text-white/70" onClick={() => setDismissedSession(session)}>Use classic city/country planner</button> : null}
