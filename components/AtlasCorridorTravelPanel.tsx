@@ -10,6 +10,11 @@ import type { Station } from '@/lib/stations';
 const PROFILE_LABELS: Record<AtlasTravelProfile, string> = { flight: 'Flight', drive: 'Drive', bicycle: 'Bicycle', walk: 'Walk' };
 const PROFILE_ICONS = { flight: Plane, drive: Car, bicycle: Bike, walk: Footprints } as const;
 const button = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/15 px-3 py-2 text-[11px] font-semibold transition hover:border-[#D4A64A]/70 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D4A64A]';
+const TRAVEL_PROFILES: AtlasTravelProfile[] = ['flight', 'drive', 'bicycle', 'walk'];
+
+function isTravelProfile(value: string | null): value is AtlasTravelProfile {
+  return Boolean(value && TRAVEL_PROFILES.includes(value as AtlasTravelProfile));
+}
 
 export default function AtlasCorridorTravelPanel({ profile, session, status, stations, progress, running, onProfileChange, onListen, onTakeover }: {
   profile: AtlasTravelProfile;
@@ -39,6 +44,23 @@ export default function AtlasCorridorTravelPanel({ profile, session, status, sta
   }, [session, stationById]);
 
   useEffect(() => {
+    const applyProfile = (next: AtlasTravelProfile) => {
+      if (next === profile) return;
+      setCorridorAuto(false);
+      lastTune.current = { id: '', at: 0 };
+      onProfileChange(next);
+    };
+    const fromUrl = new URLSearchParams(window.location.search).get('journeyMode');
+    if (isTravelProfile(fromUrl)) applyProfile(fromUrl);
+    const onLaunchProfile = (event: Event) => {
+      const next = (event as CustomEvent<{ profile?: string }>).detail?.profile || null;
+      if (isTravelProfile(next)) applyProfile(next);
+    };
+    window.addEventListener('waveatlas:journey-profile', onLaunchProfile);
+    return () => window.removeEventListener('waveatlas:journey-profile', onLaunchProfile);
+  }, [onProfileChange, profile]);
+
+  useEffect(() => {
     if (!corridorAuto || !running || !queueStations.length) return;
     const candidate = queueStations[0];
     const id = candidate.station_uuid || candidate.id;
@@ -57,7 +79,7 @@ export default function AtlasCorridorTravelPanel({ profile, session, status, sta
       <span className="rounded-full border border-white/10 px-3 py-1 text-[9px] font-bold uppercase tracking-[.16em] text-[#00D68F]">Travel Mode</span>
     </div>
 
-    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{(['flight', 'drive', 'bicycle', 'walk'] as AtlasTravelProfile[]).map((item) => { const Icon = PROFILE_ICONS[item]; return <button type="button" key={item} aria-pressed={profile === item} onClick={() => { onProfileChange(item); setCorridorAuto(false); lastTune.current = { id: '', at: 0 }; }} className={`${button} ${profile === item ? '!border-[#00D68F] !bg-[#00D68F]/10 !text-[#00D68F]' : 'text-white/65'}`}><Icon className="size-3.5" />{PROFILE_LABELS[item]}</button>; })}</div>
+    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{TRAVEL_PROFILES.map((item) => { const Icon = PROFILE_ICONS[item]; return <button type="button" key={item} aria-pressed={profile === item} onClick={() => { onProfileChange(item); setCorridorAuto(false); lastTune.current = { id: '', at: 0 }; }} className={`${button} ${profile === item ? '!border-[#00D68F] !bg-[#00D68F]/10 !text-[#00D68F]' : 'text-white/65'}`}><Icon className="size-3.5" />{PROFILE_LABELS[item]}</button>; })}</div>
 
     <div className="mt-4 grid gap-2 sm:grid-cols-3">
       <div className="rounded-xl bg-white/[.035] p-3"><p className="text-[9px] uppercase tracking-[.14em] text-white/40">Route source</p><p className="mt-1 text-xs font-semibold">{session ? sourceLabel : 'Calculating…'}</p></div>

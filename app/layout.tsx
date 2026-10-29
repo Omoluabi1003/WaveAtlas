@@ -8,6 +8,7 @@ import { AtlasCinematicHUD } from "@/components/AtlasCinematicHUD";
 import { MobileCockpitGeometry } from "@/components/MobileCockpitGeometry";
 import { NearbyLocationTruthGate } from "@/components/NearbyLocationTruthGate";
 import AtlasJourneyWorldEntry from "@/components/AtlasJourneyWorldEntry";
+import AtlasJourneyLaunchState from "@/components/AtlasJourneyLaunchState";
 import type { Metadata, Viewport } from "next";
 import {
   BRAND,
@@ -81,6 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AtlasContextDock />
         <NearbyLocationTruthGate />
         <AtlasJourneyWorldEntry />
+        <AtlasJourneyLaunchState />
         <ButtonFeedback /><ServiceWorkerDiagnostics /><BackgroundRotationProvider>{children}</BackgroundRotationProvider></body>
     </html>
   );
