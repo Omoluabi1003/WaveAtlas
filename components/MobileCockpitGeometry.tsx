@@ -2,43 +2,70 @@
 
 import { useEffect } from "react";
 
+const COCKPIT_GAP_PX = 14;
+
 export function MobileCockpitGeometry() {
   useEffect(() => {
     const root = document.documentElement;
+    let player: HTMLElement | null = null;
     let dock: HTMLElement | null = null;
     let resizeObserver: ResizeObserver | null = null;
     let mutationObserver: MutationObserver | null = null;
+    let frame = 0;
 
-    const measure = () => {
-      const next = document.querySelector<HTMLElement>(".waveatlas-mobile-dock");
-      if (!next) return;
+    const schedule = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const nextPlayer = document.querySelector<HTMLElement>("[data-waveatlas-player]");
+        const nextDock = document.querySelector<HTMLElement>(".waveatlas-mobile-dock");
+        if (!nextPlayer || !nextDock) return;
 
-      if (dock !== next) {
-        resizeObserver?.disconnect();
-        dock = next;
-        resizeObserver = new ResizeObserver(measure);
-        resizeObserver.observe(next);
-      }
+        if (player !== nextPlayer || dock !== nextDock) {
+          player = nextPlayer;
+          dock = nextDock;
+          resizeObserver?.disconnect();
+          resizeObserver = new ResizeObserver(schedule);
+          resizeObserver.observe(player);
+          resizeObserver.observe(dock);
+        }
 
-      // One coordinate system only: measure the dock itself, including its
-      // top padding and iPhone safe-area/bottom padding. The player then sits
-      // exactly this many pixels above the viewport bottom, plus the gap.
-      const fullDockHeight = Math.max(0, Math.ceil(next.getBoundingClientRect().height));
-      root.style.setProperty("--waveatlas-mobile-dock-full-height", `${fullDockHeight}px`);
+        // Measure both cards in the same rendered viewport coordinate system.
+        // Reset the correction first so the next shift is derived from the
+        // element's real CSS position, not from a previous correction.
+        root.style.setProperty("--waveatlas-player-rendered-shift", "0px");
+
+        requestAnimationFrame(() => {
+          if (!player || !dock) return;
+          const playerRect = player.getBoundingClientRect();
+          const dockRect = dock.getBoundingClientRect();
+          const desiredPlayerBottom = dockRect.top - COCKPIT_GAP_PX;
+          const shift = Math.round(desiredPlayerBottom - playerRect.bottom);
+          root.style.setProperty("--waveatlas-player-rendered-shift", `${shift}px`);
+        });
+      });
     };
 
-    measure();
-    mutationObserver = new MutationObserver(measure);
-    mutationObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style"] });
-    window.addEventListener("resize", measure, { passive: true });
-    window.visualViewport?.addEventListener("resize", measure, { passive: true });
+    schedule();
+    mutationObserver = new MutationObserver(schedule);
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+    window.addEventListener("resize", schedule, { passive: true });
+    window.visualViewport?.addEventListener("resize", schedule, { passive: true });
+    window.visualViewport?.addEventListener("scroll", schedule, { passive: true });
 
     return () => {
+      if (frame) cancelAnimationFrame(frame);
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
-      window.removeEventListener("resize", measure);
-      window.visualViewport?.removeEventListener("resize", measure);
-      root.style.removeProperty("--waveatlas-mobile-dock-full-height");
+      window.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("scroll", schedule);
+      root.style.removeProperty("--waveatlas-player-rendered-shift");
     };
   }, []);
 
