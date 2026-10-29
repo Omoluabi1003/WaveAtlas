@@ -50,6 +50,64 @@ function drawGroundMarker(ctx: CanvasRenderingContext2D, x: number, y: number, h
   ctx.restore();
 }
 
+function drawCorridorSignals(
+  ctx: CanvasRenderingContext2D,
+  session: AtlasTravelModeSession | null,
+  progress: number,
+  projection: ReturnType<typeof geoOrthographic>,
+  visible: (lng: number, lat: number) => boolean,
+  time: number,
+) {
+  if (!session?.corridor.stations.length || !session.points.length) return;
+  const routeIndex = Math.round(progress * Math.max(0, session.points.length - 1));
+  const candidates = session.corridor.stations
+    .filter((station) => Math.abs(station.routeIndex - routeIndex) <= Math.max(8, Math.round(session.points.length * .18)))
+    .sort((a, b) => Math.abs(a.routeIndex - routeIndex) - Math.abs(b.routeIndex - routeIndex) || a.distanceKm - b.distanceKm)
+    .slice(0, 18);
+  const labelledAhead = candidates.filter((station) => station.routeIndex >= routeIndex).slice(0, 3);
+  const labelledIds = new Set(labelledAhead.map((station) => station.id));
+  for (const station of candidates) {
+    if (!visible(station.lon, station.lat)) continue;
+    const screen = projection([station.lon, station.lat]);
+    if (!screen) continue;
+    const delta = station.routeIndex - routeIndex;
+    const current = Math.abs(delta) <= 1;
+    const passed = delta < -1;
+    const pulse = current ? 1 + Math.sin(time / 180) * .22 : 1;
+    ctx.save();
+    ctx.translate(screen[0], screen[1]);
+    ctx.globalAlpha = passed ? .28 : current ? 1 : .72;
+    if (current) {
+      ctx.beginPath();
+      ctx.arc(0, 0, 10 * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(212,166,74,.42)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, current ? 4.8 : 3.6, 0, Math.PI * 2);
+    ctx.fillStyle = current ? '#D4A64A' : passed ? '#8CA0AF' : '#00D68F';
+    ctx.shadowColor = current ? 'rgba(212,166,74,.85)' : 'rgba(0,214,143,.65)';
+    ctx.shadowBlur = current ? 14 : 8;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(247,245,239,.78)';
+    ctx.lineWidth = .7;
+    ctx.stroke();
+    if (!passed && labelledIds.has(station.id)) {
+      ctx.font = '600 9px system-ui';
+      ctx.textBaseline = 'middle';
+      const label = station.name.length > 22 ? `${station.name.slice(0, 21)}…` : station.name;
+      const textWidth = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(8,17,29,.9)';
+      ctx.fillRect(8, -9, textWidth + 10, 18);
+      ctx.fillStyle = '#F7F5EF';
+      ctx.fillText(label, 13, 0);
+    }
+    ctx.restore();
+  }
+}
+
 export default function AtlasJourneyGlobe({ route, progress, camera, running, rate, departureAt, flightSeconds, profile = 'flight', session = null }: { route: JourneyRoute; progress: number; camera: JourneyCamera; running: boolean; rate: number; departureAt: number; flightSeconds: number; profile?: AtlasTravelProfile; session?: AtlasTravelModeSession | null }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const latest = useRef({ route, progress, camera, running, rate, departureAt, flightSeconds, profile, session, updated: 0 });
@@ -77,7 +135,7 @@ export default function AtlasJourneyGlobe({ route, progress, camera, running, ra
       lastDraw = time;
       const { route, camera, running, rate, updated, departureAt, flightSeconds, profile, session } = latest.current;
       const progress = Math.min(1, latest.current.progress + (running && !document.hidden ? Math.min(300, time - updated) * rate / 1000 : 0));
-      const signature = [route.from.lat, route.from.lng, route.to.lat, route.to.lng, camera, profile, session?.source || '', progress.toFixed(6), width, height, departureAt, flightSeconds].join('|');
+      const signature = [route.from.lat, route.from.lng, route.to.lat, route.to.lng, camera, profile, session?.source || '', session?.corridor.stations.length || 0, progress.toFixed(6), width, height, departureAt, flightSeconds].join('|');
       if (signature === drawn && time - lastTextureDraw < 1000) return;
       lastTextureDraw = time;
       drawn = signature;
@@ -105,6 +163,7 @@ export default function AtlasJourneyGlobe({ route, progress, camera, running, ra
       element.dataset.earthRenderer = surface ? 'satellite-texture' : 'loading-geography';
       element.dataset.travelMode = profile;
       element.dataset.routeSource = session?.source || 'great-circle';
+      element.dataset.corridorSignals = String(session?.corridor.stations.length || 0);
       if (surface) ctx.drawImage(surface, width / 2 - radius, height / 2 - radius, radius * 2, radius * 2);
       else { ctx.beginPath(); path(countries as GeoPermissibleObjects); ctx.fillStyle = '#326854'; ctx.fill(); }
       ctx.beginPath(); path(countries as GeoPermissibleObjects); ctx.strokeStyle = 'rgba(217,201,151,.18)'; ctx.lineWidth = 0.45; ctx.stroke();
@@ -117,6 +176,7 @@ export default function AtlasJourneyGlobe({ route, progress, camera, running, ra
       }
       ctx.setLineDash([]);
       const visible = (lng: number, lat: number) => geoDistance([lng, lat], [-rotation[0], -rotation[1]]) < Math.PI / 2;
+      drawCorridorSignals(ctx, session, progress, projection, visible, time);
       for (const [place, label] of [[route.from, 'DEP'], [route.to, 'ARR']] as const) {
         const screen = projection([place.lng, place.lat]);
         if (!screen || !visible(place.lng, place.lat)) continue;
@@ -137,5 +197,5 @@ export default function AtlasJourneyGlobe({ route, progress, camera, running, ra
     return () => { cancelAnimationFrame(frame); observer.disconnect(); earth?.dispose(); fallbackEarth.dispose(); };
   }, []);
   const presentation = atlasTravelPresentation(profile);
-  return <canvas ref={canvas} className="block h-[320px] w-full sm:h-[480px]" role="img" aria-label={`${presentation.simulatedLabel} from ${route.from.label} to ${route.to.label}, ${Math.round(progress * 100)} percent complete`} />;
+  return <canvas ref={canvas} className="block h-[320px] w-full sm:h-[480px]" role="img" aria-label={`${presentation.simulatedLabel} from ${route.from.label} to ${route.to.label}, ${Math.round(progress * 100)} percent complete. ${session?.corridor.stations.length || 0} corridor signals mapped.`} />;
 }
