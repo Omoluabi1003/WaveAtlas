@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Globe2, Lightbulb, MapPin, MapPinned, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, Globe2, Lightbulb, MapPin, MapPinned, X } from 'lucide-react';
 import { JOURNEY_COUNTRIES, JOURNEY_PRESETS, type JourneyPlace, type JourneyRoute } from '@/lib/atlas-journey';
 
 const REGIONS = ['All', 'Africa', 'Europe', 'Middle East', 'Asia', 'Americas', 'Oceania'] as const;
@@ -40,21 +40,27 @@ function isJourneyDeepLink() {
 }
 
 function EndpointPicker({ label, value, places, onChange }: { label: string; value: JourneyPlace | null; places: JourneyPlace[]; onChange: (place: JourneyPlace) => void }) {
-  const [query, setQuery] = useState('');
-  const results = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return places.slice(0, 10);
-    return places.filter((place) => place.label.toLowerCase().includes(needle) || place.countryCode?.toLowerCase() === needle).slice(0, 12);
-  }, [places, query]);
-
+  const selectedKey = value ? placeKey(value) : '';
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4">
       <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-[#D4A64A]"><MapPin className="size-3.5" />{label}</div>
-      <p className="mt-2 min-h-5 text-sm font-semibold text-white">{value?.label || `Choose ${label.toLowerCase()}`}</p>
-      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${label.toLowerCase()} city or country`} className="mt-3 min-h-11 w-full rounded-xl border border-white/15 bg-[#08111D] px-3 text-xs text-white outline-none placeholder:text-white/35 focus:border-[#D4A64A]" />
-      <div className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-white/5 bg-black/10 p-1">
-        {results.map((place) => <button key={placeKey(place)} type="button" onClick={() => { onChange(place); setQuery(''); }} className={`block min-h-11 w-full rounded-lg px-3 py-2 text-left text-xs transition hover:bg-white/10 ${value && placeKey(value) === placeKey(place) ? 'bg-[#D4A64A]/10 text-[#D4A64A]' : 'text-white/70'}`}>{place.label}{place.approximate ? <span className="block text-[10px] text-white/35">Country centre</span> : null}</button>)}
+      <label className="sr-only" htmlFor={`journey-entry-${label.toLowerCase()}`}>Choose {label.toLowerCase()}</label>
+      <div className="relative mt-3">
+        <select
+          id={`journey-entry-${label.toLowerCase()}`}
+          value={selectedKey}
+          onChange={(event) => {
+            const place = places.find((candidate) => placeKey(candidate) === event.target.value);
+            if (place) onChange(place);
+          }}
+          className="min-h-12 w-full appearance-none rounded-xl border border-white/15 bg-[#08111D] px-4 pr-11 text-sm font-semibold text-white outline-none transition focus:border-[#D4A64A]"
+        >
+          <option value="">Choose {label.toLowerCase()}</option>
+          {places.map((place) => <option key={placeKey(place)} value={placeKey(place)}>{place.label}</option>)}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-[#D4A64A]" />
       </div>
+      <p className="mt-2 text-[10px] text-white/35">Tap to choose from the global city and country catalog.</p>
     </div>
   );
 }
