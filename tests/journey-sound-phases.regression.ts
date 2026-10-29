@@ -12,6 +12,7 @@ assert.equal(journeySoundPhaseLabel('departure'), 'Departure sound');
 assert.equal(journeySoundPhaseLabel('corridor'), 'Corridor sound');
 assert.equal(journeySoundPhaseLabel('arrival'), 'Arrival sound');
 
+const points = Array.from({ length: 101 }, (_, index) => ({ lat: 0, lon: index / 10 }));
 const session: AtlasTravelModeSession = {
   profile: 'flight',
   source: 'great-circle',
@@ -19,14 +20,15 @@ const session: AtlasTravelModeSession = {
     from: { label: 'AAA', lat: 0, lng: 0, countryCode: 'AA' },
     to: { label: 'BBB', lat: 0, lng: 10, countryCode: 'BB' },
   },
-  points: Array.from({ length: 101 }, (_, index) => ({ lat: 0, lon: index / 10 })),
+  points,
   corridor: {
-    route: [],
+    points,
     stations: [
       { id: 'origin', name: 'Origin', lat: 0, lon: 0.5, routeIndex: 5, distanceKm: 3 },
       { id: 'middle', name: 'Middle', lat: 0, lon: 5, routeIndex: 50, distanceKm: 4 },
       { id: 'arrival', name: 'Arrival', lat: 0, lon: 9.5, routeIndex: 95, distanceKm: 2 },
     ],
+    generatedAt: new Date(0).toISOString(),
   },
   generatedAt: new Date(0).toISOString(),
 };
