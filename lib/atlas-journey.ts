@@ -11,6 +11,7 @@ export const JOURNEY_SAVED_KEY = 'waveatlas_journeys_v1';
 // Featured routes are intentionally distributed across regions so Atlas Journey
 // presents the world as a browsable listening geography rather than a three-route demo.
 export const JOURNEY_PRESETS: JourneyRoute[] = [
+  { from: { label: 'Lagos, Nigeria', lat: 6.5244, lng: 3.3792, countryCode: 'NG' }, to: { label: 'Dubai, United Arab Emirates', lat: 25.2048, lng: 55.2708, countryCode: 'AE' } },
   { from: { label: 'Lagos, Nigeria', lat: 6.5244, lng: 3.3792, countryCode: 'NG' }, to: { label: 'Nairobi, Kenya', lat: -1.2921, lng: 36.8219, countryCode: 'KE' } },
   { from: { label: 'Lagos, Nigeria', lat: 6.5244, lng: 3.3792, countryCode: 'NG' }, to: { label: 'Cape Town, South Africa', lat: -33.9249, lng: 18.4241, countryCode: 'ZA' } },
   { from: { label: 'Accra, Ghana', lat: 5.6037, lng: -0.187, countryCode: 'GH' }, to: { label: 'Dakar, Senegal', lat: 14.7167, lng: -17.4677, countryCode: 'SN' } },
