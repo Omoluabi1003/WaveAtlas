@@ -14,7 +14,7 @@ export function MobileCockpitGeometry() {
     let frame = 0;
 
     const schedule = () => {
-      if (frame) cancelAnimationFrame(frame);
+      if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
         const nextPlayer = document.querySelector<HTMLElement>("[data-waveatlas-player]");
@@ -30,30 +30,27 @@ export function MobileCockpitGeometry() {
           resizeObserver.observe(dock);
         }
 
-        // Measure both cards in the same rendered viewport coordinate system.
-        // Reset the correction first so the next shift is derived from the
-        // element's real CSS position, not from a previous correction.
-        root.style.setProperty("--waveatlas-player-rendered-shift", "0px");
+        const playerRect = player.getBoundingClientRect();
+        const dockRect = dock.getBoundingClientRect();
+        const desiredPlayerBottom = dockRect.top - COCKPIT_GAP_PX;
+        const currentShift = Number.parseFloat(getComputedStyle(root).getPropertyValue("--waveatlas-player-rendered-shift")) || 0;
+        const delta = desiredPlayerBottom - playerRect.bottom;
+        const nextShift = Math.round(currentShift + delta);
 
-        requestAnimationFrame(() => {
-          if (!player || !dock) return;
-          const playerRect = player.getBoundingClientRect();
-          const dockRect = dock.getBoundingClientRect();
-          const desiredPlayerBottom = dockRect.top - COCKPIT_GAP_PX;
-          const shift = Math.round(desiredPlayerBottom - playerRect.bottom);
-          root.style.setProperty("--waveatlas-player-rendered-shift", `${shift}px`);
-        });
+        if (Math.abs(delta) >= 1) {
+          root.style.setProperty("--waveatlas-player-rendered-shift", `${nextShift}px`);
+        }
       });
     };
 
     schedule();
+
+    // Only watch for the player/dock entering or leaving the DOM. Never watch
+    // global class/style mutations: WaveAtlas has continuously animated UI and
+    // observing those mutations creates a Safari feedback loop.
     mutationObserver = new MutationObserver(schedule);
-    mutationObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["class", "style"],
-    });
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
     window.addEventListener("resize", schedule, { passive: true });
     window.visualViewport?.addEventListener("resize", schedule, { passive: true });
     window.visualViewport?.addEventListener("scroll", schedule, { passive: true });
