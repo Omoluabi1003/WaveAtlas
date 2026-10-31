@@ -17,7 +17,8 @@ on:
         type: boolean
         default: true
   schedule:
-    - cron: '17 */8 * * *'
+    # Worldwide station discovery runs every two hours. Health and operations retain their 8-hour cadence.
+    - cron: '17 */2 * * *'
     - cron: '43 */8 * * *'
     - cron: '29 */8 * * *'
   pull_request:
