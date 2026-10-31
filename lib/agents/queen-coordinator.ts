@@ -2,7 +2,7 @@ export type Worker = 'stream-health' | 'station-discovery' | 'operations';
 export type QueenMemory = { version: 1; runs: Array<{ at: string; worker: Worker; success: boolean }>; cooldowns: Record<string, string> };
 export const emptyQueenMemory = (): QueenMemory => ({ version: 1, runs: [], cooldowns: {} });
 export function planWorkers(selection: string, schedule?: string): Worker[] {
-  if (schedule === '17 */8 * * *') return ['stream-health', 'station-discovery'];
+  if (schedule === '17 */2 * * *') return ['station-discovery'];
   if (schedule === '43 */8 * * *') return ['stream-health'];
   if (schedule === '29 */8 * * *') return ['operations'];
   if (schedule) throw new Error('Unknown Queen schedule');
