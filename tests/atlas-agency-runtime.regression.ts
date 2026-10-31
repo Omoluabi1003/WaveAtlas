@@ -12,11 +12,15 @@ assert.equal(verifiedStation.decision, 'publish');
 assert.equal(verifiedStation.publishable, true);
 assert.ok(verifiedStation.route.includes('reality-checker'));
 assert.ok(verifiedStation.route.includes('signal-reliability'));
+assert.equal(verifiedStation.execution.strategy, 'plan-parallel-verify');
+assert.equal(verifiedStation.execution.providerCalls, 0);
+assert.deepEqual(verifiedStation.execution.steps.map(step => step.agent), verifiedStation.route);
 
 const unsupportedBrief = runAtlasAgencyRuntime({ task: agencyTaskFromOperationalSignal('brief'), evidence: [] });
 assert.equal(unsupportedBrief.decision, 'reject');
 assert.equal(unsupportedBrief.publishable, false);
 assert.ok(unsupportedBrief.route.indexOf('reality-checker') < unsupportedBrief.route.indexOf('brief-editor'));
+assert.equal(unsupportedBrief.execution.steps.find(step => step.agent === 'brief-editor')?.phase, 'publish');
 
 const geographicConflict = runAtlasAgencyRuntime({
   task: agencyTaskFromOperationalSignal('world-event'),
