@@ -48,6 +48,29 @@ export function planAtlasAgency(task: AtlasAgencyTask): AtlasAgentId[] {
   return route;
 }
 
+export type AtlasExecutionTier = 'critical-core' | 'parallel-workhorse' | 'verification-gate';
+export type AtlasExecutionPhase = 'plan' | 'investigate' | 'verify' | 'publish';
+export type AtlasExecutionStep = { agent: AtlasAgentId; tier: AtlasExecutionTier; phase: AtlasExecutionPhase };
+export type AtlasExecutionPlan = { strategy: 'plan-parallel-verify'; providerCalls: 0; steps: AtlasExecutionStep[] };
+
+const CORE_AGENTS = new Set<AtlasAgentId>(['geo-intelligence', 'reality-checker']);
+
+/**
+ * Native WaveAtlas adaptation of plan -> parallel work -> verification.
+ * This is deliberately model/provider agnostic: Atlas specialist contracts are
+ * the interface, and the Reality Checker remains the publication boundary.
+ */
+export function planAtlasAgencyExecution(task: AtlasAgencyTask): AtlasExecutionPlan {
+  const route = planAtlasAgency(task);
+  const realityIndex = route.indexOf('reality-checker');
+  const steps = route.map<AtlasExecutionStep>((agent, index) => {
+    if (agent === 'reality-checker') return { agent, tier: 'verification-gate', phase: 'verify' };
+    if (agent === 'brief-editor' && realityIndex >= 0 && index > realityIndex) return { agent, tier: 'parallel-workhorse', phase: 'publish' };
+    return { agent, tier: CORE_AGENTS.has(agent) ? 'critical-core' : 'parallel-workhorse', phase: index === 0 ? 'plan' : 'investigate' };
+  });
+  return { strategy: 'plan-parallel-verify', providerCalls: 0, steps };
+}
+
 export type ConfidenceGateInput = {
   confidence: number;
   provenanceCount: number;
