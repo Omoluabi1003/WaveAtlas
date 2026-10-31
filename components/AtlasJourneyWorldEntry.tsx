@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, ChevronDown, MapPin, X } from 'lucide-react';
 import type { JourneyPlace, JourneyRoute } from '@/lib/atlas-journey';
+import { hasCommittedJourney, shouldStartJourneyPlannerSession } from '@/lib/journey-world-entry-state';
 
 type AirportCountry = { code: string; name: string; continent: string };
 type Airport = {
@@ -22,12 +23,6 @@ const airportCache = new Map<string, Airport[]>();
 
 function placeKey(place: JourneyPlace) {
   return `${place.lat.toFixed(5)},${place.lng.toFixed(5)}`;
-}
-
-function isJourneyDeepLink() {
-  if (typeof window === 'undefined') return false;
-  const url = `${window.location.pathname}${window.location.search}${window.location.hash}`.toLowerCase();
-  return url.includes('journey=') || url.includes('/journey/');
 }
 
 function AirportEndpointPicker({ label, countries, value, onChange }: {
@@ -144,21 +139,25 @@ export default function AtlasJourneyWorldEntry() {
   useEffect(() => {
     let visible = false;
     const check = () => {
-      const title = document.getElementById('journey-title');
-      const nextVisible = Boolean(title);
-      if (nextVisible && !visible) {
+      const nextVisible = Boolean(document.getElementById('journey-title'));
+      const committedJourney = hasCommittedJourney(window.location);
+      if (shouldStartJourneyPlannerSession({ journeyDialogVisible: nextVisible, wasJourneyDialogVisible: visible, committedJourney })) {
         setSession((value) => value + 1);
         setDeparture(null);
         setDestination(null);
         setStatus('');
       }
       visible = nextVisible;
-      setOpen(nextVisible && !isJourneyDeepLink());
+      setOpen(nextVisible && !committedJourney);
     };
     check();
     const observer = new MutationObserver(check);
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    window.addEventListener('popstate', check);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('popstate', check);
+    };
   }, []);
 
   useEffect(() => {
