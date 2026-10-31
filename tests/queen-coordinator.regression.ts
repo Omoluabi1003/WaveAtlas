@@ -3,7 +3,8 @@ import { emptyQueenMemory, planWorkers, readQueenMemory } from '../lib/agents/qu
 assert.deepEqual(planWorkers('both'), ['stream-health', 'station-discovery']);
 assert.deepEqual(planWorkers('all', '29 */8 * * *'), ['operations']);
 assert.deepEqual(planWorkers('all', '43 */8 * * *'), ['stream-health']);
-assert.deepEqual(planWorkers('all', '17 */8 * * *'), ['stream-health', 'station-discovery']);
+assert.deepEqual(planWorkers('all', '17 */2 * * *'), ['station-discovery']);
+assert.throws(() => planWorkers('all', '17 */8 * * *'));
 assert.throws(() => planWorkers('unknown'));
 assert.throws(() => readQueenMemory({}));
 const now = Date.now(), memory = emptyQueenMemory();
@@ -13,4 +14,4 @@ assert.equal(Object.keys(readQueenMemory(memory, now).cooldowns).length, 1);
 assert.equal(Object.keys(readQueenMemory(memory, now + 1001).cooldowns).length, 0);
 memory.runs = Array.from({ length: 120 }, () => ({ at: new Date(now).toISOString(), worker: 'operations', success: false }));
 assert.equal(readQueenMemory(memory, now).runs.length, 90);
-console.log('Queen routing, bounded memory, cooldown expiry, and invalid-input rejection passed.');
+console.log('Queen routing, two-hour discovery cadence, bounded memory, cooldown expiry, and invalid-input rejection passed.');
