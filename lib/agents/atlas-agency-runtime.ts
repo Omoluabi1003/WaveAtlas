@@ -1,4 +1,4 @@
-import { atlasConfidenceGate, planAtlasAgency, type AtlasAgencyTask, type AtlasAgentId, type ConfidenceGateDecision } from './atlas-intelligence-agency';
+import { atlasConfidenceGate, planAtlasAgencyExecution, type AtlasAgencyTask, type AtlasAgentId, type AtlasExecutionPlan, type ConfidenceGateDecision } from './atlas-intelligence-agency';
 
 export type AtlasEvidence = {
   source: string;
@@ -16,6 +16,7 @@ export type AtlasAgencyRuntimeInput = {
 
 export type AtlasAgencyRuntimeResult = {
   route: AtlasAgentId[];
+  execution: AtlasExecutionPlan;
   decision: ConfidenceGateDecision;
   confidence: number;
   provenance: string[];
@@ -29,7 +30,8 @@ function validConfidence(value: number) {
 }
 
 export function runAtlasAgencyRuntime(input: AtlasAgencyRuntimeInput): AtlasAgencyRuntimeResult {
-  const route = planAtlasAgency(input.task);
+  const execution = planAtlasAgencyExecution(input.task);
+  const route = execution.steps.map(step => step.agent);
   const evidence = input.evidence.filter(item => item.source.trim().length > 0 && validConfidence(item.confidence));
   const provenance = [...new Set(evidence.map(item => item.source.trim()))];
   const conflicts = [...new Set(evidence.flatMap(item => item.conflicts ?? []).filter(Boolean))];
@@ -51,6 +53,7 @@ export function runAtlasAgencyRuntime(input: AtlasAgencyRuntimeInput): AtlasAgen
 
   return {
     route,
+    execution,
     decision,
     confidence,
     provenance,
