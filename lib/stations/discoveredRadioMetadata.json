@@ -3157,5 +3157,455 @@
     "lastSignalCheck": "2026-10-15T21:52:13.740Z",
     "qualityScore": 75,
     "resolvedUrl": "https://cast4.asurahosting.com/proxy/radioni1/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-bhumi-953034fd",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "953034fd-4289-41d3-8836-6de4e3577646",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://stream-176.surfernetwork.com/be5bqmk1k18uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJiZTVicW1rMWsxOHV2IiwiaG9zdCI6InN0cmVhbS0xNzYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjBaM3RzVndCUXlxT2FOMnFEVFZ5eFEiLCJpYXQiOjE3OTM1NzA3MDQsImV4cCI6MTc5MzU3MDc2NH0.6d6IUzt-bY3R9V74E6N9qF3YY0PQ8TvMRyxvbFcYVbo"
+  },
+  {
+    "stationUuid": "radio-browser-addis-music-5188257a",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "5188257a-5ae1-4294-b6b5-479caae85f31",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://stream-282.surfernetwork.com/umguj2baxdctv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ1bWd1ajJiYXhkY3R2IiwiaG9zdCI6InN0cmVhbS0yODIuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImdMcVRzTk9mUzNPSXdlN0VKV0pFbHciLCJpYXQiOjE3OTM1NzA3MDUsImV4cCI6MTc5MzU3MDc2NX0.wcfEtOZ-cruL9vYC9Yeb8VTndZ3joZZHdauA12WTy6A"
+  },
+  {
+    "stationUuid": "radio-browser-christian-mezmur-ethiopia-ce7d2197",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ce7d2197-eca5-4188-b8d2-c550992160e5",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://stream-178.surfernetwork.com/0bws6ct0ey8uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiIwYndzNmN0MGV5OHV2IiwiaG9zdCI6InN0cmVhbS0xNzguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImFNT3hVWGI4UUdHVVRHX2R3cFozUmciLCJpYXQiOjE3OTM1NzA3MDUsImV4cCI6MTc5MzU3MDc2NX0.Kd147932dfL742u8oZsGv38Avqyb_kf9HXu15Amrw0A"
+  },
+  {
+    "stationUuid": "radio-browser-radio-plus-mauritius-961a681b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "961a681b-0601-11e8-ae97-52543be04c81",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 100,
+    "resolvedUrl": "https://stream.radioplus.mu:8000/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-ethio-oldies-974d15ea",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "974d15ea-33a8-4190-8436-1b9a184f82e3",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 99,
+    "resolvedUrl": "https://www.ethioldies.com/listen/ethioldies/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-yenevibe-radio-05ac2e34",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "05ac2e34-a4a2-4719-bd85-05b7a54aeacf",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 99,
+    "resolvedUrl": "https://stream-179.surfernetwork.com/5mz3qqftsnhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiI1bXozcXFmdHNuaHZ2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InVEbHpUZVhGVG4yOFdLaHl2Q3RCbVEiLCJpYXQiOjE3OTM1NzA3MDcsImV4cCI6MTc5MzU3MDc2N30.vj-oNFEVFhYVdjLWuNhmR-gjAmAFxbzm18cWlFeT5w4"
+  },
+  {
+    "stationUuid": "radio-browser-amharic-live-sport-0af2ed70",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0af2ed70-732c-4475-b206-6a937bb895ed",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 96,
+    "resolvedUrl": "https://stream-204.surfernetwork.com/bqtruhn4q98uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJicXRydWhuNHE5OHV2IiwiaG9zdCI6InN0cmVhbS0yMDQuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlNyMVZ2OHA1UnktdnNPVW1uTGdlZlEiLCJpYXQiOjE3OTM1NzA3MDgsImV4cCI6MTc5MzU3MDc2OH0.VU0JPmsw86zdqb6tDg3oW6DO3xIqwvmdP7ODqzenVVQ"
+  },
+  {
+    "stationUuid": "radio-browser-hopefy-radio-mg-14e39ca9",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "14e39ca9-6bf4-4273-96c2-dd00ee862828",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 94,
+    "resolvedUrl": "https://hopefy.fanantenanahoanao.org/listen/hopefy_radio_mg/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-bahrain-fm-93-3-0b300680",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "0b300680-fb8d-4a73-a05b-76f669cd8881",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 93,
+    "resolvedUrl": "https://5c7b683162943.streamlock.net/live/ngrp:radio-93-3_all/playlist.m3u8"
+  },
+  {
+    "stationUuid": "radio-browser-ahadu-radio-dbbee4e3",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "dbbee4e3-a0ee-4405-9d70-2a558233dcc4",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 93,
+    "resolvedUrl": "https://stream-204.surfernetwork.com/txxpndf1wwzuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ0eHhwbmRmMXd3enV2IiwiaG9zdCI6InN0cmVhbS0yMDQuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjFVX1Zyd3QzUlp1OHZWbmxvSmNyOUEiLCJpYXQiOjE3OTM1NzA3MTIsImV4cCI6MTc5MzU3MDc3Mn0.JHOVf-SpfdpAS1To_2TmlD-DiHWHLc5JhE8IyyIIomE"
+  },
+  {
+    "stationUuid": "radio-browser-radio-humilite-f288200c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f288200c-0093-4a5f-8aac-9e043879b7d9",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 92,
+    "resolvedUrl": "https://stream-286.surfernetwork.com/qhlllaz21cmuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJxaGxsbGF6MjFjbXV2IiwiaG9zdCI6InN0cmVhbS0yODYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IldQdTFxWEZfUXJlNlQzZXpHcWtMcUEiLCJpYXQiOjE3OTM1NzA3MTMsImV4cCI6MTc5MzU3MDc3M30.O7z8Kh4QDhx2Z3RO89ZUVDixjJozOv--i8S_gwaemS0"
+  },
+  {
+    "stationUuid": "radio-browser-bahrain-106-1-fm-3e1a2014",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3e1a2014-d426-4f74-b237-8c109054911e",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://5c7b683162943.streamlock.net/live/ngrp:radio-106-1_all/playlist.m3u8"
+  },
+  {
+    "stationUuid": "radio-browser-radio-rsf-109-antanifotsy-fa937257",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "fa937257-0bd4-41a7-99f0-b976d35c7196",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://listen.tropicastradio.com/stations/3freccr11b/live.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-tropicast-radio-station-e8069927",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e8069927-39e7-4589-8f92-75cad36f3f5a",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://listen.tropicastradio.com/stations/gwjhbnsfzq/live.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-rce-radio-comunitaria-dos-espargos-a7bbb30f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a7bbb30f-4f11-4552-bf95-3e44a4b6759b",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://stream-286.surfernetwork.com/c2sm9z24muhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJjMnNtOXoyNG11aHZ2IiwiaG9zdCI6InN0cmVhbS0yODYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjZQc19DM3FuUVhHbkZpX2dJZENOVWciLCJpYXQiOjE3OTM1NzA3MTgsImV4cCI6MTc5MzU3MDc3OH0.2LXg_WvQuaSnrWLJ8beW26QTcNFAZ1C8zW-KCVX6Ig8"
+  },
+  {
+    "stationUuid": "radio-browser-crioula-fm-9205539c",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9205539c-2c2e-4c35-a701-7049ce6d521e",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://nl.digitalrm.pt:8098/stream"
+  },
+  {
+    "stationUuid": "radio-browser-antilles-media-kompa-gold-7e9e4c3f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "7e9e4c3f-9692-4c62-af52-6437ad9cbbc1",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 90,
+    "resolvedUrl": "https://antillesmedia.pro-fhi.net/antillesmediakompa"
+  },
+  {
+    "stationUuid": "radio-browser-sensuelle-radio-464fc4cc",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "464fc4cc-3c6e-4b5d-92a8-9e4646c2f1da",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://radio10.pro-fhi.net/radio/9169/stream.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-comercial-edc3dc93",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "edc3dc93-68f0-4705-bb63-770f322465cd",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 89,
+    "resolvedUrl": "https://stream-175.surfernetwork.com/loombkxpekavv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJsb29tYmt4cGVrYXZ2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IndYNW01RzhsUVNXRVJ5T182NmR5Y3ciLCJpYXQiOjE3OTM1NzA3MjMsImV4cCI6MTc5MzU3MDc4M30.ADKb6Uu4MTuttoxpWgVfX4Bk02h0-nVKFoWYD5GkSyw"
+  },
+  {
+    "stationUuid": "radio-browser-radio-maria-cabo-verde-8bd004c7",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8bd004c7-4bd9-4cbb-a869-cdc440ac7f26",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://dreamsiteradiocp4.com/proxy/rmcapover?mp=/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-morabeza-dab902c5",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "dab902c5-3eb9-4091-bfd1-7f8736efe8a1",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 88,
+    "resolvedUrl": "https://sp0.redeaudio.com:10988/9798/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-one-8b99281f",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "8b99281f-5cc6-4a2e-85db-012e4ca685ce",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://centova57.instainternet.com/proxy/vivavoceltd?mp=/stream"
+  },
+  {
+    "stationUuid": "radio-browser-rte-radio-educativa-df690da2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "df690da2-ec6a-4fc0-9153-58fb341d2605",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://a13.my-control-panel.com/listen/rte/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-cidade-fm-cabo-verde-3cc2298d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3cc2298d-5997-4af5-a16e-b08a986f5bf9",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://hts02.brascast.com:9288/stream"
+  },
+  {
+    "stationUuid": "radio-browser-cherie-fm-guadeloupe-f7b9f37b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "f7b9f37b-6a33-459d-af52-64186d805375",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 87,
+    "resolvedUrl": "https://maxxi.studio/listen/cheriefmgp/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-7-mauritius-78a48ab1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "78a48ab1-6e15-4331-8378-e1a9a97459d1",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://c2.radioboss.fm/stream/1056"
+  },
+  {
+    "stationUuid": "radio-browser-radio-de-santo-antao-rsa-ff6846cc",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ff6846cc-97fc-4254-9984-60e8692836e2",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://stream.cvhosting.uk/listen/radio_santo_antao/radio.mp3?refresh=1781085695418"
+  },
+  {
+    "stationUuid": "radio-browser-maxxi-guadeloupe-d887c971",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "d887c971-8e8f-4818-8128-639f93b6cd14",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 86,
+    "resolvedUrl": "https://maxxi.studio/listen/maxxigp/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-radio-nosara-84b5deb2",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "84b5deb2-27f7-4886-a651-b5bbde6e7e30",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 85,
+    "resolvedUrl": "https://sonicpanel.zonaradio.net/8038/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-atlantico-65e8c590",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "65e8c590-e232-475e-ba85-4419a1b6347a",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 85,
+    "resolvedUrl": "https://stream.cvhosting.uk/listen/radio_atlantico/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-dabar-77cf1175",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "77cf1175-eced-444a-8c07-70294c9b6d97",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 84,
+    "resolvedUrl": "https://a1.asurahosting.com:8720/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-estereo-vision-98-3-fm-6a802097",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "6a802097-b54f-49c7-9eaf-a6c3896041a4",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 84,
+    "resolvedUrl": "https://live.turadio.stream:7009/"
+  },
+  {
+    "stationUuid": "radio-browser-urbano-106-105-9-fm-san-jose-costa-rica-cdad4475",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cdad4475-158f-4f4c-827a-6a4589e582db",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1"
+  },
+  {
+    "stationUuid": "radio-browser-tv-radio-gracia-y-verdad-a443555b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "a443555b-0b95-41eb-9819-2b21bb52178a",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://radio.grscr.com/listen/radio_gracia_y_verdad/radio.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-haute-tension-49d4d6ff",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "49d4d6ff-291b-4260-a756-d0cd1247207f",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 83,
+    "resolvedUrl": "https://haute-tension.ice.infomaniak.ch/haute-tension-high.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-mosaiquefm-e4113924",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e4113924-a6ce-4a48-8781-97507dda0d67",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 79,
+    "resolvedUrl": "https://radio.mosaiquefm.net/mosalive"
+  },
+  {
+    "stationUuid": "radio-browser-rts-92-5-rsi-4ba828bb",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "4ba828bb-ec19-4285-b46d-1a534cddd8a9",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 75,
+    "resolvedUrl": "https://10gb1.acangroup.org:8000/rsi"
+  },
+  {
+    "stationUuid": "radio-browser-mbc-best-fm-3c1ee308",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3c1ee308-0937-4a27-84fc-bc53cc36297e",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 75,
+    "resolvedUrl": "https://radio.mbconline.xyz/hls/bestfm.m3u8"
+  },
+  {
+    "stationUuid": "radio-browser-mbc-radio-mauritius-cfe17287",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "cfe17287-cabe-4484-b05a-a935e4444d1c",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 75,
+    "resolvedUrl": "https://radio.mbconline.xyz/hls/radiomauritus.m3u8"
+  },
+  {
+    "stationUuid": "radio-browser-1047hit-78566076",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "78566076-394c-4619-9715-ecbe780e301f",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://live.turadio.stream:7004/stream;"
+  },
+  {
+    "stationUuid": "radio-browser-vox-fm-honduras-3b737c6d",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "3b737c6d-dadf-465f-b87e-05fe5ef1e087",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://ice42.securenetsystems.net/VOXFM"
+  },
+  {
+    "stationUuid": "radio-browser-peoples-radio-855aa7ec",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "855aa7ec-7282-4681-9c25-42e93fd6b873",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 73,
+    "resolvedUrl": "https://s3.myradiostream.com:14498/listen.mp3"
+  },
+  {
+    "stationUuid": "radio-browser-teletica-radio-9f41f5e7",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "9f41f5e7-1d3f-4fab-b933-f3247bbf98aa",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://g2qd375ol7an-hls-live.5centscdn.com/Radio/eae835e83c0494a376229f254f7d3392.sdp/chunks.m3u8"
+  },
+  {
+    "stationUuid": "radio-browser-mbc-kool-fm-adb22f44",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "adb22f44-ff89-43ae-8406-6632c85298d0",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://radio.mbconline.xyz/hls/koolfm.m3u8"
+  },
+  {
+    "stationUuid": "radio-browser-mbc-radio-maurice-e3cea313",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "e3cea313-4aa9-4ac5-a053-50d7e82326f4",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 71,
+    "resolvedUrl": "https://radio.mbconline.xyz/hls/radiomaurice.m3u8"
+  },
+  {
+    "stationUuid": "radio-browser-radio-hit-c4ee5a17",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "c4ee5a17-df43-458d-8ac6-82a730da1ac4",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://live.turadio.stream:7004/stream?type=http&nocache=596"
+  },
+  {
+    "stationUuid": "radio-browser-radiowave-nam-96-7fm-ca55e1e1",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "ca55e1e1-fe41-4a64-a876-404a604fb729",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 68,
+    "resolvedUrl": "https://edge.iono.fm/xice/194_medium.aac"
+  },
+  {
+    "stationUuid": "radio-browser-traditional-radio-95-0-b35b9f40",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "b35b9f40-86b2-4686-852c-12190c252e87",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 66,
+    "resolvedUrl": "https://5c7b683162943.streamlock.net/live/ngrp:radio-95-0_all/chunklist_w1641860732_b981072.m3u8"
+  },
+  {
+    "stationUuid": "radio-browser-radio-foorti-79faaa2b",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "79faaa2b-9edb-44c6-a265-09cd7758306f",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 66,
+    "resolvedUrl": "https://radiofoorti.fm/api/stream"
+  },
+  {
+    "stationUuid": "radio-browser-radio-rebelde-1180-am-98920fee",
+    "discoverySource": "radio-browser",
+    "sourceStationUuid": "98920fee-500c-49c8-a973-ff4179967f50",
+    "verifiedAt": "2026-11-01T22:04:39.162Z",
+    "lastSignalCheck": "2026-11-01T22:04:39.162Z",
+    "qualityScore": 66,
+    "resolvedUrl": "https://securestreams7.autopo.st/?uri=https://icecast.teveo.cu/kHKL7tWd"
   }
 ]

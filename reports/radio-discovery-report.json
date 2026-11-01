@@ -1,15 +1,2577 @@
 {
-  "generatedAt": "2026-07-09T18:44:24.557Z",
-  "dryRun": true,
-  "source": "https://de1.api.radio-browser.info/json",
-  "fetched": 0,
-  "added": [],
-  "skipped": [],
-  "duplicate": [],
-  "failed": [
+  "generatedAt": "2026-11-01T22:04:39.162Z",
+  "dryRun": false,
+  "sources": [
+    "https://de1.api.radio-browser.info/json",
+    "https://de2.api.radio-browser.info/json",
+    "https://fi1.api.radio-browser.info/json"
+  ],
+  "countries": [
     {
-      "reason": "candidate_fetch_failed: fetch failed"
+      "code": "AO",
+      "name": "Angola",
+      "available": 66,
+      "covered": 5
+    },
+    {
+      "code": "TN",
+      "name": "Tunisia",
+      "available": 66,
+      "covered": 5
+    },
+    {
+      "code": "BH",
+      "name": "Bahrain",
+      "available": 13,
+      "covered": 1
+    },
+    {
+      "code": "CR",
+      "name": "Costa Rica",
+      "available": 62,
+      "covered": 5
+    },
+    {
+      "code": "MW",
+      "name": "Malawi",
+      "available": 61,
+      "covered": 5
+    },
+    {
+      "code": "HN",
+      "name": "Honduras",
+      "available": 46,
+      "covered": 5
+    },
+    {
+      "code": "ZW",
+      "name": "Zimbabwe",
+      "available": 25,
+      "covered": 3
+    },
+    {
+      "code": "HT",
+      "name": "Haiti",
+      "available": 33,
+      "covered": 4
+    },
+    {
+      "code": "BD",
+      "name": "Bangladesh",
+      "available": 34,
+      "covered": 5
+    },
+    {
+      "code": "ET",
+      "name": "Ethiopia",
+      "available": 32,
+      "covered": 5
+    },
+    {
+      "code": "CU",
+      "name": "Cuba",
+      "available": 25,
+      "covered": 4
+    },
+    {
+      "code": "MG",
+      "name": "Madagascar",
+      "available": 24,
+      "covered": 4
+    },
+    {
+      "code": "SN",
+      "name": "Senegal",
+      "available": 34,
+      "covered": 6
+    },
+    {
+      "code": "MU",
+      "name": "Mauritius",
+      "available": 16,
+      "covered": 3
+    },
+    {
+      "code": "AI",
+      "name": "Anguilla",
+      "available": 5,
+      "covered": 1
+    },
+    {
+      "code": "MZ",
+      "name": "Mozambique",
+      "available": 15,
+      "covered": 3
+    },
+    {
+      "code": "RW",
+      "name": "Rwanda",
+      "available": 9,
+      "covered": 2
+    },
+    {
+      "code": "NA",
+      "name": "Namibia",
+      "available": 17,
+      "covered": 4
+    },
+    {
+      "code": "CW",
+      "name": "Curacao",
+      "available": 21,
+      "covered": 5
+    },
+    {
+      "code": "ER",
+      "name": "Eritrea",
+      "available": 4,
+      "covered": 1
+    },
+    {
+      "code": "BB",
+      "name": "Barbados",
+      "available": 20,
+      "covered": 5
+    },
+    {
+      "code": "CV",
+      "name": "Cabo Verde",
+      "available": 19,
+      "covered": 5
+    },
+    {
+      "code": "GP",
+      "name": "Guadeloupe",
+      "available": 15,
+      "covered": 4
+    },
+    {
+      "code": "BF",
+      "name": "Burkina Faso",
+      "available": 7,
+      "covered": 2
     }
   ],
-  "suspicious": []
+  "fetched": 656,
+  "probed": 58,
+  "added": [
+    {
+      "name": "Radio Bhumi",
+      "url": "https://stream-176.surfernetwork.com/be5bqmk1k18uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJiZTVicW1rMWsxOHV2IiwiaG9zdCI6InN0cmVhbS0xNzYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjBaM3RzVndCUXlxT2FOMnFEVFZ5eFEiLCJpYXQiOjE3OTM1NzA3MDQsImV4cCI6MTc5MzU3MDc2NH0.6d6IUzt-bY3R9V74E6N9qF3YY0PQ8TvMRyxvbFcYVbo",
+      "sourceStationUuid": "953034fd-4289-41d3-8836-6de4e3577646",
+      "qualityScore": 100
+    },
+    {
+      "name": "Addis Music",
+      "url": "https://stream-282.surfernetwork.com/umguj2baxdctv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ1bWd1ajJiYXhkY3R2IiwiaG9zdCI6InN0cmVhbS0yODIuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImdMcVRzTk9mUzNPSXdlN0VKV0pFbHciLCJpYXQiOjE3OTM1NzA3MDUsImV4cCI6MTc5MzU3MDc2NX0.wcfEtOZ-cruL9vYC9Yeb8VTndZ3joZZHdauA12WTy6A",
+      "sourceStationUuid": "5188257a-5ae1-4294-b6b5-479caae85f31",
+      "qualityScore": 100
+    },
+    {
+      "name": "Christian Mezmur Ethiopia",
+      "url": "https://stream-178.surfernetwork.com/0bws6ct0ey8uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiIwYndzNmN0MGV5OHV2IiwiaG9zdCI6InN0cmVhbS0xNzguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImFNT3hVWGI4UUdHVVRHX2R3cFozUmciLCJpYXQiOjE3OTM1NzA3MDUsImV4cCI6MTc5MzU3MDc2NX0.Kd147932dfL742u8oZsGv38Avqyb_kf9HXu15Amrw0A",
+      "sourceStationUuid": "ce7d2197-eca5-4188-b8d2-c550992160e5",
+      "qualityScore": 100
+    },
+    {
+      "name": "Radio Plus Mauritius",
+      "url": "https://stream.radioplus.mu:8000/radio.mp3",
+      "sourceStationUuid": "961a681b-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 100
+    },
+    {
+      "name": "Ethio Oldies",
+      "url": "https://www.ethioldies.com/listen/ethioldies/radio.mp3",
+      "sourceStationUuid": "974d15ea-33a8-4190-8436-1b9a184f82e3",
+      "qualityScore": 99
+    },
+    {
+      "name": "YeneVibe Radio",
+      "url": "https://stream-179.surfernetwork.com/5mz3qqftsnhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiI1bXozcXFmdHNuaHZ2IiwiaG9zdCI6InN0cmVhbS0xNzkuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InVEbHpUZVhGVG4yOFdLaHl2Q3RCbVEiLCJpYXQiOjE3OTM1NzA3MDcsImV4cCI6MTc5MzU3MDc2N30.vj-oNFEVFhYVdjLWuNhmR-gjAmAFxbzm18cWlFeT5w4",
+      "sourceStationUuid": "05ac2e34-a4a2-4719-bd85-05b7a54aeacf",
+      "qualityScore": 99
+    },
+    {
+      "name": "Amharic Live Sport የኳስ  ኮሜኔታተር",
+      "url": "https://stream-204.surfernetwork.com/bqtruhn4q98uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJicXRydWhuNHE5OHV2IiwiaG9zdCI6InN0cmVhbS0yMDQuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlNyMVZ2OHA1UnktdnNPVW1uTGdlZlEiLCJpYXQiOjE3OTM1NzA3MDgsImV4cCI6MTc5MzU3MDc2OH0.VU0JPmsw86zdqb6tDg3oW6DO3xIqwvmdP7ODqzenVVQ",
+      "sourceStationUuid": "0af2ed70-732c-4475-b206-6a937bb895ed",
+      "qualityScore": 96
+    },
+    {
+      "name": "Hopefy Radio MG",
+      "url": "https://hopefy.fanantenanahoanao.org/listen/hopefy_radio_mg/radio.mp3",
+      "sourceStationUuid": "14e39ca9-6bf4-4273-96c2-dd00ee862828",
+      "qualityScore": 94
+    },
+    {
+      "name": "Bahrain FM 93.3",
+      "url": "https://5c7b683162943.streamlock.net/live/ngrp:radio-93-3_all/playlist.m3u8",
+      "sourceStationUuid": "0b300680-fb8d-4a73-a05b-76f669cd8881",
+      "qualityScore": 93
+    },
+    {
+      "name": "Ahadu Radio",
+      "url": "https://stream-204.surfernetwork.com/txxpndf1wwzuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ0eHhwbmRmMXd3enV2IiwiaG9zdCI6InN0cmVhbS0yMDQuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjFVX1Zyd3QzUlp1OHZWbmxvSmNyOUEiLCJpYXQiOjE3OTM1NzA3MTIsImV4cCI6MTc5MzU3MDc3Mn0.JHOVf-SpfdpAS1To_2TmlD-DiHWHLc5JhE8IyyIIomE",
+      "sourceStationUuid": "dbbee4e3-a0ee-4405-9d70-2a558233dcc4",
+      "qualityScore": 93
+    },
+    {
+      "name": "Radio Humilite",
+      "url": "https://stream-286.surfernetwork.com/qhlllaz21cmuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJxaGxsbGF6MjFjbXV2IiwiaG9zdCI6InN0cmVhbS0yODYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IldQdTFxWEZfUXJlNlQzZXpHcWtMcUEiLCJpYXQiOjE3OTM1NzA3MTMsImV4cCI6MTc5MzU3MDc3M30.O7z8Kh4QDhx2Z3RO89ZUVDixjJozOv--i8S_gwaemS0",
+      "sourceStationUuid": "f288200c-0093-4a5f-8aac-9e043879b7d9",
+      "qualityScore": 92
+    },
+    {
+      "name": "Bahrain 106.1 FM",
+      "url": "https://5c7b683162943.streamlock.net/live/ngrp:radio-106-1_all/playlist.m3u8",
+      "sourceStationUuid": "3e1a2014-d426-4f74-b237-8c109054911e",
+      "qualityScore": 90
+    },
+    {
+      "name": "Radio RSF 109 Antanifotsy",
+      "url": "https://listen.tropicastradio.com/stations/3freccr11b/live.mp3",
+      "sourceStationUuid": "fa937257-0bd4-41a7-99f0-b976d35c7196",
+      "qualityScore": 90
+    },
+    {
+      "name": "Tropicast Radio Station",
+      "url": "https://listen.tropicastradio.com/stations/gwjhbnsfzq/live.mp3",
+      "sourceStationUuid": "e8069927-39e7-4589-8f92-75cad36f3f5a",
+      "qualityScore": 90
+    },
+    {
+      "name": "RCE Radio Comunitaria dos Espargos",
+      "url": "https://stream-286.surfernetwork.com/c2sm9z24muhvv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJjMnNtOXoyNG11aHZ2IiwiaG9zdCI6InN0cmVhbS0yODYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IjZQc19DM3FuUVhHbkZpX2dJZENOVWciLCJpYXQiOjE3OTM1NzA3MTgsImV4cCI6MTc5MzU3MDc3OH0.2LXg_WvQuaSnrWLJ8beW26QTcNFAZ1C8zW-KCVX6Ig8",
+      "sourceStationUuid": "a7bbb30f-4f11-4552-bf95-3e44a4b6759b",
+      "qualityScore": 90
+    },
+    {
+      "name": "Crioula FM",
+      "url": "https://nl.digitalrm.pt:8098/stream",
+      "sourceStationUuid": "9205539c-2c2e-4c35-a701-7049ce6d521e",
+      "qualityScore": 90
+    },
+    {
+      "name": "Antilles Média - Kompa Gold",
+      "url": "https://antillesmedia.pro-fhi.net/antillesmediakompa",
+      "sourceStationUuid": "7e9e4c3f-9692-4c62-af52-6437ad9cbbc1",
+      "qualityScore": 90
+    },
+    {
+      "name": "SENSUELLE RADIO",
+      "url": "https://radio10.pro-fhi.net/radio/9169/stream.mp3",
+      "sourceStationUuid": "464fc4cc-3c6e-4b5d-92a8-9e4646c2f1da",
+      "qualityScore": 89
+    },
+    {
+      "name": "Radio Comercial",
+      "url": "https://stream-175.surfernetwork.com/loombkxpekavv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJsb29tYmt4cGVrYXZ2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IndYNW01RzhsUVNXRVJ5T182NmR5Y3ciLCJpYXQiOjE3OTM1NzA3MjMsImV4cCI6MTc5MzU3MDc4M30.ADKb6Uu4MTuttoxpWgVfX4Bk02h0-nVKFoWYD5GkSyw",
+      "sourceStationUuid": "edc3dc93-68f0-4705-bb63-770f322465cd",
+      "qualityScore": 89
+    },
+    {
+      "name": "Radio Maria - Cabo Verde",
+      "url": "https://dreamsiteradiocp4.com/proxy/rmcapover?mp=/stream",
+      "sourceStationUuid": "8bd004c7-4bd9-4cbb-a869-cdc440ac7f26",
+      "qualityScore": 88
+    },
+    {
+      "name": "Radio Morabeza",
+      "url": "https://sp0.redeaudio.com:10988/9798/stream",
+      "sourceStationUuid": "dab902c5-3eb9-4091-bfd1-7f8736efe8a1",
+      "qualityScore": 88
+    },
+    {
+      "name": "Radio One",
+      "url": "https://centova57.instainternet.com/proxy/vivavoceltd?mp=/stream",
+      "sourceStationUuid": "8b99281f-5cc6-4a2e-85db-012e4ca685ce",
+      "qualityScore": 87
+    },
+    {
+      "name": "RTE – Radio Educativa",
+      "url": "https://a13.my-control-panel.com/listen/rte/radio.mp3",
+      "sourceStationUuid": "df690da2-ec6a-4fc0-9153-58fb341d2605",
+      "qualityScore": 87
+    },
+    {
+      "name": "Cidade FM Cabo Verde",
+      "url": "https://hts02.brascast.com:9288/stream",
+      "sourceStationUuid": "3cc2298d-5997-4af5-a16e-b08a986f5bf9",
+      "qualityScore": 87
+    },
+    {
+      "name": "Chérie FM Guadeloupe",
+      "url": "https://maxxi.studio/listen/cheriefmgp/radio.mp3",
+      "sourceStationUuid": "f7b9f37b-6a33-459d-af52-64186d805375",
+      "qualityScore": 87
+    },
+    {
+      "name": "Radio 7 Mauritius",
+      "url": "https://c2.radioboss.fm/stream/1056",
+      "sourceStationUuid": "78a48ab1-6e15-4331-8378-e1a9a97459d1",
+      "qualityScore": 86
+    },
+    {
+      "name": "Radio de Santo Antao - RSA",
+      "url": "https://stream.cvhosting.uk/listen/radio_santo_antao/radio.mp3?refresh=1781085695418",
+      "sourceStationUuid": "ff6846cc-97fc-4254-9984-60e8692836e2",
+      "qualityScore": 86
+    },
+    {
+      "name": "MAXXI Guadeloupe",
+      "url": "https://maxxi.studio/listen/maxxigp/radio.mp3",
+      "sourceStationUuid": "d887c971-8e8f-4818-8128-639f93b6cd14",
+      "qualityScore": 86
+    },
+    {
+      "name": "Radio Nosara",
+      "url": "https://sonicpanel.zonaradio.net/8038/stream",
+      "sourceStationUuid": "84b5deb2-27f7-4886-a651-b5bbde6e7e30",
+      "qualityScore": 85
+    },
+    {
+      "name": "Radio Atlantico",
+      "url": "https://stream.cvhosting.uk/listen/radio_atlantico/radio.mp3",
+      "sourceStationUuid": "65e8c590-e232-475e-ba85-4419a1b6347a",
+      "qualityScore": 85
+    },
+    {
+      "name": "Dabar",
+      "url": "https://a1.asurahosting.com:8720/radio.mp3",
+      "sourceStationUuid": "77cf1175-eced-444a-8c07-70294c9b6d97",
+      "qualityScore": 84
+    },
+    {
+      "name": "Estereo Visión 98.3 FM",
+      "url": "https://live.turadio.stream:7009/",
+      "sourceStationUuid": "6a802097-b54f-49c7-9eaf-a6c3896041a4",
+      "qualityScore": 84
+    },
+    {
+      "name": "Urbano 106 - 105.9 FM - San José, Costa Rica",
+      "url": "https://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1",
+      "sourceStationUuid": "cdad4475-158f-4f4c-827a-6a4589e582db",
+      "qualityScore": 83
+    },
+    {
+      "name": "TV Radio Gracia y Verdad",
+      "url": "https://radio.grscr.com/listen/radio_gracia_y_verdad/radio.mp3",
+      "sourceStationUuid": "a443555b-0b95-41eb-9819-2b21bb52178a",
+      "qualityScore": 83
+    },
+    {
+      "name": "Haute Tension",
+      "url": "https://haute-tension.ice.infomaniak.ch/haute-tension-high.mp3",
+      "sourceStationUuid": "49d4d6ff-291b-4260-a756-d0cd1247207f",
+      "qualityScore": 83
+    },
+    {
+      "name": "mosaiquefm",
+      "url": "https://radio.mosaiquefm.net/mosalive",
+      "sourceStationUuid": "e4113924-a6ce-4a48-8781-97507dda0d67",
+      "qualityScore": 79
+    },
+    {
+      "name": "RTS 92.5 RSI",
+      "url": "https://10gb1.acangroup.org:8000/rsi",
+      "sourceStationUuid": "4ba828bb-ec19-4285-b46d-1a534cddd8a9",
+      "qualityScore": 75
+    },
+    {
+      "name": "MBC Best FM",
+      "url": "https://radio.mbconline.xyz/hls/bestfm.m3u8",
+      "sourceStationUuid": "3c1ee308-0937-4a27-84fc-bc53cc36297e",
+      "qualityScore": 75
+    },
+    {
+      "name": "MBC Radio Mauritius",
+      "url": "https://radio.mbconline.xyz/hls/radiomauritus.m3u8",
+      "sourceStationUuid": "cfe17287-cabe-4484-b05a-a935e4444d1c",
+      "qualityScore": 75
+    },
+    {
+      "name": "1047hit",
+      "url": "https://live.turadio.stream:7004/stream;",
+      "sourceStationUuid": "78566076-394c-4619-9715-ecbe780e301f",
+      "qualityScore": 73
+    },
+    {
+      "name": "Vox FM Honduras",
+      "url": "https://ice42.securenetsystems.net/VOXFM",
+      "sourceStationUuid": "3b737c6d-dadf-465f-b87e-05fe5ef1e087",
+      "qualityScore": 73
+    },
+    {
+      "name": "Peoples Radio",
+      "url": "https://s3.myradiostream.com:14498/listen.mp3",
+      "sourceStationUuid": "855aa7ec-7282-4681-9c25-42e93fd6b873",
+      "qualityScore": 73
+    },
+    {
+      "name": "Teletica Radio",
+      "url": "https://g2qd375ol7an-hls-live.5centscdn.com/Radio/eae835e83c0494a376229f254f7d3392.sdp/chunks.m3u8",
+      "sourceStationUuid": "9f41f5e7-1d3f-4fab-b933-f3247bbf98aa",
+      "qualityScore": 71
+    },
+    {
+      "name": "MBC Kool FM",
+      "url": "https://radio.mbconline.xyz/hls/koolfm.m3u8",
+      "sourceStationUuid": "adb22f44-ff89-43ae-8406-6632c85298d0",
+      "qualityScore": 71
+    },
+    {
+      "name": "MBC Radio Maurice",
+      "url": "https://radio.mbconline.xyz/hls/radiomaurice.m3u8",
+      "sourceStationUuid": "e3cea313-4aa9-4ac5-a053-50d7e82326f4",
+      "qualityScore": 71
+    },
+    {
+      "name": "Radio Hit",
+      "url": "https://live.turadio.stream:7004/stream?type=http&nocache=596",
+      "sourceStationUuid": "c4ee5a17-df43-458d-8ac6-82a730da1ac4",
+      "qualityScore": 68
+    },
+    {
+      "name": "Radiowave Nam 96.7FM",
+      "url": "https://edge.iono.fm/xice/194_medium.aac",
+      "sourceStationUuid": "ca55e1e1-fe41-4a64-a876-404a604fb729",
+      "qualityScore": 68
+    },
+    {
+      "name": "Traditional Radio 95.0",
+      "url": "https://5c7b683162943.streamlock.net/live/ngrp:radio-95-0_all/chunklist_w1641860732_b981072.m3u8",
+      "sourceStationUuid": "b35b9f40-86b2-4686-852c-12190c252e87",
+      "qualityScore": 66
+    },
+    {
+      "name": "Radio Foorti",
+      "url": "https://radiofoorti.fm/api/stream",
+      "sourceStationUuid": "79faaa2b-9edb-44c6-a265-09cd7758306f",
+      "qualityScore": 66
+    },
+    {
+      "name": "Radio Rebelde 1180 AM",
+      "url": "https://securestreams7.autopo.st/?uri=https://icecast.teveo.cu/kHKL7tWd",
+      "sourceStationUuid": "98920fee-500c-49c8-a973-ff4179967f50",
+      "qualityScore": 66
+    }
+  ],
+  "skipped": [
+    {
+      "name": "Rádio Fé Angola",
+      "url": "http://stream-176.surfernetwork.com/gsndh1xvczetv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJnc25kaDF4dmN6ZXR2IiwiaG9zdCI6InN0cmVhbS0xNzYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IllZZ0NDN1kxU2dhT0tEUkNZMmhxd1EiLCJpYXQiOjE3OTM1MzY4MDEsImV4cCI6MTc5MzUzNjg2MX0.ByzpjGcsSneaBhyTM-bbIwUQ7Z1KmJvfhuQDX_rFlNg",
+      "sourceStationUuid": "e7ceeac8-342a-4096-82d1-173f10af95c9",
+      "qualityScore": 92,
+      "reason": "https_required"
+    },
+    {
+      "name": "Radio Tunisie Kef",
+      "url": "http://rtstream.tanitweb.com/kef",
+      "sourceStationUuid": "b343319c-f06d-4565-908a-3c80926cd2b6",
+      "qualityScore": 92,
+      "reason": "https_required"
+    },
+    {
+      "name": "Radio Tunisie Sfax",
+      "url": "http://rtstream.tanitweb.com/sfax",
+      "sourceStationUuid": "40c1353d-9e16-43d2-aaa5-f53e48f83e71",
+      "qualityScore": 92,
+      "reason": "https_required"
+    },
+    {
+      "name": "RelaxingJazz.com",
+      "url": "http://stream-02-eu.relaxingjazz.com/stream/3/",
+      "sourceStationUuid": "df366836-0e5e-4e59-ae98-64898b26b448",
+      "qualityScore": 92,
+      "reason": "https_required"
+    },
+    {
+      "name": "Radio Tunisie Monastir",
+      "url": "http://rtstream.tanitweb.com/monastir",
+      "sourceStationUuid": "5b4e5f2a-6069-4562-9e0a-945bde91a83f",
+      "qualityScore": 88,
+      "reason": "https_required"
+    },
+    {
+      "name": "RTCI",
+      "url": "http://rtstream.tanitweb.com/rtci",
+      "sourceStationUuid": "fe13a886-3269-4b61-9c9b-4a7d346e02cb",
+      "qualityScore": 88,
+      "reason": "https_required"
+    },
+    {
+      "name": "Radio Tunisie Gafsa",
+      "url": "http://rtstream.tanitweb.com/gafsa",
+      "sourceStationUuid": "848d2bf5-2e14-4e87-8184-21aa5b655d59",
+      "qualityScore": 88,
+      "reason": "https_required"
+    },
+    {
+      "name": "Radio St Charles FM",
+      "url": "http://stream.zeno.fm/fd9kyc28dchvv",
+      "sourceStationUuid": "784881e9-0835-4f41-8487-d5da19c709b9",
+      "qualityScore": 86,
+      "reason": "https_required"
+    },
+    {
+      "name": "ROMANCE106",
+      "url": "http://s13.myradiostream.com:41400/listen.m4a",
+      "sourceStationUuid": "aaec305b-cd90-4cd8-b4c1-f7db3df6ef6d",
+      "qualityScore": 86,
+      "reason": "https_required"
+    },
+    {
+      "name": "راديو فن    Fenn Radio ",
+      "url": "https://stream.zeno.fm/76e9f1gsduhvv",
+      "sourceStationUuid": "d706e494-cd28-46ad-ac79-ca49aa0f1a9f",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "diwanfm",
+      "url": "https://streaming.diwanfm.net/stream",
+      "sourceStationUuid": "3dcd0385-1171-4a95-b31e-81d78af8bfac",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Jawhara FM",
+      "url": "https://streaming2.toutech.net/jawharafm",
+      "sourceStationUuid": "8d92ff8d-7149-4431-9306-a960e67c09e7",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Caraibes FM",
+      "url": "https://stream.zeno.fm/54k0v7x14neuv",
+      "sourceStationUuid": "9a2c072e-fda1-4b31-ae42-599fd6eb2902",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "A2Z RADIO",
+      "url": "https://listen.radioking.com/radio/1743/stream/125",
+      "sourceStationUuid": "4d01c3fb-75d8-11ea-b1cf-52543be04c81",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Sheger FM 102.1",
+      "url": "https://stream.zenolive.com/y91n1vtbaw5tv",
+      "sourceStationUuid": "566306b4-6f54-4ab6-a238-adcef2b645fd",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Voice of Ethiopia",
+      "url": "https://node-34.zeno.fm/hubm64kkr2zuv",
+      "sourceStationUuid": "ca47343d-6126-4482-9ffe-42ea52f6c9c6",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Jano FM",
+      "url": "https://stream-54.zeno.fm/1cyn1as4v68uv?zs=6ALEcBPQR5Wq6_T-zr8TDw",
+      "sourceStationUuid": "448a7bdc-29b1-4953-b134-1e8ae5a087c6",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Sheger FM",
+      "url": "https://stream.zeno.fm/y91n1vtbaw5tv",
+      "sourceStationUuid": "b8d52112-2c0d-4ac4-9bdf-54295d677317",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Neonradioxl",
+      "url": "http://s12.myradiostream.com:16754/listen.m4a",
+      "sourceStationUuid": "46012a3d-b1da-4bf8-903b-1ee003353fc6",
+      "qualityScore": 82,
+      "reason": "https_required"
+    },
+    {
+      "name": "FM Sénégal 103.1 Dakar",
+      "url": "https://stream-154.zeno.fm/t8gcyq6ts0quv",
+      "sourceStationUuid": "6ed6fe06-5a9a-4e95-bc35-8e92f1441cfd",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Or FM 89.6 Orkadiéré",
+      "url": "https://stream.zeno.fm/gy7fpc2am1duv",
+      "sourceStationUuid": "fb565b3b-2bd4-4b23-b9b5-6d705b3e29ff",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Zig FM 100.3 Kolda",
+      "url": "https://stream.zeno.fm/akh0t25nc18uv",
+      "sourceStationUuid": "43355f15-832d-4db7-a948-25160f533f79",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Rwanda",
+      "url": "https://listen.rba.co.rw:8008/rwanda/",
+      "sourceStationUuid": "d05521ae-0b07-4c1e-ac57-939dc30771f0",
+      "qualityScore": 82,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Musiquera 93.3 FM",
+      "url": "https://stream.zeno.fm/83h238tqsceuv",
+      "sourceStationUuid": "cc803992-19b4-48fc-a85e-d4e2e2b17201",
+      "qualityScore": 81,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "SLAM 101.1",
+      "url": "http://usa4.fastcast4u.com:5006/;",
+      "sourceStationUuid": "7a0615f7-b493-4408-af6c-9c86475e19a3",
+      "qualityScore": 81,
+      "reason": "https_required"
+    },
+    {
+      "name": "98.1 The One",
+      "url": "http://108.178.16.190:8000/981fm.mp3",
+      "sourceStationUuid": "6ef29f03-bf79-4d03-8b25-86f7207ec1e5",
+      "qualityScore": 81,
+      "reason": "https_required"
+    },
+    {
+      "name": "Guadeloupe 1ère",
+      "url": "https://guadeloupe.ice.infomaniak.ch/guadeloupe-128.mp3",
+      "sourceStationUuid": "ba41c7a6-d193-11e9-a861-52543be04c81",
+      "qualityScore": 81,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Horizon FM 104.4 Ouagadougou",
+      "url": "https://stream.zeno.fm/0945crn4bf9uv",
+      "sourceStationUuid": "a24bae67-6b31-42f0-b2c8-be36149e3b5f",
+      "qualityScore": 81,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Monastir",
+      "url": "https://radio.radiotunisienne.tn/monastir",
+      "sourceStationUuid": "bd4c6426-6d27-42a9-a1d1-d0084cba5138",
+      "qualityScore": 80,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio fouedb Music",
+      "url": "https://streaming.live365.com/a82574",
+      "sourceStationUuid": "8db26ee7-3de4-4cc4-b119-d710e0f0c046",
+      "qualityScore": 80,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Jamesen Show",
+      "url": "http://stream.zeno.fm/aparrwtkwyzuv",
+      "sourceStationUuid": "64f7fd84-fd02-4a27-acaa-98e264211d4a",
+      "qualityScore": 80,
+      "reason": "https_required"
+    },
+    {
+      "name": "Love FM 107.3 Dakar",
+      "url": "https://stream.zeno.fm/7cru7g7rcwzuv",
+      "sourceStationUuid": "38482943-1ea7-4dcf-992b-99584319cd5c",
+      "qualityScore": 80,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "CBC 94.7 FM",
+      "url": "http://108.178.16.190:8000/947fm.mp3",
+      "sourceStationUuid": "e0752410-bb58-44c9-8126-db88d58b4749",
+      "qualityScore": 80,
+      "reason": "https_required"
+    },
+    {
+      "name": "Radio Balafon 102.7 Bobo-Dioulasso",
+      "url": "https://stream-178.surfernetwork.com/v3ddfda0cf9uv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJ2M2RkZmRhMGNmOXV2IiwiaG9zdCI6InN0cmVhbS0xNzguc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6ImtQSEs4SWJIUXRTaWd2Y0QtZUhJb3ciLCJpYXQiOjE3OTM1NDI5MDcsImV4cCI6MTc5MzU0Mjk2N30.A7_N_-yutEv7Mzpn-oWv2g6A6RJ0csRLOlCD7dlDjvM",
+      "sourceStationUuid": "f652faa8-7976-4a20-9ea6-05194936b98b",
+      "qualityScore": 80,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Exa FM Honduras",
+      "url": "https://stream.zeno.fm/0n4tnx3wd5zuv",
+      "sourceStationUuid": "9912b3cc-85af-4b31-800d-40dcdc41bcb3",
+      "qualityScore": 79,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RTS Tambacounda 92.0",
+      "url": "https://stream.zeno.fm/nqxg7p8pt1duv",
+      "sourceStationUuid": "5d8011f0-4f6b-43bf-9319-f771c6128b97",
+      "qualityScore": 79,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Y103.3 FM",
+      "url": "http://usa4.fastcast4u.com:5336/;",
+      "sourceStationUuid": "bfed685c-4101-45e3-b556-c4679e9ecd2f",
+      "qualityScore": 79,
+      "reason": "https_required"
+    },
+    {
+      "name": "Mosaique FM Tarab",
+      "url": "https://radio.mosaiquefm.net/mosatarab",
+      "sourceStationUuid": "064734c4-5ca8-4b17-b1ad-587e1c2896d6",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Sabra FM",
+      "url": "https://manager5.streamradio.fr:1905/stream",
+      "sourceStationUuid": "ace86edd-549b-496b-97bf-fb21813888b0",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Diwan FM",
+      "url": "https://streaming.diwanfm.net/stream",
+      "sourceStationUuid": "935f5161-7201-4e08-8d2a-ddb826e8ba28",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Mosaique FM Gold",
+      "url": "https://radio.mosaiquefm.net/mosagold",
+      "sourceStationUuid": "2ca459a9-367a-4184-a14b-9a0f67f7ad5c",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Lotfi Slama",
+      "url": "https://azuracast.conceptradio.fr:8000/radio.mp3",
+      "sourceStationUuid": "6674ee49-5288-41a7-83cb-eeb8bd0d06f4",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Mosaique FM Tounsi",
+      "url": "https://radio.mosaiquefm.net/mosatounsi",
+      "sourceStationUuid": "763cd182-7216-4830-b39a-3258e2422a78",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Mosaique FM DJ",
+      "url": "https://radio.mosaiquefm.net/mosadj",
+      "sourceStationUuid": "0b6caf55-392b-470e-84fd-db518a9cadc1",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "AlHayet FM",
+      "url": "https://manager8.streamradio.fr:2885/stream",
+      "sourceStationUuid": "cdb65abf-b1dd-45be-b923-53a89254bedd",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Monte Carlo Doualiya",
+      "url": "https://montecarlodoualiya128k.ice.infomaniak.ch/mc-doualiya.mp3",
+      "sourceStationUuid": "58b9b6e3-f638-4467-993c-71e6345435f0",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio GoonGoon",
+      "url": "https://audio.streamcast.xyz/listen/radiogoongoon/radio.mp3",
+      "sourceStationUuid": "d3de929b-1967-4082-8f9e-b2b57a3377b9",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "TIRITA 97.6 FM",
+      "url": "https://stream.zeno.fm/x751reg18zhvv",
+      "sourceStationUuid": "5c0d053a-f28f-45dd-97cc-06d85209cdda",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "EBC Radio 104.7 Addis Abeba",
+      "url": "https://stream-25.zeno.fm/2xguamap7yzuv",
+      "sourceStationUuid": "dbabf997-a292-4112-9cf8-308ba92ff2fa",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Fulbe FM 102.6 Dakar",
+      "url": "https://stream.zeno.fm/e0grbn8e3rquv",
+      "sourceStationUuid": "118a5501-b15d-4fb3-b010-fd0e4ffda525",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Rewmi FM 97.5 Dakar",
+      "url": "https://stream-61.zeno.fm/nkzsqg16t8quv",
+      "sourceStationUuid": "86f7ed41-909a-4cf6-b147-e6fe3102328e",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RTS Matam 89.1",
+      "url": "https://stream.zeno.fm/kxud8vhqt1duv",
+      "sourceStationUuid": "ccacc8a2-42b6-4c37-8aff-949c05ea12c8",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Zig FM 100.8 Ziguinchor",
+      "url": "https://stream.zeno.fm/zfdk0c69d3quv",
+      "sourceStationUuid": "c4e29237-e5bf-4e61-9b25-dcc54785f780",
+      "qualityScore": 78,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Musiquera 93.3 FM",
+      "url": "https://stream-142.zeno.fm/83h238tqsceuv?zs=vZNVzaY3QLy9RmUb9QK5uA",
+      "sourceStationUuid": "d410c0d1-a5f1-410e-a23b-d43b84e9582a",
+      "qualityScore": 77,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Canal Radio Cruces Cienfuegos ",
+      "url": "https://stream.laut.fm/canalradio",
+      "sourceStationUuid": "d4831986-b7bf-4850-b77f-55dfb9d30362",
+      "qualityScore": 77,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Afia FM 93.0 Dakar",
+      "url": "https://stream.zeno.fm/skjrn6kzzxptv",
+      "sourceStationUuid": "d7092aaa-1a47-49d6-97f9-8e9523b4cb2c",
+      "qualityScore": 77,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RTS Kaolack 103",
+      "url": "https://stream.zeno.fm/2fkd4h0ts1duv.m4a",
+      "sourceStationUuid": "6ed8be70-eef2-41d0-a56d-e6405f8476e2",
+      "qualityScore": 77,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Horizon FM Koudougou",
+      "url": "https://stream.zeno.fm/s2ypmeg0cf9uv",
+      "sourceStationUuid": "386226a9-a60b-4daf-a4f1-b13f3e5a1152",
+      "qualityScore": 77,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Muhammad Siddiq al-Minshawi",
+      "url": "https://qurango.net/radio/mohammed_siddiq_alminshawi",
+      "sourceStationUuid": "016f355b-e306-4a4d-a4f3-d80fe56c423f",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Shadhin",
+      "url": "https://stream-157.zeno.fm/eabgu655puquv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJlYWJndTY1NXB1cXV2IiwiaG9zdCI6InN0cmVhbS0xNTcuemVuby5mbSIsInJ0dGwiOjUsImp0aSI6Ijh6NzR2TE5jUmJLV1pzMExqQWpYcmciLCJpYXQiOjE3Mjc1NDQwMjYsImV4cCI6MTcyNzU0NDA4Nn0.nm5A8Sbpg2aM811icSh5Au4Wigql4rOzRb0eKDW8Hz4",
+      "sourceStationUuid": "ec0e9fac-b75c-4f3b-8477-b5042a14ca68",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Vivid Voice",
+      "url": "https://stream.zeno.fm/xuin6ocdc2juv",
+      "sourceStationUuid": "80b6b9c0-9692-4829-bc11-cdb0956d627d",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "EthiOldies",
+      "url": "https://www.ethioldies.com/listen/ethioldies/radio.mp3",
+      "sourceStationUuid": "b3a4ecc3-7b00-4f2c-9de6-dde0e3bbe4d7",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Prensa Latina",
+      "url": "https://cdn4.onstream.audio:9267/stream",
+      "sourceStationUuid": "80b438a6-537d-468f-b365-1e376289247b",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Waar Fi FM 104.9 Sébikhotane",
+      "url": "https://stream.zeno.fm/rmg4rfewweruv",
+      "sourceStationUuid": "393c6783-676a-42aa-ad9f-019850e3f601",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "GMS FM 89.3 Ziguinchor",
+      "url": "https://myfm.acan.group/radio/8140/radio.mp3?1690707378",
+      "sourceStationUuid": "3ccaf86c-afe5-47ae-82f2-1d6eff7cb83f",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Thiossane",
+      "url": "https://listen.senemultimedia.net:8112/stream",
+      "sourceStationUuid": "0e3d65a4-98a9-43a1-81a8-05647c85d886",
+      "qualityScore": 76,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "الشيخ فارس عباد",
+      "url": "https://qurango.net/radio/fares_abbad",
+      "sourceStationUuid": "55ecc6c2-4d2a-4725-ad0d-f4d61599341f",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "CENTRAL RADIO 98.5",
+      "url": "https://centralstream.zbc.co.zw:8000/radio.mp3",
+      "sourceStationUuid": "210971ef-fd09-42bc-99cb-417a18fef580",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Nehanda Radio",
+      "url": "https://eu4.fastcast4u.com/proxy/lancguma?mp=/1",
+      "sourceStationUuid": "1657e161-f098-4549-b2f4-40493e3d9be6",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Caraibes FM",
+      "url": "https://stream-21.zeno.fm/avr8uenbm1duv?zs=HEEdTMZyQ6uSZRff0P3ubg",
+      "sourceStationUuid": "3125613c-4ac8-4c05-bfce-97cfa75bfb4d",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Halaal Media",
+      "url": "https://stream.zeno.fm/rqx24qj7offvv",
+      "sourceStationUuid": "ca56cd1c-50b2-44ca-a7af-070b88f99031",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Metraf FM 103.7 Dakar",
+      "url": "https://stream.zeno.fm/66yrv69ffv8uv",
+      "sourceStationUuid": "c1fb30d3-5843-4116-a6a9-b8d89b839bf6",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radioplus Fever",
+      "url": "https://streamer.radio.co/s3fe39a4a4/listen",
+      "sourceStationUuid": "beb06313-7d5c-4627-8360-f14b68e0e83d",
+      "qualityScore": 75,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RADIO ALFA - CV",
+      "url": "http://uk6freenew.listen2myradio.com:10110/stream",
+      "sourceStationUuid": "0e45d442-4c22-463b-acf7-5588edc24bb6",
+      "qualityScore": 75,
+      "reason": "https_required"
+    },
+    {
+      "name": "Powermix FM",
+      "url": "https://cast.iplayradio.net/listen/powermixfm/stream",
+      "sourceStationUuid": "7b4fcdc7-4e59-47cf-8062-87123715b4a5",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Jawhara FM",
+      "url": "http://streaming2.toutech.net:8000/jawharafm",
+      "sourceStationUuid": "961ee9aa-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "الشيخ صلاح بو خاطر",
+      "url": "https://qurango.net/radio/slaah_bukhatir",
+      "sourceStationUuid": "26e47152-04dd-42e1-bd3a-8b83fe88e357",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Panorama FM",
+      "url": "https://shls-panoramafm-prod-dub.shahid.net/out/v1/66262e420d824475aaae794dc2d69f14/index.m3u8",
+      "sourceStationUuid": "17bae22b-590b-4ce1-8bee-4a1c66277a60",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Amor FM 93.9",
+      "url": "https://player.hostingtico.com/proxy/8094",
+      "sourceStationUuid": "c459c782-9605-412e-befe-f29dd5defe7c",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "CLUB DANCE MUSIC",
+      "url": "https://stream.zeno.fm/5x4sda9kxtzuv",
+      "sourceStationUuid": "70e47c55-78f5-4270-b496-0c63117c7cb6",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RADIO BBC NEWS HAITI",
+      "url": "http://stream.zeno.fm/hpdayz31vd0uv",
+      "sourceStationUuid": "6b0c6c56-9f8e-49dd-a921-23dfe98c4bfc",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "AL-QURAN BANGLA",
+      "url": "http://66.45.232.131:9994/",
+      "sourceStationUuid": "42135588-75d9-11ea-b1cf-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Ullash",
+      "url": "http://stream.zeno.fm/gpgkgp9mp18uv.mp3",
+      "sourceStationUuid": "46e58cb0-de1f-4664-a5a5-0807d1ef8c0f",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Halaal Radio",
+      "url": "https://stream.zeno.fm/rqx24qj7offvv",
+      "sourceStationUuid": "39ac64ba-e165-44a5-a497-41e5219648e5",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Cuban Flow Radio",
+      "url": "http://nap.casthost.net:9194/stream.mp3",
+      "sourceStationUuid": "bd958dc1-2c06-41e1-b737-6dc864375a62",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "CubanFlow Radio",
+      "url": "http://nap.casthost.net:9194/",
+      "sourceStationUuid": "b85c9947-7b10-4656-a08a-f0579b4a1e40",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RNA Madagascar",
+      "url": "http://drs-live-rna.gasy-internet.info:9001/;",
+      "sourceStationUuid": "2fcb9b03-c68f-11e8-a498-52543be04c81",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio des jeunes (RDJ)",
+      "url": "http://rdj966.net:8000/rdj966.mp3",
+      "sourceStationUuid": "1b34da1a-246d-4fcb-9d33-1af386e1c064",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RDJ",
+      "url": "http://rdj966.net:8000/rdj966.mp3",
+      "sourceStationUuid": "74bde3b3-b705-4131-96e4-d293d36912c0",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Dakar Musique",
+      "url": "http://listen.senemultimedia.net:8090/stream",
+      "sourceStationUuid": "aaa5f838-2dea-4e70-8d03-b536265bdbfc",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Timtimol FM 91.9 Ourossogui",
+      "url": "https://stream.zeno.fm/4yx608hnu1duv",
+      "sourceStationUuid": "33fc6dec-5199-4d1b-b276-d070f01ddd20",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Bamtaare FM 103.4 Dodel",
+      "url": "https://stream.zeno.fm/n1mugn1am1duv",
+      "sourceStationUuid": "b3875d68-2cbc-4a70-9a7e-8ab45739b363",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Grandes Clássicos da Música Moçambicana ",
+      "url": "https://stream-177.surfernetwork.com/bm29ouxe0hrtv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJibTI5b3V4ZTBocnR2IiwiaG9zdCI6InN0cmVhbS0xNzcuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6InU0ek1rX19LVDBTYzduWFc0ejJ3b3ciLCJpYXQiOjE3OTM1NTgzNTksImV4cCI6MTc5MzU1ODQxOX0.sWg7X83KK9yCDnCu8IW4DC6U_h72txY0Q9ZUHGdrkSI",
+      "sourceStationUuid": "09576e68-21af-497f-9f0b-d04875cef2e0",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Grandes Clássicos da Música Moçambicana ",
+      "url": "https://stream-177.surfernetwork.com/bm29ouxe0hrtv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJibTI5b3V4ZTBocnR2IiwiaG9zdCI6InN0cmVhbS0xNzcuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IndWQWpkZ3hjUWVpSzJFUzBjWjkzVXciLCJpYXQiOjE3OTM1MDk3NjYsImV4cCI6MTc5MzUwOTgyNn0.UI6i4Of2DpcLEzIVI6oB3zhrc5EenUQl40Zu3Ot9_40",
+      "sourceStationUuid": "4a562e05-5294-4220-b736-c0b97636f8e2",
+      "qualityScore": 74,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "KONPA MIX RADIO!",
+      "url": "http://streaming.live365.com/a15951",
+      "sourceStationUuid": "3fb39881-cf61-11e8-a54a-52543be04c81",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Campesina Cubana",
+      "url": "https://radiocampesinacubana.stream.laut.fm/radiocampesinacubana?t302=2026-10-27_23-15-23&uuid=60208d29-bfb6-22d2-e3a4-9521c1f7a0ec",
+      "sourceStationUuid": "aefb9ed3-da01-4a43-94f7-4ba2ae1b5dcf",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Prensa Latina - Agencia Informativa Latinoamericana",
+      "url": "https://cdn4.onstream.audio:9267/stream?download=false",
+      "sourceStationUuid": "6a4e16db-a938-4288-afc5-d5779e4ae035",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Diassing FM 93.9 Marsassoum",
+      "url": "https://stream.zeno.fm/veaguaqvvk8uv",
+      "sourceStationUuid": "66acbb1f-aca3-4d7d-84a0-f72ae945a9b4",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Keur Massar",
+      "url": "https://stream.keurmassar.info/",
+      "sourceStationUuid": "62d1ac44-77ba-4b45-850b-21a81763fa14",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Plus - Indiz",
+      "url": "https://streamer.radio.co/sed5c5a375/listen",
+      "sourceStationUuid": "3447ded9-0b52-4f59-ad6b-d1a7259fdf28",
+      "qualityScore": 73,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "تراتيل",
+      "url": "https://qurango.net/radio/tarateel",
+      "sourceStationUuid": "a9bee505-526e-4c7c-bf03-9797bbc8e28b",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "قراءات متنوعة ",
+      "url": "https://qurango.net/radio/mix",
+      "sourceStationUuid": "6d7bb86d-65bc-4b84-9202-0fc79d2e203c",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "راديو جنجر للاطفال",
+      "url": "https://arabkidsradio.art/radio/8000/radio.mp3",
+      "sourceStationUuid": "b982c5dc-a5f6-4319-834f-4145127e068a",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "آيات السكينة",
+      "url": "https://qurango.net/radio/sakeenah",
+      "sourceStationUuid": "f0db8b0c-784b-40fa-b67b-0fb20291ab64",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "في ضلال السيرة النبوية",
+      "url": "https://qurango.net/radio/fi_zilal_alsiyra",
+      "sourceStationUuid": "cfc734ad-6e1b-4e04-9a4b-6932f2f78ca7",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Faro del Caribe 97.1 FM y 1080 AM",
+      "url": "https://sp.unoredcdn.net/8032/stream",
+      "sourceStationUuid": "ab7d6817-f9f3-4540-be94-7378cc4cc3f8",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "95.5 Jazz ",
+      "url": "https://streaming.radio.co/s36bd2a451/listen",
+      "sourceStationUuid": "e367b7d5-c51c-4c6e-8442-019cc028d159",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Rádio Costa (Archipiélago Uno)",
+      "url": "https://radio.archipielago.uno/radiocosta",
+      "sourceStationUuid": "e295f5e9-76c9-46f8-85f9-e95f4d453b8e",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Canal Radio Cruces Cienfuegos ",
+      "url": "https://stream.laut.fm/canalradio",
+      "sourceStationUuid": "ba490e3e-bff5-4702-89a7-0015cbe2d1b1",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Canal Radio Cruces Cienfuegos ",
+      "url": "https://stream.laut.fm/canalradio",
+      "sourceStationUuid": "ddced9c8-67ff-4bcd-9a24-178ab7ae6fbf",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RADIO RFA ANDAPA",
+      "url": "https://s12.myradiostream.com/20048/listen.mp3",
+      "sourceStationUuid": "79125ba7-2b6b-4814-a90f-f495b0bde3e0",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "H24 Senegal",
+      "url": "https://listen.senemultimedia.net:8072/stream",
+      "sourceStationUuid": "b7f8fa40-7be5-4407-ba9e-df6d984aea53",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Mas 99.7 FM",
+      "url": "https://kadushi.westream.cloud/listen/mas99/live",
+      "sourceStationUuid": "da169b36-d453-450e-90c9-274c65c15b2c",
+      "qualityScore": 72,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Tunisie Tataouine",
+      "url": "http://rtstream.tanitweb.com/tataouine",
+      "sourceStationUuid": "8fd71912-47d5-49ec-b587-067cdd656218",
+      "qualityScore": 71,
+      "reason": "https_required"
+    },
+    {
+      "name": "Sodais",
+      "url": "https://backup.qurango.net/radio/abdulrahman_alsudaes",
+      "sourceStationUuid": "5364572f-d596-4b29-b9f7-db2313f4ff65",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Tunisie Culturelle",
+      "url": "http://rtstream.tanitweb.com/culturelle",
+      "sourceStationUuid": "b330bfd3-c757-4fea-8bee-ef49f97af878",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Live FM ",
+      "url": "https://stream.aiir.com/dbv0rxpwp6ytv",
+      "sourceStationUuid": "09cf6598-9899-4ff3-bb90-25bd517b7375",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Avance Radio",
+      "url": "https://radios.solumedia.com:6512/;",
+      "sourceStationUuid": "fb523cfe-4ce5-4cab-9570-f2c784c84317",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Planet 107.5",
+      "url": "https://stream20.usastreams.com/8094/stream",
+      "sourceStationUuid": "b26b8f25-cdd7-4f27-a49f-5094caf5963e",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Colosal FM 88.3",
+      "url": "https://5eac7b031d945.streamlock.net/canal3/canal3/playlist.m3u8",
+      "sourceStationUuid": "9bdd83b5-0b0e-48d7-871c-b288fae7c06a",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Estereo Clase 92.9 FM",
+      "url": "https://stream.zeno.fm/k6grbcx0zceuv",
+      "sourceStationUuid": "a99825c0-67ae-41c8-bd89-da28b5b9b4a7",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RadioActiva 99.7 Honduras",
+      "url": "https://stream.zeno.fm/fh8qfg75puquv",
+      "sourceStationUuid": "66472bdf-94aa-4a60-81ab-126f05d8bb70",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Jeanvonvon",
+      "url": "https://stream-152.zeno.fm/28zya4hubwzuv?zs=KHC-EIFRRNCzl-jbVyJyjg",
+      "sourceStationUuid": "48e1242a-45f8-4263-86bf-21d4886e42ab",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Uttorbango Betar",
+      "url": "http://stream.zeno.fm/spqbxkqxdf9uv",
+      "sourceStationUuid": "3bb1e37c-f4bb-4ec4-b1d7-ce384a8028a2",
+      "qualityScore": 71,
+      "reason": "https_required"
+    },
+    {
+      "name": "music",
+      "url": "http://mediaserv38.live-streams.nl:8006/live",
+      "sourceStationUuid": "4c2837e3-b459-46a9-9af4-530fdf712bae",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Caster",
+      "url": "https://stream.laut.fm/canalradio",
+      "sourceStationUuid": "e96afa15-0e55-4389-a3de-45af37b46e00",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Dakar Musique",
+      "url": "https://stream.dakarmusique.com/",
+      "sourceStationUuid": "95b1f36c-6a28-4c0e-bbfb-9b3e9ebe9cf4",
+      "qualityScore": 71,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Ebnézer Rádio",
+      "url": "http://08.stmip.net:10028/;;",
+      "sourceStationUuid": "2351337a-0f5e-413a-b558-a2bc0ca25f22",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Absolute country ",
+      "url": "http://strm112.1.fm/acountry_mobile_mp3",
+      "sourceStationUuid": "53880d37-bace-4589-9d7f-9f96b4d564ca",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Tunisie Nationale",
+      "url": "http://rtstream.tanitweb.com/nationale",
+      "sourceStationUuid": "2e7c26a3-3796-42cc-acee-1ef607088246",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "KnOOz FM",
+      "url": "http://streaming.knoozfm.net:8000/knoozfm",
+      "sourceStationUuid": "500bc504-c47f-46bc-9c9a-16e15bee2353",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Tunisie Jeunes",
+      "url": "http://rtstream.tanitweb.com/jeunes",
+      "sourceStationUuid": "5bdf14c4-12dd-49c0-a931-53fc5898b3bc",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Tunisie Sfax",
+      "url": "http://rtstream.tanitweb.com/sfax",
+      "sourceStationUuid": "82a04c36-2885-4e19-8c4b-6eda5a2ae90d",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "oxygene fm",
+      "url": "http://stream.radios-arra.fr:8000/oxygenefm",
+      "sourceStationUuid": "5ec5f732-cb9c-408b-8391-b583962984d8",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Tunisie Culturelle",
+      "url": "http://rtstream.tanitweb.com/culturelle",
+      "sourceStationUuid": "cd370991-b259-423b-a3d3-b972eb2265aa",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "أذكار الصباح",
+      "url": "https://qurango.net/radio/athkar_sabah",
+      "sourceStationUuid": "a66ea931-c72f-4e37-b880-96a98c1100cd",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Sfax FM",
+      "url": "http://rtstream.tanitweb.com/sfax",
+      "sourceStationUuid": "447ea42a-ee66-4990-9f73-acb11d3e6968",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "JAZZ 95.5 FM",
+      "url": "https://streaming.radio.co/s36bd2a451/listen",
+      "sourceStationUuid": "6fad8651-a288-47a1-8bf2-3831c604325c",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "1 FM Hits Radio ",
+      "url": "https://stream.zeno.fm/yg1gkzwabzzuv",
+      "sourceStationUuid": "d5bc0c1b-53f2-43a2-ae65-7b7e39cd478b",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Progreso HN",
+      "url": "https://streamingcwsradio30.com:7045/stream",
+      "sourceStationUuid": "3b2a5f05-0ff9-4913-bd62-7572b9c4999a",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radyo Tipiti",
+      "url": "https://a8.asurahosting.com:7530/stream",
+      "sourceStationUuid": "8cddbb0c-73e6-4290-b52b-fdf391e8abef",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "AL-QURAN BANGLA",
+      "url": "http://66.45.232.131:9994/;stream/1/;",
+      "sourceStationUuid": "c6428c62-75d9-11ea-b1cf-52543be04c81",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "fm addis 97.1",
+      "url": "http://stream.zeno.fm/7tzrhrap7yzuv",
+      "sourceStationUuid": "598249da-2075-44b3-93c2-3d210b750108",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "jazz Ethiopia world ",
+      "url": "http://mediaserv38.live-streams.nl:8006/live",
+      "sourceStationUuid": "36b1497e-d57f-47d1-8826-8a393e120cea",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Mirt Internet Radio",
+      "url": "http://stream.zeno.fm/akmuznguawzuv",
+      "sourceStationUuid": "c945d723-ff40-456d-83a6-19c4f8b84e9c",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "jazz",
+      "url": "http://mediaserv38.live-streams.nl:8006/live",
+      "sourceStationUuid": "e22de1ef-1524-411d-b2b7-60391a9c65d2",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Don Bosco",
+      "url": "http://onair15.xdevel.com:9248/;",
+      "sourceStationUuid": "94f00da6-4a0a-460e-b2cb-0eb8060ab2cb",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Rock Madagascar",
+      "url": "https://tanjona.radioca.st/stream",
+      "sourceStationUuid": "5616ee52-e903-4913-8fe4-60fe35190e99",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "H24",
+      "url": "http://listen.senemultimedia.net:8070/stream",
+      "sourceStationUuid": "71300488-0398-4cc6-9007-d2f43c506349",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio AI",
+      "url": "https://a13.asurahosting.com/listen/radio_ai/radio.mp3",
+      "sourceStationUuid": "f6d47d79-f4e4-452f-8bfb-92aed1ba8760",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Manooré FM 89.4 Dakar",
+      "url": "https://stream.zeno.fm/sad0xwh0mg8uv",
+      "sourceStationUuid": "3e0f7c61-3613-48f6-adff-bb709e086f27",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Tamizen",
+      "url": "https://c34.radioboss.fm:18023/stream",
+      "sourceStationUuid": "9cae78d5-3341-4e29-ab1d-9aa9915b8cc4",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Paradise FM 80's & 90's",
+      "url": "https://stream.paradisefm.cw/80s90s",
+      "sourceStationUuid": "9f848be9-c47b-4f84-b0ab-83d8c7cc9a69",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Slam 101.1 - Haggatt Hall",
+      "url": "http://usa4.fastcast4u.com:5006/;",
+      "sourceStationUuid": "9630d09d-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "📻 Radio Shatta Movement",
+      "url": "https://stream-178.zeno.fm/pbnss8oxyluuv",
+      "sourceStationUuid": "7d827f0e-85bc-4601-80d4-77d4391f60cf",
+      "qualityScore": 70,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "قراءات متنوعة ",
+      "url": "https://qurango.net/radio/mix",
+      "sourceStationUuid": "3f402c57-dcd4-4c70-9431-d0b3da3d4a14",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Live FM",
+      "url": "https://stream.aiir.com/dbv0rxpwp6ytv",
+      "sourceStationUuid": "104dc6c9-bfe7-464b-bf4f-e485a921c109",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Planet 107.5",
+      "url": "https://stream20.usastreams.com/8094/stream",
+      "sourceStationUuid": "0203970c-2990-4a72-93cb-fa5a7b2496c3",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Dabar Radio",
+      "url": "https://a1.asurahosting.com:8720/radio.mp3/;",
+      "sourceStationUuid": "d0016192-6508-43a1-bf77-b87ab77ce7e8",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Groove100 FM",
+      "url": "https://a9.asurahosting.com/listen/groove100_fm/radio.mp3",
+      "sourceStationUuid": "bb34c088-e61e-45a7-a9c2-5655000b9c90",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "FM FAMA 97.7",
+      "url": "https://s9.myradiostream.com/:46498/stream",
+      "sourceStationUuid": "68fc7deb-a3c6-4562-b402-b47be67e9a67",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Stereo Dimensión - La 96",
+      "url": "https://rr5100.globalhost1.com:7328/stream",
+      "sourceStationUuid": "02f71899-4f63-4768-8d79-36da4556251c",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Cadena Radial del Centro 89.7 FM",
+      "url": "https://sonic.portalfoxmix.cl/8442/stream",
+      "sourceStationUuid": "ad1c8b70-7a8e-4ae4-96d3-9d28dbeab2e8",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Girasol Stereo 102.3 FM",
+      "url": "https://stream.playerlive.info:8037/live.aac",
+      "sourceStationUuid": "e8b033f7-3c57-4e34-9959-882b14eeb104",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radyo ACICORP",
+      "url": "https://radio.acicorpinc.com/listen/radio/radio.mp3",
+      "sourceStationUuid": "ce516ac3-13e2-4259-88a0-69f033593818",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Humilite",
+      "url": "https://stream-286.surfernetwork.com/qhlllaz21cmuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJxaGxsbGF6MjFjbXV2IiwiaG9zdCI6InN0cmVhbS0yODYuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6Ik9LUUdmdnhsUmlLeG5ENWd3bV94ekEiLCJpYXQiOjE3OTM1MDQyODIsImV4cCI6MTc5MzUwNDM0Mn0.a0xHyaJ1yzMYR2p6yVNgoRiU2yvfjJDeqX1FEJQqHuU",
+      "sourceStationUuid": "b63f7c1c-4851-4536-a559-92df0b7e95a5",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Television Supreme (RTVS)",
+      "url": "https://stream.zeno.fm/bdkwbv3rt98uv",
+      "sourceStationUuid": "07990ba9-401a-4059-b0fc-a01e873ba85c",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": " Bisrat FM 101.1 Addis Ababa · 101.1 FM",
+      "url": "https://bisratfm-atunwadigital.streamguys1.com/bisratfm",
+      "sourceStationUuid": "22dd8fd6-ee1a-445b-af52-18dc574cff2d",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "jazz",
+      "url": "http://mediaserv38.live-streams.nl:8006/live",
+      "sourceStationUuid": "7ba493cb-7be2-498b-8726-2403d972be14",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Don Bosco Madagascar",
+      "url": "http://onair15.xdevel.com:9248/;stream.mp3",
+      "sourceStationUuid": "fdd518db-f5ac-408b-a262-5e41155f6c8d",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Top Radio 102.8",
+      "url": "https://listen.radioking.com/radio/309053/stream/356036",
+      "sourceStationUuid": "7c0a647e-eda5-4eab-8bd7-e91ad62d6fab",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Thiossane",
+      "url": "https://stream.radiothiossane.com/",
+      "sourceStationUuid": "f84197c1-a62b-42d7-8dd0-8a01180a628d",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "OUi Radio Rodrigues",
+      "url": "https://mu1stream.mushost.com:8554/",
+      "sourceStationUuid": "385b3d31-8952-464f-a1f1-a86b68d3c35e",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Travel Radio Live",
+      "url": "https://travel-radio-live.radiocult.fm/stream",
+      "sourceStationUuid": "c3fc59e5-c064-44a4-be84-e414e4b3343e",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Paradise FM 60s & 70s",
+      "url": "https://stream.paradisefm.cw/60s70s",
+      "sourceStationUuid": "41948753-a7ca-40ce-852d-554a1e5cee69",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Paradise FM 00's & 10's",
+      "url": "https://stream.paradisefm.cw/00s10s",
+      "sourceStationUuid": "a2ae6442-1297-4676-95ab-4fbf8d1a5ccb",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Paradise FM Disco Inferno",
+      "url": "https://stream.paradisefm.cw/ParadiseDiscoInferno",
+      "sourceStationUuid": "8cd9bdb8-d6ab-42de-853b-4f009dcc76d9",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Paradise FM Nonstop",
+      "url": "https://stream.paradisefm.cw/ParadiseNonstop",
+      "sourceStationUuid": "a8d28ee6-dcb3-4ce9-a6ea-0ca0bfc7f721",
+      "qualityScore": 69,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Rádio Escola",
+      "url": "https://centova87.instainternet.com/proxy/cfjluanda?mp=/stream",
+      "sourceStationUuid": "200fc511-8e2c-42c3-a676-bb3d20b3c21c",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "FM Afro",
+      "url": "https://stream.zeno.fm/d91bup73pf9uv",
+      "sourceStationUuid": "09ed738e-43ad-4c80-afd6-ff99cd4a8615",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Absolute country ",
+      "url": "http://strm112.1.fm/acountry_mobile_mp3",
+      "sourceStationUuid": "20bbd0c4-a63d-4a8c-a7aa-e963297c5c12",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Correio da Kianda",
+      "url": "https://audio.serv.pt/8036/stream",
+      "sourceStationUuid": "b8189b1a-0b0a-4d3a-b79f-5db905ba7987",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "إذاعة الفتاوى العامة",
+      "url": "https://qurango.net/radio/fatwa",
+      "sourceStationUuid": "435d68ab-5642-4b6e-b67f-e3845b2b2c7c",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Influencia Positiva Radio",
+      "url": "https://panel.gruponovaradial.com/listen/influencia_positiva_radio/radio.mp3",
+      "sourceStationUuid": "41b94c5c-71fc-497a-8972-c8e8585153aa",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Fides 93.1",
+      "url": "https://stream20.usastreams.com/8004/;",
+      "sourceStationUuid": "cd442ddf-1205-4383-9909-9dc1b1b6877f",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Encuentro Digital 104.3 FM",
+      "url": "https://stream.zeno.fm/n1dn94e661zuv",
+      "sourceStationUuid": "760edad7-bf77-4be4-91e3-6343a2262820",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radioactiva 99.7 Honduras",
+      "url": "https://stream.zeno.fm/6n7fp9t2pceuv",
+      "sourceStationUuid": "aec95429-5e9d-4115-b0c3-8250350e3ad5",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Dee Jay",
+      "url": "https://stream.zeno.fm/6wpxyt9htg0uv",
+      "sourceStationUuid": "3234f4c1-a6e9-4c67-bfe7-00befad2a8d8",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "National FM ZBC",
+      "url": "https://mainradiostreaming.zbc.co.zw:8020/national.mp3",
+      "sourceStationUuid": "ad214590-ed53-4b67-8747-cdbcbc953d0e",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Power FM Zimbabwe",
+      "url": "https://backupradiostreaming.zbc.co.zw:8000/radio.mp3",
+      "sourceStationUuid": "3fb04841-0a0b-495e-a82c-7a48ab665354",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Reggae Ambassadors Radio",
+      "url": "https://stream.zeno.fm/mvtbzpenhzzuv",
+      "sourceStationUuid": "279653f4-a52b-49d8-a502-2550c888e5f9",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Boursiquot's FM 101.7",
+      "url": "https://stream.zeno.fm/yoz610evcpltv",
+      "sourceStationUuid": "4aac09d9-cc2b-4a3b-980b-1dbe02962bfd",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Jamesen Show ",
+      "url": "https://stream.zeno.fm/aparrwtkwyzuv",
+      "sourceStationUuid": "55b64833-f481-4dd2-9645-e59ac6d1d9e1",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Hostal Azul Radio ",
+      "url": "https://stream.zeno.fm/b4m2tic2ibbtv",
+      "sourceStationUuid": "b1f7984f-d33a-45f0-bebe-83e3b12a75e1",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Vazo Gasy",
+      "url": "https://stream.radiovazogasy.com/stream?1.mp3",
+      "sourceStationUuid": "e96fb826-5e77-4845-aedb-9b17c8e9c520",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Dakar Musique",
+      "url": "http://listen.senemultimedia.net:8090/stream",
+      "sourceStationUuid": "3e587068-3e15-4ac9-8cd0-f86c5c784f0b",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Rádio Miramar",
+      "url": "https://nl.digitalrm.pt:8150/stream",
+      "sourceStationUuid": "af946ff9-2910-4ed2-8fe3-40010f67a03b",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "MENYA FM",
+      "url": "https://stream.zeno.fm/k5rq7qwkggauv",
+      "sourceStationUuid": "8518968f-2b34-4959-a941-3c86ddd302b4",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "MENYA FM",
+      "url": "https://stream.zeno.fm/k5rq7qwkggauv",
+      "sourceStationUuid": "b099e625-1ed4-401c-81ae-115ef6fa1388",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Ritmo Antiyano FM",
+      "url": "https://ec6.yesstreaming.net:3105/stream",
+      "sourceStationUuid": "3a1b3412-65a6-4d45-ad9b-7c02a924ac12",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Meio Norte FM 99.9",
+      "url": "https://webradio.amsolution.com.br/radio/8280/meionorte",
+      "sourceStationUuid": "c895652a-090e-4908-86dd-d2feffef9a27",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Eri-TV",
+      "url": "https://jmc-live.ercdn.net/eritreatv/eritreatv.m3u8",
+      "sourceStationUuid": "eb9c8d79-43a1-4255-9bc9-38dc3a70daef",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RCV Radio Cabo Verde",
+      "url": "https://a3.asurahosting.com:6980/radio.mp3",
+      "sourceStationUuid": "81e707dc-a9fd-4984-993f-5244b4a9330c",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "RCV Radio Cabo Verde",
+      "url": "https://a3.asurahosting.com:6980/radio.mp3",
+      "sourceStationUuid": "d8b092c2-58e2-4d0e-aa26-5c763099a006",
+      "qualityScore": 68,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Rádio MFM",
+      "url": "https://centova87.instainternet.com/proxy/radiomfm?mp=/live",
+      "sourceStationUuid": "05f8eeee-3ecc-4959-bc13-9bb5499756ba",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": ".صور من حياة الصحابة",
+      "url": "https://qurango.net/radio/sahabah",
+      "sourceStationUuid": "8a2c22b7-5350-4ed2-9781-a4f36eccd230",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "الإختيارات الفقهية لإبن باز",
+      "url": "https://qurango.net/radio/alaikhtiarat_alfiqhayh_bin_baz",
+      "sourceStationUuid": "9d2d1d5c-7cbf-4a15-956f-69f4316f1ec6",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Planet 107.5",
+      "url": "https://stream20.usastreams.com/8094/stream",
+      "sourceStationUuid": "a1843fcd-8f70-4342-8983-f1d9341ae275",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": " XY 90.5 FM - Tegucigalpa, Honduras",
+      "url": "http://ice42.securenetsystems.net/XY905",
+      "sourceStationUuid": "25554e01-23c1-4956-b414-71f4ef375353",
+      "qualityScore": 67,
+      "reason": "https_required"
+    },
+    {
+      "name": "263 HiT Radio",
+      "url": "https://altair.streamerr.co/8180/stream",
+      "sourceStationUuid": "a7a0cea0-b9e0-4199-b208-fbfc396af413",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Investment Radio Africa (IRA)",
+      "url": "https://stream.zeno.fm/pb9w7wk6rxhvv",
+      "sourceStationUuid": "c6a8489b-4d3a-428c-ac13-9454c7397d96",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Skyz Metro FM",
+      "url": "https://stream.zeno.fm/2634b6n4qy8uv",
+      "sourceStationUuid": "0036a7aa-257e-4d3c-8b3c-ea6c16873360",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Jazz Ethopia World",
+      "url": "http://mediaserv38.live-streams.nl:8006/live",
+      "sourceStationUuid": "44bdfe71-e1ce-4852-ad81-0836401df9d3",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "The One 98.1 FM",
+      "url": "http://108.178.16.190:8000/981fm.mp3",
+      "sourceStationUuid": "447f08af-85b4-435b-87d8-49446ea0ddb7",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Y103.3 - Haggatt Hall",
+      "url": "http://usa4.fastcast4u.com:5336/;",
+      "sourceStationUuid": "96300843-0601-11e8-ae97-52543be04c81",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "NRJ guadeloupe",
+      "url": "https://streaming.nrjaudio.fm/ou4w6dhtd2ko",
+      "sourceStationUuid": "4b337b11-44eb-4076-be7e-7f813492bd03",
+      "qualityScore": 67,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Rádio Essencial",
+      "url": "https://servidor22-3.brlogic.com:7338/live",
+      "sourceStationUuid": "c9902e2c-88ce-4a87-9b45-0bed984a6430",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio luanda fm line",
+      "url": "https://stream1.svrdedicado.org:7175/;",
+      "sourceStationUuid": "ef5342db-4336-4042-8bbb-b1babf712209",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Rádio Cuando Cubango 91.4 FM",
+      "url": "https://stream.zeno.fm/n5r034egx4zuv",
+      "sourceStationUuid": "a610e425-be6e-4a5e-b479-eb83db3aec7a",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": ".شهر رمضان",
+      "url": "https://qurango.net/radio/ramadan",
+      "sourceStationUuid": "317620d4-45dc-4a36-8d77-e6ce6a30ba45",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "أذكار المساء",
+      "url": "https://qurango.net/radio/athkar_masa",
+      "sourceStationUuid": "6ab08b76-b0a7-4f0f-836b-1a9633caa42c",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": ".beautiful recitation ",
+      "url": "https://qurango.net/radio/salma",
+      "sourceStationUuid": "0857be2a-4c33-4f86-910c-0b97e2c83a65",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Classics Pop & Rock",
+      "url": "http://c9.radioboss.fm:8035/stream",
+      "sourceStationUuid": "9ef65b19-b71f-4ffd-867a-b233085615a6",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "onda digital fm sancarlos",
+      "url": "https://radio.serviciosderadio.com/listen/onda_digital_fm_costa_rica/radio.aac",
+      "sourceStationUuid": "6bf0957e-724c-443a-be46-63df0480ecc4",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Islam Malawi",
+      "url": "https://s5.radio.co/s7b138c0fa/listen",
+      "sourceStationUuid": "e22b42d8-c4cb-44a8-b0e7-7ff32f159a48",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Tuntufye FM Radio",
+      "url": "https://stream.zeno.fm/ekhjwjjj0a0vv",
+      "sourceStationUuid": "9bdb2efa-d6e5-4728-9190-e67e96e780c1",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "zim NET radio",
+      "url": "https://zimnetradio.net/mainstream/radio.mp3",
+      "sourceStationUuid": "73bfef38-052a-44e5-bfa7-ad60ae3807d6",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Kasambabezi FM",
+      "url": "https://stream.zeno.fm/5b5i6nuqbxtvv",
+      "sourceStationUuid": "a1938cc0-5458-4f05-a4db-e1c95624e377",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "ThebesMedia Radio",
+      "url": "https://stream.zeno.fm/kgoj0wfkb91uv",
+      "sourceStationUuid": "301e0767-da09-435c-b193-0a886a8c9277",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Classic 263",
+      "url": "https://mainradiostreaming.zbc.co.zw:8030/radio.mp3",
+      "sourceStationUuid": "5c2dfdae-a9c7-4293-a807-9027a311c3de",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    },
+    {
+      "name": "Radio Bonpounou",
+      "url": "https://centova.wlservices.org/proxy/wiszuaec/stream/",
+      "sourceStationUuid": "5d97af74-e4df-4ac4-bec4-002d26f1eadd",
+      "qualityScore": 66,
+      "reason": "invalid_geo"
+    }
+  ],
+  "duplicate": [
+    {
+      "name": "Zitouna Zitouna FM",
+      "url": "https://radio.radiotunisienne.tn/radiozaitouna",
+      "sourceStationUuid": "a6c8c797-e8b5-4a82-b5eb-756062a17c90",
+      "qualityScore": 100,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Misk",
+      "url": "https://live.misk.art/stream",
+      "sourceStationUuid": "89a65395-9af4-4c9d-9300-d765029785e8",
+      "qualityScore": 100,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Tunisia Med",
+      "url": "https://azuracast.conceptradio.fr:8000/radio.mp3",
+      "sourceStationUuid": "a9dbed9f-f71b-4f06-af02-83227168215c",
+      "qualityScore": 100,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Ethio FM 107.8",
+      "url": "https://stream.zeno.fm/72y045deqeruv",
+      "sourceStationUuid": "4cc6b1aa-5bf4-4fa6-87d2-9c687a854f8a",
+      "qualityScore": 100,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "FM ADDIS 97-1",
+      "url": "https://stream.zeno.fm/rb6wbrap7yzuv",
+      "sourceStationUuid": "ead338ab-3b2b-4835-bad0-dcc270b102f4",
+      "qualityScore": 100,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Tizta ትዝታ FM",
+      "url": "https://stream.zeno.fm/55nlq5yzqlftv",
+      "sourceStationUuid": "1711b4da-1e44-49c1-98be-a690d8decacb",
+      "qualityScore": 100,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Ethiopian Orthodox Church Mezmur",
+      "url": "https://stream.zeno.fm/pfaho9uockwuv",
+      "sourceStationUuid": "89e889e1-124c-4c36-882b-c666ef83189b",
+      "qualityScore": 100,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Taem Radio ጣዕም ሬድዮ",
+      "url": "https://stream.zeno.fm/ffg8htkh1k0uv",
+      "sourceStationUuid": "9192cd80-b402-4b63-b265-066d065b8659",
+      "qualityScore": 100,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Hitradio Namibia",
+      "url": "https://s37.derstream.net/hitradio-namibia.mp3",
+      "sourceStationUuid": "1befb879-5c9c-454d-ac99-95710bd739ca",
+      "qualityScore": 97,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Activa Honduras",
+      "url": "https://stream.zeno.fm/6n7fp9t2pceuv",
+      "sourceStationUuid": "b424be26-51c4-48cf-b113-9fc29a923701",
+      "qualityScore": 96,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Rajshahi FM",
+      "url": "https://stream.zeno.fm/nxfshdayjrdvv",
+      "sourceStationUuid": "4ef03374-f664-4b2c-91b2-b37b9ab4c32a",
+      "qualityScore": 96,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Bizi Inter",
+      "url": "https://sonic.mediacp.eu/8040/;",
+      "sourceStationUuid": "9494e8b3-79b6-4a13-a51f-e36d75b120b6",
+      "qualityScore": 96,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Caboradio",
+      "url": "https://listen.radioking.com/radio/281506/stream/327253",
+      "sourceStationUuid": "83144f00-2e72-43a8-853e-a3a2f5643413",
+      "qualityScore": 95,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Biwi Inter",
+      "url": "https://sonic.mediacp.eu/8040/;",
+      "sourceStationUuid": "d35feeb6-8fee-4904-8154-07da8df64857",
+      "qualityScore": 95,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Ambiance FM",
+      "url": "https://stream.zeno.fm/0rehsamc9xxtv",
+      "sourceStationUuid": "050966be-de77-49f0-bad9-6ef200d219f3",
+      "qualityScore": 94,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Mellow Bangla",
+      "url": "https://radio.mellowbangla.com/stream",
+      "sourceStationUuid": "58940095-dc8b-477f-a7e1-cbac01932f5c",
+      "qualityScore": 94,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Mil Recuerdos Stereo",
+      "url": "https://sechin.grupocentroserver.com/radio/8060/radio.mp3",
+      "sourceStationUuid": "c54361d9-0e76-410c-815e-e577acbbcff5",
+      "qualityScore": 93,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "La salsa cubana",
+      "url": "https://stream.zeno.fm/uf2r0d5ny39uv",
+      "sourceStationUuid": "629c4148-251f-4de9-8f67-d6f255968eea",
+      "qualityScore": 93,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "ESDES Radio",
+      "url": "https://esdesradio.netpro.tv/listen/esdes_radio/radio.mp3",
+      "sourceStationUuid": "b5fe26d1-ef12-4a65-8761-80f7678693da",
+      "qualityScore": 93,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Nam Radio Local",
+      "url": "https://music-station.live/radio/8010/radio.mp3",
+      "sourceStationUuid": "290f4561-51d6-4a98-a4ea-73eb230f8e1d",
+      "qualityScore": 93,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "GD Dubai",
+      "url": "https://streaming.exclusive.radio/er/gratefuldead/icecast.audio",
+      "sourceStationUuid": "09b1f979-a307-4fdd-bacd-ffdaabe23921",
+      "qualityScore": 91,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": " La Top 102.9 FM - San Pedro Sula, Honduras",
+      "url": "https://us9.maindigitalstream.com/ssl/latop102",
+      "sourceStationUuid": "dd96c72f-3fbd-4bf7-b332-3882cc69bd6d",
+      "qualityScore": 91,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Rqdio Bizi Inter",
+      "url": "https://sonic.mediacp.eu/8040/;",
+      "sourceStationUuid": "9e1a3235-8d66-4a5b-a01c-a0fa43996f65",
+      "qualityScore": 91,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Rqdio Biwi Inter",
+      "url": "https://sonic.mediacp.eu/8040/;",
+      "sourceStationUuid": "71cb40e2-b4ec-4182-a339-dd3364fa9658",
+      "qualityScore": 91,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Dos (2) Costa Rica",
+      "url": "https://s5.radio.co/sd515b7b34/listen",
+      "sourceStationUuid": "cad28be0-3d75-4b8a-aef4-a951ff362706",
+      "qualityScore": 90,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "95.5 Jazz Radio",
+      "url": "https://streaming.radio.co/s36bd2a451/listen",
+      "sourceStationUuid": "1df6a2fe-bd24-4b65-8bb5-c7cb6a10c9c4",
+      "qualityScore": 90,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "RADIO GLOBO 88.5 MHZ",
+      "url": "https://api.condoristream.com/stream/radioglobo",
+      "sourceStationUuid": "53a6edc1-53c5-424d-82d9-faca86372a18",
+      "qualityScore": 90,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": " EXA FM Honduras: Tegucigalpa 100.5 FM / San Pedro Sula 89.3 FM / Choluteca 95.9 FM / Litoral 93.9 FM",
+      "url": "https://stream.zeno.fm/0n4tnx3wd5zuv",
+      "sourceStationUuid": "05b7441c-aad0-4bf3-a7dc-97cc4e312f4d",
+      "qualityScore": 90,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Today",
+      "url": "https://stream-285.surfernetwork.com/8wv4d8g4344tv",
+      "sourceStationUuid": "d41bb3e8-ebb1-4931-964f-0d9959c1f4cf",
+      "qualityScore": 90,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio JKKNIU",
+      "url": "https://stream.zeno.fm/risgdzpf1cxtv",
+      "sourceStationUuid": "b174d5db-bfb0-4274-b284-96fc98e81311",
+      "qualityScore": 90,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "CVCradio-online",
+      "url": "https://stream.zeno.fm/2ajykhn6m8hvv",
+      "sourceStationUuid": "d6de5e49-71b0-4db7-9f33-f2fde8a0044b",
+      "qualityScore": 90,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Emisora de Radio \"ATodaMecha\"",
+      "url": "https://stream.zeno.fm/gjexooyemj3uv",
+      "sourceStationUuid": "c0500a45-1322-4020-b45b-a9dd680a2787",
+      "qualityScore": 90,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Praia FM",
+      "url": "https://mpc1.mediacp.eu:8030/stream",
+      "sourceStationUuid": "3c04378f-7271-4f4c-80ed-3900752c525f",
+      "qualityScore": 90,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "EthiOldies",
+      "url": "https://www.ethioldies.com/listen/ethioldies/radio.mp3",
+      "sourceStationUuid": "a46114c6-db82-4d3b-a9da-4a981504f7ff",
+      "qualityScore": 89,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Kriola",
+      "url": "https://stream.laut.fm/kriola",
+      "sourceStationUuid": "650df02b-a707-484b-a56d-4e248d010d5a",
+      "qualityScore": 89,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "FRECUENCIA CCI",
+      "url": "https://streaming.radio.co/s6729aeaac/listen",
+      "sourceStationUuid": "aa7788b5-6ce3-4ff0-89cd-e66e63e83cc6",
+      "qualityScore": 88,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Ananda Marga Haiti",
+      "url": "https://stream-152.zeno.fm/vm8mgn3eewzuv?zs=HWkYw7B5S2C0W0cAcrdGZQ",
+      "sourceStationUuid": "2c833ee4-1104-40eb-92d6-994fc9b0edf9",
+      "qualityScore": 88,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "RCV+ Radio Cabo Verde Jovem",
+      "url": "https://a8.my-control-panel.com:8670/radio.mp3",
+      "sourceStationUuid": "d0cdbba0-70d5-45d8-ac11-ad9c8008a15d",
+      "qualityScore": 88,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Ribeira Brava FM - Ilha de Sao Nicolau",
+      "url": "https://sc1.xdevel.com/ribeirabrava",
+      "sourceStationUuid": "347ac67e-7d17-4c3f-aa66-43ed5df5972a",
+      "qualityScore": 88,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Bahrain Quran 106.1 FM",
+      "url": "https://5c7b683162943.streamlock.net/live/ngrp:radio-106-1_all/playlist.m3u8",
+      "sourceStationUuid": "952840ba-f2d8-42ca-9e5f-7e169b880c8c",
+      "qualityScore": 87,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Bimshire 106.1 FM",
+      "url": "https://listen.radioking.com/radio/635914/stream/700051",
+      "sourceStationUuid": "f37dd2b0-9c70-4079-a6b9-275256dc4b6b",
+      "qualityScore": 87,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "AfriRádio",
+      "url": "https://cast4.asurahosting.com/proxy/afriradi/stream",
+      "sourceStationUuid": "b0e6dd00-5909-4b82-aa43-9355f2ab05e0",
+      "qualityScore": 86,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Mil Recuerdos Stereo",
+      "url": "https://sechin.grupocentroserver.com/radio/8060/radio.mp3",
+      "sourceStationUuid": "8c15014f-d052-4837-8e21-07dc9d27a9e8",
+      "qualityScore": 86,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Cadena Roja",
+      "url": "https://stream.cadenaroja.com/radio.mp3",
+      "sourceStationUuid": "c486f7d9-0033-476c-aeba-7110cafbb774",
+      "qualityScore": 86,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Bien Etre FM",
+      "url": "https://stream.zeno.fm/zxg8t9gr3f8uv",
+      "sourceStationUuid": "033c7983-31f9-4470-a582-fa70dee478d3",
+      "qualityScore": 85,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Express FM",
+      "url": "https://expressfm.ice.infomaniak.ch/expressfm-64.mp3",
+      "sourceStationUuid": "6787cf45-924e-4cac-84e1-7f6675712ae3",
+      "qualityScore": 83,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Nosara",
+      "url": "https://sonicpanel.zonaradio.net/8038/stream",
+      "sourceStationUuid": "50171903-83dc-4c82-ae54-d853e3859833",
+      "qualityScore": 83,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "VOB 92.9 FM",
+      "url": "https://ice66.securenetsystems.net/VOB929",
+      "sourceStationUuid": "9bb54bbb-10ca-4c97-a379-7170ab22070b",
+      "qualityScore": 76,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Capitalk 100.4FM Harare",
+      "url": "https://edge.iono.fm/xice/162_medium.aac",
+      "sourceStationUuid": "3deb2ce9-86d6-4a4a-bdaa-7dbf96f5bc92",
+      "qualityScore": 75,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Kosmos 94.1",
+      "url": "https://edge.iono.fm/xice/88_high.mp3",
+      "sourceStationUuid": "274dff6e-7019-4dc4-8b19-ec93c6b8140d",
+      "qualityScore": 75,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "HOTT 95.3FM",
+      "url": "https://ice64.securenetsystems.net/HOTT953",
+      "sourceStationUuid": "a71b4957-e7d9-4d22-89fd-08d1311c12f8",
+      "qualityScore": 75,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Kuia Bue",
+      "url": "https://a11.asurahosting.com:7400/radio.aac",
+      "sourceStationUuid": "41eace33-d750-446d-8fff-05e041146ae5",
+      "qualityScore": 74,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Star FM 89.7",
+      "url": "https://edge.iono.fm/xice/159_medium.aac",
+      "sourceStationUuid": "977de2cd-f415-4085-82fe-f6b0c67f4d38",
+      "qualityScore": 74,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Kanaal 7",
+      "url": "https://zas3.ndx.co.za:8040/stream",
+      "sourceStationUuid": "bf97435c-1b44-45dc-9806-d072f80936c4",
+      "qualityScore": 74,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Rádio Vibrar Angola",
+      "url": "https://stream-175.surfernetwork.com/ousf94tzyhkuv?zt=eyJhbGciOiJIUzI1NiJ9.eyJzdHJlYW0iOiJvdXNmOTR0enloa3V2IiwiaG9zdCI6InN0cmVhbS0xNzUuc3VyZmVybmV0d29yay5jb20iLCJ0bSI6ZmFsc2UsInJ0dGwiOjUsImp0aSI6IlNOdG5zNW4xU29lN2I2NmpoWFJkTUEiLCJpYXQiOjE3OTM1NjUxMjAsImV4cCI6MTc5MzU2NTE4MH0._jegU_HccHTvTWdcvJqA7DsAh_qmS08tZZjUXfI6waM",
+      "sourceStationUuid": "cef977be-e491-48d9-bf09-7c87d5d7a8a7",
+      "qualityScore": 73,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Luanda",
+      "url": "https://paineldj5.com.br:20089/stream",
+      "sourceStationUuid": "50f9adb4-ecf9-4e83-b06d-7a89d5f74b9b",
+      "qualityScore": 73,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "Radio Diriá",
+      "url": "https://stream.zeno.fm/xk0xpwtc4ttvv.mp3",
+      "sourceStationUuid": "7cbecdf7-b7da-4e45-95e9-dad88ab08d90",
+      "qualityScore": 73,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "The BEAT 104.1 FM",
+      "url": "https://ice66.securenetsystems.net/THEBEAT1041",
+      "sourceStationUuid": "ebd20fbd-3b96-49f8-86d7-d962a6afbe26",
+      "qualityScore": 73,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": " Vox FM Honduras - Tegucigalpa 101.7 FM - San Pedro Sula 106.1 FM",
+      "url": "https://ice42.securenetsystems.net/VOXFM",
+      "sourceStationUuid": "42800d21-bb2e-43d0-a4e4-2e0567479c62",
+      "qualityScore": 71,
+      "reason": "duplicate_existing_station"
+    },
+    {
+      "name": "LIFE 97.5 FM",
+      "url": "https://ice64.securenetsystems.net/LIFE975",
+      "sourceStationUuid": "3727f977-ad4f-48d7-a1e7-878dc43e5ff6",
+      "qualityScore": 70,
+      "reason": "duplicate_existing_station"
+    }
+  ],
+  "failed": [],
+  "inconclusive": [
+    {
+      "name": "OUi Radio Rodrigues",
+      "url": "https://mu1stream.mushost.com:8554/",
+      "sourceStationUuid": "91be8181-df6c-4874-8f1a-dabd6fdc943e",
+      "qualityScore": 89,
+      "reason": "stream_inconclusive_network-or-invalid-url"
+    },
+    {
+      "name": "OUi Radio",
+      "url": "https://mu1stream.mushost.com:8443/",
+      "sourceStationUuid": "d7c6d471-0e42-4f73-8c2b-4c4203227d0e",
+      "qualityScore": 87,
+      "reason": "stream_inconclusive_network-or-invalid-url"
+    },
+    {
+      "name": "Radio La Mueve",
+      "url": "https://sunaer-stream.com:7007/LA_MUEVE_CADENA_CV_SD",
+      "sourceStationUuid": "810064be-94a8-45af-a0fb-a626133bdf25",
+      "qualityScore": 87,
+      "reason": "stream_inconclusive_network-or-invalid-url"
+    },
+    {
+      "name": "Radio Revolución",
+      "url": "https://stream.zeno.fm/ftcx2988uwzuv",
+      "sourceStationUuid": "dc8a3cf5-e847-4c46-a383-4d3d675d3c4a",
+      "qualityScore": 86,
+      "reason": "stream_inconclusive_http-401"
+    },
+    {
+      "name": "Tiquicia Rock",
+      "url": "https://usa19.fastcast4u.com:5860/;?type=http&nocache=1690470873",
+      "sourceStationUuid": "4e15caee-76eb-4fda-ab38-ed2bec14324d",
+      "qualityScore": 85,
+      "reason": "stream_inconclusive_network-or-invalid-url"
+    },
+    {
+      "name": "Dhaka FM",
+      "url": "https://play.dhakafm904.com/;",
+      "sourceStationUuid": "aab51d1e-4cd8-4e93-b844-27813f2dfbb6",
+      "qualityScore": 73,
+      "reason": "stream_inconclusive_network-or-invalid-url"
+    },
+    {
+      "name": "Energy 100 FM",
+      "url": "https://s2.stationplaylist.com:7094/listen.aac",
+      "sourceStationUuid": "92f0807a-d803-4451-96f1-93032a08baec",
+      "qualityScore": 72,
+      "reason": "stream_inconclusive_network-or-invalid-url"
+    },
+    {
+      "name": "Rádio Cidade - Beira 105.2 FM",
+      "url": "https://node.stream-africa.com:8443/RadioCidadeBeira",
+      "sourceStationUuid": "957804bb-ed53-4da1-9aa3-390a4a90559c",
+      "qualityScore": 69,
+      "reason": "stream_inconclusive_network-or-invalid-url"
+    }
+  ],
+  "suspicious": [
+    {
+      "name": "Radio Casino 98.3FM",
+      "url": "https://host.rowrigo.com/listen/radiocasino/radiocasino",
+      "sourceStationUuid": "0882f370-54f4-45c2-8468-aecbb09cf61b",
+      "qualityScore": 67,
+      "reason": "suspicious_name"
+    }
+  ],
+  "activeSource": "https://de1.api.radio-browser.info/json",
+  "yield": {
+    "admissionRate": 0.0762,
+    "probeSuccessRate": 0.8621,
+    "duplicateRate": 0.0915,
+    "failureRate": 0.1379,
+    "countriesWithZeroCoverage": 0,
+    "countriesSampled": 24
+  }
 }
